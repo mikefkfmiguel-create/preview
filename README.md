@@ -22,6 +22,12 @@ Cada secção do painel **fecha no título**, e fica fechada da próxima vez: s�
 demasiadas para estarem todas abertas, e quem está a mexer na plateia não quer
 a projeção aberta pelo meio.
 
+O painel é **elástico**: arrasta-se a borda direita para o alargar (240 a
+900 px), e dois cliques nela põem-no como estava. A largura fica guardada,
+porque é uma preferência de quem trabalha e não do desenho — com trinta camadas
+de um DWG na lista, 320 px deixam de chegar e um nome cortado com reticências
+não serve para escolher a camada que se vai levantar.
+
 Cada vista serve uma pergunta diferente, por isso o **público**, o **orador** e
 as **paredes e tecto** ligam-se e desligam-se: sem paredes vê-se a sala de fora,
 sem público vê-se a estrutura, e sem ninguém no palco mede-se o ecrã sem nada a

@@ -1449,6 +1449,47 @@ $("btTrazerProjetor").onclick = () => {
   });
 })();
 
+// ---------------------------------------------------- o painel é elástico
+//
+// Com trinta camadas de um DWG na lista, 320 px deixaram de chegar. A largura
+// fica guardada porque é uma preferência de quem trabalha, e não do desenho:
+// quem alargou uma vez para ver nomes de camadas quer o painel assim da
+// próxima. Dois cliques no puxador põem-no como estava.
+
+const LARGURA_MINIMA = 240, LARGURA_MAXIMA = 900, LARGURA_NORMAL = 320;
+
+function largurraDoPainel(px) {
+  const largura = Math.round(Math.max(LARGURA_MINIMA, Math.min(LARGURA_MAXIMA, px)));
+  document.documentElement.style.setProperty("--larguraPainel", largura + "px");
+  try { localStorage.setItem("preview-largura-painel", String(largura)); } catch (_) {}
+}
+
+(function puxador() {
+  const puxa = $("puxador");
+  try {
+    const guardada = parseInt(localStorage.getItem("preview-largura-painel") || "", 10);
+    if (guardada) largurraDoPainel(guardada);
+  } catch (_) {}
+
+  puxa.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    puxa.setPointerCapture(e.pointerId);
+    document.body.classList.add("a-puxar");
+  });
+  puxa.addEventListener("pointermove", (e) => {
+    if (!document.body.classList.contains("a-puxar")) return;
+    largurraDoPainel(e.clientX);
+  });
+  const largar = (e) => {
+    if (!document.body.classList.contains("a-puxar")) return;
+    document.body.classList.remove("a-puxar");
+    try { puxa.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+  puxa.addEventListener("pointerup", largar);
+  puxa.addEventListener("pointercancel", largar);
+  puxa.addEventListener("dblclick", () => largurraDoPainel(LARGURA_NORMAL));
+})();
+
 // ------------------------------------------- esconder o painel, e instalar
 
 // A cena é o que interessa ver; o painel é para mexer e depois sair da frente.

@@ -21,8 +21,12 @@ body { display: flex; }
 
 /* ------------------------------------------------------------------ painel */
 
+/* A largura chama-se --larguraPainel e nao --painel: --painel ja e a COR do
+   painel, e um "width: #141B21" e invalido -- o painel ficava com a largura do
+   conteudo e nada dizia porque. */
 #painel {
-  width: 320px; flex: 0 0 320px; height: 100%; overflow-y: auto;
+  width: var(--larguraPainel, 320px); flex: 0 0 var(--larguraPainel, 320px);
+  height: 100%; overflow-y: auto;
   background: var(--painel); border-right: 1px solid var(--linha);
   padding-bottom: 30px;
 }
@@ -188,7 +192,7 @@ select.escolha:focus { outline: 2px solid var(--azul); outline-offset: -1px; }
   margin: 14px 0 4px; font-size: 11px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--apagado);
 }
-#listaCamadas { max-height: 210px; overflow-y: auto; }
+#listaCamadas { max-height: 45vh; overflow-y: auto; }
 #listaCamadas .camada {
   display: flex; align-items: center; gap: 8px; padding: 4px 0;
   font-size: 12.5px; border-bottom: 1px solid #1A222A;
@@ -201,3 +205,22 @@ select.escolha:focus { outline: 2px solid var(--azul); outline-offset: -1px; }
 #listaCamadas .quantos { color: var(--apagado); font-variant-numeric: tabular-nums; }
 #listaCamadas input[type=checkbox] { margin: 0; flex: 0 0 auto; cursor: pointer; }
 #listaCamadas .apagada .nome, #listaCamadas .apagada .quantos { opacity: .45; }
+
+/* ------------------------------------------------------- o painel é elástico
+ *
+ * Com as camadas de um DWG lá dentro, 320 px deixaram de chegar: um nome de
+ * camada cortado com reticências não serve para escolher qual se levanta.
+ */
+
+#puxador {
+  flex: 0 0 5px; height: 100%; cursor: col-resize;
+  background: var(--linha); transition: background .12s;
+}
+#puxador:hover, body.a-puxar #puxador { background: var(--azul); }
+body.a-puxar { cursor: col-resize; user-select: none; }
+body.fechado #puxador { display: none; }
+
+@media (max-width: 820px) {
+  #puxador { display: none; }
+  #painel { width: 100%; flex: 0 0 46%; }
+}
