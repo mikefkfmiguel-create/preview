@@ -41,7 +41,15 @@ export function lerProjeto(bruto) {
     try {
       dados = JSON.parse(texto);
     } catch (e) {
-      throw new Error("Isto não é JSON válido — falta uma chaveta ou uma vírgula?");
+      // Não é JSON. Antes de desistir, procuram-se MEDIDAS: é o que uma pessoa
+      // escreve quando quer ver um ecrã de seis por três, e é o que vem no
+      // texto que os Calculadores copiam.
+      const doTexto = projetoDeTexto(texto);
+      if (doTexto) return doTexto;
+      throw new Error(
+        "Não encontrei aqui nem JSON nem medidas. Escreve o tamanho — " +
+        "\"6 x 3 m\", ou \"3 ecrãs de 3,90 × 2,19 m\" — ou usa o botão " +
+        "\"Ver em 3D\" nos Calculadores.");
     }
   }
 
@@ -96,6 +104,61 @@ export function lerProjeto(bruto) {
     zonas,
     recusadas
   };
+}
+
+/**
+ * Um projeto tirado de texto corrido.
+ *
+ * Aceita o que uma pessoa escreve ("6 x 3 m", "ecrã de 4,96 por 2,79") e o que
+ * as outras partes da app copiam ("3 ecrãs de 3,90 × 2,19 m", "Ecrã:
+ * Personalizado — 4,96 x 2,79 m"). Não tenta perceber o texto todo: procura o
+ * PAR DE MEDIDAS e, se houver, quantos ecrãs são. Tudo o resto do texto é
+ * ignorado de propósito — é um atalho para ver, não um interpretador.
+ *
+ * Devolve null quando não encontra nada credível, para quem chamou poder dizer
+ * a verdade em vez de desenhar um ecrã inventado.
+ */
+function projetoDeTexto(texto) {
+  const limpo = texto.replace(/\s+/g, " ");
+  // largura x altura, com vírgula ou ponto decimal, e o "x" em qualquer feitio
+  const medidas = limpo.match(/(\d+(?:[.,]\d+)?)\s*(?:x|×|por)\s*(\d+(?:[.,]\d+)?)/i);
+  if (!medidas) return null;
+
+  let largura = numero(medidas[1], NaN);
+  let altura = numero(medidas[2], NaN);
+  if (!(largura > 0) || !(altura > 0)) return null;
+
+  // A unidade, quando vier escrita a seguir. Sem nada, assume-se metros: é o
+  // que a app fala em todo o lado.
+  const unidade = (limpo.slice(medidas.index + medidas[0].length, medidas.index + medidas[0].length + 14)
+                   .match(/\b(mm|cm|m|metros?)\b/i) || [])[1];
+  const fator = /^mm$/i.test(unidade || "") ? 0.001 : /^cm$/i.test(unidade || "") ? 0.01 : 1;
+  largura *= fator;
+  altura *= fator;
+
+  // Medidas absurdas quase de certeza são outra coisa qualquer no texto — uma
+  // resolução, uma data, um preço. Mais vale não desenhar nada.
+  if (largura > 200 || altura > 100 || largura < 0.05 || altura < 0.05) return null;
+
+  const quantos = Math.min(8, Math.max(1, parseInt(
+    (limpo.match(/(\d+)\s*ecr[ãa]s/i) || [])[1] || "1", 10)));
+
+  const SEPARACAO = 1;   // um metro entre ecrãs, que é o que "lado a lado" costuma ser
+  const zonas = [];
+  for (let i = 0; i < quantos; i++) {
+    zonas.push({
+      nome: quantos > 1 ? `Ecrã ${i + 1}` : "Ecrã",
+      x: i * (largura + SEPARACAO), y: 0, w: largura, h: altura,
+      cor: "#2E7BFF"
+    });
+  }
+
+  return lerProjeto({
+    v: FORMATO,
+    origem: "escrito à mão",
+    nome: quantos > 1 ? `${quantos} ecrãs de ${largura} × ${altura} m` : `Ecrã ${largura} × ${altura} m`,
+    zonas
+  });
 }
 
 /** Os números que interessam ao olhar para o conjunto todo. */

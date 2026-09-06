@@ -30,7 +30,12 @@ tapá-lo.
 **Instala-se como app**, e depois disso abre sem internet: o botão está no fim
 do painel, e em iPhone diz-se lá como se faz à mão.
 
-Também dá para colar o projeto à mão, se preferires.
+Também dá para **escrever o tamanho à mão** na caixa do Projeto: `6 x 3 m`,
+`4,96 por 2,79`, `3 ecrãs de 3,90 × 2,19 m` — ou colar o texto que os
+Calculadores copiam, ou o JSON das zonas. Procura-se o par de medidas e quantos
+ecrãs são; o resto do texto é ignorado de propósito, que isto é um atalho para
+ver e não um interpretador. Quando não encontra medidas credíveis não desenha
+nada e diz porquê — um `1920 x 1080` é uma resolução, não uma parede de 1,9 km.
 
 E há **Limpar tudo**, na secção Projeto: deita fora o projeto, a planta e o
 conteúdo, e põe todas as medidas no princípio — para a sala a seguir se começar
