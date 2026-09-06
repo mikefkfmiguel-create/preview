@@ -76,6 +76,17 @@ python -m http.server 8123
 
 e abre-se `http://127.0.0.1:8123`.
 
+## A planta da sala
+
+Abre-se uma imagem da planta (PNG ou JPG — um PDF exporta-se para imagem
+primeiro) e ela assenta no chão da cena, por baixo de tudo o resto.
+
+**Uma imagem não sabe a escala a que foi desenhada**, e não há como adivinhá-la.
+Por isso pede-se uma medida conhecida — a largura real que a planta cobre — e o
+resto sai daí, mantendo a proporção. Depois roda-se e desloca-se até bater
+certo. A grelha do chão é de metro a metro: se a planta trouxer uma barra de
+escala, é aí que se confere.
+
 ## A plateia
 
 O público não é enfeite: é ele que responde à pergunta difícil. Dá para dizer
@@ -137,5 +148,8 @@ amostras.
 - **Os projetores vêm dos Calculadores**: hoje o rácio e a distância escrevem-se
   à mão; o catálogo de projetores e lentes já existe do outro lado.
 - **TVs**: o mesmo, com o catálogo que já lá está.
-- **Guardar a sala**: as medidas escrevem-se de cada vez.
+- **Guardar a sala**: as medidas escrevem-se de cada vez (a sala fica guardada
+  para os Calculadores, mas não se recarrega sozinha aqui).
+- **DXF**: a planta entra como imagem; ler linhas de um DXF à escala, sem
+  calibrar nada, é o passo a seguir.
 - **Sombra do público**: só se mede a do orador.

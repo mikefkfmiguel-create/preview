@@ -5,7 +5,8 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, CHAVE_PROJETO } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
-         padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem } from "./cena.js";
+         padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
+         fazerPlanta } from "./cena.js";
 
 const $ = (id) => document.getElementById(id);
 const tela = $("tela");
@@ -32,6 +33,7 @@ let olhosDaPlateia = null;
 let desenhado = null;      // o que está na cena agora, para se poder deitar fora
 let textura = null;        // o conteúdo a mostrar nos ecrãs, se houver
 let modoConteudo = "espalhado";   // espalhado pelo conjunto, ou um em cada zona
+let planta = null;         // a planta da sala, se alguem a tiver aberto
 let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
 
@@ -92,6 +94,13 @@ function montar(recentrarCamara) {
   const publico = lerPublico();
 
   desenhado.add(fazerSala(sala, $("verMedidas").checked));
+  if (planta) {
+    desenhado.add(fazerPlanta(planta, {
+      largura: num("plantaL"), rodar: num("plantaR"),
+      x: num("plantaX"), z: num("plantaZ"),
+      opacidade: Math.min(1, Math.max(0.05, num("plantaO")))
+    }));
+  }
   desenhado.add(fazerPalco(sala, palco));
 
   const gente = fazerPublico(sala, palco, publico);
@@ -459,6 +468,21 @@ document.querySelectorAll("[data-conteudo]").forEach(b => {
     montar(false);
   };
 });
+
+$("btPlanta").onclick = () => $("ficheiroPlanta").click();
+$("btSemPlanta").onclick = () => { planta = null; montar(false); };
+$("ficheiroPlanta").onchange = async () => {
+  const ficheiro = $("ficheiroPlanta").files[0];
+  $("ficheiroPlanta").value = "";
+  if (!ficheiro) return;
+  try {
+    planta = await texturaDeFicheiro(ficheiro);
+    montar(false);
+  } catch (e) {
+    $("aviso").textContent = e.message;
+    $("aviso").classList.add("mostra");
+  }
+};
 
 $("btPadrao").onclick = () => { textura = padraoDeTeste(); montar(false); };
 $("btSemConteudo").onclick = () => { textura = null; montar(false); };

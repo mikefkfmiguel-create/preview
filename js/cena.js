@@ -532,3 +532,44 @@ export function pontosDaImagem(imagem, colunas = 9, linhas = 5) {
   }
   return pontos;
 }
+
+
+/**
+ * A planta da sala, assente no chão.
+ *
+ * Uma imagem não sabe a escala a que foi desenhada, e não há como adivinhá-la:
+ * por isso pede-se UMA medida conhecida — a largura que a planta cobre — e todo
+ * o resto sai daí. É a mesma coisa que se faz com uma régua em cima de um
+ * desenho impresso.
+ */
+export function fazerPlanta(textura, planta) {
+  if (!textura || !planta.largura) return new THREE.Group();
+  const grupo = new THREE.Group();
+  grupo.name = "planta";
+
+  const imagem = textura.image;
+  const proporcao = imagem && imagem.height ? imagem.width / imagem.height : 1.4142;
+  const profundidade = planta.largura / proporcao;
+
+  const chao = new THREE.Mesh(
+    new THREE.PlaneGeometry(planta.largura, profundidade),
+    new THREE.MeshBasicMaterial({
+      map: textura, transparent: true, opacity: planta.opacidade,
+      depthWrite: false, toneMapped: false
+    }));
+  chao.rotation.x = -Math.PI / 2;
+  chao.rotation.z = -(planta.rodar || 0) * Math.PI / 180;
+  chao.position.set(planta.x || 0, 0.012, planta.z || 0);
+  grupo.add(chao);
+
+  // O contorno diz onde a planta acaba — sem ele, uma planta com fundo branco
+  // e uma sala branca são a mesma mancha.
+  const contorno = new THREE.LineSegments(
+    new THREE.EdgesGeometry(chao.geometry),
+    new THREE.LineBasicMaterial({ color: 0x4C6272 }));
+  contorno.rotation.copy(chao.rotation);
+  contorno.position.copy(chao.position);
+  grupo.add(contorno);
+
+  return grupo;
+}
