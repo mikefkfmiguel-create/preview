@@ -74,16 +74,40 @@ vai buscar o motor a um CDN é uma aplicação que falha exatamente no sítio on
 faz falta. Por isso o `vendor/` tem lá o `three.module.js` e os controlos, e a
 app abre sem internet nenhuma.
 
-## Correr localmente
+## Correr a partir de uma pasta, sem servidor
 
-Não basta abrir o `index.html` no browser: são módulos, e o `file://` não os
-deixa carregar. Serve-se a pasta:
+**Dois cliques no `index.html` não chegam.** A app é feita de módulos de
+JavaScript e nenhum browser os deixa carregar a partir de `file://` — fica um
+ecrã preto e ninguém diz porquê. Por isso a pasta traz um atalho:
+
+- **Windows** — `ABRIR-PREVIEW.bat`
+- **macOS** — `ABRIR-PREVIEW.command` (à primeira, `chmod +x`)
+
+Procuram o Chrome (e o Edge, se não houver Chrome) e abrem a app em janela
+limpa, sem separadores nem barra de endereço. Fazem duas coisas que não são
+óbvias e sem as quais isto não funciona: passam `--allow-file-access-from-files`,
+que é o que levanta a restrição dos módulos, e usam um `--user-data-dir`
+próprio — porque um Chrome já aberto reaproveita o processo que lá está e
+ignora as bandeiras que se lhe mandam.
+
+Para desenvolver, continua a ser mais simples servir a pasta:
 
 ```
 python -m http.server 8123
 ```
 
-e abre-se `http://127.0.0.1:8123`.
+e abrir `http://127.0.0.1:8123`.
+
+## Instalar como app
+
+No **Chrome** ou no **Edge** aparece o botão *Instalar esta app* no fim do
+painel, e depois disso ela abre em janela própria e sem internet nenhuma (está
+tudo no cache do service worker: o motor 3D, os exportadores, os ícones).
+
+O **Firefox** e o **Safari de computador** não instalam aplicações — não é um
+defeito desta app, é o que esses browsers fazem. Nesse caso o painel diz isso e
+dá um botão para copiar o link, em vez de mandar quem lá está procurar um menu
+que não existe. No **iPhone**, é *Partilhar* → *Adicionar ao Ecrã Principal*.
 
 ## A planta da sala — imagem ou DXF
 

@@ -1206,6 +1206,11 @@ try {
   if (naApp) return;
   const agente = navigator.userAgent;
   const iPhone = /iPad|iPhone|iPod/.test(agente) && !window.MSStream;
+  // Quem instala aplicações é o Chromium: Chrome, Edge, Brave, Opera, e o
+  // Chrome no Android. O Firefox e o Safari de computador não o fazem de todo
+  // — mandar essa gente ao "menu do browser" é mandá-la procurar o que lá não
+  // está, e sair convencida de que a app não se instala.
+  const chromium = /Chrome\/|Chromium\/|Edg\/|OPR\//.test(agente);
   let guardado = null;
 
   addEventListener("beforeinstallprompt", (e) => {
@@ -1213,6 +1218,7 @@ try {
     guardado = e;
     $("btInstalar").hidden = false;
     $("comoInstalar").hidden = true;
+    $("btCopiarLink").hidden = true;
   });
 
   $("btInstalar").onclick = async () => {
@@ -1223,10 +1229,30 @@ try {
     $("btInstalar").hidden = true;
   };
 
+  // O link e para levar daqui para um browser que instale -- e escrever um
+  // endereco destes a mao e o caminho mais curto para desistir.
+  $("btCopiarLink").onclick = async () => {
+    const endereco = location.href.split("#")[0];
+    try {
+      await navigator.clipboard.writeText(endereco);
+      $("btCopiarLink").textContent = "Link copiado";
+      setTimeout(() => { $("btCopiarLink").textContent = "Copiar o link"; }, 2200);
+    } catch (_) {
+      $("btCopiarLink").textContent = endereco;   // sem permissao, fica a ler
+    }
+  };
+
   if (iPhone) {
     $("comoInstalar").textContent =
       "Para instalar: Partilhar ⬆︎ e depois \"Adicionar ao Ecrã Principal\".";
     $("comoInstalar").hidden = false;
+  } else if (!chromium) {
+    $("comoInstalar").innerHTML =
+      "Este browser não instala aplicações — o Firefox e o Safari de computador " +
+      "não o fazem. Abre esta página no <b>Chrome</b> ou no <b>Edge</b> e o botão de " +
+      "instalar aparece aqui.";
+    $("comoInstalar").hidden = false;
+    $("btCopiarLink").hidden = false;
   } else {
     // Damos um momento ao browser: se o evento chegar, o botão aparece e esta
     // explicação nunca se mostra.
@@ -1241,6 +1267,7 @@ try {
   addEventListener("appinstalled", () => {
     $("btInstalar").hidden = true;
     $("comoInstalar").hidden = true;
+    $("btCopiarLink").hidden = true;
   });
 })();
 
