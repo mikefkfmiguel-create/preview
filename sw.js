@@ -7,7 +7,7 @@
 
 // O nome do cache segue a versao que aparece no painel: subindo uma, sobe a
 // outra, e quem estiver com a app aberta recebe a nova sem fazer nada.
-const CACHE = "preview-v1.1";
+const CACHE = "preview-v1.2";
 
 const TUDO = [
   "./",
@@ -19,6 +19,7 @@ const TUDO = [
   "./js/projeto.js",
   "./js/dxf.js",
   "./js/exportar.js",
+  "./js/importar.js",
   "./vendor/three.module.js",
   "./vendor/OrbitControls.js",
   "./vendor/GLTFExporter.js",
@@ -28,6 +29,11 @@ const TUDO = [
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"
 ];
+
+// Os motores de DWG (10 MB) e de PDF (2 MB) NAO entram nesta lista de
+// proposito: sao descarregados a primeira vez que alguem abrir um ficheiro
+// desses, e ficam no cache a partir dai pelo mesmo caminho que tudo o resto.
+// Poe-los aqui seria fazer toda a gente esperar por eles no primeiro arranque.
 
 self.addEventListener("install", (evento) => {
   evento.waitUntil(

@@ -74,6 +74,24 @@ aqui, e nunca há dois sítios a discordar sobre o tamanho da mesma parede.
 
 Pelo endereço, vai em `#p=` seguido do JSON em base64.
 
+## Os motores pesados só se carregam quando fazem falta
+
+O motor de DWG são 10 MB de WebAssembly (1,6 MB à saída do servidor, que os
+comprime) e o de PDF quase 2 MB. Ficam de fora da lista do service worker **de
+propósito**: descarregam-se na primeira vez que alguém abrir um ficheiro desses,
+e a partir daí ficam em cache pelo mesmo caminho que tudo o resto — offline
+incluído. Quem nunca abre um DWG nunca os descarrega, e a app continua a
+arrancar com 1,5 MB.
+
+## Licenças de quem vive no `vendor/`
+
+- **Three.js** — MIT.
+- **pdf.js** (Mozilla) — Apache-2.0.
+- **libredwg** — **GPL-3.0**. É copyleft: este repositório distribui o código,
+  como a licença pede, e quem o receber tem o direito de o modificar e
+  redistribuir. A cópia da licença está em `vendor/dwg/`. Se um dia isto fosse
+  para vender fechado, era este ficheiro que tinha de sair primeiro.
+
 ## Porque é que o Three.js está dentro do repositório
 
 Isto usa-se em salas e pavilhões, muitas vezes sem rede. Uma aplicação 3D que
@@ -130,18 +148,17 @@ exportador escreve — a escala **adivinha-se pelo tamanho** e diz-se no painel
 que foi adivinhada; há um menu para a corrigir. Tem de ser DXF **ASCII**: o
 binário dá erro e diz-se porquê.
 
-**Um DWG não se lê aqui.** É formato fechado da Autodesk e binário; a app
-reconhece-o — pela extensão e pelos primeiros bytes, por isso apanha também um
-DWG a que alguém trocou a extensão — e diz como o converter: *Guardar como →
-DXF (ASCII)* no AutoCAD, BricsCAD ou DraftSight, ou o ODA File Converter, que é
-gratuito e faz pastas inteiras. O DXF não é um formato pior: traz as mesmas
-linhas e traz as unidades.
+**Um DWG também sabe**, e entra sem se converter à mão: a app traz o
+**libredwg** compilado para WebAssembly, converte o DWG a DXF ali mesmo e daí
+para a frente é tudo igual. Reconhece-o pelos primeiros bytes e não só pela
+extensão, por isso apanha também um DWG a que alguém trocou o nome para `.dxf`.
+Lê os formatos correntes (testado com AutoCAD 2000 e 2018); quando um ficheiro
+lhe escapar, diz-o e o caminho continua a ser guardá-lo como DXF no CAD.
 
-Ler DWG de verdade dentro do browser é possível (há um libredwg compilado para
-WebAssembly), mas custa ~7 MB descarregados e é GPL — decisão a tomar, não um
-detalhe técnico.
-
-**Uma imagem não sabe**, e não há como adivinhar. Por isso pede-se uma medida
+**Um PDF e uma imagem não sabem**, e não há como adivinhar. O PDF é desenhado a
+2400 px de lado maior — a régua com que se calibra é o que lá está escrito, e
+num desenho esborratado não se lê a barra de escala. Usa a primeira página, e
+diz quantas tem. Por isso pede-se uma medida
 conhecida — a largura real que a planta cobre — e o resto sai daí, mantendo a
 proporção. A grelha do chão é de metro a metro: se a planta trouxer uma barra de
 escala, é aí que se confere.

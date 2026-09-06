@@ -72,6 +72,18 @@ servidor MCP `github` (conta do mike).
 - **A sombra do publico nao se soma caixa a caixa.** Numa sala cheia as sombras
   sobrepoem-se quase todas e a soma dava 300%. Rasteriza-se numa grelha.
 
+## O `vendor/` tem GPL la dentro
+
+O motor de DWG e o **libredwg**, que e **GPL-3.0**. Vive em `vendor/dwg/` com a
+copia da licenca ao lado. Isto e uma decisao tomada pelo mike com o custo a
+vista: o repositorio e publico e distribui a fonte, que e o que a licenca pede.
+
+Se um dia se falar de vender isto fechado, e este ficheiro que tem de sair
+primeiro -- e o caminho de recurso ja esta escrito na app: guardar o DWG como
+DXF no CAD, ou pelo ODA File Converter.
+
+O pdf.js e Apache-2.0 e o Three.js e MIT: esses nao pedem nada.
+
 ## A versao sobe SEMPRE que se mexe
 
 O painel mostra a versao ao lado de "o projeto no terreno" (`#versao` no

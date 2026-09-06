@@ -9,6 +9,7 @@ import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
+import { lerDWG, lerPDF } from "./importar.js";
 import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
 
 const $ = (id) => document.getElementById(id);
@@ -705,11 +706,12 @@ function camposDaPlanta() {
       : "O DXF entra à escala: as unidades vieram do próprio ficheiro. O que sobra " +
         "para mexer é só onde ele fica, porque o zero do CAD raramente é o meio da sala.";
   } else {
-    $("infoPlanta").innerHTML = "Imagem (PNG, JPG) ou <b>DXF</b>. O DXF entra à escala " +
-                                "e não se calibra.";
-    $("notaPlanta").innerHTML = "Uma imagem não sabe a escala a que foi desenhada. " +
-      "Diz-lhe a <b>largura real</b> que ela cobre e o resto sai daí — a grelha do chão " +
-      "é de metro a metro, use-a para conferir.";
+    $("infoPlanta").innerHTML = "<b>DXF</b>, <b>DWG</b>, <b>PDF</b> ou imagem. O DXF e o " +
+      "DWG entram à escala e não se calibram; o PDF e a imagem pedem a largura real.";
+    $("notaPlanta").innerHTML = "Um PDF e uma imagem não sabem a escala a que foram " +
+      "desenhados. Diz-lhes a <b>largura real</b> que cobrem e o resto sai daí — a grelha " +
+      "do chão é de metro a metro, use-a para conferir. Um <b>DWG</b> ou um <b>DXF</b> " +
+      "sabem, e entram sozinhos com o tamanho certo.";
   }
 }
 
@@ -734,17 +736,11 @@ async function eDWG(ficheiro) {
   }
 }
 
-function explicarDWG() {
+/** O que se está a fazer, enquanto se faz — carregar 10 MB demora. */
+function aTrabalhar(texto) {
   const aviso = $("aviso");
-  aviso.innerHTML = "Isto é um <b>DWG</b>, que é um formato fechado da Autodesk — " +
-                    "guarda-o como <b>DXF</b> e entra aqui à escala.";
+  aviso.textContent = texto;
   aviso.classList.add("mostra");
-  $("notaPlanta").innerHTML =
-    "<b>Como converter um DWG:</b> no AutoCAD, BricsCAD ou DraftSight, " +
-    "<i>Ficheiro → Guardar como…</i> e escolhe <b>DXF (ASCII)</b>. Sem CAD à mão, o " +
-    "<b>ODA File Converter</b> é gratuito e faz pastas inteiras de uma vez. " +
-    "O DXF não é um formato pior: traz as mesmas linhas e traz as unidades, " +
-    "que é o que faz a planta entrar aqui sem se calibrar nada.";
 }
 
 $("ficheiroPlanta").onchange = async () => {
@@ -752,12 +748,25 @@ $("ficheiroPlanta").onchange = async () => {
   $("ficheiroPlanta").value = "";
   if (!ficheiro) return;
   try {
-    if (await eDWG(ficheiro)) { explicarDWG(); return; }
-    if (/\.dxf$/i.test(ficheiro.name)) {
+    if (await eDWG(ficheiro)) {
+      // O DWG passa pelo motor e sai DXF; daí para a frente é tudo igual.
+      plantaCad = await lerDWG(ficheiro, aTrabalhar);
+      planta = null;
+      $("aviso").classList.remove("mostra");
+    } else if (/\.dxf$/i.test(ficheiro.name)) {
       // Um DXF de uma planta grande são dezenas de MB de texto: lê-se de uma
       // vez e depois já não se lhe toca mais.
       plantaCad = lerDXF(await ficheiro.text());
       planta = null;
+    } else if (/\.pdf$/i.test(ficheiro.name) || ficheiro.type === "application/pdf") {
+      const pdf = await lerPDF(ficheiro, aTrabalhar);
+      planta = pdf.textura;
+      plantaCad = null;
+      $("aviso").classList.remove("mostra");
+      if (pdf.paginas > 1) {
+        aTrabalhar(`O PDF tem ${pdf.paginas} páginas — está a usar a primeira.`);
+        setTimeout(() => $("aviso").classList.remove("mostra"), 4000);
+      }
     } else {
       planta = await texturaDeFicheiro(ficheiro);
       plantaCad = null;
