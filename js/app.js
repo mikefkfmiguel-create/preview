@@ -753,6 +753,78 @@ $("ficheiroImagem").onchange = async () => {
   }
 };
 
+/**
+ * Folha em branco.
+ *
+ * A app guarda coisas de propósito — o projeto que os Calculadores deixaram, a
+ * sala, o projetor — e é isso que faz o "abrir e continuar de onde ia". Mas
+ * quando o que se quer é a sala a seguir, essa memória passa a estorvo: fica-se
+ * a apagar campo a campo e a descobrir uma planta antiga por baixo do desenho
+ * novo.
+ *
+ * Os valores voltam ao que está escrito no HTML (o `defaultValue` de cada
+ * campo) em vez de a uma lista repetida aqui — uma segunda lista ficava
+ * desactualizada no dia em que se mexesse num valor por omissão.
+ *
+ * O que NÃO se limpa é como o painel está arrumado: as secções abertas e o
+ * painel escondido são a maneira de trabalhar de quem está a usar isto, não
+ * são o projeto.
+ */
+function limparTudo() {
+  projeto = null;
+  planta = null;
+  plantaCad = null;
+  textura = null;
+  ondeEsta = null;
+  limitesDoShift = null;
+  projecaoAtual = null;
+  modoConteudo = "espalhado";
+  formatoImagem = 1.777;
+
+  document.querySelectorAll("#painel input").forEach(campo => {
+    if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
+    else if (campo.type !== "file") campo.value = campo.defaultValue;
+  });
+  $("colagem").value = "";
+  $("plantaU").value = "auto";
+
+  // A memória partilhada com os Calculadores vai também: senão o projeto
+  // voltava sozinho no arranque seguinte, e "limpar" passava a durar até ao
+  // próximo F5.
+  for (const chave of [CHAVE_PROJETO, CHAVE_PROJETOR, "mikeapps-ecra-v1"]) {
+    try { localStorage.removeItem(chave); } catch (_) {}
+  }
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+
+  document.querySelectorAll("[data-formato]").forEach(b => {
+    b.classList.toggle("destaque", b.dataset.formato === "1.777");
+  });
+  document.querySelectorAll("[data-conteudo]").forEach(b => {
+    b.classList.toggle("destaque", b.dataset.conteudo === "espalhado");
+  });
+  escolherSaida("png");
+  camposDaPlanta();
+  marcarTipoDePlateia();
+
+  $("notaEcra").textContent = "Muda o tamanho aqui para ver como fica, e devolve-o aos " +
+                              "Calculadores para eles escolherem os tiles.";
+  $("notaProj").innerHTML = "O rácio e a distância podem vir feitos: nos Calculadores, na " +
+                            "aba <b>Distância de Projeção</b>, carrega em <b>Ver no Preview 3D</b>.";
+  $("notaConteudo").textContent = "Espalhada: uma imagem só pelo conjunto todo, cada zona " +
+                                  "mostra o seu bocado — como o media server faz.";
+  $("btTrazerProjetor").textContent = "Trazer projetor dos Calculadores";
+
+  montar(true);
+}
+
+$("btLimpar").onclick = () => {
+  // Uma pergunta antes, porque isto deita fora trabalho: escrever as medidas de
+  // uma sala outra vez é chato, e um clique enganado num botão pequeno é fácil.
+  const temTrabalho = projeto || planta || plantaCad || textura;
+  if (temTrabalho && !confirm("Limpar tudo? O projeto, a planta e as medidas voltam ao princípio.")) return;
+  limparTudo();
+};
+
 $("btCarregar").onclick = () => carregar($("colagem").value);
 $("btExemplo").onclick = () => {
   $("colagem").value = JSON.stringify(EXEMPLO, null, 2);

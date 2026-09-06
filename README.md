@@ -32,6 +32,13 @@ do painel, e em iPhone diz-se lá como se faz à mão.
 
 Também dá para colar o projeto à mão, se preferires.
 
+E há **Limpar tudo**, na secção Projeto: deita fora o projeto, a planta e o
+conteúdo, e põe todas as medidas no princípio — para a sala a seguir se começar
+numa folha em branco e não por baixo dos restos da anterior. Limpa também o que
+ficou guardado do lado dos Calculadores, senão o projeto voltava sozinho no
+arranque seguinte. O que fica é só como o painel está arrumado: as secções
+abertas são a maneira de trabalhar de quem está a usar isto, não são o projeto.
+
 ## O que ele espera receber
 
 O preview **não sabe nada de tiles, pitch ou catálogos** — e é de propósito.
