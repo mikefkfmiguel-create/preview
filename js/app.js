@@ -659,7 +659,20 @@ function carregar(bruto, recentrar = true) {
     }
   } catch (e) {
     const aviso = $("aviso");
-    aviso.textContent = e.message;
+    // Um pedido escrito em palavras não é um erro de quem o escreveu: é o
+    // botão errado. O que lê palavras é a IA, e está ali por baixo — dizê-lo,
+    // e acender o botão, vale mais do que repetir a sintaxe que ele não usou.
+    const palavras = String(bruto || "").trim().split(/\s+/).length;
+    if (e.emPalavras && palavras >= 4) {
+      aviso.innerHTML = "Isto é um <b>pedido escrito</b>, não medidas — e o que lê pedidos " +
+                        "é a IA. Carrega em <b>Analisar com a IA</b>, aqui em baixo.";
+      const botao = $("btAnalisar");
+      botao.classList.add("apontado");
+      botao.scrollIntoView({ block: "center", behavior: "smooth" });
+      setTimeout(() => botao.classList.remove("apontado"), 4000);
+    } else {
+      aviso.textContent = e.message;
+    }
     aviso.classList.add("mostra");
   }
 }

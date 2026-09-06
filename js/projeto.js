@@ -46,10 +46,20 @@ export function lerProjeto(bruto) {
       // texto que os Calculadores copiam.
       const doTexto = projetoDeTexto(texto);
       if (doTexto) return doTexto;
-      throw new Error(
-        "Não encontrei aqui nem JSON nem medidas. Escreve o tamanho — " +
-        "\"6 x 3 m\", ou \"3 ecrãs de 3,90 × 2,19 m\" — ou usa o botão " +
-        "\"Ver em 3D\" nos Calculadores.");
+      // Se começa por chaveta ou parêntese recto, quem escreveu isto queria
+      // mesmo JSON — e o que falta é uma vírgula, não uma explicação sobre
+      // medidas.
+      if (/^[{[]/.test(texto)) {
+        throw new Error("Isto quer ser JSON mas está partido — falta uma chaveta ou uma vírgula?");
+      }
+      // Sem medidas e sem JSON. Quem escreveu aqui um pedido em palavras não
+      // se enganou: enganou-se o botão. A mensagem tem de apontar para o que
+      // lê palavras, que está logo ali por baixo.
+      const erro = new Error(
+        "Não encontrei aqui medidas. Escreve o tamanho — \"6 x 3 m\", " +
+        "ou \"3 ecrãs de 3,90 × 2,19 m\".");
+      erro.emPalavras = true;
+      throw erro;
     }
   }
 
