@@ -169,6 +169,13 @@ vertical põe a imagem toda acima do eixo — e a base da imagem aparece no resu
 Foi por isto que a "base da imagem" deixou de ser um campo: escrita à mão, o
 desenho mostrava imagens que nenhuma lente conseguia pôr ali.
 
+E quando o projetor vem dos Calculadores, vêm com ele **os limites de shift da
+lente**, quando o fabricante os publica: pedir +80% a uma lente que faz ±58%
+passa a dar aviso. Quando o fabricante não os publica, não se inventa nenhum —
+diz-se que ninguém está a verificar. Hoje quem os publica por lente é a Epson;
+a Sony e a Barco não deixam ler as páginas por meios automáticos, e a Panasonic,
+a Christie e a NEC publicam o shift no **corpo do projetor** e não na lente.
+
 E responde à pergunta que uma folha de cálculo não responde: **quem é que tapa a
 imagem**. O orador arrasta-se pelo palco e a percentagem muda ao vivo; **a
 plateia também faz sombra**, e o resumo diz quantas pessoas estão no feixe. É a
@@ -207,8 +214,10 @@ que se quer mandar. O orador vai sempre, porque é ele que dá a escala.
 - **TVs**: com o catálogo que já existe nos Calculadores, como os projetores.
 - **Guardar a sala**: as medidas escrevem-se de cada vez (a sala fica guardada
   para os Calculadores, mas não se recarrega sozinha aqui).
-- **Os limites de shift da lente**: o shift escreve-se e a imagem obedece, mas
-  ninguém verifica se aquela lente dá aquele shift. Os limites não estão na base
-  de lentes dos Calculadores — é lá que têm de entrar primeiro.
+- **Os limites de shift das outras marcas**: estão as 9 lentes Epson que o
+  fabricante publica por lente. Para a Panasonic, a Christie e a NEC o número
+  vive no corpo do projetor — tem de entrar no `projectors.json` dos
+  Calculadores, e não no das lentes. A Sony e a Barco bloqueiam a leitura
+  automática das páginas: essas escrevem-se à mão a partir das fichas.
 - **DXF em 3D**: lê-se a planta (o que está em X e Y). Um DXF com altura —
   paredes como sólidos — chega cá achatado no chão.

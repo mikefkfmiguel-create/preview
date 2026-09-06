@@ -13,6 +13,10 @@ export const EXEMPLO = {
   v: FORMATO,
   origem: "exemplo",
   nome: "Palco com duas alas",
+  // A sala vai com ele de propósito: um conjunto de 15 m numa sala de 20 fica
+  // encostado às paredes, e as 12 filas pedidas por omissão não cabiam em 14 m
+  // de profundidade — a app abria a avisar-se a si própria.
+  sala: { largura: 24, profundidade: 18, altura: 8 },
   zonas: [
     { nome: "Ala esquerda", x: 0,    y: 0.6, w: 3.0, h: 3.4, cor: "#22D3EE",
       tiles: { x: 6, y: 7 },  res: { x: 768,  y: 896  }, peso: 252, amp: 24 },
@@ -211,6 +215,13 @@ function lerProjetor(d) {
       formato: (largura > 0 && altura > 0) ? largura / altura : numero(d.formato, 0),
       modelo: typeof d.modelo === "string" ? d.modelo : "",
       lente: typeof d.lente === "string" ? d.lente : "",
+      // Ate onde aquela lente faz shift, quando o fabricante o publica. Vem de
+      // la porque e la que vive o catalogo -- aqui so serve para avisar.
+      shift: d.shift && Number.isFinite(numero(d.shift.vMax, NaN)) ? {
+        vMin: numero(d.shift.vMin, 0), vMax: numero(d.shift.vMax, 0),
+        hMin: numero(d.shift.hMin, 0), hMax: numero(d.shift.hMax, 0),
+        nota: typeof d.shift.nota === "string" ? d.shift.nota : ""
+      } : null,
       quando: d.quando || null
     };
   } catch (e) {

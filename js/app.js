@@ -41,6 +41,7 @@ let plantaCad = null;      // a planta em DXF, que ja vem a escala
 let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
+let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
 
 // ------------------------------------------------------------------ leituras
 
@@ -370,6 +371,11 @@ function medirSombra() {
           : "")
       : "") +
     (foraDaSala ? " · <b>não cabe na sala</b>" : "");
+
+  // O aviso do shift vem depois e não no meio: a primeira linha é o que se
+  // mede, esta é o que a lente não dá.
+  const excesso = shiftForaDaLente();
+  if (excesso) $("resumoProj").innerHTML += ` · <b>shift a mais</b>: ${excesso}`;
 }
 
 function avisarSeNaoCabe(medidas, sala, palco) {
@@ -940,6 +946,7 @@ $("btOBJ").onclick = () => exportar("obj");
 
 function aplicarProjetor(p) {
   if (!p) return false;
+  limitesDoShift = p.shift || null;
   $("projLigada").checked = true;
   $("projRacio").value = p.racio.toFixed(2);
   $("projDist").value = p.distancia.toFixed(2);
@@ -955,8 +962,42 @@ function aplicarProjetor(p) {
     (quem ? `<b>${quem}</b><br>` : "") +
     `Veio dos Calculadores: rácio ${p.racio.toFixed(2)}:1 a ${p.distancia.toFixed(2)} m` +
     (p.largura ? `, para uma imagem de ${p.largura.toFixed(2)} m.` : ".") +
-    " A altura da lente e a base da imagem são daqui — os Calculadores não as sabem.";
+    (limitesDoShift
+      ? ` Esta lente faz <b>${intervalo(limitesDoShift.vMin, limitesDoShift.vMax)} V</b> e ` +
+        `<b>${intervalo(limitesDoShift.hMin, limitesDoShift.hMax)} H</b>` +
+        (limitesDoShift.nota ? ` (${limitesDoShift.nota})` : "") + "."
+      : " O fabricante não publica o shift desta lente, por isso ninguém verifica o que aqui se escrever.") +
+    " A altura da lente é daqui — os Calculadores não a sabem.";
   return true;
+}
+
+/** "±58 %" quando é simétrico, "+45 % a +68 %" quando não é. */
+function intervalo(min, max) {
+  if (min === -max) return "±" + max + " %";
+  return (min > 0 ? "+" : "") + min + " % a " + (max > 0 ? "+" : "") + max + " %";
+}
+
+/**
+ * O shift que se pediu cabe na lente que veio de lá?
+ *
+ * Escrever +80% num sítio onde a lente vai a +58% desenha uma imagem que
+ * ninguém consegue pôr ali — e o desenho passa a ser uma promessa que a sala
+ * não cumpre. Quando não há limites publicados não se inventa nenhum: cala-se,
+ * que é a única coisa honesta a fazer com um número que não se tem.
+ */
+function shiftForaDaLente() {
+  if (!limitesDoShift) return null;
+  const v = num("projShiftV"), h = num("projShiftH");
+  const fora = [];
+  if (v < limitesDoShift.vMin || v > limitesDoShift.vMax) {
+    fora.push(`vertical ${v > 0 ? "+" : ""}${v} %, e a lente faz ` +
+              `${intervalo(limitesDoShift.vMin, limitesDoShift.vMax)}`);
+  }
+  if (h < limitesDoShift.hMin || h > limitesDoShift.hMax) {
+    fora.push(`horizontal ${h > 0 ? "+" : ""}${h} %, e a lente faz ` +
+              `${intervalo(limitesDoShift.hMin, limitesDoShift.hMax)}`);
+  }
+  return fora.length ? fora.join("; ") : null;
 }
 
 $("btTrazerProjetor").onclick = () => {
@@ -973,12 +1014,15 @@ $("btTrazerProjetor").onclick = () => {
 // Cada seccao fecha no titulo, e o que ficou fechado fica fechado: quem fecha
 // a projecao uma vez nao a quer aberta na sessao seguinte.
 
-const FECHADAS_DE_INICIO = ["sEcra", "sPlanta", "sProjecao", "sConteudo", "sExportar"];
-
 (function dobras() {
   let guardadas = null;
   try { guardadas = JSON.parse(localStorage.getItem("preview-dobras") || "null"); } catch (_) {}
-  const fechadas = new Set(Array.isArray(guardadas) ? guardadas : FECHADAS_DE_INICIO);
+  // A primeira vez abrem TODAS fechadas: o painel passa a ser um indice de uma
+  // vista de olhos, e abre-se o que se vai mexer. Depois disso manda o que
+  // ficou aberto da ultima vez.
+  const todas = [...document.querySelectorAll("#painel section > h2")]
+    .map(t => t.parentElement.id).filter(Boolean);
+  const fechadas = new Set(Array.isArray(guardadas) ? guardadas : todas);
 
   const guardar = () => {
     const agora = [...document.querySelectorAll("#painel section.fechada")].map(x => x.id);
