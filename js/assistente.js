@@ -222,11 +222,32 @@ export function doQueVeioParaCa(r) {
     // pergunta a que este desenho nunca vai responder.
     perguntas: r && Array.isArray(r.pontosPorConfirmar)
       ? r.pontosPorConfirmar.map(String).filter(q => !/tecnologia/i.test(q)).slice(0, 8) : [],
+    // Só um sim/não que a IA já extrai (local.curvo) — não se inventa aqui
+    // nenhum grau de curvatura, porque o texto raramente o diz. Um "sim" vira
+    // uma curva moderada, de propósito, para se ver a diferença sem fingir
+    // uma precisão que não existe.
+    curvo: !!(r && r.local && r.local.curvo === true),
     quantos: 0
   };
   saida.quantos = quantosEcras(saida.resumo);
   saida.grupos = [];
   if (!r) return saida;
+
+  // Quando a própria IA já separou os grupos ("2 maiores para X, 2 menores
+  // para Y"), usam-se esses -- ela percebe a língua; a regex só adivinha.
+  // O regex em cima do texto do utilizador fica como rede de segurança, para
+  // quando este Worker ainda não tiver o campo (versão antiga em cache) ou a
+  // IA o deixar vazio.
+  if (Array.isArray(r.grupos) && r.grupos.length) {
+    const ESCALA_POR_TAMANHO = { maior: 1.5, igual: 1, menor: 0.7 };
+    saida.grupos = r.grupos
+      .map((g) => ({
+        quantos: Math.round(numero(g.quantidade) || 0),
+        escala: ESCALA_POR_TAMANHO[g.tamanhoRelativo] || 1,
+        para: g.finalidade ? semAcentos(String(g.finalidade).toLowerCase()) : ""
+      }))
+      .filter((g) => g.quantos >= 1 && g.quantos <= 12);
+  }
 
   const d = r.dimensoes || {};
   const largura = numero(d.larguraM);

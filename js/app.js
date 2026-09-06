@@ -1149,14 +1149,21 @@ $("btAnalisar").onclick = async () => {
 
     const quantos = Math.max(1, veio.quantos || quantosEcras(texto) || 1);
 
+    // Um sim/não que a IA já extrai — não se inventa um grau de curvatura,
+    // porque o texto raramente o diz; uma curva moderada chega para se ver a
+    // diferença, sem fingir uma precisão que ninguém pediu.
+    const curvaDoPedido = veio.curvo ? { modo: "angulo", valor: 15, dir: "concavo" } : null;
+
     if (veio.ecra) {
       // Um ecrã só, ao meio: o que a IA dá é um tamanho, não uma montagem.
       carregar({
         v: 1, origem: "assistente", nome: "Ecrã do pedido",
         zonas: [{ nome: "Ecrã", x: 0, y: 0,
-                  w: veio.ecra.largura, h: veio.ecra.altura, cor: "#2E7BFF" }]
+                  w: veio.ecra.largura, h: veio.ecra.altura, cor: "#2E7BFF",
+                  curva: curvaDoPedido }]
       }, true);
-      feitas.unshift(`ecrã de ${veio.ecra.largura.toFixed(2)} × ${veio.ecra.altura.toFixed(2)} m`);
+      feitas.unshift(`ecrã de ${veio.ecra.largura.toFixed(2)} × ${veio.ecra.altura.toFixed(2)} m` +
+                     (curvaDoPedido ? " (curvo)" : ""));
     } else if (veio.quantos || quantosEcras(texto) || gruposDeEcras(texto).length) {
       // Sem medidas no pedido, desenha-se na mesma: um pedido que fala de
       // quatro ecrãs merece ver quatro ecrãs. O tamanho é um PONTO DE PARTIDA
@@ -1177,13 +1184,23 @@ $("btAnalisar").onclick = async () => {
       // 0,4 m de folga até ao tecto -- estrutura, grelhas, o que for lá em cima.
       const sobraAteAoTecto = Math.max(1, pDireito - palco.altura - palco.acimaDoPalco - 0.4);
       const alturaBase = Math.min(4, sobraAteAoTecto, Math.max(1.5, Math.round((fundo / 8) * 10) / 10));
-      const grupos = gruposDeEcras(texto);
+      // Primeiro os grupos que a própria IA já separou -- ela percebe a
+      // língua, e não precisa de adivinhar âncoras num texto. A regex sobre o
+      // texto escrito fica como rede de segurança, para um Worker ainda sem
+      // este campo ou uma resposta em que a IA o deixou vazio.
+      const grupos = veio.grupos.length ? veio.grupos : gruposDeEcras(texto);
       const lista = grupos.length ? grupos : [{ quantos, escala: 1, para: "" }];
 
       // Primeiro calculam-se os tamanhos, um por peça -- e só depois se decide
       // a ORDEM em que ficam da esquerda para a direita. As duas coisas vêm de
       // sítios diferentes: o tamanho vem do que o texto disse; a ordem é um
       // arranjo de propósito, e não a ordem em que as frases foram escritas.
+      // A curvatura só se aplica ao ecrã ÚNICO (acima) — aqui há vários grupos
+      // de peças distintas lado a lado, e curvar cada uma por si dava várias
+      // arcas pequenas em vez de UMA parede curva. Representar bem "N ecrãs
+      // curvos" pediria uni-los numa zona só com gomos, o que muda a forma
+      // como o resto do esboço se monta; fica por fazer, e é melhor não
+      // desenhar do que desenhar errado.
       const pecas = [];
       let cortadoPeloTecto = false;
       const descricao = [];
