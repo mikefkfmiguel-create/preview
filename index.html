@@ -51,7 +51,11 @@
 
   <section>
     <h2>Público</h2>
-    <div class="campos">
+    <div class="vistas" id="tipoPlateia">
+      <button data-plateia="pavilhao">Pavilhão · plano</button>
+      <button data-plateia="auditorio">Auditório · sobe</button>
+    </div>
+    <div class="campos" style="margin-top:10px">
       <label>Filas <input id="filas" type="number" value="12" min="0" max="80" step="1"><i></i></label>
       <label>Primeira fila a <input id="primeiraFila" type="number" value="3" min="0" max="40" step="0.5"><i>m</i></label>
       <label>Entre filas <input id="entreFilas" type="number" value="0.9" min="0.5" max="3" step="0.05"><i>m</i></label>

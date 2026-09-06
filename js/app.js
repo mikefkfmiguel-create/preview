@@ -262,9 +262,28 @@ document.querySelectorAll("#painel input").forEach(campo => {
   campo.addEventListener("change", () => remontarDaqui(0));
 });
 
-document.querySelectorAll(".vistas button").forEach(b => {
+document.querySelectorAll(".vistas button[data-vista]").forEach(b => {
   b.onclick = () => vista(b.dataset.vista);
 });
+
+// Pavilhão ou auditório. São dois mundos: num, o chão é plano e quem está atrás
+// vê a nuca de quem está à frente; no outro, o chão sobe e por isso é que se
+// consegue ver. Os botões são atalhos — quem manda continua a ser o campo.
+function marcarTipoDePlateia() {
+  const sobe = num("inclinacao") > 0.005;
+  document.querySelectorAll("#tipoPlateia button").forEach(b => {
+    b.classList.toggle("destaque", (b.dataset.plateia === "auditorio") === sobe);
+  });
+}
+document.querySelectorAll("#tipoPlateia button").forEach(b => {
+  b.onclick = () => {
+    $("inclinacao").value = b.dataset.plateia === "auditorio" ? "0.12" : "0";
+    marcarTipoDePlateia();
+    montar(false);
+  };
+});
+$("inclinacao").addEventListener("input", marcarTipoDePlateia);
+marcarTipoDePlateia();
 
 function carregar(bruto, recentrar = true) {
   try {
