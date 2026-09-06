@@ -18,6 +18,11 @@ nuca do da frente?*
 5. Esconde o painel no **‹** (ou com a tecla **Tab**) para a cena ficar inteira
    — é assim que isto se mostra a alguém.
 
+Cada vista serve uma pergunta diferente, por isso o **público**, o **orador** e
+as **paredes e tecto** ligam-se e desligam-se: sem paredes vê-se a sala de fora,
+sem público vê-se a estrutura, e sem ninguém no palco mede-se o ecrã sem nada a
+tapá-lo.
+
 **Instala-se como app**, e depois disso abre sem internet: o botão está no fim
 do painel, e em iPhone diz-se lá como se faz à mão.
 

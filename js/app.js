@@ -98,7 +98,7 @@ function montar(recentrarCamara) {
   const palco = lerPalco();
   const publico = lerPublico();
 
-  desenhado.add(fazerSala(sala, $("verMedidas").checked));
+  desenhado.add(fazerSala(sala, $("verMedidas").checked, $("verParedes").checked));
   if (planta) {
     desenhado.add(fazerPlanta(planta, {
       largura: num("plantaL"), rodar: num("plantaR"),
@@ -108,7 +108,12 @@ function montar(recentrarCamara) {
   }
   desenhado.add(fazerPalco(sala, palco));
 
-  const gente = fazerPublico(sala, palco, publico);
+  // Os interruptores existem porque cada vista serve uma pergunta diferente:
+  // sem paredes vê-se a sala de fora, sem público vê-se a estrutura, e sem
+  // ninguém no palco mede-se o ecrã sem nada a tapá-lo.
+  const gente = $("verPublico").checked
+    ? fazerPublico(sala, palco, publico)
+    : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
   olhosDaPlateia = gente.olhos;
 
@@ -119,28 +124,27 @@ function montar(recentrarCamara) {
     desenhado.add(zonas.grupo);
     etiquetas = $("verMedidas").checked ? zonas.etiquetas : [];
 
-    // Uma pessoa no palco, que é o que dá a medida a tudo o resto. Tem de ficar
-    // EM CIMA do estrado: antes era colocada em função da largura da sala e à
-    // altura do palco, e com um palco mais estreito do que a sala ficava a
-    // flutuar ao lado dele, no ar.
-    const figura = fazerFigura(1.75);
-    const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
-    const noPalco = palco.altura > 0 && palco.profundidade > 0;
-    const x = -Math.min(
-      (noPalco ? larguraPalco : sala.largura) / 2 - 0.7,   // não sai do estrado
-      medidas.largura / 2 + 1.2);                           // nem tapa os ecrãs
-    // Se ele foi arrastado, fica onde o puseram: uma remontagem por causa de
-    // outro campo qualquer nao pode desfazer o que se acabou de experimentar.
+
+    avisarSeNaoCabe(medidas, sala, palco);
+  }
+
+  // Uma pessoa no palco, que é o que dá a medida a tudo o resto. Fica FORA do
+  // "se houver projeto": sem zonas nenhumas ela é ainda mais precisa, porque é
+  // a única coisa na cena com um tamanho que toda a gente conhece.
+  const figura = $("verOrador").checked ? fazerFigura(1.75) : null;
+  const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
+  const noPalco = palco.altura > 0 && palco.profundidade > 0;
+  const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
+  const x = -(medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
+  if (figura) {
     figura.position.set(
       ondeEsta ? ondeEsta.x : x,
       noPalco ? palco.altura : 0,
       ondeEsta ? ondeEsta.z
         : (noPalco
-            ? -sala.profundidade / 2 + palco.profundidade - 0.8  // à boca de cena
+            ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
             : -sala.profundidade / 2 + 1.6));
     desenhado.add(figura);
-
-    avisarSeNaoCabe(medidas, sala, palco);
   }
 
   desenharProjecao(sala, palco);

@@ -5,7 +5,7 @@
 // costuma não haver internet. Tudo o que a app precisa está no cache — o motor
 // 3D incluído, que é o ficheiro grande.
 
-const CACHE = "preview-v2";
+const CACHE = "preview-v3";
 
 const TUDO = [
   "./",

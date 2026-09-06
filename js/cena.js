@@ -35,7 +35,7 @@ export function fazerCena() {
 }
 
 /** A sala: chão, paredes, e uma grelha de metro a metro. */
-export function fazerSala({ largura, profundidade, altura }, comGrelha) {
+export function fazerSala({ largura, profundidade, altura }, comGrelha, comParedes) {
   const grupo = new THREE.Group();
 
   const chao = new THREE.Mesh(
@@ -62,13 +62,15 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha) {
 
   // As paredes são só de um lado: vistas de dentro não tapam nada, e assim a
   // câmara pode andar à volta por fora sem esbarrar em nada.
-  const material = new THREE.MeshStandardMaterial({
-    color: COR_PAREDE, roughness: 1, side: THREE.BackSide,
-    transparent: true, opacity: 0.55
-  });
-  const caixa = new THREE.Mesh(new THREE.BoxGeometry(largura, altura, profundidade), material);
-  caixa.position.y = altura / 2;
-  grupo.add(caixa);
+  if (comParedes) {
+    const material = new THREE.MeshStandardMaterial({
+      color: COR_PAREDE, roughness: 1, side: THREE.BackSide,
+      transparent: true, opacity: 0.55
+    });
+    const caixa = new THREE.Mesh(new THREE.BoxGeometry(largura, altura, profundidade), material);
+    caixa.position.y = altura / 2;
+    grupo.add(caixa);
+  }
 
   return grupo;
 }
@@ -291,20 +293,25 @@ export function fazerPublico(sala, palco, publico) {
     cursor += larguraBloco + (publico.larguraCorredor || 0);
   }
 
-  const pele = new THREE.MeshStandardMaterial({ color: 0x6B7683, roughness: 0.95 });
-  const roupa = new THREE.MeshStandardMaterial({ color: 0x4A5563, roughness: 1 });
-  const cadeiraCor = new THREE.MeshStandardMaterial({ color: 0x2A3540, roughness: 1 });
+  // Visto de tras -- que e como a plateia se ve na maior parte das vistas --
+  // uma pessoa sentada e uma cadeira escura com ombros e cabeca por cima. Se a
+  // cadeira e o tronco tiverem cores parecidas, funde-se tudo numa coluna com
+  // uma bola em cima. Dai as tres cores bem separadas.
+  const pele = new THREE.MeshStandardMaterial({ color: 0x8A96A5, roughness: 0.9 });
+  const roupa = new THREE.MeshStandardMaterial({ color: 0x5A6675, roughness: 1 });
+  const cadeiraCor = new THREE.MeshStandardMaterial({ color: 0x1C242C, roughness: 1 });
 
   // Quatro malhas para toda a gente: o custo de desenhar não cresce com o
   // número de pessoas, e é justamente o número de pessoas que se quer mexer.
   const troncos = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(OMBROS * 0.78, alturaTronco, 0.28), roupa, total);
+    new THREE.BoxGeometry(OMBROS * 0.66, alturaTronco, 0.26), roupa, total);
   const ombros = new THREE.InstancedMesh(
     new THREE.CapsuleGeometry(0.10, OMBROS - 0.20, 3, 8), roupa, total);
   const cabecas = new THREE.InstancedMesh(
     new THREE.SphereGeometry(RAIO_CABECA, 12, 10), pele, total);
+  // O encosto sobe ate meio das costas: e ele que diz "isto e uma cadeira".
   const cadeiras = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(publico.entreLugares * 0.82, 0.46, 0.06), cadeiraCor,
+    new THREE.BoxGeometry(publico.entreLugares * 0.80, 0.62, 0.07), cadeiraCor,
     sentado ? total : 1);
 
   const boneco = new THREE.Object3D();
@@ -358,7 +365,7 @@ export function fazerPublico(sala, palco, publico) {
       if (sentado) {
         boneco.scale.set(1, 1, 1);
         boneco.rotation.set(0, virado, 0);
-        boneco.position.set(x, 0.23 + sobe, z + 0.22);      // o encosto, atrás
+        boneco.position.set(x, 0.31 + sobe, z + 0.20);      // o encosto, atrás
         boneco.updateMatrix();
         cadeiras.setMatrixAt(n, boneco.matrix);
       }
