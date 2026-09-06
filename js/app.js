@@ -156,6 +156,9 @@ function montar(recentrarCamara) {
   }
 
   cena.add(desenhado);
+  if (document.activeElement !== $("ecraL") && document.activeElement !== $("ecraA")) {
+    escreverTamanhoDoEcra();
+  }
   guardarSala({
     largura: sala.largura, profundidade: sala.profundidade, altura: sala.altura,
     palco: { largura: palco.largura, altura: palco.altura, profundidade: palco.profundidade },
@@ -493,7 +496,7 @@ $("ficheiroPlanta").onchange = async () => {
   }
 };
 
-$("btPadrao").onclick = () => { textura = padraoDeTeste(); montar(false); };
+$("btPadrao").onclick = async () => { textura = await padraoDeTeste(); montar(false); };
 $("btSemConteudo").onclick = () => { textura = null; montar(false); };
 $("btImagem").onclick = () => $("ficheiroImagem").click();
 $("ficheiroImagem").onchange = async () => {
@@ -513,6 +516,73 @@ $("btCarregar").onclick = () => carregar($("colagem").value);
 $("btExemplo").onclick = () => {
   $("colagem").value = JSON.stringify(EXEMPLO, null, 2);
   carregar(EXEMPLO);
+};
+
+// ------------------------------------------------- ajustar e devolver o ecrã
+//
+// Olha-se para a sugestão montada na sala, acha-se curta, e muda-se ali mesmo.
+// O conjunto todo é escalado -- as zonas mantêm as proporções e as posições
+// relativas entre si -- e o tamanho volta para os Calculadores, que são quem
+// sabe traduzir metros em tiles.
+
+function escreverTamanhoDoEcra() {
+  if (!projeto) { $("ecraL").value = ""; $("ecraA").value = ""; return; }
+  const t = totais(projeto);
+  $("ecraL").value = t.largura.toFixed(2);
+  $("ecraA").value = t.altura.toFixed(2);
+}
+
+function redimensionarEcra(qual) {
+  if (!projeto) return;
+  const t = totais(projeto);
+  const novaL = num("ecraL"), novaA = num("ecraA");
+  let fator;
+  if (qual === "largura") {
+    if (!(novaL > 0) || !t.largura) return;
+    fator = novaL / t.largura;
+  } else {
+    if (!(novaA > 0) || !t.altura) return;
+    fator = novaA / t.altura;
+  }
+  if (!isFinite(fator) || fator <= 0 || Math.abs(fator - 1) < 0.0005) return;
+
+  // Escala-se a partir do canto superior esquerdo do conjunto, para as zonas
+  // não se afastarem umas das outras nem trocarem de sítio.
+  for (const z of projeto.zonas) {
+    z.x = t.esquerda + (z.x - t.esquerda) * fator;
+    z.y = t.topo + (z.y - t.topo) * fator;
+    z.w *= fator;
+    z.h *= fator;
+    // Os tiles e a resolução deixam de bater certo com o novo tamanho: quem
+    // os volta a calcular são os Calculadores, e dizer um número errado é
+    // pior do que não dizer nenhum.
+    z.tiles = null; z.res = null; z.peso = null; z.amp = null;
+  }
+  projeto.origem = "ajustado no preview";
+  montar(false);
+  escreverTamanhoDoEcra();
+  $("notaEcra").textContent =
+    "Tamanho alterado aqui. Devolve-o aos Calculadores para eles escolherem os tiles " +
+    "— o peso e a amperagem só voltam a fazer sentido depois disso.";
+}
+
+$("ecraL").addEventListener("change", () => redimensionarEcra("largura"));
+$("ecraA").addEventListener("change", () => redimensionarEcra("altura"));
+
+$("btDevolver").onclick = () => {
+  if (!projeto) { $("notaEcra").textContent = "Não há projeto para devolver."; return; }
+  const t = totais(projeto);
+  try {
+    localStorage.setItem("mikeapps-ecra-v1", JSON.stringify({
+      v: 1, largura: +t.largura.toFixed(2), altura: +t.altura.toFixed(2),
+      zonas: projeto.zonas.length, quando: new Date().toISOString()
+    }));
+    $("notaEcra").textContent =
+      `Enviado: ${t.largura.toFixed(2)} × ${t.altura.toFixed(2)} m. Nos Calculadores, ` +
+      `na aba Ecrã LED, carrega em "Trazer do Preview".`;
+  } catch (e) {
+    $("notaEcra").textContent = "Não consegui guardar — o browser não deixa.";
+  }
 };
 
 // --------------------------------------------------------- guardar a imagem

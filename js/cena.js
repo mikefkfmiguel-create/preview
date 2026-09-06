@@ -409,6 +409,14 @@ export function fazerPublico(sala, palco, publico) {
  * uma imagem. Grelha, barras de cor e uma cruz ao meio — o suficiente para se
  * perceber onde ficam as juntas entre zonas e se alguma está trocada.
  */
+/**
+ * O padrão de teste: a marca sobre um fundo azul.
+ *
+ * Devolve uma promessa e não a textura à seca, e a razão é uma armadilha que
+ * já mordeu: cada zona recebe uma CÓPIA da textura, e uma cópia não fica a
+ * saber que a original mudou. Se a imagem da marca chegasse depois das cópias
+ * feitas, os ecrãs ficavam com o fundo azul e mais nada.
+ */
 export function padraoDeTeste(largura = 1920, altura = 1080) {
   const tela = document.createElement("canvas");
   tela.width = largura; tela.height = altura;
@@ -420,34 +428,23 @@ export function padraoDeTeste(largura = 1920, altura = 1080) {
   p.fillStyle = gradiente;
   p.fillRect(0, 0, largura, altura);
 
-  const barras = ["#FFFFFF", "#FFE800", "#00E5FF", "#00E06A", "#FF3DDA", "#FF3B30", "#2E7BFF"];
-  const largBarra = largura / barras.length;
-  barras.forEach((c, i) => {
-    p.fillStyle = c;
-    p.globalAlpha = 0.9;
-    p.fillRect(i * largBarra, 0, largBarra, altura * 0.16);
+  return new Promise((resolve) => {
+    const pronto = () => {
+      const textura = new THREE.CanvasTexture(tela);
+      textura.colorSpace = THREE.SRGBColorSpace;
+      resolve(textura);
+    };
+    const marca = new Image();
+    marca.onload = () => {
+      const larguraMarca = largura * 0.52;
+      const alturaMarca = larguraMarca * (marca.height / marca.width);
+      p.drawImage(marca, (largura - larguraMarca) / 2, (altura - alturaMarca) / 2,
+                  larguraMarca, alturaMarca);
+      pronto();
+    };
+    marca.onerror = pronto;          // sem marca, fica o fundo — não fica nada partido
+    marca.src = "icons/mike-logo.png";
   });
-  p.globalAlpha = 1;
-
-  p.strokeStyle = "rgba(255,255,255,0.22)";
-  p.lineWidth = Math.max(1, largura / 960);
-  const passo = largura / 24;
-  for (let x = 0; x <= largura; x += passo) { p.beginPath(); p.moveTo(x, 0); p.lineTo(x, altura); p.stroke(); }
-  for (let y = 0; y <= altura; y += passo) { p.beginPath(); p.moveTo(0, y); p.lineTo(largura, y); p.stroke(); }
-
-  p.strokeStyle = "#FFFFFF";
-  p.lineWidth = Math.max(2, largura / 480);
-  p.beginPath();
-  p.moveTo(largura / 2, altura * 0.3); p.lineTo(largura / 2, altura * 0.7);
-  p.moveTo(largura * 0.42, altura / 2); p.lineTo(largura * 0.58, altura / 2);
-  p.stroke();
-  p.beginPath();
-  p.arc(largura / 2, altura / 2, Math.min(largura, altura) * 0.18, 0, Math.PI * 2);
-  p.stroke();
-
-  const textura = new THREE.CanvasTexture(tela);
-  textura.colorSpace = THREE.SRGBColorSpace;
-  return textura;
 }
 
 /** Uma imagem escolhida pelo mike, pronta a ser recortada pelas zonas. */
