@@ -112,17 +112,48 @@ export function totais(projeto) {
   };
 }
 
+/**
+ * O que vier no endereço, por chave.
+ *
+ * Começou por ser só `#p=<projeto>`; agora o projetor também viaja por aqui, e
+ * os dois podem vir juntos. Parte-se à mão em vez de usar o URLSearchParams
+ * porque o valor é base64url e o `+` de um querystring seria interpretado como
+ * espaço — o payload chegava partido e ninguém percebia porquê.
+ */
+function doEndereco(chave) {
+  const bruto = location.hash.startsWith("#") ? location.hash.slice(1) : "";
+  for (const pedaco of bruto.split("&")) {
+    const igual = pedaco.indexOf("=");
+    if (igual > 0 && pedaco.slice(0, igual) === chave) return pedaco.slice(igual + 1);
+  }
+  return "";
+}
+
+function desempacotar(bruto) {
+  const base64 = decodeURIComponent(bruto).replace(/-/g, "+").replace(/_/g, "/");
+  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 /** Lê um projeto que venha no endereço, posto lá pelos Calculadores. */
 export function projetoDoEndereco() {
-  const marca = "#p=";
-  const bruto = location.hash.startsWith(marca) ? location.hash.slice(marca.length) : "";
+  const bruto = doEndereco("p");
   if (!bruto) return null;
   try {
-    const base64 = decodeURIComponent(bruto).replace(/-/g, "+").replace(/_/g, "/");
-    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-    return lerProjeto(new TextDecoder().decode(bytes));
+    return lerProjeto(desempacotar(bruto));
   } catch (e) {
     throw new Error("O endereço traz um projeto que não consigo abrir: " + e.message);
+  }
+}
+
+/** E o projetor, quando vem do botão "Ver no Preview 3D" da aba da projeção. */
+export function projetorDoEndereco() {
+  const bruto = doEndereco("proj");
+  if (!bruto) return null;
+  try {
+    return lerProjetor(JSON.parse(desempacotar(bruto)));
+  } catch (e) {
+    return null;
   }
 }
 
@@ -131,6 +162,7 @@ export function projetoDoEndereco() {
 // esse o canal por onde falam uma com a outra, sem servidor nenhum pelo meio.
 export const CHAVE_PROJETO = "mikeapps-projeto-v1";
 export const CHAVE_SALA = "mikeapps-sala-v1";
+export const CHAVE_PROJETOR = "mikeapps-projetor-v1";
 
 /** O último projeto que os Calculadores deixaram guardado, se houver. */
 export function projetoGuardado() {
@@ -148,4 +180,40 @@ export function guardarSala(sala) {
     localStorage.setItem(CHAVE_SALA, JSON.stringify(
       Object.assign({ v: 1, quando: new Date().toISOString() }, sala)));
   } catch (e) { /* sem localStorage a app funciona na mesma */ }
+}
+
+/**
+ * O projetor escolhido nos Calculadores, se lá tiver ficado algum.
+ *
+ * Chega com o rácio e a distância já feitos — e é isso, e só isso, que o
+ * preview quer saber. O catálogo de projetores e de lentes, os lumens, os lux
+ * e a conta de qual lente serve ficam do lado de lá, como as tabelas de LED:
+ * a conta faz-se uma vez, no sítio onde ela vive.
+ */
+export function projetorGuardado() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_PROJETOR);
+    return bruto ? lerProjetor(JSON.parse(bruto)) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function lerProjetor(d) {
+  try {
+    const racio = numero(d.racio, 0);
+    const distancia = numero(d.distancia, 0);
+    if (!(racio > 0) || !(distancia > 0)) return null;
+    const largura = numero(d.largura, 0), altura = numero(d.altura, 0);
+    return {
+      racio, distancia,
+      largura, altura,
+      formato: (largura > 0 && altura > 0) ? largura / altura : numero(d.formato, 0),
+      modelo: typeof d.modelo === "string" ? d.modelo : "",
+      lente: typeof d.lente === "string" ? d.lente : "",
+      quando: d.quando || null
+    };
+  } catch (e) {
+    return null;
+  }
 }

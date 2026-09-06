@@ -137,3 +137,37 @@ body.fechado #btAbrir { display: block; }
 @media (max-width: 820px) {
   #btAbrir { left: 10px; top: 10px; }
 }
+
+/* ------------------------------------------------- dobrar as secções
+ *
+ * O painel cresceu: sala, palco, público, projeção, conteúdo, planta,
+ * exportação. Tudo aberto ao mesmo tempo é um metro de scroll para chegar aos
+ * botões das vistas. Cada secção fecha-se no título, e fica fechada — quem
+ * fecha a projeção uma vez não a quer aberta na sessão seguinte.
+ */
+
+#painel h2 {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; user-select: none;
+}
+#painel h2:hover { color: var(--texto); }
+#painel h2::before {
+  content: ""; flex: 0 0 auto;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  transform: rotate(90deg); transform-origin: 30% 50%;
+  transition: transform .15s ease;
+}
+#painel section.fechada h2::before { transform: rotate(0deg); }
+#painel section.fechada h2 { margin-bottom: 0; }
+#painel section.fechada > *:not(h2) { display: none; }
+
+/* Um label escondido continua a ser um grid, e um grid escondido aparece na
+   mesma. A regra do hidden tem de ganhar à do .campos. */
+.campos label[hidden], #painel [hidden] { display: none !important; }
+
+select.escolha {
+  background: var(--fundo); color: var(--texto); border: 1px solid var(--linha);
+  border-radius: 7px; padding: 7px 9px; font: inherit; width: 100%;
+}
+select.escolha:focus { outline: 2px solid var(--azul); outline-offset: -1px; }

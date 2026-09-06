@@ -5,7 +5,7 @@
 // costuma não haver internet. Tudo o que a app precisa está no cache — o motor
 // 3D incluído, que é o ficheiro grande.
 
-const CACHE = "preview-v3";
+const CACHE = "preview-v4";
 
 const TUDO = [
   "./",
@@ -15,8 +15,12 @@ const TUDO = [
   "./js/app.js",
   "./js/cena.js",
   "./js/projeto.js",
+  "./js/dxf.js",
+  "./js/exportar.js",
   "./vendor/three.module.js",
   "./vendor/OrbitControls.js",
+  "./vendor/GLTFExporter.js",
+  "./vendor/OBJExporter.js",
   "./icons/mike-logo.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

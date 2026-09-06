@@ -3,10 +3,13 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, lerProjeto, totais, projetoDoEndereco,
-         projetoGuardado, guardarSala, CHAVE_PROJETO } from "./projeto.js";
+         projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
+         CHAVE_PROJETO, CHAVE_PROJETOR } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
-         fazerPlanta } from "./cena.js";
+         fazerPlanta, fazerPlantaCad } from "./cena.js";
+import { lerDXF, metrosPorUnidade } from "./dxf.js";
+import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
 
 const $ = (id) => document.getElementById(id);
 const tela = $("tela");
@@ -33,9 +36,11 @@ let olhosDaPlateia = null;
 let desenhado = null;      // o que está na cena agora, para se poder deitar fora
 let textura = null;        // o conteúdo a mostrar nos ecrãs, se houver
 let modoConteudo = "espalhado";   // espalhado pelo conjunto, ou um em cada zona
-let planta = null;         // a planta da sala, se alguem a tiver aberto
+let planta = null;         // a planta em imagem, se alguem a tiver aberto
+let plantaCad = null;      // a planta em DXF, que ja vem a escala
 let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
+let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 
 // ------------------------------------------------------------------ leituras
 
@@ -56,7 +61,11 @@ function lerProjecao() {
     racio: num("projRacio"),
     distancia: num("projDist"),
     altura: num("projAltura"),
-    base: num("projBase")
+    lateral: num("projLateral"),
+    // O shift conta-se em percentagem da IMAGEM, como nas fichas das lentes:
+    // +100% vertical poe a imagem toda acima do eixo da lente.
+    shiftV: num("projShiftV") / 100,
+    shiftH: num("projShiftH") / 100
   };
 }
 
@@ -99,6 +108,13 @@ function montar(recentrarCamara) {
   const publico = lerPublico();
 
   desenhado.add(fazerSala(sala, $("verMedidas").checked, $("verParedes").checked));
+  if (plantaCad) {
+    desenhado.add(fazerPlantaCad(plantaCad, {
+      fator: metrosPorUnidade(plantaCad, $("plantaU").value).fator,
+      rodar: num("plantaR"), x: num("plantaX"), z: num("plantaZ"),
+      opacidade: Math.min(1, Math.max(0.05, num("plantaO")))
+    }));
+  }
   if (planta) {
     desenhado.add(fazerPlanta(planta, {
       largura: num("plantaL"), rodar: num("plantaR"),
@@ -116,6 +132,7 @@ function montar(recentrarCamara) {
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
   olhosDaPlateia = gente.olhos;
+  corposDoPublico = gente;
 
   let medidas = null;
   if (projeto) {
@@ -197,11 +214,26 @@ function desenharProjecao(sala, palco) {
   const largura = p.distancia / p.racio;
   const altura = largura / formatoImagem;
   const z0 = -sala.profundidade / 2 + 0.35;
-  const imagem = { x: 0, y: p.base + altura / 2, z: z0, largura, altura };
-  const projetor = { x: 0, y: p.altura, z: z0 + p.distancia };
+
+  // Onde a imagem cai nao se escreve: sai da lente e do shift dela. Era isto
+  // que faltava -- com a base escrita a mao, o desenho mostrava imagens que
+  // nenhuma lente conseguia por ali.
+  const projetor = { x: p.lateral, y: p.altura, z: z0 + p.distancia };
+  const imagem = {
+    x: projetor.x + p.shiftH * largura,
+    y: projetor.y + p.shiftV * altura,
+    z: z0, largura, altura
+  };
 
   desenhado.add(fazerProjecao(projetor, imagem, textura));
-  projecaoAtual = { projetor, imagem, foraDaSala: largura > sala.largura || p.base + altura > sala.altura };
+  projecaoAtual = {
+    projetor, imagem,
+    base: imagem.y - altura / 2,
+    foraDaSala: largura > sala.largura ||
+                imagem.y + altura / 2 > sala.altura ||
+                imagem.y - altura / 2 < -0.01 ||
+                Math.abs(imagem.x) + largura / 2 > sala.largura / 2
+  };
   medirSombra();
 }
 
@@ -213,6 +245,54 @@ function desenharProjecao(sala, palco) {
  * orador — a pergunta é "a partir de onde e que ele deixa de fazer sombra?", e
  * essa responde-se a mexer, não a carregar num botão.
  */
+/**
+ * Todas as caixas que podem tapar a imagem: o orador e cada pessoa da plateia.
+ *
+ * A plateia entra porque e ela que faz a pergunta a serio -- um projetor a
+ * 4,5 m com gente a frente tem cabecas no feixe, e ver isso ANTES e a
+ * diferenca entre pendurar a maquina uma vez ou duas.
+ */
+function caixasQueTapam() {
+  const caixas = [];
+
+  const figura = desenhado && desenhado.getObjectByName("figura");
+  if (figura) {
+    figura.updateMatrixWorld(true);
+    const c = new THREE.Box3().setFromObject(figura);
+    caixas.push({ dele: "orador",
+                  minX: c.min.x, maxX: c.max.x, minY: c.min.y, maxY: c.max.y,
+                  minZ: c.min.z, maxZ: c.max.z });
+  }
+
+  if (corposDoPublico && corposDoPublico.corpos) {
+    const { corpos, largura, fundura } = corposDoPublico;
+    for (let i = 0; i < corpos.length; i += 4) {
+      const x = corpos[i], topo = corpos[i + 1], z = corpos[i + 2], chao = corpos[i + 3];
+      caixas.push({ dele: "publico",
+                    minX: x - largura / 2, maxX: x + largura / 2,
+                    minY: chao, maxY: topo,
+                    minZ: z - fundura / 2, maxZ: z + fundura / 2 });
+    }
+  }
+  return caixas;
+}
+
+/**
+ * Quanto e que a imagem leva de sombra.
+ *
+ * A primeira versao atirava 45 raios da lente para a tela e contava os que
+ * batiam no orador -- e dava sempre zero, porque os pontos ficavam a quase um
+ * metro uns dos outros e uma pessoa tem 58 cm: passava entre as amostras.
+ * Depois passou a projectar a caixa que o envolve, que e exacto para UM.
+ *
+ * Com a plateia toda, somar as caixas uma a uma contaria duas vezes as que se
+ * sobrepoem -- e numa sala cheia sobrepoem-se quase todas, o que daria sombras
+ * de 300%. Por isso a imagem parte-se numa grelha e conta-se quantas casas
+ * ficam tapadas por alguem: a sobreposicao resolve-se sozinha.
+ */
+const COLUNAS_SOMBRA = 128, LINHAS_SOMBRA = 72;
+const grelhaSombra = new Uint8Array(COLUNAS_SOMBRA * LINHAS_SOMBRA);
+
 function medirSombra() {
   if (!projecaoAtual) { $("resumoProj").textContent = "—"; return; }
   const { projetor, imagem, foraDaSala } = projecaoAtual;
@@ -222,46 +302,72 @@ function medirSombra() {
   // os pontos ficavam a quase um metro uns dos outros e uma pessoa tem 58 cm:
   // ela passava entre as amostras. Agora projeta-se a caixa que a envolve a
   // partir da lente e mede-se a área que ela tapa. É exacto e não treme.
-  let sombra = 0;
-  const figura = desenhado && desenhado.getObjectByName("figura");
-  if (figura) {
-    figura.updateMatrixWorld(true);
-    const caixa = new THREE.Box3().setFromObject(figura);
-    const lente = new THREE.Vector3(projetor.x, projetor.y, projetor.z);
+  grelhaSombra.fill(0);
+  const eEsq = imagem.x - imagem.largura / 2;
+  const eBaixo = imagem.y - imagem.altura / 2;
+  const ate = imagem.z - projetor.z;
 
+  let sombraDoOrador = 0;
+  let gentePeloMeio = 0;
+
+  for (const caixa of caixasQueTapam()) {
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    let algumAFrente = false;
-    for (const cx of [caixa.min.x, caixa.max.x]) {
-      for (const cy of [caixa.min.y, caixa.max.y]) {
-        for (const cz of [caixa.min.z, caixa.max.z]) {
-          const dz = cz - lente.z;
-          const ate = imagem.z - lente.z;
+    let aFrente = false;
+    for (const cx of [caixa.minX, caixa.maxX]) {
+      for (const cy of [caixa.minY, caixa.maxY]) {
+        for (const cz of [caixa.minZ, caixa.maxZ]) {
+          const dz = cz - projetor.z;
           // só conta quem está ENTRE a lente e a tela
           if (dz === 0 || dz / ate <= 0 || dz / ate >= 1) continue;
-          algumAFrente = true;
+          aFrente = true;
           const k = ate / dz;
-          minX = Math.min(minX, lente.x + (cx - lente.x) * k);
-          maxX = Math.max(maxX, lente.x + (cx - lente.x) * k);
-          minY = Math.min(minY, lente.y + (cy - lente.y) * k);
-          maxY = Math.max(maxY, lente.y + (cy - lente.y) * k);
+          const px = projetor.x + (cx - projetor.x) * k;
+          const py = projetor.y + (cy - projetor.y) * k;
+          if (px < minX) minX = px;
+          if (px > maxX) maxX = px;
+          if (py < minY) minY = py;
+          if (py > maxY) maxY = py;
         }
       }
     }
+    if (!aFrente) continue;
 
-    if (algumAFrente) {
-      const eEsq = imagem.x - imagem.largura / 2, eDir = imagem.x + imagem.largura / 2;
-      const eBaixo = imagem.y - imagem.altura / 2, eCima = imagem.y + imagem.altura / 2;
-      const larg = Math.max(0, Math.min(maxX, eDir) - Math.max(minX, eEsq));
-      const alt = Math.max(0, Math.min(maxY, eCima) - Math.max(minY, eBaixo));
-      sombra = (larg * alt) / (imagem.largura * imagem.altura);
+    const c1 = Math.max(0, Math.floor((minX - eEsq) / imagem.largura * COLUNAS_SOMBRA));
+    const c2 = Math.min(COLUNAS_SOMBRA - 1,
+                        Math.ceil((maxX - eEsq) / imagem.largura * COLUNAS_SOMBRA) - 1);
+    const l1 = Math.max(0, Math.floor((minY - eBaixo) / imagem.altura * LINHAS_SOMBRA));
+    const l2 = Math.min(LINHAS_SOMBRA - 1,
+                        Math.ceil((maxY - eBaixo) / imagem.altura * LINHAS_SOMBRA) - 1);
+    if (c2 < c1 || l2 < l1) continue;
+
+    if (caixa.dele === "publico") gentePeloMeio++;
+    let casas = 0;
+    for (let l = l1; l <= l2; l++) {
+      for (let c = c1; c <= c2; c++) {
+        grelhaSombra[l * COLUNAS_SOMBRA + c] = 1;
+        casas++;
+      }
     }
+    if (caixa.dele === "orador") sombraDoOrador = casas / grelhaSombra.length;
   }
 
-  const porCento = Math.round(sombra * 100);
+  let tapadas = 0;
+  for (let i = 0; i < grelhaSombra.length; i++) tapadas += grelhaSombra[i];
+  const sombra = tapadas / grelhaSombra.length;
+
+  const emPercentagem = (v) => {
+    const n = Math.round(v * 100);
+    return n < 1 ? "menos de 1%" : n + "%";
+  };
   $("resumoProj").innerHTML =
     `Imagem <b>${imagem.largura.toFixed(2)} × ${imagem.altura.toFixed(2)} m</b>` +
-    (sombra > 0.001
-      ? ` · sombra do orador <b>${porCento < 1 ? "menos de 1" : porCento}%</b>`
+    ` · base a <b>${projecaoAtual.base.toFixed(2)} m</b>` +
+    (sombra > 0.0005
+      ? ` · sombra <b>${emPercentagem(sombra)}</b>` +
+        (gentePeloMeio
+          ? ` (${gentePeloMeio} no feixe` +
+            (sombraDoOrador > 0.0005 ? `, orador ${emPercentagem(sombraDoOrador)}` : "") + ")"
+          : "")
       : "") +
     (foraDaSala ? " · <b>não cabe na sala</b>" : "");
 }
@@ -486,13 +592,59 @@ document.querySelectorAll("[data-conteudo]").forEach(b => {
 });
 
 $("btPlanta").onclick = () => $("ficheiroPlanta").click();
-$("btSemPlanta").onclick = () => { planta = null; montar(false); };
+$("btSemPlanta").onclick = () => {
+  planta = null; plantaCad = null;
+  camposDaPlanta();
+  montar(false);
+};
+
+/**
+ * A planta em imagem e a planta em DXF pedem coisas diferentes, e mostrar as
+ * duas ao mesmo tempo confunde: a imagem precisa que lhe digam a largura, o
+ * DXF precisa que se confirmem as unidades. Uma de cada vez.
+ */
+function camposDaPlanta() {
+  $("campoLargura").hidden = !!plantaCad;
+  $("campoUnidades").hidden = !plantaCad;
+  if (plantaCad) {
+    const u = metrosPorUnidade(plantaCad, $("plantaU").value);
+    const larguraM = plantaCad.largura * u.fator, fundoM = plantaCad.profundidade * u.fator;
+    $("infoPlanta").innerHTML =
+      `<b>${larguraM.toFixed(2)} × ${fundoM.toFixed(2)} m</b> · ` +
+      `${plantaCad.segmentos.toLocaleString("pt-PT")} segmentos · escala ${u.comoSoube}` +
+      (plantaCad.cortado ? " · <b>desenho cortado</b>, era grande de mais" : "");
+    $("notaPlanta").innerHTML = u.comoSoube.startsWith("adivinhado")
+      ? "O ficheiro não disse em que unidades foi desenhado, por isso a escala foi " +
+        "<b>adivinhada pelo tamanho</b>. Se a sala aparecer com o tamanho errado, é " +
+        "aqui que se corrige."
+      : "O DXF entra à escala: as unidades vieram do próprio ficheiro. O que sobra " +
+        "para mexer é só onde ele fica, porque o zero do CAD raramente é o meio da sala.";
+  } else {
+    $("infoPlanta").innerHTML = "Imagem (PNG, JPG) ou <b>DXF</b>. O DXF entra à escala " +
+                                "e não se calibra.";
+    $("notaPlanta").innerHTML = "Uma imagem não sabe a escala a que foi desenhada. " +
+      "Diz-lhe a <b>largura real</b> que ela cobre e o resto sai daí — a grelha do chão " +
+      "é de metro a metro, use-a para conferir.";
+  }
+}
+
+$("plantaU").addEventListener("change", () => { camposDaPlanta(); montar(false); });
+
 $("ficheiroPlanta").onchange = async () => {
   const ficheiro = $("ficheiroPlanta").files[0];
   $("ficheiroPlanta").value = "";
   if (!ficheiro) return;
   try {
-    planta = await texturaDeFicheiro(ficheiro);
+    if (/\.dxf$/i.test(ficheiro.name)) {
+      // Um DXF de uma planta grande são dezenas de MB de texto: lê-se de uma
+      // vez e depois já não se lhe toca mais.
+      plantaCad = lerDXF(await ficheiro.text());
+      planta = null;
+    } else {
+      planta = await texturaDeFicheiro(ficheiro);
+      plantaCad = null;
+    }
+    camposDaPlanta();
     montar(false);
   } catch (e) {
     $("aviso").textContent = e.message;
@@ -736,6 +888,113 @@ function largarFigura(e) {
 tela.addEventListener("pointerup", largarFigura);
 tela.addEventListener("pointercancel", largarFigura);
 
+// ----------------------------------------------------------------- exportar
+//
+// Isto desenha volumes e cores; quem faz a imagem bonita trabalha noutro sitio.
+// A ponte e um ficheiro com as pecas todas no sitio e com o nome certo -- e o
+// nome e a parte que interessa, porque e por ele que, no Cinema 4D, se escolhe
+// a zona a que se vai por a textura de verdade.
+
+function nomeDoFicheiro(extensao) {
+  const quando = new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "h");
+  const nome = (projeto && projeto.nome ? projeto.nome : "preview")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+  return `${nome || "preview"}-${quando}.${extensao}`;
+}
+
+async function exportar(formato) {
+  const nota = $("notaExportar");
+  if (!desenhado) return;
+
+  const grupo = prepararParaExportar(desenhado, {
+    comPublico: $("expPublico").checked,
+    comLinhas: $("expLinhas").checked
+  });
+  const { vertices, pecas } = pesar(grupo);
+  if (!pecas) { nota.textContent = "Não há nada para exportar."; return; }
+
+  // Quatrocentas pessoas assadas em geometria a serio sao muitos megabytes, e
+  // o browser fica calado enquanto os escreve. Mais vale dizer que esta a
+  // trabalhar do que parecer que o botao nao fez nada.
+  nota.textContent = `A escrever ${pecas} peças…`;
+  try {
+    const blob = formato === "glb" ? await comoGLB(grupo) : comoOBJ(grupo);
+    descarregar(blob, nomeDoFicheiro(formato));
+    nota.innerHTML =
+      `Guardado: <b>${pecas}</b> peças, ${(vertices / 1000).toFixed(0)} mil vértices, ` +
+      `<b>${(blob.size / 1048576).toFixed(1)} MB</b>.` +
+      (formato === "obj" ? " O .obj vai sem materiais — as cores põem-se do outro lado." : "");
+  } catch (e) {
+    nota.textContent = e.message;
+  }
+}
+
+$("btGLB").onclick = () => exportar("glb");
+$("btOBJ").onclick = () => exportar("obj");
+
+// ------------------------------------------------- o projetor dos Calculadores
+//
+// A mesma regra das zonas de LED: o catalogo de projetores e de lentes fica do
+// lado de la, e o que atravessa e o resultado -- racio, distancia e formato.
+// Aqui nao ha nem uma tabela de modelos nem uma conta de lentes.
+
+function aplicarProjetor(p) {
+  if (!p) return false;
+  $("projLigada").checked = true;
+  $("projRacio").value = p.racio.toFixed(2);
+  $("projDist").value = p.distancia.toFixed(2);
+  if (p.formato > 0.2) {
+    formatoImagem = p.formato;
+    document.querySelectorAll("[data-formato]").forEach(b => {
+      b.classList.toggle("destaque", Math.abs(parseFloat(b.dataset.formato) - p.formato) < 0.02);
+    });
+  }
+  montar(false);
+  const quem = [p.modelo, p.lente].filter(Boolean).join(" · ");
+  $("notaProj").innerHTML =
+    (quem ? `<b>${quem}</b><br>` : "") +
+    `Veio dos Calculadores: rácio ${p.racio.toFixed(2)}:1 a ${p.distancia.toFixed(2)} m` +
+    (p.largura ? `, para uma imagem de ${p.largura.toFixed(2)} m.` : ".") +
+    " A altura da lente e a base da imagem são daqui — os Calculadores não as sabem.";
+  return true;
+}
+
+$("btTrazerProjetor").onclick = () => {
+  if (!aplicarProjetor(projetorGuardado())) {
+    $("notaProj").innerHTML = "Ainda não veio nenhum projetor. Nos Calculadores, na aba " +
+      "<b>Distância de Projeção</b>, carrega em <b>Ver no Preview 3D</b>.";
+  }
+};
+
+// ------------------------------------------------------------ dobrar o painel
+//
+// O painel cresceu -- sala, palco, publico, projecao, conteudo, planta,
+// exportacao -- e tudo aberto e um metro de scroll ate aos botoes das vistas.
+// Cada seccao fecha no titulo, e o que ficou fechado fica fechado: quem fecha
+// a projecao uma vez nao a quer aberta na sessao seguinte.
+
+const FECHADAS_DE_INICIO = ["sEcra", "sPlanta", "sProjecao", "sConteudo", "sExportar"];
+
+(function dobras() {
+  let guardadas = null;
+  try { guardadas = JSON.parse(localStorage.getItem("preview-dobras") || "null"); } catch (_) {}
+  const fechadas = new Set(Array.isArray(guardadas) ? guardadas : FECHADAS_DE_INICIO);
+
+  const guardar = () => {
+    const agora = [...document.querySelectorAll("#painel section.fechada")].map(x => x.id);
+    try { localStorage.setItem("preview-dobras", JSON.stringify(agora)); } catch (_) {}
+  };
+
+  document.querySelectorAll("#painel section > h2").forEach(titulo => {
+    const seccao = titulo.parentElement;
+    if (seccao.id && fechadas.has(seccao.id)) seccao.classList.add("fechada");
+    titulo.addEventListener("click", () => {
+      seccao.classList.toggle("fechada");
+      guardar();
+    });
+  });
+})();
+
 // ------------------------------------------- esconder o painel, e instalar
 
 // A cena é o que interessa ver; o painel é para mexer e depois sair da frente.
@@ -809,6 +1068,14 @@ try {
   // depois o último que os Calculadores deixaram guardado — assim abrir o
   // preview sozinho já mostra o projeto em que se andava a trabalhar.
   projeto = projetoDoEndereco() || projetoGuardado();
+  // E a sala que vier com ele manda: quem carrega no botão do assistente já lá
+  // escreveu as medidas do sítio, e chegar cá a uma sala de 20 × 14 por
+  // omissão é receber de volta uma resposta a uma pergunta que não fez.
+  if (projeto && projeto.sala) {
+    if (projeto.sala.largura) $("salaL").value = projeto.sala.largura;
+    if (projeto.sala.profundidade) $("salaP").value = projeto.sala.profundidade;
+    if (projeto.sala.altura) $("salaA").value = projeto.sala.altura;
+  }
 } catch (e) {
   $("aviso").textContent = e.message;
   $("aviso").classList.add("mostra");
@@ -818,6 +1085,17 @@ try {
 // só chega às OUTRAS abas do mesmo domínio, que é exactamente o caso: as duas
 // apps lado a lado.
 addEventListener("storage", (e) => {
+  // O projetor tambem atravessa por aqui, e esse aplica-se logo: do outro lado
+  // foi preciso carregar num botao para ele vir, o que ja e a decisao tomada.
+  if (e.key === CHAVE_PROJETOR && e.newValue) {
+    if (aplicarProjetor(projetorGuardado())) {
+      const aviso = $("aviso");
+      aviso.textContent = "Chegou um projetor dos Calculadores.";
+      aviso.classList.add("mostra");
+      setTimeout(() => aviso.classList.remove("mostra"), 2600);
+    }
+    return;
+  }
   if (e.key !== CHAVE_PROJETO || !e.newValue) return;
   try {
     projeto = lerProjeto(e.newValue);
@@ -831,8 +1109,29 @@ addEventListener("storage", (e) => {
 
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
-window.preview = { THREE, cena, camara, controlos, medirSombra,
-                  get projeto() { return projeto; } };
+window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
+                  get projeto() { return projeto; },
+                  get desenhado() { return desenhado; },
+                  get plantaCad() { return plantaCad; } };
+
+// Um projetor que venha no ENDERECO aplica-se sozinho -- alguem carregou no
+// "Ver no Preview 3D" para isto acontecer. Um projetor apenas GUARDADO nao:
+// ligar a projecao a quem so queria ver a sala e mexer no desenho sem lho
+// pedirem. Nesse caso diz-se que ele esta ali, a espera de um botao.
+(function projetorAEspera() {
+  const doEndereco = projetorDoEndereco();
+  if (doEndereco) {
+    aplicarProjetor(doEndereco);
+    document.getElementById("sProjecao").classList.remove("fechada");
+    return;
+  }
+  const p = projetorGuardado();
+  if (!p) return;
+  $("btTrazerProjetor").textContent = "Trazer: " + (p.modelo || "projetor dos Calculadores");
+  $("notaProj").innerHTML = `Está guardado um projetor` +
+    (p.modelo ? ` (<b>${p.modelo}</b>)` : "") +
+    `: rácio ${p.racio.toFixed(2)}:1 a ${p.distancia.toFixed(2)} m. Carrega no botão para o trazer.`;
+})();
 
 montar(true);
 volta();

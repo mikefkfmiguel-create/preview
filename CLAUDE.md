@@ -61,6 +61,17 @@ servidor MCP `github` (conta do mike).
 - **A vista dos olhos tem de ficar num LUGAR e nao a meio das filas**, senao a
   camara fica a 45 cm da nuca do vizinho da frente.
 
+- **Uma navegacao que so muda o `#` nao recarrega a pagina.** Um teste que
+  abria `index.html` e depois `index.html#p=...` dava sempre projeto nenhum, e
+  parecia um defeito no codigo que le o endereco. Nao era: o browser trata
+  aquilo como mudanca de fragmento e o modulo nao volta a correr.
+- **O service worker serve a versao antiga dos modulos** enquanto vai buscar a
+  nova em segundo plano. Ao testar uma alteracao, ou se desregista o SW ou se
+  recarrega duas vezes -- senao o que se esta a ver e o codigo de ontem, e
+  perde-se meia hora a procurar um defeito que nao existe.
+- **A sombra do publico nao se soma caixa a caixa.** Numa sala cheia as sombras
+  sobrepoem-se quase todas e a soma dava 300%. Rasteriza-se numa grelha.
+
 ## Provar antes de dizer que esta feito
 
 Nao ha testes automaticos. O que ha e o `#btExemplo`, que carrega um projeto de

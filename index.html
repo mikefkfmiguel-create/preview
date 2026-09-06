@@ -22,7 +22,7 @@
     <button id="btFechar" title="Esconder o painel (Tab)">‹</button>
   </header>
 
-  <section>
+  <section id="sProjeto">
     <h2>Projeto</h2>
     <div id="resumo" class="vazio">Sem projeto. Cola aqui o que vem dos Calculadores.</div>
     <textarea id="colagem" rows="3" placeholder='{"v":1,"zonas":[…]}  — ou o texto que os Calculadores copiam'></textarea>
@@ -32,7 +32,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sEcra">
     <h2>Ajustar o ecrã</h2>
     <div class="campos">
       <label>Largura <input id="ecraL" type="number" min="0.5" max="200" step="0.1"><i>m</i></label>
@@ -43,7 +43,7 @@
        ver como fica, e devolve-o aos Calculadores para eles escolherem os tiles.</p>
   </section>
 
-  <section>
+  <section id="sSala">
     <h2>Sala</h2>
     <div class="campos">
       <label>Largura <input id="salaL" type="number" value="20" min="2" max="200" step="0.5"><i>m</i></label>
@@ -52,26 +52,36 @@
     </div>
   </section>
 
-  <section>
+  <section id="sPlanta">
     <h2>Planta da sala</h2>
     <div class="vistas">
       <button id="btPlanta">Abrir planta…</button>
       <button id="btSemPlanta" title="Remover a planta da cena">Remover planta</button>
     </div>
-    <input type="file" id="ficheiroPlanta" accept="image/*" hidden>
+    <input type="file" id="ficheiroPlanta" accept="image/*,.dxf" hidden>
+    <div id="infoPlanta" class="vazio" style="margin-top:10px">Imagem (PNG, JPG) ou
+       <b>DXF</b>. O DXF entra à escala e não se calibra.</div>
     <div class="campos" style="margin-top:10px">
-      <label>Largura real <input id="plantaL" type="number" value="20" min="0.5" max="500" step="0.5"><i>m</i></label>
+      <label id="campoUnidades" hidden>Unidades <select id="plantaU" class="escolha">
+        <option value="auto">Automático</option>
+        <option value="mm">Milímetros</option>
+        <option value="cm">Centímetros</option>
+        <option value="m">Metros</option>
+        <option value="in">Polegadas</option>
+        <option value="ft">Pés</option>
+      </select><i></i></label>
+      <label id="campoLargura">Largura real <input id="plantaL" type="number" value="20" min="0.5" max="500" step="0.5"><i>m</i></label>
       <label>Rodar <input id="plantaR" type="number" value="0" min="-180" max="180" step="1"><i>°</i></label>
       <label>Deslocar ↔ <input id="plantaX" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
       <label>Deslocar ↕ <input id="plantaZ" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
       <label>Opacidade <input id="plantaO" type="number" value="0.9" min="0.05" max="1" step="0.05"><i></i></label>
     </div>
-    <p class="vazio" style="margin:10px 0 0">Uma imagem não sabe a escala a que foi
-       desenhada. Diz-lhe a <b>largura real</b> que ela cobre e o resto sai daí — a
-       grelha do chão é de metro a metro, use-a para conferir.</p>
+    <p class="vazio" style="margin:10px 0 0" id="notaPlanta">Uma imagem não sabe a escala
+       a que foi desenhada. Diz-lhe a <b>largura real</b> que ela cobre e o resto sai daí
+       — a grelha do chão é de metro a metro, use-a para conferir.</p>
   </section>
 
-  <section>
+  <section id="sPalco">
     <h2>Palco</h2>
     <div class="campos">
       <label>Largura <input id="palcoL" type="number" value="12" min="1" max="200" step="0.5"><i>m</i></label>
@@ -81,7 +91,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sPublico">
     <h2>Público</h2>
     <div class="vistas" id="tipoPlateia">
       <button data-plateia="pavilhao">Pavilhão · plano</button>
@@ -99,23 +109,32 @@
     <label class="opcao"><input id="sentado" type="checkbox" checked> Sentado</label>
   </section>
 
-  <section>
+  <section id="sProjecao">
     <h2>Projeção</h2>
     <label class="opcao" style="margin:0 0 12px"><input id="projLigada" type="checkbox"> Mostrar projeção</label>
     <div class="campos">
       <label>Rácio (throw) <input id="projRacio" type="number" value="1.4" min="0.3" max="10" step="0.1"><i>:1</i></label>
       <label>Distância à tela <input id="projDist" type="number" value="12" min="1" max="120" step="0.5"><i>m</i></label>
       <label>Altura da lente <input id="projAltura" type="number" value="4.5" min="0.2" max="30" step="0.1"><i>m</i></label>
-      <label>Base da imagem <input id="projBase" type="number" value="1" min="0" max="20" step="0.1"><i>m</i></label>
+      <label>Lente ao lado do eixo <input id="projLateral" type="number" value="0" min="-30" max="30" step="0.1"><i>m</i></label>
+      <label>Shift vertical <input id="projShiftV" type="number" value="-25" min="-200" max="200" step="5"><i>%</i></label>
+      <label>Shift horizontal <input id="projShiftH" type="number" value="0" min="-200" max="200" step="5"><i>%</i></label>
     </div>
+    <p class="vazio" style="margin:8px 0 0">O shift conta-se em <b>percentagem da
+       imagem</b>, como nas fichas das lentes: <b>+100%</b> vertical põe a imagem toda
+       acima do eixo da lente. A base da imagem sai daí, e aparece no resumo.</p>
     <div class="vistas" style="margin-top:10px">
       <button data-formato="1.777">16:9</button>
       <button data-formato="1.6">16:10</button>
     </div>
+    <button id="btTrazerProjetor" style="margin-top:10px; width:100%">Trazer projetor dos Calculadores</button>
     <div id="resumoProj" class="vazio" style="margin-top:10px">—</div>
+    <p class="vazio" style="margin:8px 0 0" id="notaProj">O rácio e a distância podem
+       vir feitos: nos Calculadores, na aba <b>Distância de Projeção</b>, carrega em
+       <b>Ver no Preview 3D</b>.</p>
   </section>
 
-  <section>
+  <section id="sConteudo">
     <h2>Conteúdo nos ecrãs</h2>
     <div class="vistas">
       <button id="btPadrao">Padrão de teste</button>
@@ -131,7 +150,7 @@
        pelo conjunto todo, cada zona mostra o seu bocado — como o media server faz.</p>
   </section>
 
-  <section>
+  <section id="sVista">
     <h2>Vista</h2>
     <div class="vistas">
       <button data-vista="frente">Frente</button>
@@ -144,6 +163,19 @@
     <label class="opcao"><input id="verOrador" type="checkbox" checked> Orador</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
     <button id="btGuardarImagem" style="margin-top:10px; width:100%">Guardar imagem (PNG)</button>
+  </section>
+
+  <section id="sExportar">
+    <h2>Exportar</h2>
+    <div class="vistas">
+      <button id="btGLB" class="destaque">Cinema 4D (.glb)</button>
+      <button id="btOBJ">.obj</button>
+    </div>
+    <label class="opcao"><input id="expPublico" type="checkbox"> Incluir o público</label>
+    <label class="opcao"><input id="expLinhas" type="checkbox"> Incluir a planta CAD</label>
+    <p class="vazio" style="margin:10px 0 0" id="notaExportar">O <b>.glb</b> leva as cores
+       e o nome de cada zona — é por esse nome que se lhe põe a textura do outro lado. O
+       <b>.obj</b> abre em tudo, mas vai sem materiais.</p>
   </section>
 
   <section id="zonas">

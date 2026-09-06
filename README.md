@@ -18,6 +18,10 @@ nuca do da frente?*
 5. Esconde o painel no **‹** (ou com a tecla **Tab**) para a cena ficar inteira
    — é assim que isto se mostra a alguém.
 
+Cada secção do painel **fecha no título**, e fica fechada da próxima vez: são
+demasiadas para estarem todas abertas, e quem está a mexer na plateia não quer
+a projeção aberta pelo meio.
+
 Cada vista serve uma pergunta diferente, por isso o **público**, o **orador** e
 as **paredes e tecto** ligam-se e desligam-se: sem paredes vê-se a sala de fora,
 sem público vê-se a estrutura, e sem ninguém no palco mede-se o ecrã sem nada a
@@ -81,16 +85,27 @@ python -m http.server 8123
 
 e abre-se `http://127.0.0.1:8123`.
 
-## A planta da sala
+## A planta da sala — imagem ou DXF
 
-Abre-se uma imagem da planta (PNG ou JPG — um PDF exporta-se para imagem
-primeiro) e ela assenta no chão da cena, por baixo de tudo o resto.
+O mesmo botão abre as duas, e a diferença entre elas é só uma: quem sabe a
+escala.
 
-**Uma imagem não sabe a escala a que foi desenhada**, e não há como adivinhá-la.
-Por isso pede-se uma medida conhecida — a largura real que a planta cobre — e o
-resto sai daí, mantendo a proporção. Depois roda-se e desloca-se até bater
-certo. A grelha do chão é de metro a metro: se a planta trouxer uma barra de
+**Um DXF sabe.** Traz as coordenadas em unidades de desenho e traz, no
+cabeçalho, quais são essas unidades — por isso entra à escala e não se calibra
+nada. Leem-se linhas, polilinhas (com as curvas dos *bulges*), arcos, círculos e
+os blocos inseridos, que é onde vive quase toda a mobília de uma planta de
+arquitectura. Quando o ficheiro vem "sem unidades" — que é o que muito
+exportador escreve — a escala **adivinha-se pelo tamanho** e diz-se no painel
+que foi adivinhada; há um menu para a corrigir. Tem de ser DXF **ASCII**: o
+binário dá erro e diz-se porquê.
+
+**Uma imagem não sabe**, e não há como adivinhar. Por isso pede-se uma medida
+conhecida — a largura real que a planta cobre — e o resto sai daí, mantendo a
+proporção. A grelha do chão é de metro a metro: se a planta trouxer uma barra de
 escala, é aí que se confere.
+
+Nas duas, o que sobra para mexer é onde ela fica — rodar e deslocar — porque o
+zero do CAD raramente é o meio da sala.
 
 ## A plateia
 
@@ -102,6 +117,12 @@ olhos, e a vista da plateia mostra uma nuca em vez de um ecrã.
 A app conta os lugares que couberam e avisa quando as filas pedidas não cabem
 na sala. Pedir 12 e receber 6 sem ninguém dizer nada é a maneira certa de levar
 um número errado para uma reunião.
+
+**Sentados**, cada pessoa é uma cadeira escura com ombros e cabeça por cima — a
+cor da cadeira separada da da roupa, senão o conjunto lê-se como uma coluna.
+**De pé**, é a mesma figura do orador, repetida: pernas, braços e ombros, e sem
+cadeira nenhuma. Uma cápsula com uma bola em cima não é uma pessoa, e um público
+que se lê mal engana sobre tudo o que está ao lado dele.
 
 ## As duas apps falam sozinhas
 
@@ -115,7 +136,11 @@ O Preview e os Calculadores vivem no mesmo domínio, por isso partilham o
   ao vivo** — o browser avisa a outra aba;
 - o **Preview** guarda a sala (medidas, palco, plateia e se é pavilhão ou
   auditório), e o Assistente de Projeto vai lá buscá-la no botão
-  *"Trazer sala do Preview"*.
+  *"Trazer sala do Preview"*;
+- na aba **Distância de Projeção** dos Calculadores, o botão *"Ver no Preview
+  3D"* manda o **projetor**: rácio, distância e tamanho da imagem, já calculados.
+  O catálogo de projetores e de lentes fica do lado de lá, pela mesma razão por
+  que as tabelas de LED também ficam.
 
 O botão *"Ver em 3D"* continua a existir e leva o projeto no próprio endereço —
 serve para abrir noutro computador ou mandar a alguém.
@@ -135,40 +160,55 @@ contas em baixo — um printscreen perde isso, e é metade do que ali interessa.
 
 ## Projeção
 
-Escreve-se o rácio do projetor, a distância à tela e a altura da lente; o
-**tamanho da imagem calcula-se** — 1,4 a 12 metros dá 8,57 m de largura. Aparece
-o projetor, o cone de luz e a imagem, e avisa quando ela não cabe na sala.
+Escreve-se o rácio do projetor e a distância à tela; o **tamanho da imagem
+calcula-se** — 1,4 a 12 metros dá 8,57 m de largura.
 
-E responde à pergunta que uma folha de cálculo não responde: **quanto é que o
-orador tapa**. Arrasta-se a figura pelo palco e a percentagem muda ao vivo —
-5% junto à lente, 3% encostado à tela, zero fora do feixe.
+Onde a imagem cai também não se escreve: sai da **lente e do shift dela**. O
+shift conta-se em percentagem da imagem, como nas fichas das lentes — +100%
+vertical põe a imagem toda acima do eixo — e a base da imagem aparece no resumo.
+Foi por isto que a "base da imagem" deixou de ser um campo: escrita à mão, o
+desenho mostrava imagens que nenhuma lente conseguia pôr ali.
+
+E responde à pergunta que uma folha de cálculo não responde: **quem é que tapa a
+imagem**. O orador arrasta-se pelo palco e a percentagem muda ao vivo; **a
+plateia também faz sombra**, e o resumo diz quantas pessoas estão no feixe. É a
+diferença entre pendurar a máquina uma vez ou duas: baixa-se a lente e vê-se as
+cabeças a entrar na imagem.
 
 A sombra é calculada e não amostrada. A primeira versão atirava 45 raios para a
 tela e contava os que batiam no orador — e dava sempre zero, porque os pontos
 ficavam a quase um metro uns dos outros e uma pessoa tem 58 cm: passava entre as
-amostras.
+amostras. Passou então a projectar-se a caixa que envolve cada corpo, que é
+exacto para um. Com a plateia toda, somar caixa a caixa contaria duas vezes as
+que se sobrepõem — e numa sala cheia sobrepõem-se quase todas, o que daria
+sombras de 300%. Por isso a imagem parte-se numa grelha de 128 × 72 e conta-se
+quantas casas ficam tapadas por alguém: a sobreposição resolve-se sozinha, e
+medir custa 0,2 ms mesmo com 700 pessoas na sala.
+
+## Exportar para onde se faz a imagem a sério
+
+Isto desenha volumes e cores — serve para responder a *cabe?* e *vê-se?*. Quem
+faz a imagem bonita trabalha noutro sítio, e a ponte é um ficheiro:
+
+- **`.glb` (glTF)** — é o que se usa. Leva as cores, as posições e **o nome de
+  cada peça**, e entra no Cinema 4D e no Blender sem nada pelo meio. Cada zona
+  vai com o nome que tem nos Calculadores (`zona Principal`), que é por onde se
+  lhe põe a textura de verdade do outro lado;
+- **`.obj`** — abre em tudo, mas vai **sem materiais**: as peças chegam lá
+  cinzentas e pintam-se à mão.
+
+Fica de fora o que é ajuda de leitura e não existe na sala: a grelha do chão, os
+contornos, o cone de luz. O **público** e a **planta CAD** são opção — a plateia
+toda são 700 pessoas assadas em geometria a sério, uns 6 MB, e nem sempre é isso
+que se quer mandar. O orador vai sempre, porque é ele que dá a escala.
 
 ## O que ainda não faz
 
-- **Os projetores vêm dos Calculadores**: hoje o rácio e a distância escrevem-se
-  à mão; o catálogo de projetores e lentes já existe do outro lado.
-- **TVs**: o mesmo, com o catálogo que já lá está.
+- **TVs**: com o catálogo que já existe nos Calculadores, como os projetores.
 - **Guardar a sala**: as medidas escrevem-se de cada vez (a sala fica guardada
   para os Calculadores, mas não se recarrega sozinha aqui).
-- **DXF**: a planta entra como **imagem** e calibra-se à mão (isso está feito).
-  Ler um DXF a sério — linhas e polilinhas à escala, sem calibrar nada — não
-  está, e é o passo a seguir nessa frente.
-
-- **Exportar a cena para 3D a sério** (ideia do mike, 6 de setembro de 2026).
-  Isto desenha volumes e cores; quem faz a imagem bonita trabalha noutro sítio
-  — Cinema 4D, Blender — onde se aplicam materiais e texturas reais e se ilumina
-  a coisa. O que falta é a ponte: exportar a sala, o palco, as zonas e a plateia
-  em **glTF ou OBJ**, com cada zona identificada pelo nome para receber a sua
-  textura do lado de lá.
-
-  O caminho é curto: o Three.js traz `GLTFExporter` e `OBJExporter` nos
-  *examples*, e ambos entram no Cinema 4D. Como o motor já vive no `vendor/`,
-  é trazer mais um ficheiro e um botão. O trabalho a sério não é exportar — é
-  decidir o que vai lá dentro: as pessoas todas? só uma para escala? o palco
-  como caixa ou como superfície? Isso decide-se com quem for receber o ficheiro.
-- **Sombra do público**: só se mede a do orador.
+- **Os limites de shift da lente**: o shift escreve-se e a imagem obedece, mas
+  ninguém verifica se aquela lente dá aquele shift. Os limites não estão na base
+  de lentes dos Calculadores — é lá que têm de entrar primeiro.
+- **DXF em 3D**: lê-se a planta (o que está em X e Y). Um DXF com altura —
+  paredes como sólidos — chega cá achatado no chão.

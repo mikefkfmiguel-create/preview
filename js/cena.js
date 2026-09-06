@@ -37,11 +37,13 @@ export function fazerCena() {
 /** A sala: chão, paredes, e uma grelha de metro a metro. */
 export function fazerSala({ largura, profundidade, altura }, comGrelha, comParedes) {
   const grupo = new THREE.Group();
+  grupo.name = "sala";
 
   const chao = new THREE.Mesh(
     new THREE.PlaneGeometry(largura, profundidade),
     new THREE.MeshStandardMaterial({ color: COR_CHAO, roughness: 0.95 }));
   chao.rotation.x = -Math.PI / 2;
+  chao.name = "chao";
   grupo.add(chao);
 
   if (comGrelha) {
@@ -56,6 +58,7 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha, comPared
     geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
     const grelha = new THREE.LineSegments(
       geometria, new THREE.LineBasicMaterial({ color: 0x2A3742, transparent: true, opacity: 0.6 }));
+    grelha.name = "aux:grelha";
     grelha.position.y = 0.005;
     grupo.add(grelha);
   }
@@ -68,6 +71,7 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha, comPared
       transparent: true, opacity: 0.55
     });
     const caixa = new THREE.Mesh(new THREE.BoxGeometry(largura, altura, profundidade), material);
+    caixa.name = "paredes";
     caixa.position.y = altura / 2;
     grupo.add(caixa);
   }
@@ -79,12 +83,14 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha, comPared
 export function fazerPalco({ largura, profundidade }, palco) {
   if (!palco.altura || !palco.profundidade) return new THREE.Group();
   const grupo = new THREE.Group();
+  grupo.name = "palco";
   // O palco tem largura própria: um palco da largura do pavilhão é a excepção,
   // não a regra. Sem valor, assume-se a sala toda.
   const larguraPalco = Math.min(palco.largura || largura, largura);
   const caixa = new THREE.Mesh(
     new THREE.BoxGeometry(larguraPalco, palco.altura, palco.profundidade),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
+  caixa.name = "palco";
   caixa.position.set(0, palco.altura / 2, -profundidade / 2 + palco.profundidade / 2);
   grupo.add(caixa);
   return grupo;
@@ -187,6 +193,9 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo)
     // e o Y ao contrário: o que estava mais em baixo no alçado assenta no palco
     const alturaBase = base + (fundo - (zona.y + zona.h));
     const peca = fazerZona(zona, alturaBase, z0, conteudo);
+    // O nome viaja para o Cinema 4D: e por ele que, do outro lado, se escolhe
+    // a zona a que se vai por a textura de verdade.
+    peca.name = "zona " + zona.nome;
     grupo.add(peca);
     // A etiqueta vai POR CIMA da zona e não em cima dela: ao meio, tapava o
     // painel e fazia uma parede de 3,4 m parecer duas de 1,6.
@@ -205,11 +214,16 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo)
  * botija de gás, e a figura que dá a medida a tudo o resto não pode ser a
  * coisa que se lê pior no desenho.
  */
-export function fazerFigura(altura = 1.75) {
+export function fazerFigura(altura = 1.75, cores) {
   const grupo = new THREE.Group();
   grupo.name = "figura";
-  const pele = new THREE.MeshStandardMaterial({ color: 0xD7DEE8, roughness: 0.85 });
-  const roupa = new THREE.MeshStandardMaterial({ color: 0xAAB6C4, roughness: 0.95 });
+  // As cores vem de fora quando quem pede e a plateia: um orador claro no
+  // palco le-se bem, mas quatrocentos oradores claros na plateia roubam o
+  // ecra -- e o que interessa ver e o ecra.
+  const pele = (cores && cores.pele)
+    || new THREE.MeshStandardMaterial({ color: 0xD7DEE8, roughness: 0.85 });
+  const roupa = (cores && cores.roupa)
+    || new THREE.MeshStandardMaterial({ color: 0xAAB6C4, roughness: 0.95 });
 
   // As peças vão num grupo interior para se poderem descer e escalar de uma
   // vez no fim: os pés têm de assentar mesmo no chão e o topo cair mesmo na
@@ -258,7 +272,11 @@ export function fazerFigura(altura = 1.75) {
  */
 export function fazerPublico(sala, palco, publico) {
   const grupo = new THREE.Group();
-  if (!publico.filas) return { grupo, olhos: null, lugares: 0, filas: 0, porFila: 0 };
+  grupo.name = "publico";
+  if (!publico.filas) {
+    return { grupo, olhos: null, lugares: 0, filas: 0, porFila: 0,
+             corpos: new Float32Array(0), largura: 0.46, fundura: 0.34 };
+  }
 
   const sentado = publico.sentado;
   const alturaOlhos = sentado ? 1.20 : 1.62;
@@ -301,8 +319,27 @@ export function fazerPublico(sala, palco, publico) {
   const roupa = new THREE.MeshStandardMaterial({ color: 0x5A6675, roughness: 1 });
   const cadeiraCor = new THREE.MeshStandardMaterial({ color: 0x1C242C, roughness: 1 });
 
-  // Quatro malhas para toda a gente: o custo de desenhar não cresce com o
-  // número de pessoas, e é justamente o número de pessoas que se quer mexer.
+  // De pe, o publico E a figura do orador -- a mesma, com pernas, bracos e
+  // ombros. Ha uma so figura, feita uma vez; o que se repete sao as pecas
+  // dela em InstancedMesh, uma por peca, com a matriz de cada pessoa por
+  // cima da matriz da peca. Assim quatrocentas pessoas de pe custam sete
+  // malhas, e nao quatrocentos grupos.
+  const pecasDePe = [];
+  if (!sentado) {
+    const modelo = fazerFigura(1.75, { pele, roupa });
+    modelo.updateMatrixWorld(true);
+    modelo.traverse((o) => {
+      if (!o.isMesh) return;
+      pecasDePe.push({
+        local: o.matrixWorld.clone(),
+        malha: new THREE.InstancedMesh(o.geometry, o.material, total)
+      });
+    });
+  }
+
+  // Sentados, quatro malhas para toda a gente: o custo de desenhar não cresce
+  // com o número de pessoas, e é justamente o número de pessoas que se quer
+  // mexer.
   const troncos = new THREE.InstancedMesh(
     new THREE.BoxGeometry(OMBROS * 0.66, alturaTronco, 0.26), roupa, total);
   const ombros = new THREE.InstancedMesh(
@@ -315,6 +352,12 @@ export function fazerPublico(sala, palco, publico) {
     sentado ? total : 1);
 
   const boneco = new THREE.Object3D();
+  const matrizDaPeca = new THREE.Matrix4();
+  // Onde está cada pessoa e até que altura ela chega. Serve para a sombra: o
+  // feixe do projetor passa por cima de umas cabeças e bate noutras, e essa é
+  // a pergunta que se faz a olhar para uma sala cheia. Uma caixa por PESSOA,
+  // e não uma por peça do corpo — três vezes menos contas e dá o mesmo.
+  const corpos = [];
   const zPrimeira = -sala.profundidade / 2 + palco.profundidade + publico.primeiraFila;
   let n = 0;
   let zUltima = zPrimeira;
@@ -343,6 +386,21 @@ export function fazerPublico(sala, palco, publico) {
       const variacao = 1 + ((semente - Math.floor(semente)) - 0.5) * 0.09;
       const virado = ((semente * 3 - Math.floor(semente * 3)) - 0.5) * 0.22;
 
+      if (!sentado) {
+        // De pe: a figura inteira, na posicao e na altura desta pessoa.
+        boneco.position.set(x, sobe, z);
+        boneco.rotation.set(0, virado, 0);
+        boneco.scale.set(1, variacao, 1);
+        boneco.updateMatrix();
+        for (const peca of pecasDePe) {
+          matrizDaPeca.multiplyMatrices(boneco.matrix, peca.local);
+          peca.malha.setMatrixAt(n, matrizDaPeca);
+        }
+        corpos.push(x, 1.75 * variacao + sobe, z, sobe);
+        n++;
+        continue;
+      }
+
       boneco.rotation.set(0, virado, 0);
 
       boneco.position.set(x, (baseTronco + alturaTronco / 2) * variacao + sobe, z);
@@ -369,19 +427,21 @@ export function fazerPublico(sala, palco, publico) {
         boneco.updateMatrix();
         cadeiras.setMatrixAt(n, boneco.matrix);
       }
+      corpos.push(x, (alturaOlhos + 0.055) * variacao + sobe + RAIO_CABECA * 1.16, z, sobe);
       n++;
     }
     if (sobe > 0.001) {
       const degrau = new THREE.Mesh(
         new THREE.BoxGeometry(sala.largura - 2.0, sobe + 0.02, publico.entreFilas),
         new THREE.MeshStandardMaterial({ color: 0x1B242C, roughness: 1 }));
+      degrau.name = "degrau";
       degrau.position.set(0, (sobe + 0.02) / 2, z + publico.entreFilas * 0.1);
       grupo.add(degrau);
     }
   }
 
   for (const malha of [troncos, ombros, cabecas, cadeiras]) {
-    malha.count = malha === cadeiras && !sentado ? 0 : n;
+    malha.count = sentado ? n : 0;
     malha.instanceMatrix.needsUpdate = true;
     // Sem isto o público desaparece: um InstancedMesh calcula a esfera que o
     // envolve a partir da GEOMETRIA e não das instâncias, e o motor achava que
@@ -389,7 +449,20 @@ export function fazerPublico(sala, palco, publico) {
     if (typeof malha.computeBoundingSphere === "function") malha.computeBoundingSphere();
     else malha.frustumCulled = false;
   }
+  troncos.name = "publico-troncos";
+  ombros.name = "publico-ombros";
+  cabecas.name = "publico-cabecas";
+  cadeiras.name = "publico-cadeiras";
   grupo.add(troncos, ombros, cabecas, cadeiras);
+
+  for (const peca of pecasDePe) {
+    peca.malha.count = n;
+    peca.malha.instanceMatrix.needsUpdate = true;
+    if (typeof peca.malha.computeBoundingSphere === "function") peca.malha.computeBoundingSphere();
+    else peca.malha.frustumCulled = false;
+    peca.malha.name = "publico-figura";
+    grupo.add(peca.malha);
+  }
 
   // De onde se olha quando se quer ver o que a plateia vê. Tem de ser um LUGAR
   // e não um ponto a meio: sentada entre filas, a câmara ficava a 45 cm da nuca
@@ -403,6 +476,8 @@ export function fazerPublico(sala, palco, publico) {
     zPrimeira + filaDoMeio * publico.entreFilas);
   return {
     grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos,
+    // x, topo da cabeça, z e o chão debaixo dela — quatro números por pessoa
+    corpos: new Float32Array(corpos), largura: OMBROS, fundura: 0.34,
     // As distancias que interessam a quem tem de escolher o tamanho do ecra:
     // do ecra ao primeiro e ao ultimo espectador, e a largura que a plateia
     // ocupa. E o que as regras da AVIXA e da SMPTE pedem.
@@ -487,6 +562,7 @@ export function fazerProjecao(projetor, imagem, textura) {
     ? new THREE.MeshBasicMaterial({ map: textura, toneMapped: false })
     : new THREE.MeshBasicMaterial({ color: 0xEAF2FF });
   const tela = new THREE.Mesh(new THREE.PlaneGeometry(imagem.largura, imagem.altura), material);
+  tela.name = "projecao-imagem";
   tela.position.set(imagem.x, imagem.y, imagem.z + 0.01);
   grupo.add(tela);
 
@@ -494,6 +570,7 @@ export function fazerProjecao(projetor, imagem, textura) {
   const contorno = new THREE.LineSegments(
     new THREE.EdgesGeometry(tela.geometry),
     new THREE.LineBasicMaterial({ color: 0x9BC4FF }));
+  contorno.name = "aux:contorno";
   contorno.position.copy(tela.position);
   grupo.add(contorno);
 
@@ -501,6 +578,7 @@ export function fazerProjecao(projetor, imagem, textura) {
   const caixa = new THREE.Mesh(
     new THREE.BoxGeometry(0.42, 0.18, 0.52),
     new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
+  caixa.name = "projetor";
   caixa.position.set(projetor.x, projetor.y, projetor.z);
   grupo.add(caixa);
 
@@ -524,6 +602,7 @@ export function fazerProjecao(projetor, imagem, textura) {
     color: 0x8FC2FF, transparent: true, opacity: 0.10,
     side: THREE.DoubleSide, depthWrite: false
   }));
+  cone.name = "aux:cone";
   grupo.add(cone);
 
   return grupo;
@@ -555,7 +634,7 @@ export function pontosDaImagem(imagem, colunas = 9, linhas = 5) {
 export function fazerPlanta(textura, planta) {
   if (!textura || !planta.largura) return new THREE.Group();
   const grupo = new THREE.Group();
-  grupo.name = "planta";
+  grupo.name = "aux:planta";
 
   const imagem = textura.image;
   const proporcao = imagem && imagem.height ? imagem.width / imagem.height : 1.4142;
@@ -581,5 +660,53 @@ export function fazerPlanta(textura, planta) {
   contorno.position.copy(chao.position);
   grupo.add(contorno);
 
+  return grupo;
+}
+
+
+/**
+ * A planta em DXF: as linhas do desenho, no chão, já à escala.
+ *
+ * A diferença para a planta em imagem não é a nitidez — é não haver calibração
+ * nenhuma. O desenho traz as unidades, o `metrosPorUnidade` diz quantos metros
+ * vale cada uma, e a planta assenta com o tamanho que tem. O que sobra para
+ * mexer é só onde ela fica: o CAD tem o zero onde o desenhador o pôs, que
+ * raramente é o meio da sala.
+ *
+ * Vai centrada no MEIO do desenho e não na origem dele — uma planta com
+ * coordenadas do mundo real aparecia a trezentos metros dali e ninguém a
+ * encontrava.
+ */
+export function fazerPlantaCad(desenho, opcoes) {
+  const grupo = new THREE.Group();
+  grupo.name = "planta-cad";
+  if (!desenho || !desenho.pontos || !desenho.pontos.length) return grupo;
+
+  const f = opcoes.fator || 1;
+  const meioX = (desenho.minX + desenho.maxX) / 2;
+  const meioY = (desenho.minY + desenho.maxY) / 2;
+
+  const bruto = desenho.pontos;
+  const posicoes = new Float32Array((bruto.length / 2) * 3);
+  for (let i = 0, k = 0; i < bruto.length; i += 2, k += 3) {
+    posicoes[k] = (bruto[i] - meioX) * f;
+    posicoes[k + 1] = 0;
+    // O Y do desenho é o "para cima" da folha, que aqui é o -Z. Trocar o sinal
+    // é o que impede a planta de entrar espelhada — e uma planta espelhada só
+    // se descobre no dia em que alguém for montar a sala.
+    posicoes[k + 2] = -(bruto[i + 1] - meioY) * f;
+  }
+
+  const geometria = new THREE.BufferGeometry();
+  geometria.setAttribute("position", new THREE.BufferAttribute(posicoes, 3));
+  const linhas = new THREE.LineSegments(geometria, new THREE.LineBasicMaterial({
+    color: 0x7FA8C9, transparent: true,
+    opacity: Math.min(1, Math.max(0.05, opcoes.opacidade || 0.9))
+  }));
+  linhas.name = "planta-cad";
+  grupo.add(linhas);
+
+  grupo.rotation.y = -(opcoes.rodar || 0) * Math.PI / 180;
+  grupo.position.set(opcoes.x || 0, 0.014, opcoes.z || 0);
   return grupo;
 }
