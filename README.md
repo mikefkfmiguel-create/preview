@@ -239,19 +239,27 @@ serve para abrir noutro computador ou mandar a alguém. E como a janela do
 Preview tem nome, as três pontes (zonas, projetor, sugestão) vão todas para a
 **mesma** janela em vez de abrirem um separador por clique.
 
-### O briefing vai ter com quem o percebe
+### O briefing lê-se com a IA
 
-A caixa do Projeto entende medidas, não entende um email. Quem entende é o
-**assistente dos Calculadores**, que é IA a sério: manda o texto — ou um PDF, ou
-uma fotografia do sítio — para um Worker que corre o modelo.
+A caixa do Projeto entende medidas, não entende um email. Para isso há
+**"Analisar com a IA"**: manda o texto ao mesmo Worker que o assistente dos
+Calculadores usa, e aplica o que vier — o tamanho do ecrã, e a sala (largura da
+plateia, distância ao último espectador, pé-direito).
 
-Chamar esse Worker daqui seria ter a mesma coisa em dois sítios, que é
-precisamente o que esta app não faz: não tem catálogo de LED nem de projetores
-pela mesma razão. Por isso o botão **"Analisar nos Calculadores"** passa-lhe o
-texto pelo `localStorage`, abre-os no `#briefing`, e eles enchem o campo e
-**submetem a análise sozinhos** — quem carregou no botão deste lado já pediu
-isso. Depois é o caminho de sempre: sai uma sugestão de tamanho e o *"Ver no
-Preview 3D"* traz-a de volta para esta mesma janela.
+O endereço do Worker vem do `localStorage` que os Calculadores já escrevem:
+**configura-se uma vez, lá, e serve os dois**. Isto não duplica a conta deles —
+as tabelas de LED, de projetores e de lentes continuam todas do lado de lá. O
+que atravessa é um texto e umas medidas.
+
+A primeira versão fazia outra coisa: mandava o texto para os Calculadores e
+deixava-os analisar. Não funcionou, e a razão vale a pena ficar escrita — a app
+do mike está **instalada**, e uma janela de aplicação não se alcança com um
+`window.open` com nome. O texto chegava ao `localStorage` e ficava lá à espera
+de uma janela que nunca era a certa.
+
+À sala vinda da IA juntam-se folgas, e o aviso diz o que foi lido: 2 m de cada
+lado da plateia e 3 m atrás da última fila, porque a distância ao último
+espectador não é a parede.
 
 ## Conteúdo nos ecrãs
 

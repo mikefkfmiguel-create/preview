@@ -10,6 +10,7 @@ import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico
          fazerPlanta, fazerPlantaCad } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
+import { analisar, doQueVeioParaCa } from "./assistente.js";
 import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
 
 const $ = (id) => document.getElementById(id);
@@ -991,37 +992,73 @@ $("colagem").addEventListener("input", prontoParaCarregar);
 prontoParaCarregar();
 
 /**
- * O texto que aqui não se percebe vai ter com quem o percebe.
+ * O texto do pedido, lido pela IA.
  *
- * O assistente dos Calculadores é IA a sério — manda o texto (ou um PDF, ou uma
- * fotografia do sítio) para um Worker que corre o modelo. Chamar esse Worker
- * daqui seria ter a mesma coisa em dois sítios, que é precisamente o que esta
- * app não faz: não tem catálogo de LED nem de projetores pela mesma razão. Um
- * briefing lê-se uma vez, onde o leitor vive.
+ * A primeira versão mandava o texto para os Calculadores e deixava-os analisar.
+ * Não funcionou na máquina do mike, e a razão vale a pena ficar escrita: a app
+ * dele está INSTALADA, e uma janela de aplicação não se alcança com um
+ * `window.open` com nome. O texto chegava ao localStorage e ficava lá à espera
+ * de uma janela que nunca era a certa.
  *
- * Por isso passa-se-lhe o texto e o resultado volta pelo caminho que já existe:
- * lá analisa-se, sai uma sugestão de tamanho, e o "Ver no Preview 3D" traz-a de
- * volta para esta mesma janela.
+ * Agora a chamada faz-se daqui, ao MESMO Worker — o endereço vem do
+ * localStorage que os Calculadores já escrevem, por isso configura-se uma vez e
+ * serve os dois. Não é duplicar a conta deles: as tabelas de LED, de projetores
+ * e de lentes continuam todas do lado de lá. O que atravessa é um texto e umas
+ * medidas.
  */
-$("btAnalisar").onclick = () => {
+$("btAnalisar").onclick = async () => {
   const texto = $("colagem").value.trim();
   if (!texto) {
     $("aviso").textContent = "Escreve ou cola primeiro o texto do pedido.";
     $("aviso").classList.add("mostra");
     return;
   }
-  try {
-    localStorage.setItem(CHAVE_BRIEFING, JSON.stringify({
-      v: 1, texto, quando: new Date().toISOString()
-    }));
-  } catch (_) { /* sem localStorage, ainda assim abre-se a app do lado */ }
 
-  // Janela própria, e sempre a mesma: o Preview tem a dele, os Calculadores
-  // passam a ter a sua. Dois separadores no total, e não dois por clique.
-  const base = location.href.includes("/preview/")
-    ? location.href.replace(/\/preview\/.*$/, "/calculadores/")
-    : "https://mikefkfmiguel-create.github.io/calculadores/";
-  open(base + "#briefing", "mikeapps-calculadores");
+  const botao = $("btAnalisar");
+  const dizia = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = "A ler o pedido…";
+  $("aviso").textContent = "A IA está a ler o pedido — pode demorar uns segundos.";
+  $("aviso").classList.add("mostra");
+
+  try {
+    const veio = doQueVeioParaCa(await analisar(texto));
+    const feitas = [];
+
+    if (veio.sala) {
+      if (veio.sala.largura) { $("salaL").value = veio.sala.largura; feitas.push(`sala com ${veio.sala.largura} m de largura`); }
+      if (veio.sala.profundidade) { $("salaP").value = veio.sala.profundidade; feitas.push(`${veio.sala.profundidade} m de fundo`); }
+      if (veio.sala.altura) { $("salaA").value = veio.sala.altura; feitas.push(`${veio.sala.altura} m de pé-direito`); }
+    }
+
+    if (veio.ecra) {
+      // Um ecrã só, ao meio: o que a IA dá é um tamanho, não uma montagem.
+      carregar({
+        v: 1, origem: "assistente", nome: "Ecrã do pedido",
+        zonas: [{ nome: "Ecrã", x: 0, y: 0,
+                  w: veio.ecra.largura, h: veio.ecra.altura, cor: "#2E7BFF" }]
+      }, true);
+      feitas.unshift(`ecrã de ${veio.ecra.largura.toFixed(2)} × ${veio.ecra.altura.toFixed(2)} m`);
+    } else {
+      montar(true);
+    }
+
+    if (!feitas.length) {
+      $("aviso").innerHTML = "A IA leu o pedido mas não encontrou lá medidas nenhumas." +
+        (veio.resumo ? `<br><b>${veio.resumo}</b>` : "");
+    } else {
+      $("aviso").innerHTML = "Da IA: " + feitas.join(", ") + "." +
+        (veio.resumo ? `<br>${veio.resumo}` : "");
+      setTimeout(() => $("aviso").classList.remove("mostra"), 7000);
+    }
+  } catch (e) {
+    $("aviso").innerHTML = e.message +
+      "<br>O assistente e o seu endereço configuram-se nos <b>Calculadores</b>, " +
+      "em <i>Configuração do assistente</i>.";
+  } finally {
+    botao.disabled = false;
+    botao.textContent = dizia;
+  }
 };
 
 $("btCarregar").onclick = () => carregar($("colagem").value);
