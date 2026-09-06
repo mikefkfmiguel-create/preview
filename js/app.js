@@ -1034,8 +1034,9 @@ function escreverRespostaIA(veio, feitas, mantidas, comVariosTamanhos) {
     // posições a sério. Este esboço só serve para se ver mais ou menos como
     // fica -- para configurar isto para valer, o sítio é lá, e não aqui.
     partes.push("Isto tem <b>vários tamanhos</b> — a posição aqui é só um arranjo genérico " +
-                "(os maiores ao centro). Para configurar a sério, com tiles e pitch, usa o " +
-                "<b>Ecrã Complexo</b> nos Calculadores e traz o resultado com \"Ver em 3D\".");
+                "(conteúdo denso como slides ao centro, o resto a ladear). Para configurar a " +
+                "sério, com tiles e pitch, usa o <b>Ecrã Complexo</b> nos Calculadores e traz o " +
+                "resultado com \"Ver em 3D\".");
   }
 
   if (mantidas && mantidas.length) {
@@ -1054,19 +1055,37 @@ function escreverRespostaIA(veio, feitas, mantidas, comVariosTamanhos) {
 }
 
 /**
- * Os maiores ao centro, os mais pequenos nas pontas.
+ * O conteúdo denso (slides, texto, gráficos) ganha sempre a posição central —
+ * é o que a conta de distância de visualização diz: uma letra lê-se a uma
+ * distância que uma fotografia não precisa. Não se refaz aqui essa conta —
+ * mora nos Calculadores, na aba Distância de Visualização, e refazê-la seria
+ * duplicar exactamente o que já existe — mas o DESTINO que o texto deu a cada
+ * grupo ("para powerpoint", "para slides") já diz o suficiente para saber qual
+ * precisa da melhor posição.
+ */
+const CONTEUDO_DENSO = /\b(powerpoint|slide|slides|texto|grafic\w*|apresenta\w*|dado\w*|conteudo)\b/;
+
+/**
+ * Os prioritários ao centro, os outros nas pontas.
  *
  * O esboço tinha as peças pela ordem em que o texto as descrevia — "2 maiores
  * para powerpoint" todos de um lado, "2 menores para imagens" todos do outro —
  * e isso não é uma montagem, é uma lista. Adivinhar palavras como "interior" ou
  * "exterior" no texto seria tentar fazer, por regex, o que a aba Ecrã Complexo
  * já faz a sério com um editor de posições; aqui o objectivo é só ver mais ou
- * menos como fica. Por isso usa-se a regra mais comum em AV — o ecrã principal
- * ao centro, os secundários a ladear — sem depender de ter percebido palavra
- * nenhuma sobre posição.
+ * menos como fica.
+ *
+ * A ordem de prioridade é: primeiro o CONTEÚDO (slides/texto ganham à imagem,
+ * porque é isso que a distância de visualização pede), e só a seguir o
+ * tamanho — um "menor" que seja de slides ainda vai à frente de um "maior"
+ * que seja só de imagem.
  */
 function ordenarPeloCentro(pecas) {
-  const ordenadas = pecas.slice().sort((a, b) => b.escala - a.escala);
+  const ordenadas = pecas.slice().sort((a, b) => {
+    const prioridadeA = CONTEUDO_DENSO.test(a.para || "") ? 1 : 0;
+    const prioridadeB = CONTEUDO_DENSO.test(b.para || "") ? 1 : 0;
+    return prioridadeB - prioridadeA || b.escala - a.escala;
+  });
   const esquerda = [], direita = [];
   ordenadas.forEach((peca, i) => (i % 2 === 0 ? direita : esquerda).push(peca));
   return [...esquerda.reverse(), ...direita];

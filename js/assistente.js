@@ -107,6 +107,12 @@ const COM_SUBSTANTIVO = new RegExp(NUMERO_ESCRITO + "\\s*(?:ecra|ecran|tela|pain
 // LOGO a seguir ao número, e não a três frases de distância.
 const NUMERO_MAIS_ADJECTIVO = new RegExp(
   NUMERO_ESCRITO + "\\s+(?:maior|maiores|menor|menores|grande|grandes|pequen\\w*|mini|maximo)\\b", "g");
+// A outra elipse: "2 para imagem", sem adjectivo NENHUM — só o destino. Faltava
+// esta: um grupo descrito só por "para X" ("2 grandes para powerpoint e 2 para
+// imagem") desaparecia por completo, porque nem tinha "ecrãs" a seguir nem um
+// adjectivo de tamanho. "N para" é seguro (uma medida de sala nunca vem logo
+// seguida de "para" — "6 de pé-direito", nunca "6 para pé-direito").
+const NUMERO_MAIS_PARA = new RegExp(NUMERO_ESCRITO + "\\s+para\\b", "g");
 const ESCALA_MAIOR = /\b(maior|maiores|grande|grandes|maximo)\b/;
 const ESCALA_MENOR = /\b(pequen\w*|menor|menores|mini)\b/;
 
@@ -148,6 +154,12 @@ export function gruposDeEcras(texto) {
   while ((m = NUMERO_MAIS_ADJECTIVO.exec(limpo))) {
     // Só entra se não coincide com uma âncora já achada pelo substantivo —
     // "2 ecrãs maiores" não pode contar a dobro.
+    if (!ancoras.some(a => Math.abs(a.indice - m.index) < 6)) {
+      ancoras.push({ indice: m.index, texto: m[1] });
+    }
+  }
+  NUMERO_MAIS_PARA.lastIndex = 0;
+  while ((m = NUMERO_MAIS_PARA.exec(limpo))) {
     if (!ancoras.some(a => Math.abs(a.indice - m.index) < 6)) {
       ancoras.push({ indice: m.index, texto: m[1] });
     }
@@ -202,8 +214,14 @@ export function doQueVeioParaCa(r) {
     resumo: r && r.resumo ? String(r.resumo) : "",
     // O que a IA diz que falta saber. Num pedido vago é isto que vale mais do
     // que o desenho: e a lista de perguntas a fazer a quem pediu.
+    //
+    // Menos uma pergunta, de propósito: "qual a tecnologia" (LED, projeção,
+    // blending) é sempre a primeira coisa que a IA quer confirmar, mas aqui
+    // não se escolhe tecnologia nenhuma — isso é dos Calculadores, nas abas
+    // Ecrã LED / Distância de Projeção / TVs. Repeti-la aqui é insistir numa
+    // pergunta a que este desenho nunca vai responder.
     perguntas: r && Array.isArray(r.pontosPorConfirmar)
-      ? r.pontosPorConfirmar.map(String).slice(0, 8) : [],
+      ? r.pontosPorConfirmar.map(String).filter(q => !/tecnologia/i.test(q)).slice(0, 8) : [],
     quantos: 0
   };
   saida.quantos = quantosEcras(saida.resumo);
