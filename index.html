@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview — Mike Apps</title>
+<meta name="theme-color" content="#0E1418">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<aside id="painel">
+  <header>
+    <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
+    <div>
+      <b>Preview</b>
+      <span>o projeto no terreno</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Projeto</h2>
+    <div id="resumo" class="vazio">Sem projeto. Cola aqui o que vem dos Calculadores.</div>
+    <textarea id="colagem" rows="3" placeholder='{"v":1,"zonas":[…]}  — ou o texto que os Calculadores copiam'></textarea>
+    <div class="botoes">
+      <button id="btCarregar" class="primario">Carregar</button>
+      <button id="btExemplo">Exemplo</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sala</h2>
+    <div class="campos">
+      <label>Largura <input id="salaL" type="number" value="20" min="2" max="200" step="0.5"><i>m</i></label>
+      <label>Profundidade <input id="salaP" type="number" value="14" min="2" max="300" step="0.5"><i>m</i></label>
+      <label>Pé-direito <input id="salaA" type="number" value="7" min="2" max="60" step="0.5"><i>m</i></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Palco</h2>
+    <div class="campos">
+      <label>Altura <input id="palcoA" type="number" value="1" min="0" max="10" step="0.1"><i>m</i></label>
+      <label>Profundidade <input id="palcoP" type="number" value="6" min="0" max="60" step="0.5"><i>m</i></label>
+      <label>Ecrã acima do palco <input id="ecraOffset" type="number" value="0" min="0" max="20" step="0.1"><i>m</i></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Público</h2>
+    <div class="campos">
+      <label>Filas <input id="filas" type="number" value="12" min="0" max="80" step="1"><i></i></label>
+      <label>Primeira fila a <input id="primeiraFila" type="number" value="3" min="0" max="40" step="0.5"><i>m</i></label>
+      <label>Entre filas <input id="entreFilas" type="number" value="0.9" min="0.5" max="3" step="0.05"><i>m</i></label>
+      <label>Entre lugares <input id="entreLugares" type="number" value="0.55" min="0.4" max="2" step="0.05"><i>m</i></label>
+    </div>
+    <label class="opcao"><input id="sentado" type="checkbox" checked> Sentado</label>
+  </section>
+
+  <section>
+    <h2>Vista</h2>
+    <div class="vistas">
+      <button data-vista="frente">Frente</button>
+      <button data-vista="lado">Lado</button>
+      <button data-vista="cima">Cima</button>
+      <button data-vista="olhos" class="destaque">Olhos da plateia</button>
+    </div>
+    <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>
+  </section>
+
+  <section id="zonas">
+    <h2>Zonas</h2>
+    <div id="listaZonas" class="vazio">—</div>
+  </section>
+
+  <footer id="rodape"></footer>
+</aside>
+
+<main>
+  <canvas id="tela"></canvas>
+  <div id="etiquetas"></div>
+  <div id="aviso"></div>
+</main>
+
+<!-- O Three.js vive dentro do repositório, e não num CDN: isto usa-se em salas e
+     pavilhões, e uma app 3D que precisa de internet falha no sítio onde faz falta. -->
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
