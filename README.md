@@ -155,8 +155,11 @@ Um padrão de teste, ou uma imagem tua, de duas maneiras:
 - **Uma em cada** — a imagem inteira repetida em cada zona, para quando os ecrãs
   mostram conteúdos independentes.
 
-E **Guardar imagem (PNG)** leva o desenho com as etiquetas e uma tira com as
-contas em baixo — um printscreen perde isso, e é metade do que ali interessa.
+E o desenho sai em PNG de duas maneiras, na secção **Exportar**: **PNG da vista**
+é o que está no ecrã, tal e qual, para entrar num slide ou num email; **PNG com
+medidas** leva as etiquetas e uma tira com as contas em baixo, para mandar a
+quem tem de decidir — um printscreen perde isso, e é metade do que ali
+interessa. Os dois saem na resolução do canvas e sem o painel.
 
 ## Projeção
 

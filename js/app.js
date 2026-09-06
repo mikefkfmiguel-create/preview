@@ -893,6 +893,30 @@ function guardarImagem() {
 
 $("btGuardarImagem").onclick = guardarImagem;
 
+/**
+ * A vista, tal e qual está no ecrã.
+ *
+ * A outra imagem leva etiquetas e uma tira com as contas, que é o que faz falta
+ * para mandar a alguém que tem de decidir. Esta não leva nada: serve para
+ * entrar num slide, num email ou ao lado de uma planta, onde os números já
+ * estão escritos noutro sítio e o que se quer é só o desenho.
+ *
+ * Ao contrário de um printscreen, sai na resolução do canvas e sem o painel.
+ */
+function guardarVista() {
+  // Sem isto o browser pode ter limpo o buffer antes de o copiarmos e a
+  // imagem sai preta -- o preserveDrawingBuffer sozinho não chega.
+  renderizador.render(cena, camara);
+  tela.toBlob((blob) => {
+    if (!blob) { $("notaExportar").textContent = "Não consegui copiar a vista."; return; }
+    descarregar(blob, nomeDoFicheiro("png"));
+    $("notaExportar").innerHTML =
+      `Guardada a vista: <b>${tela.width} × ${tela.height}</b> px.`;
+  }, "image/png");
+}
+
+$("btPNG").onclick = guardarVista;
+
 // ------------------------------------------------------- arrastar o orador
 //
 // A figura serve para dar escala, mas serve para mais do que isso: arrastada

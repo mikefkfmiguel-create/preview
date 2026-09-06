@@ -162,11 +162,16 @@
     <label class="opcao"><input id="verPublico" type="checkbox" checked> Público</label>
     <label class="opcao"><input id="verOrador" type="checkbox" checked> Orador</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
-    <button id="btGuardarImagem" style="margin-top:10px; width:100%">Guardar imagem (PNG)</button>
   </section>
 
   <section id="sExportar">
     <h2>Exportar</h2>
+    <div class="vistas">
+      <button id="btPNG" class="primario">PNG da vista</button>
+      <button id="btGuardarImagem">PNG com medidas</button>
+    </div>
+    <p class="vazio" style="margin:10px 0 14px">O primeiro é o que está no ecrã,
+       tal e qual. O segundo leva as etiquetas e uma tira com as contas em baixo.</p>
     <div class="vistas">
       <button id="btGLB" class="destaque">Cinema 4D (.glb)</button>
       <button id="btOBJ">.obj</button>
