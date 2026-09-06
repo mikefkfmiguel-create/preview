@@ -891,8 +891,6 @@ function guardarImagem() {
   }, "image/png");
 }
 
-$("btGuardarImagem").onclick = guardarImagem;
-
 /**
  * A vista, tal e qual está no ecrã.
  *
@@ -915,7 +913,7 @@ function guardarVista() {
   }, "image/png");
 }
 
-$("btPNG").onclick = guardarVista;
+
 
 // ------------------------------------------------------- arrastar o orador
 //
@@ -1038,8 +1036,46 @@ async function exportar(formato) {
   }
 }
 
-$("btGLB").onclick = () => exportar("glb");
-$("btOBJ").onclick = () => exportar("obj");
+// Escolhe-se o que sai e só depois se guarda -- em vez de haver um botão por
+// formato, cada um a disparar de imediato. Com quatro saídas e duas opções que
+// só valem para duas delas, um botão por formato passa a ser um campo minado:
+// carrega-se no errado e vai-se buscar o ficheiro à pasta das descargas para
+// perceber que não era aquele.
+let saidaEscolhida = "png";
+
+const NOTAS_DA_SAIDA = {
+  "png": "A vista como está no ecrã, tal e qual — para entrar num slide ou num email.",
+  "png-medidas": "A vista com as etiquetas e uma tira com as contas em baixo — " +
+                 "para mandar a quem tem de decidir.",
+  "glb": "O <b>.glb</b> leva as cores e o nome de cada zona — é por esse nome que se lhe " +
+         "põe a textura no Cinema 4D ou no Blender.",
+  "obj": "O <b>.obj</b> abre em tudo, mas vai <b>sem materiais</b>: as peças chegam lá " +
+         "cinzentas e pintam-se à mão."
+};
+
+function escolherSaida(qual) {
+  saidaEscolhida = qual;
+  document.querySelectorAll("[data-saida]").forEach(b => {
+    b.classList.toggle("destaque", b.dataset.saida === qual);
+  });
+  // As opções são de quem as pode usar: um PNG não leva público nem planta CAD
+  // "incluídos", leva o que estiver no ecrã.
+  const eTresD = qual === "glb" || qual === "obj";
+  $("opcaoPublico").hidden = !eTresD;
+  $("opcaoLinhas").hidden = !eTresD;
+  $("notaExportar").innerHTML = NOTAS_DA_SAIDA[qual] || "";
+}
+
+document.querySelectorAll("[data-saida]").forEach(b => {
+  b.onclick = () => escolherSaida(b.dataset.saida);
+});
+escolherSaida("png");
+
+$("btGuardar").onclick = () => {
+  if (saidaEscolhida === "png") guardarVista();
+  else if (saidaEscolhida === "png-medidas") guardarImagem();
+  else exportar(saidaEscolhida);
+};
 
 // ------------------------------------------------- o projetor dos Calculadores
 //

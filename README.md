@@ -155,7 +155,7 @@ Um padrão de teste, ou uma imagem tua, de duas maneiras:
 - **Uma em cada** — a imagem inteira repetida em cada zona, para quando os ecrãs
   mostram conteúdos independentes.
 
-E o desenho sai em PNG de duas maneiras, na secção **Exportar**: **PNG da vista**
+E o desenho sai em PNG na secção **Exportar** (ver mais abaixo): **PNG da vista**
 é o que está no ecrã, tal e qual, para entrar num slide ou num email; **PNG com
 medidas** leva as etiquetas e uma tira com as contas em baixo, para mandar a
 quem tem de decidir — um printscreen perde isso, e é metade do que ali
@@ -199,8 +199,16 @@ medir custa 0,2 ms mesmo com 700 pessoas na sala.
 
 ## Exportar para onde se faz a imagem a sério
 
-Isto desenha volumes e cores — serve para responder a *cabe?* e *vê-se?*. Quem
-faz a imagem bonita trabalha noutro sítio, e a ponte é um ficheiro:
+**Escolhe-se o que sai e só depois se guarda.** São quatro saídas e duas opções
+que só valem para duas delas; com um botão por formato, carregava-se no errado e
+ia-se buscar o ficheiro à pasta das descargas para perceber que não era aquele.
+
+- **PNG da vista** — o que está no ecrã, tal e qual;
+- **PNG com medidas** — o mesmo, com as etiquetas e a tira das contas.
+
+Para o resto: isto desenha volumes e cores, e serve para responder a *cabe?* e
+*vê-se?*. Quem faz a imagem bonita trabalha noutro sítio, e a ponte é um
+ficheiro:
 
 - **`.glb` (glTF)** — é o que se usa. Leva as cores, as posições e **o nome de
   cada peça**, e entra no Cinema 4D e no Blender sem nada pelo meio. Cada zona
