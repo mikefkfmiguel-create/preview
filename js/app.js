@@ -84,12 +84,22 @@ function montar(recentrarCamara) {
     desenhado.add(zonas.grupo);
     etiquetas = $("verMedidas").checked ? zonas.etiquetas : [];
 
-    // uma pessoa ao pé do palco, que é o que dá a medida a tudo o resto
+    // Uma pessoa no palco, que é o que dá a medida a tudo o resto. Tem de ficar
+    // EM CIMA do estrado: antes era colocada em função da largura da sala e à
+    // altura do palco, e com um palco mais estreito do que a sala ficava a
+    // flutuar ao lado dele, no ar.
     const figura = fazerFigura(1.75);
+    const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
+    const noPalco = palco.altura > 0 && palco.profundidade > 0;
+    const x = -Math.min(
+      (noPalco ? larguraPalco : sala.largura) / 2 - 0.7,   // não sai do estrado
+      medidas.largura / 2 + 1.2);                           // nem tapa os ecrãs
     figura.position.set(
-      -Math.min(sala.largura / 2 - 1, medidas.largura / 2 + 1.2),
-      palco.altura,
-      -sala.profundidade / 2 + palco.profundidade - 0.6);
+      x,
+      noPalco ? palco.altura : 0,
+      noPalco
+        ? -sala.profundidade / 2 + palco.profundidade - 0.8  // à boca de cena
+        : -sala.profundidade / 2 + 1.6);
     desenhado.add(figura);
 
     avisarSeNaoCabe(medidas, sala, palco);
