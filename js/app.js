@@ -168,8 +168,10 @@ function montar(recentrarCamara) {
   desenharProjecao(sala, palco);
 
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
-  // levar um número errado para uma reunião.
-  if (publico.filas && gente.filas < publico.filas) {
+  // levar um número errado para uma reunião. Mas com o público DESLIGADO não
+  // cabem zero de dez, e dizer isso é só ruído: o que ali não está é porque
+  // alguém o mandou embora.
+  if ($("verPublico").checked && publico.filas && gente.filas < publico.filas) {
     const aviso = $("aviso");
     const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
     aviso.textContent = jaTem + `Só cabem ${gente.filas} das ${publico.filas} filas: ` +
@@ -259,10 +261,18 @@ function caixasQueTapam() {
   const figura = desenhado && desenhado.getObjectByName("figura");
   if (figura) {
     figura.updateMatrixWorld(true);
-    const c = new THREE.Box3().setFromObject(figura);
-    caixas.push({ dele: "orador",
-                  minX: c.min.x, maxX: c.max.x, minY: c.min.y, maxY: c.max.y,
-                  minZ: c.min.z, maxZ: c.max.z });
+    // Peça a peça e não a figura toda: uma caixa à volta de uma pessoa é um
+    // caixote, e a sombra dele na tela é um rectângulo que ninguém reconhece.
+    // Assim vêem-se a cabeça, os ombros e as pernas — e é pela cabeça que se
+    // percebe se aquilo apanha a cara de quem está a falar.
+    const c = new THREE.Box3();
+    figura.traverse((o) => {
+      if (!o.isMesh) return;
+      c.setFromObject(o);
+      caixas.push({ dele: "orador",
+                    minX: c.min.x, maxX: c.max.x, minY: c.min.y, maxY: c.max.y,
+                    minZ: c.min.z, maxZ: c.max.z });
+    });
   }
 
   if (corposDoPublico && corposDoPublico.corpos) {
@@ -310,6 +320,7 @@ function medirSombra() {
 
   let sombraDoOrador = 0;
   let gentePeloMeio = 0;
+  const manchas = [];        // os rectangulos a pintar, ja recortados na imagem
 
   for (const caixa of caixasQueTapam()) {
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -342,6 +353,17 @@ function medirSombra() {
     if (c2 < c1 || l2 < l1) continue;
 
     if (caixa.dele === "publico") gentePeloMeio++;
+
+    // O que se conta e o que se pinta sai da mesma projeccao: se um dia
+    // discordarem, e porque alguem mexeu num sitio e nao no outro.
+    const eDir = imagem.x + imagem.largura / 2;
+    const eCima = imagem.y + imagem.altura / 2;
+    const rx1 = Math.max(minX, eEsq), rx2 = Math.min(maxX, eDir);
+    const ry1 = Math.max(minY, eBaixo), ry2 = Math.min(maxY, eCima);
+    if (rx2 > rx1 && ry2 > ry1 && manchas.length < 1200) {
+      manchas.push(rx1, ry1, rx2, ry2);
+    }
+
     let casas = 0;
     for (let l = l1; l <= l2; l++) {
       for (let c = c1; c <= c2; c++) {
@@ -349,7 +371,7 @@ function medirSombra() {
         casas++;
       }
     }
-    if (caixa.dele === "orador") sombraDoOrador = casas / grelhaSombra.length;
+    if (caixa.dele === "orador") sombraDoOrador += casas / grelhaSombra.length;
   }
 
   let tapadas = 0;
@@ -376,7 +398,64 @@ function medirSombra() {
   // mede, esta é o que a lente não dá.
   const excesso = shiftForaDaLente();
   if (excesso) $("resumoProj").innerHTML += ` · <b>shift a mais</b>: ${excesso}`;
+
+  pintarSombra(manchas, imagem);
 }
+
+/**
+ * A sombra, desenhada.
+ *
+ * Ate aqui ela era medida e nada mais: saia uma percentagem no resumo e o
+ * desenho ficava exactamente igual, o que e o mesmo que dizer que nao estava
+ * la. E "quanto e que aquilo tapa" e uma pergunta que se responde a olhar, nao
+ * a ler -- ninguem quer saber que sao 8%, quer saber se apanha a cara de quem
+ * esta a falar.
+ *
+ * Sao rectangulos chapados por cima da imagem, um por corpo, ja recortados nos
+ * limites dela. Nao ha penumbra: uma lente nao e um ponto e as bordas a serio
+ * sao suaves, mas isto e um preview de montagem e uma sombra nitida le-se
+ * melhor do que uma bonita.
+ */
+function pintarSombra(manchas, imagem) {
+  if (!desenhado) return;
+  const velha = desenhado.getObjectByName("aux:sombra");
+  if (velha) {
+    desenhado.remove(velha);
+    velha.geometry.dispose();
+  }
+  if (!manchas.length) return;
+
+  const quantas = manchas.length / 4;
+  const vertices = new Float32Array(quantas * 6 * 3);
+  // Uma frincha a frente da imagem: no mesmo plano, o motor nao sabe qual das
+  // duas fica por cima e a sombra pisca conforme a camara anda.
+  const z = imagem.z + 0.03;
+  for (let i = 0; i < quantas; i++) {
+    const x1 = manchas[i * 4], y1 = manchas[i * 4 + 1];
+    const x2 = manchas[i * 4 + 2], y2 = manchas[i * 4 + 3];
+    const k = i * 18;
+    const pontos = [x1, y1, x2, y1, x2, y2, x1, y1, x2, y2, x1, y2];
+    for (let j = 0; j < 6; j++) {
+      vertices[k + j * 3] = pontos[j * 2];
+      vertices[k + j * 3 + 1] = pontos[j * 2 + 1];
+      vertices[k + j * 3 + 2] = z;
+    }
+  }
+
+  const geometria = new THREE.BufferGeometry();
+  geometria.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  const malha = new THREE.Mesh(geometria, materialDaSombra);
+  malha.name = "aux:sombra";
+  malha.renderOrder = 3;
+  desenhado.add(malha);
+}
+
+// Preto a 62%: uma sombra de projector nao e preta -- a luz ambiente cai la
+// dentro na mesma -- e uma mancha opaca fazia parecer que aquilo era um buraco.
+const materialDaSombra = new THREE.MeshBasicMaterial({
+  color: 0x05070A, transparent: true, opacity: 0.62,
+  depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+});
 
 function avisarSeNaoCabe(medidas, sala, palco) {
   const altoDemais = palco.altura + palco.acimaDoPalco + medidas.altura;

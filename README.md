@@ -177,7 +177,9 @@ a Sony e a Barco não deixam ler as páginas por meios automáticos, e a Panason
 a Christie e a NEC publicam o shift no **corpo do projetor** e não na lente.
 
 E responde à pergunta que uma folha de cálculo não responde: **quem é que tapa a
-imagem**. O orador arrasta-se pelo palco e a percentagem muda ao vivo; **a
+imagem**. A sombra **desenha-se na imagem** — não é só uma percentagem no
+resumo: quer-se saber se aquilo apanha a cara de quem está a falar, e isso
+responde-se a olhar. O orador arrasta-se pelo palco e a mancha acompanha; **a
 plateia também faz sombra**, e o resumo diz quantas pessoas estão no feixe. É a
 diferença entre pendurar a máquina uma vez ou duas: baixa-se a lente e vê-se as
 cabeças a entrar na imagem.
