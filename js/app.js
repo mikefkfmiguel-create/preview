@@ -34,7 +34,8 @@ function lerSala() {
   return { largura: num("salaL"), profundidade: num("salaP"), altura: num("salaA") };
 }
 function lerPalco() {
-  return { altura: num("palcoA"), profundidade: num("palcoP"), acimaDoPalco: num("ecraOffset") };
+  return { largura: num("palcoL"), altura: num("palcoA"),
+           profundidade: num("palcoP"), acimaDoPalco: num("ecraOffset") };
 }
 function lerPublico() {
   return {

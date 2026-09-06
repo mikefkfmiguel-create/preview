@@ -77,8 +77,11 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha) {
 export function fazerPalco({ largura, profundidade }, palco) {
   if (!palco.altura || !palco.profundidade) return new THREE.Group();
   const grupo = new THREE.Group();
+  // O palco tem largura própria: um palco da largura do pavilhão é a excepção,
+  // não a regra. Sem valor, assume-se a sala toda.
+  const larguraPalco = Math.min(palco.largura || largura, largura);
   const caixa = new THREE.Mesh(
-    new THREE.BoxGeometry(largura, palco.altura, palco.profundidade),
+    new THREE.BoxGeometry(larguraPalco, palco.altura, palco.profundidade),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
   caixa.position.set(0, palco.altura / 2, -profundidade / 2 + palco.profundidade / 2);
   grupo.add(caixa);
