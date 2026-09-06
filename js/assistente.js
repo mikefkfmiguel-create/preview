@@ -50,6 +50,27 @@ export async function analisar(texto) {
   return dados.requisitos;
 }
 
+const PALAVRAS = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5,
+                   seis: 6, sete: 7, oito: 8, nove: 9, dez: 10 };
+
+/**
+ * Quantos ecrãs o pedido menciona.
+ *
+ * A IA não devolve um número de ecrãs — mas escreve-o no resumo dela ("pedido
+ * para colocar 4 ecrãs numa sala"), e já fez ali a soma que o texto original
+ * espalha por duas frases ("dois para slides... mais dois para imagem"). Por
+ * isso lê-se o resumo primeiro.
+ */
+export function quantosEcras(texto) {
+  if (!texto) return 0;
+  const limpo = String(texto).toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const m = limpo.match(/(\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(?:ecr[ãa]|ecran|tela|painel|painei)/);
+  if (!m) return 0;
+  const n = /^\d+$/.test(m[1]) ? parseInt(m[1], 10) : (PALAVRAS[m[1]] || 0);
+  return n >= 1 && n <= 12 ? n : 0;
+}
+
 const numero = (v) => {
   const n = typeof v === "string" ? parseFloat(v.replace(",", ".")) : v;
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -64,7 +85,16 @@ const numero = (v) => {
  * espectador não é a parede — há sempre uma passagem atrás.
  */
 export function doQueVeioParaCa(r) {
-  const saida = { sala: null, ecra: null, resumo: r && r.resumo ? String(r.resumo) : "" };
+  const saida = {
+    sala: null, ecra: null,
+    resumo: r && r.resumo ? String(r.resumo) : "",
+    // O que a IA diz que falta saber. Num pedido vago é isto que vale mais do
+    // que o desenho: e a lista de perguntas a fazer a quem pediu.
+    perguntas: r && Array.isArray(r.pontosPorConfirmar)
+      ? r.pontosPorConfirmar.map(String).slice(0, 8) : [],
+    quantos: 0
+  };
+  saida.quantos = quantosEcras(saida.resumo);
   if (!r) return saida;
 
   const d = r.dimensoes || {};

@@ -10,7 +10,7 @@ import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico
          fazerPlanta, fazerPlantaCad } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
-import { analisar, doQueVeioParaCa } from "./assistente.js";
+import { analisar, doQueVeioParaCa, quantosEcras } from "./assistente.js";
 import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
 
 const $ = (id) => document.getElementById(id);
@@ -113,7 +113,8 @@ function montar(recentrarCamara) {
   const publico = lerPublico();
 
   desenhado.add(fazerSala(sala, $("verMedidas").checked, $("verParedes").checked));
-  if (plantaCad) {
+  const verPlanta = $("verPlanta").checked;
+  if (plantaCad && verPlanta) {
     desenhado.add(fazerPlantaCad(plantaCad, {
       fator: metrosPorUnidade(plantaCad, $("plantaU").value).fator,
       rodar: num("plantaR"), x: num("plantaX"), z: num("plantaZ"),
@@ -123,7 +124,7 @@ function montar(recentrarCamara) {
       altura: num("alturaParedes")
     }));
   }
-  if (planta) {
+  if (planta && verPlanta) {
     desenhado.add(fazerPlanta(planta, {
       largura: num("plantaL"), rodar: num("plantaR"),
       x: num("plantaX"), z: num("plantaZ"),
@@ -148,9 +149,11 @@ function montar(recentrarCamara) {
   let medidas = null;
   if (projeto) {
     medidas = totais(projeto);
+    // Os ecrãs também se desligam: para olhar para a sala sem eles, ou para os
+    // tirar da frente da planta que se está a acertar por baixo.
     const zonas = fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo);
-    desenhado.add(zonas.grupo);
-    etiquetas = $("verMedidas").checked ? zonas.etiquetas : [];
+    if ($("verEcras").checked) desenhado.add(zonas.grupo);
+    etiquetas = ($("verMedidas").checked && $("verEcras").checked) ? zonas.etiquetas : [];
 
 
     avisarSeNaoCabe(medidas, sala, palco);
@@ -1005,6 +1008,38 @@ $("colagem").addEventListener("input", prontoParaCarregar);
 prontoParaCarregar();
 
 /**
+ * O que a IA percebeu, escrito e a ficar.
+ *
+ * Da primeira vez isto ia para o aviso de baixo — e o aviso apaga-se ao
+ * primeiro campo que se mexa. Pior: quando o pedido não trazia medidas, o que
+ * a IA devolvia de mais útil era precisamente o que se deitava fora. Ela lê
+ * "dois ecrãs para slides e dois para imagem" e responde, com todas as letras,
+ * que falta a tecnologia, a disposição, as dimensões da sala e a distância do
+ * público. Isso não é um erro — é a lista do que falta perguntar ao cliente.
+ */
+function escreverRespostaIA(veio, feitas) {
+  const caixa = $("respostaIA");
+  const partes = [];
+
+  if (veio.resumo) partes.push(`<b>A IA leu:</b> ${veio.resumo}`);
+  if (feitas.length) partes.push(`<b>Aplicado:</b> ${feitas.join(", ")}.`);
+  else partes.push("<b>Não havia medidas no pedido</b>, por isso o desenho ficou como estava.");
+  if (feitas.length && feitas[0].includes("partida")) {
+    partes.push("O tamanho é <b>um ponto de partida</b> tirado da profundidade da sala — " +
+                "muda-o em <i>Ajustar o ecrã</i>, ou traz o certo dos Calculadores.");
+  }
+
+  if (veio.perguntas && veio.perguntas.length) {
+    partes.push("<b>Falta saber:</b><ul>" +
+      veio.perguntas.map(q => `<li>${q}</li>`).join("") + "</ul>");
+  }
+
+  caixa.innerHTML = '<button class="fechar" title="Fechar">×</button>' + partes.join("<br>");
+  caixa.querySelector(".fechar").onclick = () => { caixa.hidden = true; };
+  caixa.hidden = false;
+}
+
+/**
  * O texto do pedido, lido pela IA.
  *
  * A primeira versão mandava o texto para os Calculadores e deixava-os analisar.
@@ -1044,6 +1079,8 @@ $("btAnalisar").onclick = async () => {
       if (veio.sala.altura) { $("salaA").value = veio.sala.altura; feitas.push(`${veio.sala.altura} m de pé-direito`); }
     }
 
+    const quantos = Math.max(1, veio.quantos || quantosEcras(texto) || 1);
+
     if (veio.ecra) {
       // Um ecrã só, ao meio: o que a IA dá é um tamanho, não uma montagem.
       carregar({
@@ -1052,17 +1089,33 @@ $("btAnalisar").onclick = async () => {
                   w: veio.ecra.largura, h: veio.ecra.altura, cor: "#2E7BFF" }]
       }, true);
       feitas.unshift(`ecrã de ${veio.ecra.largura.toFixed(2)} × ${veio.ecra.altura.toFixed(2)} m`);
+    } else if (veio.quantos || quantosEcras(texto)) {
+      // Sem medidas no pedido, desenha-se na mesma: um pedido que fala de
+      // quatro ecrãs merece ver quatro ecrãs. O tamanho é um PONTO DE PARTIDA
+      // tirado da profundidade da sala -- e diz-se que é, para ninguém o levar
+      // para uma reunião como se fosse uma proposta.
+      const fundo = num("salaP") || 18;
+      const altura = Math.min(4, Math.max(1.5, Math.round((fundo / 8) * 10) / 10));
+      const largura = Math.round(altura * (16 / 9) * 10) / 10;
+      const zonas = [];
+      for (let i = 0; i < quantos; i++) {
+        zonas.push({ nome: `Ecrã ${i + 1}`, x: i * (largura + 1), y: 0,
+                     w: largura, h: altura, cor: i % 2 ? "#22D3EE" : "#2E7BFF" });
+      }
+      carregar({ v: 1, origem: "assistente (tamanho de partida)",
+                 nome: `${quantos} ecrãs do pedido`, zonas }, true);
+      feitas.unshift(`${quantos} ecrã${quantos > 1 ? "s" : ""} de ` +
+                     `${largura.toFixed(2)} × ${altura.toFixed(2)} m (tamanho de partida)`);
     } else {
       montar(true);
     }
 
-    if (!feitas.length) {
-      $("aviso").innerHTML = "A IA leu o pedido mas não encontrou lá medidas nenhumas." +
-        (veio.resumo ? `<br><b>${veio.resumo}</b>` : "");
-    } else {
-      $("aviso").innerHTML = "Da IA: " + feitas.join(", ") + "." +
-        (veio.resumo ? `<br>${veio.resumo}` : "");
+    escreverRespostaIA(veio, feitas);
+    if (feitas.length) {
+      $("aviso").innerHTML = "Da IA: " + feitas.join(", ") + ".";
       setTimeout(() => $("aviso").classList.remove("mostra"), 7000);
+    } else {
+      $("aviso").classList.remove("mostra");
     }
   } catch (e) {
     $("aviso").innerHTML = e.message +

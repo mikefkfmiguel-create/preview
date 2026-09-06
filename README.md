@@ -28,10 +28,11 @@ porque é uma preferência de quem trabalha e não do desenho — com trinta cam
 de um DWG na lista, 320 px deixam de chegar e um nome cortado com reticências
 não serve para escolher a camada que se vai levantar.
 
-Cada vista serve uma pergunta diferente, por isso o **público**, o **orador** e
-as **paredes e tecto** ligam-se e desligam-se: sem paredes vê-se a sala de fora,
-sem público vê-se a estrutura, e sem ninguém no palco mede-se o ecrã sem nada a
-tapá-lo.
+Cada vista serve uma pergunta diferente, por isso tudo o que está na cena liga e
+desliga: **ecrãs**, **planta**, **palco**, **público**, **orador**, **paredes e
+tecto**, e as **medidas**. Sem paredes vê-se a sala de fora, sem público vê-se a
+estrutura, sem ninguém no palco mede-se o ecrã sem nada a tapá-lo, e sem ecrãs
+acerta-se a planta que está por baixo.
 
 **Instala-se como app**, e depois disso abre sem internet: o botão está no fim
 do painel, e em iPhone diz-se lá como se faz à mão.
@@ -245,6 +246,18 @@ A caixa do Projeto entende medidas, não entende um email. Para isso há
 **"Analisar com a IA"**: manda o texto ao mesmo Worker que o assistente dos
 Calculadores usa, e aplica o que vier — o tamanho do ecrã, e a sala (largura da
 plateia, distância ao último espectador, pé-direito).
+
+**Sem medidas no pedido, desenha na mesma.** Um pedido que fala de quatro ecrãs
+merece ver quatro ecrãs: contam-se pelo resumo da IA (que já soma o que o texto
+espalha por duas frases) e desenham-se com um tamanho tirado da profundidade da
+sala. Diz-se, com todas as letras, que é **um ponto de partida** — para ninguém
+o levar a uma reunião como se fosse uma proposta.
+
+E o que a IA percebeu fica escrito **no painel**, não num aviso que se apaga: o
+resumo dela, o que foi aplicado, e a lista do que ela diz faltar (*qual a
+tecnologia?*, *quais as dimensões da sala?*). Num pedido vago, essa lista vale
+mais do que o desenho — é o que há a perguntar a quem pediu. A primeira versão
+deitava-a fora.
 
 O endereço do Worker vem do `localStorage` que os Calculadores já escrevem:
 **configura-se uma vez, lá, e serve os dois**. Isto não duplica a conta deles —

@@ -17,7 +17,7 @@
     <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
     <div>
       <b>Preview</b>
-      <span>o projeto no terreno <i id="versao">v1.8</i></span>
+      <span>o projeto no terreno <i id="versao">v1.9</i></span>
     </div>
     <button id="btFechar" title="Esconder o painel (Tab)">‹</button>
   </header>
@@ -32,6 +32,7 @@
     </div>
     <button id="btAnalisar" style="margin-top:8px; width:100%"
             title="Manda o texto ao assistente — a mesma IA dos Calculadores">Analisar com a IA</button>
+    <div id="respostaIA" hidden></div>
     <button id="btLimpar" style="margin-top:8px; width:100%"
             title="Deita fora o projeto e põe todas as medidas no princípio">Limpar tudo</button>
   </section>
@@ -174,6 +175,8 @@
       <button data-vista="cima">Cima</button>
       <button data-vista="olhos" class="destaque">Olhos da plateia</button>
     </div>
+    <label class="opcao"><input id="verEcras" type="checkbox" checked> Ecrãs</label>
+    <label class="opcao"><input id="verPlanta" type="checkbox" checked> Planta</label>
     <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>
     <label class="opcao"><input id="verPublico" type="checkbox" checked> Público</label>
     <label class="opcao"><input id="verPalco" type="checkbox" checked> Palco</label>

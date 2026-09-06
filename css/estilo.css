@@ -232,3 +232,23 @@ body.fechado #puxador { display: none; }
   50% { border-color: var(--ciano); box-shadow: 0 0 0 2px rgba(34, 211, 238, .25); }
 }
 button.apontado { animation: apontar 1.1s ease-in-out 3; }
+
+/* ------------------------------------------- o que a IA percebeu
+ *
+ * Isto vive no painel e não no aviso de baixo: um aviso apaga-se ao primeiro
+ * campo que se mexa, e as perguntas que a IA devolve são precisamente o que se
+ * quer ter à frente enquanto se mexe.
+ */
+
+#respostaIA {
+  margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+  background: #16202A; border: 1px solid var(--linha); font-size: 12.5px;
+  line-height: 1.5; color: var(--apagado);
+}
+#respostaIA b { color: var(--texto); }
+#respostaIA ul { margin: 8px 0 0; padding-left: 18px; }
+#respostaIA li { margin-bottom: 3px; }
+#respostaIA .fechar {
+  float: right; margin: -4px -4px 0 6px; padding: 0 6px; font-size: 15px;
+  background: none; border: 0; color: var(--apagado); cursor: pointer; flex: none;
+}
