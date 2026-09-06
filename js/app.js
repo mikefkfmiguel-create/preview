@@ -1259,6 +1259,28 @@ $("btExemplo").onclick = () => {
   carregar(EXEMPLO);
 };
 
+/**
+ * Trazer o projeto dos Calculadores, à mão.
+ *
+ * As outras três pontes (sala, projetor, ecrã ajustado) têm todas um botão
+ * "Trazer X" no lado que recebe. Esta nunca teve: o projeto só chegava
+ * sozinho — ao abrir o Preview, ou ao vivo com as duas abas abertas ao mesmo
+ * tempo. Sem um botão, não havia como o pedir outra vez à mão quando isso não
+ * bastava — e "não encontro onde importar" era a app a dizer a verdade: não
+ * havia onde.
+ */
+$("btTrazerProjeto").onclick = () => {
+  const guardado = projetoGuardado();
+  if (!guardado) {
+    $("aviso").innerHTML = "Ainda não há nada guardado. Nos Calculadores, monta as zonas " +
+      "(aba <b>Ecrã Complexo</b>, ou qualquer outra com \"Adicionar ao projeto\") — ficam " +
+      "gravadas sozinhas, e depois carregas aqui neste botão.";
+    $("aviso").classList.add("mostra");
+    return;
+  }
+  carregar(guardado, true);
+};
+
 // ------------------------------------------------- ajustar e devolver o ecrã
 //
 // Olha-se para a sugestão montada na sala, acha-se curta, e muda-se ali mesmo.
@@ -1644,6 +1666,33 @@ $("btTrazerProjetor").onclick = () => {
     $("notaProj").innerHTML = "Ainda não veio nenhum projetor. Nos Calculadores, na aba " +
       "<b>Distância de Projeção</b>, carrega em <b>Ver no Preview 3D</b>.";
   }
+};
+
+/**
+ * O botão do cabeçalho: força as duas pontes que vêm dos Calculadores
+ * (projeto e projetor) de uma só vez.
+ *
+ * O evento "storage" já as traz sozinhas quando as duas apps estão abertas ao
+ * mesmo tempo — mas é silencioso, e se por alguma razão não disparar (as
+ * janelas não estavam as duas abertas no momento certo, por exemplo), fica
+ * tudo na mesma sem ninguém saber que ficou por trazer. Isto dá sempre uma
+ * resposta, mesmo que seja "não havia nada".
+ */
+$("btSincronizar").onclick = () => {
+  const projetoTrazido = projetoGuardado();
+  if (projetoTrazido) carregar(projetoTrazido, false);
+  const projetorTrazido = aplicarProjetor(projetorGuardado());
+
+  const aviso = $("aviso");
+  if (projetoTrazido || projetorTrazido) {
+    aviso.innerHTML = "Trazido dos Calculadores: " +
+      [projetoTrazido ? "o projeto" : "", projetorTrazido ? "o projetor" : ""]
+        .filter(Boolean).join(" e ") + ".";
+  } else {
+    aviso.textContent = "Não há nada guardado do lado dos Calculadores ainda.";
+  }
+  aviso.classList.add("mostra");
+  setTimeout(() => aviso.classList.remove("mostra"), 3000);
 };
 
 // ------------------------------------------------------------ dobrar o painel

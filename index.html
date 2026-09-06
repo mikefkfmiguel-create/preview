@@ -17,14 +17,17 @@
     <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
     <div>
       <b>Preview</b>
-      <span>o projeto no terreno <i id="versao">v2.4</i></span>
+      <span>o projeto no terreno <i id="versao">v2.5</i></span>
     </div>
+    <button id="btSincronizar" title="Vai buscar já o projeto e o projetor que os Calculadores tiverem guardados — sem esperar pelo aviso automático">🔄</button>
     <button id="btFechar" title="Esconder o painel (Tab)">‹</button>
   </header>
 
   <section id="sProjeto">
     <h2>Projeto</h2>
     <div id="resumo" class="vazio">Sem projeto. Cola aqui o que vem dos Calculadores.</div>
+    <button id="btTrazerProjeto" style="margin-bottom:10px; width:100%"
+            title="Vai buscar o último projeto que os Calculadores guardaram">Trazer projeto dos Calculadores</button>
     <textarea id="colagem" rows="3" placeholder='6 x 3 m &#10;3 ecrãs de 3,90 × 2,19 m&#10;… ou o JSON que os Calculadores copiam'></textarea>
     <div class="botoes">
       <button id="btCarregar" class="primario">Carregar</button>

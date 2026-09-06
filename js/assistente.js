@@ -259,14 +259,24 @@ export function doQueVeioParaCa(r) {
   const fundo = numero(local.distanciaVisualizacaoM);
   const plateia = numero(local.larguraPlateiaM);
   const alto = numero(local.alturaSalaM);
-  if (fundo || plateia || alto) {
+  // Quando o texto deu a SALA em si ("sala de 24 por 18"), usa-se tal e qual
+  // — sem folga nenhuma, porque já é a sala e não a plateia. A folga só faz
+  // sentido para RECONSTRUIR a sala a partir de uma largura de plateia — e
+  // sem estes dois campos, era exactamente isso que se assumia sempre, mesmo
+  // quando o número já era a sala inteira (a IA usa a sala como aproximação
+  // da plateia quando não há uma plateia descrita à parte). Somar folga a uma
+  // sala que já é a sala inflava-a sem necessidade: pediram 24×18 e saía
+  // 28×21.
+  const salaLargura = numero(local.salaLarguraM);
+  const salaProfundidade = numero(local.salaProfundidadeM);
+  if (fundo || plateia || alto || salaLargura || salaProfundidade) {
     saida.sala = {
-      largura: plateia ? Math.round((plateia + 4) * 10) / 10 : null,   // 2 m de folga de cada lado
-      profundidade: fundo ? Math.round((fundo + 3) * 10) / 10 : null,  // uma passagem atrás da última fila
+      largura: salaLargura || (plateia ? Math.round((plateia + 4) * 10) / 10 : null),
+      profundidade: salaProfundidade || (fundo ? Math.round((fundo + 3) * 10) / 10 : null),
       altura: alto || null,
       // O que a IA disse, sem folgas: é isto que se escreve no aviso, para
       // ninguém confundir o que ela leu com o que nós arredondámos.
-      cru: { fundo, plateia, alto }
+      cru: { fundo, plateia, alto, salaLargura, salaProfundidade }
     };
   }
   return saida;
