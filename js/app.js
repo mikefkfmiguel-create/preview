@@ -1373,6 +1373,35 @@ try {
   $("aviso").classList.add("mostra");
 }
 
+// Reaproveitar a janela do Preview tem um preço: uma navegação que muda só o
+// "#" não recarrega a página, e o módulo não volta a correr. Sem isto, o
+// segundo "Ver no Preview 3D" mudava o endereço e mais nada — parecia que o
+// botão tinha deixado de funcionar.
+addEventListener("hashchange", () => {
+  let algo = false;
+  try {
+    const doEndereco = projetoDoEndereco();
+    if (doEndereco) { carregar(doEndereco, true); algo = true; }
+  } catch (e) {
+    $("aviso").textContent = e.message;
+    $("aviso").classList.add("mostra");
+  }
+  const projetor = projetorDoEndereco();
+  if (projetor && aplicarProjetor(projetor)) {
+    document.getElementById("sProjecao").classList.remove("fechada");
+    algo = true;
+  }
+  if (algo) {
+    const aviso = $("aviso");
+    if (!aviso.classList.contains("mostra")) {
+      aviso.textContent = "Chegou dos Calculadores.";
+      aviso.classList.add("mostra");
+      setTimeout(() => aviso.classList.remove("mostra"), 2400);
+    }
+    focus();
+  }
+});
+
 // E se os Calculadores mexerem nas zonas noutra aba, isto acompanha. O evento
 // só chega às OUTRAS abas do mesmo domínio, que é exactamente o caso: as duas
 // apps lado a lado.
