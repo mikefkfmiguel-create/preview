@@ -10,7 +10,7 @@ import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico
          fazerPlanta, fazerPlantaCad } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
-import { analisar, doQueVeioParaCa, quantosEcras } from "./assistente.js";
+import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
 import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
 
 const $ = (id) => document.getElementById(id);
@@ -1017,7 +1017,7 @@ prontoParaCarregar();
  * que falta a tecnologia, a disposição, as dimensões da sala e a distância do
  * público. Isso não é um erro — é a lista do que falta perguntar ao cliente.
  */
-function escreverRespostaIA(veio, feitas) {
+function escreverRespostaIA(veio, feitas, mantidas) {
   const caixa = $("respostaIA");
   const partes = [];
 
@@ -1029,6 +1029,11 @@ function escreverRespostaIA(veio, feitas) {
                 "muda-o em <i>Ajustar o ecrã</i>, ou traz o certo dos Calculadores.");
   }
 
+  if (mantidas && mantidas.length) {
+    partes.push("<b>Mantive o que já lá estava:</b> a sala que escreveste " +
+                "ganha à que a IA estimou. Ela recebeu-a com o pedido, por isso " +
+                "as contas dela já contam com ela.");
+  }
   if (veio.perguntas && veio.perguntas.length) {
     partes.push("<b>Falta saber:</b><ul>" +
       veio.perguntas.map(q => `<li>${q}</li>`).join("") + "</ul>");
@@ -1070,13 +1075,28 @@ $("btAnalisar").onclick = async () => {
   $("aviso").classList.add("mostra");
 
   try {
-    const veio = doQueVeioParaCa(await analisar(texto));
+    const salaAgora = {
+      largura: num("salaL"), profundidade: num("salaP"), altura: num("salaA")
+    };
+    const veio = doQueVeioParaCa(await analisar(texto, salaAgora));
     const feitas = [];
+    const mantidas = [];
 
     if (veio.sala) {
-      if (veio.sala.largura) { $("salaL").value = veio.sala.largura; feitas.push(`sala com ${veio.sala.largura} m de largura`); }
-      if (veio.sala.profundidade) { $("salaP").value = veio.sala.profundidade; feitas.push(`${veio.sala.profundidade} m de fundo`); }
-      if (veio.sala.altura) { $("salaA").value = veio.sala.altura; feitas.push(`${veio.sala.altura} m de pé-direito`); }
+      // Um campo que já foi mexido à mão não se escreve por cima. O
+      // `defaultValue` é o que está no HTML: se o campo já não é isso, foi
+      // alguém que lá mexeu, e o que essa pessoa escreveu vale mais do que uma
+      // estimativa feita a partir de um parágrafo.
+      const porOMike = (id) => $(id).value !== $(id).defaultValue;
+      const aplicar = (id, valor, comoSeDiz) => {
+        if (!valor) return;
+        if (porOMike(id)) { mantidas.push(comoSeDiz); return; }
+        $(id).value = valor;
+        feitas.push(comoSeDiz.replace("{}", valor));
+      };
+      aplicar("salaL", veio.sala.largura, "sala com {} m de largura");
+      aplicar("salaP", veio.sala.profundidade, "{} m de fundo");
+      aplicar("salaA", veio.sala.altura, "{} m de pé-direito");
     }
 
     const quantos = Math.max(1, veio.quantos || quantosEcras(texto) || 1);
@@ -1089,28 +1109,59 @@ $("btAnalisar").onclick = async () => {
                   w: veio.ecra.largura, h: veio.ecra.altura, cor: "#2E7BFF" }]
       }, true);
       feitas.unshift(`ecrã de ${veio.ecra.largura.toFixed(2)} × ${veio.ecra.altura.toFixed(2)} m`);
-    } else if (veio.quantos || quantosEcras(texto)) {
+    } else if (veio.quantos || quantosEcras(texto) || gruposDeEcras(texto).length) {
       // Sem medidas no pedido, desenha-se na mesma: um pedido que fala de
       // quatro ecrãs merece ver quatro ecrãs. O tamanho é um PONTO DE PARTIDA
       // tirado da profundidade da sala -- e diz-se que é, para ninguém o levar
       // para uma reunião como se fosse uma proposta.
+      //
+      // E se o texto disser que uns são maiores do que outros, isso respeita-se:
+      // desenhar tudo igual é ignorar metade do que foi pedido.
+      //
+      // Mas nenhum grupo pode furar o tecto. O ecrã não assenta no chão da
+      // sala -- assenta em cima do palco, e às vezes ainda sobe mais um bocado
+      // ("Ecrã acima do palco"). É esse ponto de partida, e não o chão, que
+      // tem de caber no pé-direito: um "maiores" de 1,5× que ficasse bem no
+      // papel e furasse o tecto na sala real não seria um esboço, era um erro.
       const fundo = num("salaP") || 18;
-      const altura = Math.min(4, Math.max(1.5, Math.round((fundo / 8) * 10) / 10));
-      const largura = Math.round(altura * (16 / 9) * 10) / 10;
+      const palco = lerPalco();
+      const pDireito = num("salaA") || 8;
+      // 0,4 m de folga até ao tecto -- estrutura, grelhas, o que for lá em cima.
+      const sobraAteAoTecto = Math.max(1, pDireito - palco.altura - palco.acimaDoPalco - 0.4);
+      const alturaBase = Math.min(4, sobraAteAoTecto, Math.max(1.5, Math.round((fundo / 8) * 10) / 10));
+      const grupos = gruposDeEcras(texto);
+      const lista = grupos.length ? grupos : [{ quantos, escala: 1, para: "" }];
+
       const zonas = [];
-      for (let i = 0; i < quantos; i++) {
-        zonas.push({ nome: `Ecrã ${i + 1}`, x: i * (largura + 1), y: 0,
-                     w: largura, h: altura, cor: i % 2 ? "#22D3EE" : "#2E7BFF" });
+      let x = 0, n = 0;
+      const descricao = [];
+      let cortadoPeloTecto = false;
+      for (const grupo of lista) {
+        let altura = Math.round(alturaBase * grupo.escala * 10) / 10;
+        if (altura > sobraAteAoTecto + 0.001) { altura = Math.round(sobraAteAoTecto * 10) / 10; cortadoPeloTecto = true; }
+        const larg = Math.round(altura * (16 / 9) * 10) / 10;
+        for (let i = 0; i < grupo.quantos; i++) {
+          n++;
+          zonas.push({
+            nome: grupo.para ? `${grupo.para} ${i + 1}` : `Ecrã ${n}`,
+            x, y: 0, w: larg, h: altura,
+            cor: grupo.escala > 1 ? "#2E7BFF" : grupo.escala < 1 ? "#7C8CA0" : "#22D3EE"
+          });
+          x += larg + 1;
+        }
+        descricao.push(`${grupo.quantos}× ${larg.toFixed(2)} × ${altura.toFixed(2)} m` +
+                       (grupo.para ? ` (${grupo.para})` : ""));
       }
+
       carregar({ v: 1, origem: "assistente (tamanho de partida)",
-                 nome: `${quantos} ecrãs do pedido`, zonas }, true);
-      feitas.unshift(`${quantos} ecrã${quantos > 1 ? "s" : ""} de ` +
-                     `${largura.toFixed(2)} × ${altura.toFixed(2)} m (tamanho de partida)`);
+                 nome: `${n} ecrãs do pedido`, zonas }, true);
+      feitas.unshift(descricao.join(", ") + " — tamanho de partida" +
+                     (cortadoPeloTecto ? ", já ajustado ao pé-direito" : ""));
     } else {
       montar(true);
     }
 
-    escreverRespostaIA(veio, feitas);
+    escreverRespostaIA(veio, feitas, mantidas);
     if (feitas.length) {
       $("aviso").innerHTML = "Da IA: " + feitas.join(", ") + ".";
       setTimeout(() => $("aviso").classList.remove("mostra"), 7000);

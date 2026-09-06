@@ -34,11 +34,21 @@ export function enderecoDoWorker() {
  * medidas do ecrã e as da sala. O resto (orçamento, tipo de ecrã, pontos por
  * confirmar) fica para quem tem as tabelas.
  */
-export async function analisar(texto) {
+export async function analisar(texto, sala) {
+  // A sala que já está no desenho vai com o pedido. Sem isto, a IA lia só o
+  // texto e devolvia estimativas suas por cima de medidas que alguém já tinha
+  // escrito à mão -- e quem as escreveu ficava a olhar para números que não
+  // eram os seus. É a diferença entre perguntar e adivinhar.
+  const comSala = sala && sala.largura && sala.profundidade
+    ? texto + "\n\n(Sala já definida no desenho: " +
+      `${sala.largura} m de largura × ${sala.profundidade} m de profundidade` +
+      (sala.altura ? ` × ${sala.altura} m de pé-direito` : "") + ".)"
+    : texto;
+
   const resposta = await fetch(enderecoDoWorker(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: texto })
+    body: JSON.stringify({ text: comSala })
   });
 
   let dados = null;
@@ -53,6 +63,26 @@ export async function analisar(texto) {
 const PALAVRAS = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5,
                    seis: 6, sete: 7, oito: 8, nove: 9, dez: 10 };
 
+// Tira os acentos à mão, letra a letra, em vez de normalizar e filtrar
+// caracteres combinantes por intervalo de código: essa segunda forma já
+// corrompeu este ficheiro uma vez — o escape ficou gravado como os próprios
+// caracteres combinantes, e um `[` colado a um combinante deixa de abrir a
+// classe de caracteres que deveria. Isto é mais linhas, mas não tem essa
+// armadilha.
+const MAPA_ACENTOS = {
+  "á": "a", "à": "a", "â": "a", "ã": "a", "ä": "a",
+  "é": "e", "ê": "e", "è": "e",
+  "í": "i", "î": "i",
+  "ó": "o", "ô": "o", "õ": "o", "ö": "o",
+  "ú": "u", "ü": "u",
+  "ç": "c"
+};
+function semAcentos(texto) {
+  let saida = "";
+  for (const letra of texto) saida += MAPA_ACENTOS[letra] || letra;
+  return saida;
+}
+
 /**
  * Quantos ecrãs o pedido menciona.
  *
@@ -63,12 +93,60 @@ const PALAVRAS = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5
  */
 export function quantosEcras(texto) {
   if (!texto) return 0;
-  const limpo = String(texto).toLowerCase()
-    .normalize("NFD").replace(/[̀-ͯ]/g, "");
-  const m = limpo.match(/(\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(?:ecr[ãa]|ecran|tela|painel|painei)/);
+  const limpo = semAcentos(String(texto).toLowerCase());
+  const m = limpo.match(/(\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(?:ecra|ecran|tela|painel|painei)/);
   if (!m) return 0;
   const n = /^\d+$/.test(m[1]) ? parseInt(m[1], 10) : (PALAVRAS[m[1]] || 0);
   return n >= 1 && n <= 12 ? n : 0;
+}
+
+/**
+ * Os grupos de ecrãs que o pedido descreve.
+ *
+ * "Dois ecrãs para slides e dois maiores para imagem" são dois grupos, com
+ * tamanhos diferentes — e desenhá-los todos iguais é ignorar metade do que foi
+ * pedido. A IA não resolve isto: o esquema dela tem UM tamanho de ecrã, não tem
+ * grupos. Por isso lê-se do texto, que é onde eles estão escritos.
+ *
+ * Isto não tenta perceber a frase: parte-a nos sítios onde as listas se partem
+ * ("e", "mais", vírgula, ponto e vírgula) e, em cada pedaço, procura um número
+ * seguido de "ecrãs", um adjectivo de tamanho e um "para (o quê)".
+ */
+const NUMERO_ESCRITO = "(\\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)";
+const COM_SUBSTANTIVO = new RegExp(NUMERO_ESCRITO + "\\s*(?:ecra|ecran|tela|painel|painei)\\w*");
+const SO_A_QUANTIDADE = new RegExp("^\\s*" + NUMERO_ESCRITO + "\\b");
+
+export function gruposDeEcras(texto) {
+  if (!texto) return [];
+  const limpo = semAcentos(String(texto).toLowerCase());
+
+  const grupos = [];
+  // "Dois ecrãs para slides e dois maiores para imagem": o segundo pedaço não
+  // repete "ecrãs" — a língua não repete o substantivo quando já ficou dito.
+  // Por isso, depois de o assunto ficar confirmado uma vez, um pedaço seguinte
+  // que comece só por um número já conta.
+  let assuntoConfirmado = false;
+  for (const pedaco of limpo.split(/\s*(?:,|;|\be\b|\bmais\b|\bmas\b)\s+/)) {
+    let m = pedaco.match(COM_SUBSTANTIVO);
+    if (m) assuntoConfirmado = true;
+    else if (assuntoConfirmado) m = pedaco.match(SO_A_QUANTIDADE);
+    if (!m) continue;
+    const quantos = /^\d+$/.test(m[1]) ? parseInt(m[1], 10) : (PALAVRAS[m[1]] || 0);
+    if (!(quantos >= 1 && quantos <= 12)) continue;
+
+    // Meio maior, ou um terço mais pequeno: números redondos de propósito.
+    // Isto é um esboço, não uma proposta — o que interessa é ver a diferença.
+    let escala = 1;
+    if (/\b(maior|maiores|grande|grandes|maximo)\b/.test(pedaco)) escala = 1.5;
+    else if (/\b(pequen\w*|menor|menores|mini)\b/.test(pedaco)) escala = 0.7;
+
+    const para = (pedaco.match(/\bpara\s+(?:a\s+|o\s+|as\s+|os\s+)?([\wçãáéíóúâêô-]{3,18})/) || [])[1] || "";
+    grupos.push({ quantos, escala, para });
+  }
+
+  // Um grupo só, sem adjectivo, não é um grupo: é a contagem de sempre.
+  if (grupos.length === 1 && grupos[0].escala === 1) return [];
+  return grupos;
 }
 
 const numero = (v) => {
@@ -95,6 +173,7 @@ export function doQueVeioParaCa(r) {
     quantos: 0
   };
   saida.quantos = quantosEcras(saida.resumo);
+  saida.grupos = [];
   if (!r) return saida;
 
   const d = r.dimensoes || {};
