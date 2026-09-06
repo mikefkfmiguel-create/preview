@@ -207,7 +207,23 @@ O Preview e os Calculadores vivem no mesmo domínio, por isso partilham o
   que as tabelas de LED também ficam.
 
 O botão *"Ver em 3D"* continua a existir e leva o projeto no próprio endereço —
-serve para abrir noutro computador ou mandar a alguém.
+serve para abrir noutro computador ou mandar a alguém. E como a janela do
+Preview tem nome, as três pontes (zonas, projetor, sugestão) vão todas para a
+**mesma** janela em vez de abrirem um separador por clique.
+
+### O briefing vai ter com quem o percebe
+
+A caixa do Projeto entende medidas, não entende um email. Quem entende é o
+**assistente dos Calculadores**, que é IA a sério: manda o texto — ou um PDF, ou
+uma fotografia do sítio — para um Worker que corre o modelo.
+
+Chamar esse Worker daqui seria ter a mesma coisa em dois sítios, que é
+precisamente o que esta app não faz: não tem catálogo de LED nem de projetores
+pela mesma razão. Por isso o botão **"Analisar nos Calculadores"** passa-lhe o
+texto pelo `localStorage`, abre-os no `#briefing`, e eles enchem o campo e
+**submetem a análise sozinhos** — quem carregou no botão deste lado já pediu
+isso. Depois é o caminho de sempre: sai uma sugestão de tamanho e o *"Ver no
+Preview 3D"* traz-a de volta para esta mesma janela.
 
 ## Conteúdo nos ecrãs
 

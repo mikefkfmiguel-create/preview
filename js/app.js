@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
-         CHAVE_PROJETO, CHAVE_PROJETOR } from "./projeto.js";
+         CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad } from "./cena.js";
@@ -876,6 +876,40 @@ function prontoParaCarregar() {
 }
 $("colagem").addEventListener("input", prontoParaCarregar);
 prontoParaCarregar();
+
+/**
+ * O texto que aqui não se percebe vai ter com quem o percebe.
+ *
+ * O assistente dos Calculadores é IA a sério — manda o texto (ou um PDF, ou uma
+ * fotografia do sítio) para um Worker que corre o modelo. Chamar esse Worker
+ * daqui seria ter a mesma coisa em dois sítios, que é precisamente o que esta
+ * app não faz: não tem catálogo de LED nem de projetores pela mesma razão. Um
+ * briefing lê-se uma vez, onde o leitor vive.
+ *
+ * Por isso passa-se-lhe o texto e o resultado volta pelo caminho que já existe:
+ * lá analisa-se, sai uma sugestão de tamanho, e o "Ver no Preview 3D" traz-a de
+ * volta para esta mesma janela.
+ */
+$("btAnalisar").onclick = () => {
+  const texto = $("colagem").value.trim();
+  if (!texto) {
+    $("aviso").textContent = "Escreve ou cola primeiro o texto do pedido.";
+    $("aviso").classList.add("mostra");
+    return;
+  }
+  try {
+    localStorage.setItem(CHAVE_BRIEFING, JSON.stringify({
+      v: 1, texto, quando: new Date().toISOString()
+    }));
+  } catch (_) { /* sem localStorage, ainda assim abre-se a app do lado */ }
+
+  // Janela própria, e sempre a mesma: o Preview tem a dele, os Calculadores
+  // passam a ter a sua. Dois separadores no total, e não dois por clique.
+  const base = location.href.includes("/preview/")
+    ? location.href.replace(/\/preview\/.*$/, "/calculadores/")
+    : "https://mikefkfmiguel-create.github.io/calculadores/";
+  open(base + "#briefing", "mikeapps-calculadores");
+};
 
 $("btCarregar").onclick = () => carregar($("colagem").value);
 $("btExemplo").onclick = () => {

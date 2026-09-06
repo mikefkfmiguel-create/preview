@@ -230,6 +230,7 @@ export function projetorDoEndereco() {
 export const CHAVE_PROJETO = "mikeapps-projeto-v1";
 export const CHAVE_SALA = "mikeapps-sala-v1";
 export const CHAVE_PROJETOR = "mikeapps-projetor-v1";
+export const CHAVE_BRIEFING = "mikeapps-briefing-v1";
 
 /** O último projeto que os Calculadores deixaram guardado, se houver. */
 export function projetoGuardado() {
