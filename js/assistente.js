@@ -100,6 +100,16 @@ export function quantosEcras(texto) {
   return n >= 1 && n <= 12 ? n : 0;
 }
 
+const NUMERO_ESCRITO = "(\\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)";
+// Um número logo seguido de "ecrãs" (ou tela, painel): "2 ecrãs", "quatro painéis".
+const COM_SUBSTANTIVO = new RegExp(NUMERO_ESCRITO + "\\s*(?:ecra|ecran|tela|painel|painei)\\w*", "g");
+// A elipse: "dois maiores" sem repetir "ecrãs" — só conta se o adjectivo vier
+// LOGO a seguir ao número, e não a três frases de distância.
+const NUMERO_MAIS_ADJECTIVO = new RegExp(
+  NUMERO_ESCRITO + "\\s+(?:maior|maiores|menor|menores|grande|grandes|pequen\\w*|mini|maximo)\\b", "g");
+const ESCALA_MAIOR = /\b(maior|maiores|grande|grandes|maximo)\b/;
+const ESCALA_MENOR = /\b(pequen\w*|menor|menores|mini)\b/;
+
 /**
  * Os grupos de ecrãs que o pedido descreve.
  *
@@ -108,39 +118,63 @@ export function quantosEcras(texto) {
  * pedido. A IA não resolve isto: o esquema dela tem UM tamanho de ecrã, não tem
  * grupos. Por isso lê-se do texto, que é onde eles estão escritos.
  *
- * Isto não tenta perceber a frase: parte-a nos sítios onde as listas se partem
- * ("e", "mais", vírgula, ponto e vírgula) e, em cada pedaço, procura um número
- * seguido de "ecrãs", um adjectivo de tamanho e um "para (o quê)".
+ * A primeira versão partia a frase em pedaços separados por vírgula/"e"/"mais",
+ * e em cada pedaço procurava um número e um adjectivo. Partiu-se com um pedido
+ * a sério: "Projeto com 4 ecrãs: 2 maiores para PowerPoint..." — o total "4
+ * ecrãs" ficava colado ao "2 maiores" no mesmo pedaço (o `:` não é um sítio
+ * onde a frase se parte), e um "maiores" de uma frase mais à frente ("se os
+ * ecrãs maiores não couberem") contaminava um grupo que devia ser "menor".
+ * Resultado: três grupos, doze ecrãs, tamanhos trocados.
+ *
+ * Agora cada grupo começa numa ÂNCORA — um "N ecrãs" ou um "N maiores/menores"
+ * — e vive até à âncora seguinte. Um "N ecrãs:" logo antes de dois pontos é um
+ * total que introduz uma repartição, não é ele próprio um grupo. E o adjectivo
+ * só se procura na PRIMEIRA frase do grupo (até ao primeiro ponto final), para
+ * uma frase mais à frente não contaminar o grupo anterior.
  */
-const NUMERO_ESCRITO = "(\\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)";
-const COM_SUBSTANTIVO = new RegExp(NUMERO_ESCRITO + "\\s*(?:ecra|ecran|tela|painel|painei)\\w*");
-const SO_A_QUANTIDADE = new RegExp("^\\s*" + NUMERO_ESCRITO + "\\b");
-
 export function gruposDeEcras(texto) {
   if (!texto) return [];
   const limpo = semAcentos(String(texto).toLowerCase());
 
+  const ancoras = [];
+  COM_SUBSTANTIVO.lastIndex = 0;
+  let m;
+  while ((m = COM_SUBSTANTIVO.exec(limpo))) {
+    const aSeguir = limpo.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    if (/^\s*:/.test(aSeguir)) continue;   // "4 ecrãs:" é um total, não um grupo
+    ancoras.push({ indice: m.index, texto: m[1] });
+  }
+  NUMERO_MAIS_ADJECTIVO.lastIndex = 0;
+  while ((m = NUMERO_MAIS_ADJECTIVO.exec(limpo))) {
+    // Só entra se não coincide com uma âncora já achada pelo substantivo —
+    // "2 ecrãs maiores" não pode contar a dobro.
+    if (!ancoras.some(a => Math.abs(a.indice - m.index) < 6)) {
+      ancoras.push({ indice: m.index, texto: m[1] });
+    }
+  }
+  if (!ancoras.length) return [];
+  ancoras.sort((a, b) => a.indice - b.indice);
+
   const grupos = [];
-  // "Dois ecrãs para slides e dois maiores para imagem": o segundo pedaço não
-  // repete "ecrãs" — a língua não repete o substantivo quando já ficou dito.
-  // Por isso, depois de o assunto ficar confirmado uma vez, um pedaço seguinte
-  // que comece só por um número já conta.
-  let assuntoConfirmado = false;
-  for (const pedaco of limpo.split(/\s*(?:,|;|\be\b|\bmais\b|\bmas\b)\s+/)) {
-    let m = pedaco.match(COM_SUBSTANTIVO);
-    if (m) assuntoConfirmado = true;
-    else if (assuntoConfirmado) m = pedaco.match(SO_A_QUANTIDADE);
-    if (!m) continue;
-    const quantos = /^\d+$/.test(m[1]) ? parseInt(m[1], 10) : (PALAVRAS[m[1]] || 0);
+  for (let i = 0; i < ancoras.length; i++) {
+    const quantos = /^\d+$/.test(ancoras[i].texto)
+      ? parseInt(ancoras[i].texto, 10) : (PALAVRAS[ancoras[i].texto] || 0);
     if (!(quantos >= 1 && quantos <= 12)) continue;
+
+    const inicio = ancoras[i].indice;
+    const fim = i + 1 < ancoras.length ? ancoras[i + 1].indice : limpo.length;
+    const troco = limpo.slice(inicio, fim);
+    // Só a primeira frase do grupo: o que vem depois de um ponto final já é
+    // outro assunto, e um "maiores" ali não é deste grupo.
+    const primeiraFrase = troco.split(/\.\s|\.$/)[0];
 
     // Meio maior, ou um terço mais pequeno: números redondos de propósito.
     // Isto é um esboço, não uma proposta — o que interessa é ver a diferença.
     let escala = 1;
-    if (/\b(maior|maiores|grande|grandes|maximo)\b/.test(pedaco)) escala = 1.5;
-    else if (/\b(pequen\w*|menor|menores|mini)\b/.test(pedaco)) escala = 0.7;
+    if (ESCALA_MAIOR.test(primeiraFrase)) escala = 1.5;
+    else if (ESCALA_MENOR.test(primeiraFrase)) escala = 0.7;
 
-    const para = (pedaco.match(/\bpara\s+(?:a\s+|o\s+|as\s+|os\s+)?([\wçãáéíóúâêô-]{3,18})/) || [])[1] || "";
+    const para = (primeiraFrase.match(/\bpara\s+(?:a\s+|o\s+|as\s+|os\s+)?([\wçãáéíóúâêô-]{3,18})/) || [])[1] || "";
     grupos.push({ quantos, escala, para });
   }
 

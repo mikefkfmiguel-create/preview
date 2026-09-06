@@ -1017,7 +1017,7 @@ prontoParaCarregar();
  * que falta a tecnologia, a disposição, as dimensões da sala e a distância do
  * público. Isso não é um erro — é a lista do que falta perguntar ao cliente.
  */
-function escreverRespostaIA(veio, feitas, mantidas) {
+function escreverRespostaIA(veio, feitas, mantidas, comVariosTamanhos) {
   const caixa = $("respostaIA");
   const partes = [];
 
@@ -1027,6 +1027,15 @@ function escreverRespostaIA(veio, feitas, mantidas) {
   if (feitas.length && feitas[0].includes("partida")) {
     partes.push("O tamanho é <b>um ponto de partida</b> tirado da profundidade da sala — " +
                 "muda-o em <i>Ajustar o ecrã</i>, ou traz o certo dos Calculadores.");
+  }
+  if (comVariosTamanhos) {
+    // Vários tamanhos, posicionados uns em relação aos outros: é exactamente
+    // o que a aba Ecrã Complexo já faz, com tiles, pitch e um editor de
+    // posições a sério. Este esboço só serve para se ver mais ou menos como
+    // fica -- para configurar isto para valer, o sítio é lá, e não aqui.
+    partes.push("Isto tem <b>vários tamanhos</b> — a posição aqui é só um arranjo genérico " +
+                "(os maiores ao centro). Para configurar a sério, com tiles e pitch, usa o " +
+                "<b>Ecrã Complexo</b> nos Calculadores e traz o resultado com \"Ver em 3D\".");
   }
 
   if (mantidas && mantidas.length) {
@@ -1042,6 +1051,25 @@ function escreverRespostaIA(veio, feitas, mantidas) {
   caixa.innerHTML = '<button class="fechar" title="Fechar">×</button>' + partes.join("<br>");
   caixa.querySelector(".fechar").onclick = () => { caixa.hidden = true; };
   caixa.hidden = false;
+}
+
+/**
+ * Os maiores ao centro, os mais pequenos nas pontas.
+ *
+ * O esboço tinha as peças pela ordem em que o texto as descrevia — "2 maiores
+ * para powerpoint" todos de um lado, "2 menores para imagens" todos do outro —
+ * e isso não é uma montagem, é uma lista. Adivinhar palavras como "interior" ou
+ * "exterior" no texto seria tentar fazer, por regex, o que a aba Ecrã Complexo
+ * já faz a sério com um editor de posições; aqui o objectivo é só ver mais ou
+ * menos como fica. Por isso usa-se a regra mais comum em AV — o ecrã principal
+ * ao centro, os secundários a ladear — sem depender de ter percebido palavra
+ * nenhuma sobre posição.
+ */
+function ordenarPeloCentro(pecas) {
+  const ordenadas = pecas.slice().sort((a, b) => b.escala - a.escala);
+  const esquerda = [], direita = [];
+  ordenadas.forEach((peca, i) => (i % 2 === 0 ? direita : esquerda).push(peca));
+  return [...esquerda.reverse(), ...direita];
 }
 
 /**
@@ -1081,6 +1109,7 @@ $("btAnalisar").onclick = async () => {
     const veio = doQueVeioParaCa(await analisar(texto, salaAgora));
     const feitas = [];
     const mantidas = [];
+    let comVariosTamanhos = false;
 
     if (veio.sala) {
       // Um campo que já foi mexido à mão não se escreve por cima. O
@@ -1132,36 +1161,46 @@ $("btAnalisar").onclick = async () => {
       const grupos = gruposDeEcras(texto);
       const lista = grupos.length ? grupos : [{ quantos, escala: 1, para: "" }];
 
-      const zonas = [];
-      let x = 0, n = 0;
-      const descricao = [];
+      // Primeiro calculam-se os tamanhos, um por peça -- e só depois se decide
+      // a ORDEM em que ficam da esquerda para a direita. As duas coisas vêm de
+      // sítios diferentes: o tamanho vem do que o texto disse; a ordem é um
+      // arranjo de propósito, e não a ordem em que as frases foram escritas.
+      const pecas = [];
       let cortadoPeloTecto = false;
+      const descricao = [];
       for (const grupo of lista) {
         let altura = Math.round(alturaBase * grupo.escala * 10) / 10;
         if (altura > sobraAteAoTecto + 0.001) { altura = Math.round(sobraAteAoTecto * 10) / 10; cortadoPeloTecto = true; }
         const larg = Math.round(altura * (16 / 9) * 10) / 10;
         for (let i = 0; i < grupo.quantos; i++) {
-          n++;
-          zonas.push({
-            nome: grupo.para ? `${grupo.para} ${i + 1}` : `Ecrã ${n}`,
-            x, y: 0, w: larg, h: altura,
+          pecas.push({
+            nome: grupo.para ? `${grupo.para} ${i + 1}` : "",
+            w: larg, h: altura, escala: grupo.escala,
             cor: grupo.escala > 1 ? "#2E7BFF" : grupo.escala < 1 ? "#7C8CA0" : "#22D3EE"
           });
-          x += larg + 1;
         }
         descricao.push(`${grupo.quantos}× ${larg.toFixed(2)} × ${altura.toFixed(2)} m` +
                        (grupo.para ? ` (${grupo.para})` : ""));
+      }
+
+      const zonas = [];
+      let x = 0, n = 0;
+      for (const peca of ordenarPeloCentro(pecas)) {
+        n++;
+        zonas.push({ nome: peca.nome || `Ecrã ${n}`, x, y: 0, w: peca.w, h: peca.h, cor: peca.cor });
+        x += peca.w + 1;
       }
 
       carregar({ v: 1, origem: "assistente (tamanho de partida)",
                  nome: `${n} ecrãs do pedido`, zonas }, true);
       feitas.unshift(descricao.join(", ") + " — tamanho de partida" +
                      (cortadoPeloTecto ? ", já ajustado ao pé-direito" : ""));
+      comVariosTamanhos = lista.length > 1;
     } else {
       montar(true);
     }
 
-    escreverRespostaIA(veio, feitas, mantidas);
+    escreverRespostaIA(veio, feitas, mantidas, comVariosTamanhos);
     if (feitas.length) {
       $("aviso").innerHTML = "Da IA: " + feitas.join(", ") + ".";
       setTimeout(() => $("aviso").classList.remove("mostra"), 7000);

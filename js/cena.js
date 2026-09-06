@@ -293,7 +293,12 @@ export function fazerPublico(sala, palco, publico) {
   // dois. É o que faz a plateia parecer uma sala e não um autocarro — e muda a
   // contagem de lugares, que é a razão a sério para isto existir.
   const corredores = Math.max(0, Math.min(4, publico.corredores || 0));
-  const larguraLivre = sala.largura - 2.0;
+  // A distância da audiência aos limites laterais da sala usa a MESMA largura
+  // dos corredores, e não um metro fixo à parte: é a mesma pergunta — "que
+  // folga entre filas de cadeiras?" — só que respondida também do lado de
+  // fora, e não faz sentido responder-lhe duas vezes de forma diferente.
+  const margemLateral = publico.larguraCorredor || 1.2;
+  const larguraLivre = sala.largura - 2 * margemLateral;
   const larguraSentada = Math.max(
     publico.entreLugares, larguraLivre - corredores * (publico.larguraCorredor || 0));
   const blocos = corredores + 1;
