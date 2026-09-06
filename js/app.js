@@ -786,6 +786,7 @@ function limparTudo() {
     else if (campo.type !== "file") campo.value = campo.defaultValue;
   });
   $("colagem").value = "";
+  prontoParaCarregar();
   $("plantaU").value = "auto";
 
   // A memória partilhada com os Calculadores vai também: senão o projeto
@@ -824,6 +825,15 @@ $("btLimpar").onclick = () => {
   if (temTrabalho && !confirm("Limpar tudo? O projeto, a planta e as medidas voltam ao princípio.")) return;
   limparTudo();
 };
+
+// Carregar o quê? Com a caixa vazia, aquele botão só sabe dizer "não veio
+// nada" — um botão que só serve para dar um erro é melhor apagado até ter o que
+// fazer.
+function prontoParaCarregar() {
+  $("btCarregar").disabled = !$("colagem").value.trim();
+}
+$("colagem").addEventListener("input", prontoParaCarregar);
+prontoParaCarregar();
 
 $("btCarregar").onclick = () => carregar($("colagem").value);
 $("btExemplo").onclick = () => {

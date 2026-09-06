@@ -66,7 +66,8 @@ button {
   flex: 1; font: inherit; color: var(--texto); background: #1E2831;
   border: 1px solid var(--linha); border-radius: 7px; padding: 7px 10px; cursor: pointer;
 }
-button:hover { border-color: var(--azul); }
+button:hover:not(:disabled) { border-color: var(--azul); }
+button:disabled { opacity: .42; cursor: default; }
 button.primario { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
 button.destaque { border-color: var(--ciano); color: var(--ciano); }
 
