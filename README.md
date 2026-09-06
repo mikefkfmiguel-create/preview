@@ -130,6 +130,17 @@ exportador escreve — a escala **adivinha-se pelo tamanho** e diz-se no painel
 que foi adivinhada; há um menu para a corrigir. Tem de ser DXF **ASCII**: o
 binário dá erro e diz-se porquê.
 
+**Um DWG não se lê aqui.** É formato fechado da Autodesk e binário; a app
+reconhece-o — pela extensão e pelos primeiros bytes, por isso apanha também um
+DWG a que alguém trocou a extensão — e diz como o converter: *Guardar como →
+DXF (ASCII)* no AutoCAD, BricsCAD ou DraftSight, ou o ODA File Converter, que é
+gratuito e faz pastas inteiras. O DXF não é um formato pior: traz as mesmas
+linhas e traz as unidades.
+
+Ler DWG de verdade dentro do browser é possível (há um libredwg compilado para
+WebAssembly), mas custa ~7 MB descarregados e é GPL — decisão a tomar, não um
+detalhe técnico.
+
 **Uma imagem não sabe**, e não há como adivinhar. Por isso pede-se uma medida
 conhecida — a largura real que a planta cobre — e o resto sai daí, mantendo a
 proporção. A grelha do chão é de metro a metro: se a planta trouxer uma barra de

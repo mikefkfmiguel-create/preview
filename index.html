@@ -17,7 +17,7 @@
     <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
     <div>
       <b>Preview</b>
-      <span>o projeto no terreno <i id="versao">v1.0</i></span>
+      <span>o projeto no terreno <i id="versao">v1.1</i></span>
     </div>
     <button id="btFechar" title="Esconder o painel (Tab)">‹</button>
   </header>
@@ -60,9 +60,10 @@
       <button id="btPlanta">Abrir planta…</button>
       <button id="btSemPlanta" title="Remover a planta da cena">Remover planta</button>
     </div>
-    <input type="file" id="ficheiroPlanta" accept="image/*,.dxf" hidden>
+    <input type="file" id="ficheiroPlanta" accept="image/*,.dxf,.dwg" hidden>
     <div id="infoPlanta" class="vazio" style="margin-top:10px">Imagem (PNG, JPG) ou
-       <b>DXF</b>. O DXF entra à escala e não se calibra.</div>
+       <b>DXF</b>. O DXF entra à escala e não se calibra. Um <b>DWG</b> tem de ser
+       convertido primeiro — a app diz como.</div>
     <div class="campos" style="margin-top:10px">
       <label id="campoUnidades" hidden>Unidades <select id="plantaU" class="escolha">
         <option value="auto">Automático</option>

@@ -715,11 +715,44 @@ function camposDaPlanta() {
 
 $("plantaU").addEventListener("change", () => { camposDaPlanta(); montar(false); });
 
+/**
+ * Um DWG disfarçado, ou um DWG assumido.
+ *
+ * O DWG é formato fechado da Autodesk, e binário: começa sempre por "AC10" e
+ * dois dígitos da versão. Olha-se para os primeiros bytes e não só para o nome,
+ * porque um DWG a que alguém mudou a extensão para .dxf entrava aqui e saía
+ * com "isto não parece um DXF" — que manda a pessoa procurar um defeito onde
+ * não há nenhum.
+ */
+async function eDWG(ficheiro) {
+  if (/\.dwg$/i.test(ficheiro.name)) return true;
+  try {
+    const inicio = new Uint8Array(await ficheiro.slice(0, 6).arrayBuffer());
+    return /^AC10\d\d$/.test(String.fromCharCode.apply(null, inicio));
+  } catch (_) {
+    return false;
+  }
+}
+
+function explicarDWG() {
+  const aviso = $("aviso");
+  aviso.innerHTML = "Isto é um <b>DWG</b>, que é um formato fechado da Autodesk — " +
+                    "guarda-o como <b>DXF</b> e entra aqui à escala.";
+  aviso.classList.add("mostra");
+  $("notaPlanta").innerHTML =
+    "<b>Como converter um DWG:</b> no AutoCAD, BricsCAD ou DraftSight, " +
+    "<i>Ficheiro → Guardar como…</i> e escolhe <b>DXF (ASCII)</b>. Sem CAD à mão, o " +
+    "<b>ODA File Converter</b> é gratuito e faz pastas inteiras de uma vez. " +
+    "O DXF não é um formato pior: traz as mesmas linhas e traz as unidades, " +
+    "que é o que faz a planta entrar aqui sem se calibrar nada.";
+}
+
 $("ficheiroPlanta").onchange = async () => {
   const ficheiro = $("ficheiroPlanta").files[0];
   $("ficheiroPlanta").value = "";
   if (!ficheiro) return;
   try {
+    if (await eDWG(ficheiro)) { explicarDWG(); return; }
     if (/\.dxf$/i.test(ficheiro.name)) {
       // Um DXF de uma planta grande são dezenas de MB de texto: lê-se de uma
       // vez e depois já não se lhe toca mais.
