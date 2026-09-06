@@ -120,7 +120,7 @@ function arcoDoBulge(x1, y1, x2, y2, bulge) {
 // ------------------------------------------------------------------ entidades
 
 /** Uma entidade vira uma ou mais linhas quebradas, em coordenadas do desenho. */
-function linhasDe(entidade, blocos, profundidade, fila) {
+function linhasDe(entidade, blocos, profundidade, fila, camada) {
   const { tipo, campos } = entidade;
 
   if (tipo === "LINE") {
@@ -183,16 +183,18 @@ function linhasDe(entidade, blocos, profundidade, fila) {
     const filas = Math.min(200, Math.max(1, Math.round(numero(campos, 71, 1))));
     const passoC = numero(campos, 44, 0), passoF = numero(campos, 45, 0);
 
-    const dentro = converter(bloco.entidades, blocos, profundidade + 1);
+    const dentro = converter(bloco.entidades, blocos, profundidade + 1, camada);
     const saida = [];
     for (let c = 0; c < colunas; c++) {
       for (let f = 0; f < filas; f++) {
         for (const linha of dentro) {
-          saida.push(linha.map(([x, y]) => {
+          const movida = linha.map(([x, y]) => {
             const px = (x - bloco.baseX) * ex, py = (y - bloco.baseY) * ey;
             return [ix + px * cos - py * sin + c * passoC,
                     iy + px * sin + py * cos + f * passoF];
-          }));
+          });
+          movida.camada = linha.camada || camada;
+          saida.push(movida);
         }
       }
     }
@@ -220,13 +222,19 @@ function desenrolar(vertices, fechada) {
   return pontos.length > 1 ? pontos : [];
 }
 
-function converter(entidades, blocos, profundidade) {
+function converter(entidades, blocos, profundidade, camadaDoPai) {
   const linhas = [];
   const fila = entidades.slice();
   while (fila.length) {
     const entidade = fila.shift();
-    for (const linha of linhasDe(entidade, blocos, profundidade, fila)) {
-      if (linha && linha.length > 1) linhas.push(linha);
+    // A camada e a do proprio desenho (codigo 8); dentro de um bloco, o que
+    // nao a declarar herda a de quem o inseriu -- que e a regra do formato.
+    const camada = palavra(entidade.campos, 8, "") || camadaDoPai || "0";
+    for (const linha of linhasDe(entidade, blocos, profundidade, fila, camada)) {
+      if (linha && linha.length > 1) {
+        linha.camada = linha.camada || camada;
+        linhas.push(linha);
+      }
     }
   }
   return linhas;
@@ -286,7 +294,7 @@ export function lerDXF(bruto) {
     }
   }
 
-  const linhas = converter(entidades, blocos, 0);
+  const linhas = converter(entidades, blocos, 0, "0");
   if (!linhas.length) {
     throw new Error("O DXF abriu, mas não trazia linhas nenhumas que eu saiba desenhar.");
   }
@@ -294,14 +302,25 @@ export function lerDXF(bruto) {
   // Os segmentos, em pares de pontos — e a caixa que os envolve, que é o que
   // diz o tamanho do desenho e onde fica o meio dele.
   const pontos = [];
+  const deQuemE = [];              // indice da camada, um por segmento
+  const nomesDeCamada = [];
+  const indiceDaCamada = new Map();
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   let cortado = false;
   for (const linha of linhas) {
+    const nome = linha.camada || "0";
+    let indice = indiceDaCamada.get(nome);
+    if (indice === undefined) {
+      indice = nomesDeCamada.length;
+      indiceDaCamada.set(nome, indice);
+      nomesDeCamada.push(nome);
+    }
     for (let k = 0; k + 1 < linha.length; k++) {
       if (pontos.length / 4 >= MAXIMO) { cortado = true; break; }
       const [x1, y1] = linha[k], [x2, y2] = linha[k + 1];
       if (![x1, y1, x2, y2].every(Number.isFinite)) continue;
       pontos.push(x1, y1, x2, y2);
+      deQuemE.push(indice);
       if (x1 < minX) minX = x1; if (x1 > maxX) maxX = x1;
       if (x2 < minX) minX = x2; if (x2 > maxX) maxX = x2;
       if (y1 < minY) minY = y1; if (y1 > maxY) maxY = y1;
@@ -311,8 +330,15 @@ export function lerDXF(bruto) {
   }
   if (!pontos.length) throw new Error("O DXF não trazia coordenadas utilizáveis.");
 
+  // Quantos segmentos tem cada camada: e por aí que a lista se ordena, porque
+  // a camada com mais linhas é quase sempre a que interessa ver primeiro.
+  const contagem = new Array(nomesDeCamada.length).fill(0);
+  for (const i of deQuemE) contagem[i]++;
+
   return {
     pontos,
+    deQuemE: Uint16Array.from(deQuemE),
+    camadas: nomesDeCamada.map((nome, i) => ({ nome, segmentos: contagem[i], indice: i })),
     segmentos: pontos.length / 4,
     minX, maxX, minY, maxY,
     largura: maxX - minX,

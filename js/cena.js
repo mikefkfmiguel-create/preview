@@ -687,24 +687,61 @@ export function fazerPlantaCad(desenho, opcoes) {
   const meioY = (desenho.minY + desenho.maxY) / 2;
 
   const bruto = desenho.pontos;
-  const posicoes = new Float32Array((bruto.length / 2) * 3);
-  for (let i = 0, k = 0; i < bruto.length; i += 2, k += 3) {
-    posicoes[k] = (bruto[i] - meioX) * f;
-    posicoes[k + 1] = 0;
+  const deQuemE = desenho.deQuemE;
+  const escondidas = opcoes.escondidas || new Set();
+  const levantadas = opcoes.levantadas || new Set();
+  const altura = opcoes.altura > 0 ? opcoes.altura : 3;
+
+  const noChao = [];      // as linhas deitadas
+  const emPe = [];        // os triângulos das paredes levantadas
+
+  for (let i = 0, s = 0; i < bruto.length; i += 4, s++) {
+    const camada = deQuemE ? deQuemE[s] : 0;
+    if (escondidas.has(camada)) continue;
+    const x1 = (bruto[i] - meioX) * f;
     // O Y do desenho é o "para cima" da folha, que aqui é o -Z. Trocar o sinal
     // é o que impede a planta de entrar espelhada — e uma planta espelhada só
     // se descobre no dia em que alguém for montar a sala.
-    posicoes[k + 2] = -(bruto[i + 1] - meioY) * f;
+    const z1 = -(bruto[i + 1] - meioY) * f;
+    const x2 = (bruto[i + 2] - meioX) * f;
+    const z2 = -(bruto[i + 3] - meioY) * f;
+    noChao.push(x1, 0, z1, x2, 0, z2);
+
+    if (levantadas.has(camada)) {
+      // Cada segmento vira um pano vertical: dois triângulos, do chão até à
+      // altura pedida. É o que transforma uma planta deitada numa sala.
+      emPe.push(x1, 0, z1, x2, 0, z2, x2, altura, z2);
+      emPe.push(x1, 0, z1, x2, altura, z2, x1, altura, z1);
+    }
   }
 
-  const geometria = new THREE.BufferGeometry();
-  geometria.setAttribute("position", new THREE.BufferAttribute(posicoes, 3));
-  const linhas = new THREE.LineSegments(geometria, new THREE.LineBasicMaterial({
-    color: 0x7FA8C9, transparent: true,
-    opacity: Math.min(1, Math.max(0.05, opcoes.opacidade || 0.9))
-  }));
-  linhas.name = "planta-cad";
-  grupo.add(linhas);
+  if (noChao.length) {
+    const geometria = new THREE.BufferGeometry();
+    geometria.setAttribute("position", new THREE.Float32BufferAttribute(noChao, 3));
+    const linhas = new THREE.LineSegments(geometria, new THREE.LineBasicMaterial({
+      color: 0x7FA8C9, transparent: true,
+      opacity: Math.min(1, Math.max(0.05, opcoes.opacidade || 0.9))
+    }));
+    linhas.name = "planta-cad";
+    grupo.add(linhas);
+  }
+
+  if (emPe.length) {
+    const geometria = new THREE.BufferGeometry();
+    geometria.setAttribute("position", new THREE.Float32BufferAttribute(emPe, 3));
+    geometria.computeVertexNormals();
+    // Translúcidas e sem escrever profundidade, de propósito: uma parede opaca
+    // levantada à volta da sala tapa tudo o que ela devia ajudar a ver, e o que
+    // aparece no ecrã é um rectângulo preto. Assim lê-se o volume e continua a
+    // ver-se o que está lá dentro.
+    const paredes = new THREE.Mesh(geometria, new THREE.MeshStandardMaterial({
+      color: 0x4E6577, roughness: 1, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.38, depthWrite: false
+    }));
+    paredes.renderOrder = 1;
+    paredes.name = "planta-paredes";
+    grupo.add(paredes);
+  }
 
   grupo.rotation.y = -(opcoes.rodar || 0) * Math.PI / 180;
   grupo.position.set(opcoes.x || 0, 0.014, opcoes.z || 0);

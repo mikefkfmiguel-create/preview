@@ -17,7 +17,7 @@
     <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
     <div>
       <b>Preview</b>
-      <span>o projeto no terreno <i id="versao">v1.4</i></span>
+      <span>o projeto no terreno <i id="versao">v1.5</i></span>
     </div>
     <button id="btFechar" title="Esconder o painel (Tab)">‹</button>
   </header>
@@ -80,6 +80,17 @@
       <label>Deslocar ↔ <input id="plantaX" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
       <label>Deslocar ↕ <input id="plantaZ" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
       <label>Opacidade <input id="plantaO" type="number" value="0.9" min="0.05" max="1" step="0.05"><i></i></label>
+    </div>
+    <div id="blocoCamadas" hidden>
+      <button id="btMedidasDaPlanta" style="margin-top:12px; width:100%">Usar as medidas da planta</button>
+      <div class="campos" style="margin-top:10px">
+        <label>Levantar até <input id="alturaParedes" type="number" value="4" min="0.2" max="30" step="0.5"><i>m</i></label>
+      </div>
+      <div class="camadas-topo">
+        <span>Camadas</span>
+        <span title="Ver / levantar">👁 &nbsp;↑</span>
+      </div>
+      <div id="listaCamadas"></div>
     </div>
     <p class="vazio" style="margin:10px 0 0" id="notaPlanta">Uma imagem não sabe a escala
        a que foi desenhada. Diz-lhe a <b>largura real</b> que ela cobre e o resto sai daí
@@ -165,6 +176,7 @@
     </div>
     <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>
     <label class="opcao"><input id="verPublico" type="checkbox" checked> Público</label>
+    <label class="opcao"><input id="verPalco" type="checkbox" checked> Palco</label>
     <label class="opcao"><input id="verOrador" type="checkbox" checked> Orador</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
   </section>

@@ -39,6 +39,8 @@ let textura = null;        // o conteúdo a mostrar nos ecrãs, se houver
 let modoConteudo = "espalhado";   // espalhado pelo conjunto, ou um em cada zona
 let planta = null;         // a planta em imagem, se alguem a tiver aberto
 let plantaCad = null;      // a planta em DXF, que ja vem a escala
+const camadasEscondidas = new Set();   // camadas da planta que nao se veem
+const camadasLevantadas = new Set();   // camadas que sobem do chao, como paredes
 let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
@@ -114,7 +116,10 @@ function montar(recentrarCamara) {
     desenhado.add(fazerPlantaCad(plantaCad, {
       fator: metrosPorUnidade(plantaCad, $("plantaU").value).fator,
       rodar: num("plantaR"), x: num("plantaX"), z: num("plantaZ"),
-      opacidade: Math.min(1, Math.max(0.05, num("plantaO")))
+      opacidade: Math.min(1, Math.max(0.05, num("plantaO"))),
+      escondidas: camadasEscondidas,
+      levantadas: camadasLevantadas,
+      altura: num("alturaParedes")
     }));
   }
   if (planta) {
@@ -124,7 +129,10 @@ function montar(recentrarCamara) {
       opacidade: Math.min(1, Math.max(0.05, num("plantaO")))
     }));
   }
-  desenhado.add(fazerPalco(sala, palco));
+  // O palco desliga-se como o resto: numa sala onde o ecrã assenta no chão, o
+  // palco por omissão é uma caixa a mentir sobre a altura de tudo o que está
+  // em cima dela.
+  if ($("verPalco").checked) desenhado.add(fazerPalco(sala, palco));
 
   // Os interruptores existem porque cada vista serve uma pergunta diferente:
   // sem paredes vê-se a sala de fora, sem público vê-se a estrutura, e sem
@@ -680,6 +688,7 @@ document.querySelectorAll("[data-conteudo]").forEach(b => {
 $("btPlanta").onclick = () => $("ficheiroPlanta").click();
 $("btSemPlanta").onclick = () => {
   planta = null; plantaCad = null;
+  camadasEscondidas.clear(); camadasLevantadas.clear();
   camposDaPlanta();
   montar(false);
 };
@@ -692,6 +701,7 @@ $("btSemPlanta").onclick = () => {
 function camposDaPlanta() {
   $("campoLargura").hidden = !!plantaCad;
   $("campoUnidades").hidden = !plantaCad;
+  desenharCamadas();
   if (plantaCad) {
     const u = metrosPorUnidade(plantaCad, $("plantaU").value);
     const larguraM = plantaCad.largura * u.fator, fundoM = plantaCad.profundidade * u.fator;
@@ -716,6 +726,105 @@ function camposDaPlanta() {
 }
 
 $("plantaU").addEventListener("change", () => { camposDaPlanta(); montar(false); });
+
+/**
+ * A lista de camadas.
+ *
+ * Uma planta de arquitectura traz tudo na mesma folha: paredes, cadeiras,
+ * tracejados, cotas, texto. Deitada no chão aquilo é um tapete onde não se
+ * percebe o que é parede — e levantar tudo seria pior ainda, um bosque de
+ * panos verticais. As camadas já vinham no ficheiro; faltava dar-lhes um
+ * interruptor.
+ *
+ * Ordenadas pela que tem mais linhas: numa planta, a camada com mais desenho é
+ * quase sempre a que se quer ver primeiro.
+ */
+function desenharCamadas() {
+  const bloco = $("blocoCamadas");
+  const lista = $("listaCamadas");
+  bloco.hidden = !(plantaCad && plantaCad.camadas && plantaCad.camadas.length);
+  if (bloco.hidden) return;
+
+  lista.innerHTML = "";
+  const ordenadas = plantaCad.camadas.slice().sort((a, b) => b.segmentos - a.segmentos);
+  for (const camada of ordenadas) {
+    const linha = document.createElement("div");
+    linha.className = "camada" + (camadasEscondidas.has(camada.indice) ? " apagada" : "");
+
+    const ver = document.createElement("input");
+    ver.type = "checkbox";
+    ver.checked = !camadasEscondidas.has(camada.indice);
+    ver.title = "Ver esta camada";
+    ver.onchange = () => {
+      if (ver.checked) camadasEscondidas.delete(camada.indice);
+      else camadasEscondidas.add(camada.indice);
+      linha.classList.toggle("apagada", !ver.checked);
+      montar(false);
+    };
+
+    const levantar = document.createElement("input");
+    levantar.type = "checkbox";
+    levantar.checked = camadasLevantadas.has(camada.indice);
+    levantar.title = "Levantar esta camada, como paredes";
+    levantar.onchange = () => {
+      if (levantar.checked) camadasLevantadas.add(camada.indice);
+      else camadasLevantadas.delete(camada.indice);
+      montar(false);
+    };
+
+    const nome = document.createElement("span");
+    nome.className = "nome";
+    nome.textContent = camada.nome;
+    nome.title = camada.nome;
+    const quantos = document.createElement("span");
+    quantos.className = "quantos";
+    quantos.textContent = camada.segmentos.toLocaleString("pt-PT");
+
+    linha.append(nome, quantos, ver, levantar);
+    lista.append(linha);
+  }
+}
+
+/**
+ * A sala fica do tamanho do que está desenhado.
+ *
+ * Uma planta importada aparece do tamanho que tem — e uma planta de um centro
+ * de congressos ao lado de uma sala de 24 × 18 m por omissão parece uma escala
+ * errada, quando o que está errado são as medidas da sala. Isto mede o que se
+ * está a VER (as camadas escondidas não contam, porque quem as escondeu já
+ * disse que não fazem parte) e escreve-o nos campos.
+ */
+function medidasDaPlanta() {
+  if (!plantaCad) return;
+  const f = metrosPorUnidade(plantaCad, $("plantaU").value).fator;
+  const p = plantaCad.pontos, dq = plantaCad.deQuemE;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, contados = 0;
+  for (let i = 0, s = 0; i < p.length; i += 4, s++) {
+    if (dq && camadasEscondidas.has(dq[s])) continue;
+    contados++;
+    if (p[i] < minX) minX = p[i];       if (p[i] > maxX) maxX = p[i];
+    if (p[i + 2] < minX) minX = p[i + 2]; if (p[i + 2] > maxX) maxX = p[i + 2];
+    if (p[i + 1] < minY) minY = p[i + 1]; if (p[i + 1] > maxY) maxY = p[i + 1];
+    if (p[i + 3] < minY) minY = p[i + 3]; if (p[i + 3] > maxY) maxY = p[i + 3];
+  }
+  if (!contados) return;
+
+  const largura = (maxX - minX) * f, fundo = (maxY - minY) * f;
+  $("salaL").value = Math.max(2, Math.round(largura * 10) / 10);
+  $("salaP").value = Math.max(2, Math.round(fundo * 10) / 10);
+  // A planta fica centrada na sala, que é onde ela estava a ser desenhada.
+  $("plantaX").value = 0;
+  $("plantaZ").value = 0;
+  montar(true);
+  $("aviso").textContent =
+    `Sala posta a ${largura.toFixed(2)} × ${fundo.toFixed(2)} m, ` +
+    `pelo que está visível na planta.`;
+  $("aviso").classList.add("mostra");
+  setTimeout(() => $("aviso").classList.remove("mostra"), 3600);
+}
+
+$("btMedidasDaPlanta").onclick = medidasDaPlanta;
+$("alturaParedes").addEventListener("input", () => remontarDaqui());
 
 /**
  * Um DWG disfarçado, ou um DWG assumido.
@@ -747,6 +856,8 @@ $("ficheiroPlanta").onchange = async () => {
   const ficheiro = $("ficheiroPlanta").files[0];
   $("ficheiroPlanta").value = "";
   if (!ficheiro) return;
+  camadasEscondidas.clear();
+  camadasLevantadas.clear();
   try {
     if (await eDWG(ficheiro)) {
       // O DWG passa pelo motor e sai DXF; daí para a frente é tudo igual.
@@ -816,6 +927,8 @@ function limparTudo() {
   projeto = null;
   planta = null;
   plantaCad = null;
+  camadasEscondidas.clear();
+  camadasLevantadas.clear();
   textura = null;
   ondeEsta = null;
   limitesDoShift = null;

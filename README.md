@@ -171,6 +171,28 @@ escala, é aí que se confere.
 Nas duas, o que sobra para mexer é onde ela fica — rodar e deslocar — porque o
 zero do CAD raramente é o meio da sala.
 
+### Camadas, e paredes levantadas
+
+Um DWG de arquitectura traz tudo na mesma folha: paredes, cadeiras, tracejados,
+cotas, texto. Deitado no chão aquilo é um tapete de linhas onde não se percebe o
+que é parede. As camadas já vinham no ficheiro — faltava dar-lhes um
+interruptor, e agora cada uma tem dois: **ver** e **levantar**.
+
+Levantar transforma cada segmento daquela camada num pano vertical até à altura
+pedida: é assim que uma planta 2D vira uma sala. Levantam-se as paredes, não as
+cadeiras — senão o que aparece é um bosque de panos. As paredes levantadas são
+translúcidas de propósito: opacas, tapavam exactamente o que deviam ajudar a
+ver.
+
+E **"Usar as medidas da planta"** põe a sala do tamanho do que está desenhado
+(só o que está visível: as camadas escondidas não contam). Sem isso, uma planta
+de um centro de congressos ao lado de uma sala de 24 × 18 m por omissão parece
+uma escala errada, quando o que está errado são as medidas da sala.
+
+O que se lê é a **planta**: o X e o Y. Um DWG com geometria 3D a sério — sólidos,
+paredes extrudidas no próprio ficheiro — chega cá achatado, e é daí que vem o
+"levantar" como alternativa.
+
 ## A plateia
 
 O público não é enfeite: é ele que responde à pergunta difícil. Dá para dizer
