@@ -93,13 +93,31 @@ export function fazerPalco({ largura, profundidade }, palco) {
  * é assim que ela se monta de verdade, e é a única forma de a curva se ver de
  * cima em vez de ser um desenho na textura.
  */
-function fazerZona(zona, alturaBase, z0) {
+function fazerZona(zona, alturaBase, z0, conteudo) {
   const grupo = new THREE.Group();
   const cor = new THREE.Color(zona.cor || "#2E7BFF");
 
-  const frente = new THREE.MeshStandardMaterial({
-    color: cor, emissive: cor, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1
-  });
+  let frente;
+  if (conteudo && conteudo.textura) {
+    // A imagem é UMA só, espalhada pelo conjunto todo — como na vida real,
+    // onde o media server manda um canvas e cada zona mostra o seu bocado.
+    // Por isso cada painel recebe a textura recortada no sítio dele, e não
+    // uma cópia da imagem inteira encolhida.
+    const recorte = conteudo.textura.clone();
+    recorte.needsUpdate = true;
+    recorte.repeat.set(zona.w / conteudo.largura, zona.h / conteudo.altura);
+    recorte.offset.set(
+      (zona.x - conteudo.esquerda) / conteudo.largura,
+      1 - (zona.y - conteudo.topo + zona.h) / conteudo.altura);
+    frente = new THREE.MeshStandardMaterial({
+      map: recorte, emissiveMap: recorte, emissive: 0xFFFFFF,
+      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0
+    });
+  } else {
+    frente = new THREE.MeshStandardMaterial({
+      color: cor, emissive: cor, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1
+    });
+  }
   const tras = new THREE.MeshStandardMaterial({ color: 0x11181E, roughness: 1 });
   const materiais = [tras, tras, tras, tras, frente, tras];   // +Z é a frente
 
@@ -136,7 +154,7 @@ function fazerZona(zona, alturaBase, z0) {
  * Todas as zonas, assentes no palco e centradas na sala.
  * Devolve o grupo e os pontos onde as etiquetas devem aparecer.
  */
-export function fazerZonas(projeto, medidas, sala, palco) {
+export function fazerZonas(projeto, medidas, sala, palco, textura) {
   const grupo = new THREE.Group();
   const etiquetas = [];
 
@@ -146,12 +164,18 @@ export function fazerZonas(projeto, medidas, sala, palco) {
   const base = palco.altura + palco.acimaDoPalco;
   const z0 = -sala.profundidade / 2 + 0.35;
 
+  const topo = Math.min(...projeto.zonas.map(z => z.y));
+  const conteudo = textura ? {
+    textura, esquerda, topo,
+    largura: medidas.largura, altura: medidas.altura
+  } : null;
+
   for (const zona of projeto.zonas) {
     // do canto superior esquerdo do conjunto para o meio da sala
     zona.centroX = (zona.x - esquerda) + zona.w / 2 - meio;
     // e o Y ao contrário: o que estava mais em baixo no alçado assenta no palco
     const alturaBase = base + (fundo - (zona.y + zona.h));
-    const peca = fazerZona(zona, alturaBase, z0);
+    const peca = fazerZona(zona, alturaBase, z0, conteudo);
     grupo.add(peca);
     // A etiqueta vai POR CIMA da zona e não em cima dela: ao meio, tapava o
     // painel e fazia uma parede de 3,4 m parecer duas de 1,6.
@@ -362,4 +386,140 @@ export function fazerPublico(sala, palco, publico) {
     alturaOlhos + filaDoMeio * (publico.inclinacao || 0),
     zPrimeira + filaDoMeio * publico.entreFilas);
   return { grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos };
+}
+
+
+/**
+ * Um padrão de teste, para se ver o conjunto com conteúdo sem ter de arranjar
+ * uma imagem. Grelha, barras de cor e uma cruz ao meio — o suficiente para se
+ * perceber onde ficam as juntas entre zonas e se alguma está trocada.
+ */
+export function padraoDeTeste(largura = 1920, altura = 1080) {
+  const tela = document.createElement("canvas");
+  tela.width = largura; tela.height = altura;
+  const p = tela.getContext("2d");
+
+  const gradiente = p.createLinearGradient(0, 0, largura, altura);
+  gradiente.addColorStop(0, "#0B2C6B");
+  gradiente.addColorStop(1, "#123E8F");
+  p.fillStyle = gradiente;
+  p.fillRect(0, 0, largura, altura);
+
+  const barras = ["#FFFFFF", "#FFE800", "#00E5FF", "#00E06A", "#FF3DDA", "#FF3B30", "#2E7BFF"];
+  const largBarra = largura / barras.length;
+  barras.forEach((c, i) => {
+    p.fillStyle = c;
+    p.globalAlpha = 0.9;
+    p.fillRect(i * largBarra, 0, largBarra, altura * 0.16);
+  });
+  p.globalAlpha = 1;
+
+  p.strokeStyle = "rgba(255,255,255,0.22)";
+  p.lineWidth = Math.max(1, largura / 960);
+  const passo = largura / 24;
+  for (let x = 0; x <= largura; x += passo) { p.beginPath(); p.moveTo(x, 0); p.lineTo(x, altura); p.stroke(); }
+  for (let y = 0; y <= altura; y += passo) { p.beginPath(); p.moveTo(0, y); p.lineTo(largura, y); p.stroke(); }
+
+  p.strokeStyle = "#FFFFFF";
+  p.lineWidth = Math.max(2, largura / 480);
+  p.beginPath();
+  p.moveTo(largura / 2, altura * 0.3); p.lineTo(largura / 2, altura * 0.7);
+  p.moveTo(largura * 0.42, altura / 2); p.lineTo(largura * 0.58, altura / 2);
+  p.stroke();
+  p.beginPath();
+  p.arc(largura / 2, altura / 2, Math.min(largura, altura) * 0.18, 0, Math.PI * 2);
+  p.stroke();
+
+  const textura = new THREE.CanvasTexture(tela);
+  textura.colorSpace = THREE.SRGBColorSpace;
+  return textura;
+}
+
+/** Uma imagem escolhida pelo mike, pronta a ser recortada pelas zonas. */
+export function texturaDeFicheiro(ficheiro) {
+  return new Promise((ok, mal) => {
+    const leitor = new FileReader();
+    leitor.onerror = () => mal(new Error("Não consegui ler essa imagem."));
+    leitor.onload = () => {
+      new THREE.TextureLoader().load(leitor.result, (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        ok(t);
+      }, undefined, () => mal(new Error("Isso não é uma imagem que eu saiba abrir.")));
+    };
+    leitor.readAsDataURL(ficheiro);
+  });
+}
+
+
+/**
+ * A projeção: o projetor, o cone de luz e a imagem na tela.
+ *
+ * O tamanho da imagem não se escreve — calcula-se. Um projetor com rácio 1,4 a
+ * 12 metros faz uma imagem de 8,57 m de largura, e é essa a conta que decide
+ * se aquilo cabe na parede. O cone desenha-se dos quatro cantos da imagem até
+ * à lente, e é ele que mostra quem é que passa à frente.
+ */
+export function fazerProjecao(projetor, imagem, textura) {
+  const grupo = new THREE.Group();
+  grupo.name = "projecao";
+
+  // a imagem na tela
+  const material = textura
+    ? new THREE.MeshBasicMaterial({ map: textura, toneMapped: false })
+    : new THREE.MeshBasicMaterial({ color: 0xEAF2FF });
+  const tela = new THREE.Mesh(new THREE.PlaneGeometry(imagem.largura, imagem.altura), material);
+  tela.position.set(imagem.x, imagem.y, imagem.z + 0.01);
+  grupo.add(tela);
+
+  // o contorno, para se ver onde ela acaba mesmo quando e branca sobre branco
+  const contorno = new THREE.LineSegments(
+    new THREE.EdgesGeometry(tela.geometry),
+    new THREE.LineBasicMaterial({ color: 0x9BC4FF }));
+  contorno.position.copy(tela.position);
+  grupo.add(contorno);
+
+  // o projetor
+  const caixa = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.18, 0.52),
+    new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
+  caixa.position.set(projetor.x, projetor.y, projetor.z);
+  grupo.add(caixa);
+
+  // o cone: quatro triângulos da lente para os cantos
+  const meiaL = imagem.largura / 2, meiaA = imagem.altura / 2;
+  const cantos = [
+    [imagem.x - meiaL, imagem.y + meiaA, imagem.z],
+    [imagem.x + meiaL, imagem.y + meiaA, imagem.z],
+    [imagem.x + meiaL, imagem.y - meiaA, imagem.z],
+    [imagem.x - meiaL, imagem.y - meiaA, imagem.z]
+  ];
+  const vertices = [];
+  for (let i = 0; i < 4; i++) {
+    const a = cantos[i], b = cantos[(i + 1) % 4];
+    vertices.push(projetor.x, projetor.y, projetor.z, a[0], a[1], a[2], b[0], b[1], b[2]);
+  }
+  const geometria = new THREE.BufferGeometry();
+  geometria.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometria.computeVertexNormals();
+  const cone = new THREE.Mesh(geometria, new THREE.MeshBasicMaterial({
+    color: 0x8FC2FF, transparent: true, opacity: 0.10,
+    side: THREE.DoubleSide, depthWrite: false
+  }));
+  grupo.add(cone);
+
+  return grupo;
+}
+
+/** Os pontos da imagem que se usam para ver quem lhe passa à frente. */
+export function pontosDaImagem(imagem, colunas = 9, linhas = 5) {
+  const pontos = [];
+  for (let c = 0; c < colunas; c++) {
+    for (let l = 0; l < linhas; l++) {
+      pontos.push(new THREE.Vector3(
+        imagem.x + imagem.largura * ((c + 0.5) / colunas - 0.5),
+        imagem.y + imagem.altura * ((l + 0.5) / linhas - 0.5),
+        imagem.z));
+    }
+  }
+  return pontos;
 }

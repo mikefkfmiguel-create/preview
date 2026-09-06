@@ -87,11 +87,31 @@ A app conta os lugares que couberam e avisa quando as filas pedidas não cabem
 na sala. Pedir 12 e receber 6 sem ninguém dizer nada é a maneira certa de levar
 um número errado para uma reunião.
 
+## Conteúdo nos ecrãs
+
+Um padrão de teste, ou uma imagem tua. **A imagem é uma só, espalhada pelo
+conjunto todo** — cada zona mostra o seu bocado, como o media server faz. É
+assim que se vê se as juntas caem onde devem, e se alguma zona está trocada.
+
+## Projeção
+
+Escreve-se o rácio do projetor, a distância à tela e a altura da lente; o
+**tamanho da imagem calcula-se** — 1,4 a 12 metros dá 8,57 m de largura. Aparece
+o projetor, o cone de luz e a imagem, e avisa quando ela não cabe na sala.
+
+E responde à pergunta que uma folha de cálculo não responde: **quanto é que o
+orador tapa**. Arrasta-se a figura pelo palco e a percentagem muda ao vivo —
+5% junto à lente, 3% encostado à tela, zero fora do feixe.
+
+A sombra é calculada e não amostrada. A primeira versão atirava 45 raios para a
+tela e contava os que batiam no orador — e dava sempre zero, porque os pontos
+ficavam a quase um metro uns dos outros e uma pessoa tem 58 cm: passava entre as
+amostras.
+
 ## O que ainda não faz
 
-- **Projeção**: os Calculadores já sabem de projetores e lentes; falta desenhar
-  o cone de projeção e a imagem no ecrã.
+- **Os projetores vêm dos Calculadores**: hoje o rácio e a distância escrevem-se
+  à mão; o catálogo de projetores e lentes já existe do outro lado.
 - **TVs**: o mesmo, com o catálogo que já lá está.
-- **Conteúdo nos ecrãs**: hoje são superfícies de cor; pôr lá uma imagem faria
-  isto parecer o que vai ser mesmo.
 - **Guardar a sala**: as medidas escrevem-se de cada vez.
+- **Sombra do público**: só se mede a do orador.

@@ -3,7 +3,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, lerProjeto, totais, projetoDoEndereco } from "./projeto.js";
-import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico } from "./cena.js";
+import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
+         padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem } from "./cena.js";
 
 const $ = (id) => document.getElementById(id);
 const tela = $("tela");
@@ -25,6 +26,9 @@ let projeto = null;
 let etiquetas = [];
 let olhosDaPlateia = null;
 let desenhado = null;      // o que está na cena agora, para se poder deitar fora
+let textura = null;        // o conteúdo a mostrar nos ecrãs, se houver
+let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
+let ondeEsta = null;       // onde o orador foi posto à mão, se foi
 
 // ------------------------------------------------------------------ leituras
 
@@ -37,6 +41,18 @@ function lerPalco() {
   return { largura: num("palcoL"), altura: num("palcoA"),
            profundidade: num("palcoP"), acimaDoPalco: num("ecraOffset") };
 }
+let formatoImagem = 1.777;
+
+function lerProjecao() {
+  return {
+    ligada: $("projLigada").checked,
+    racio: num("projRacio"),
+    distancia: num("projDist"),
+    altura: num("projAltura"),
+    base: num("projBase")
+  };
+}
+
 function lerPublico() {
   return {
     filas: Math.round(num("filas")),
@@ -80,7 +96,7 @@ function montar(recentrarCamara) {
   let medidas = null;
   if (projeto) {
     medidas = totais(projeto);
-    const zonas = fazerZonas(projeto, medidas, sala, palco);
+    const zonas = fazerZonas(projeto, medidas, sala, palco, textura);
     desenhado.add(zonas.grupo);
     etiquetas = $("verMedidas").checked ? zonas.etiquetas : [];
 
@@ -94,16 +110,21 @@ function montar(recentrarCamara) {
     const x = -Math.min(
       (noPalco ? larguraPalco : sala.largura) / 2 - 0.7,   // não sai do estrado
       medidas.largura / 2 + 1.2);                           // nem tapa os ecrãs
+    // Se ele foi arrastado, fica onde o puseram: uma remontagem por causa de
+    // outro campo qualquer nao pode desfazer o que se acabou de experimentar.
     figura.position.set(
-      x,
+      ondeEsta ? ondeEsta.x : x,
       noPalco ? palco.altura : 0,
-      noPalco
-        ? -sala.profundidade / 2 + palco.profundidade - 0.8  // à boca de cena
-        : -sala.profundidade / 2 + 1.6);
+      ondeEsta ? ondeEsta.z
+        : (noPalco
+            ? -sala.profundidade / 2 + palco.profundidade - 0.8  // à boca de cena
+            : -sala.profundidade / 2 + 1.6));
     desenhado.add(figura);
 
     avisarSeNaoCabe(medidas, sala, palco);
   }
+
+  desenharProjecao(sala, palco);
 
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
   // levar um número errado para uma reunião.
@@ -118,6 +139,90 @@ function montar(recentrarCamara) {
   cena.add(desenhado);
   escreverPainel(medidas, gente.lugares, gente);
   if (recentrarCamara) vista("frente");
+}
+
+/**
+ * A projeção. O tamanho da imagem não se escreve, calcula-se: um projetor de
+ * rácio 1,4 a 12 m faz 8,57 m de largura. E depois pergunta-se a coisa que
+ * ninguém consegue responder olhando para uma folha: quem é que lhe passa à
+ * frente.
+ */
+function desenharProjecao(sala, palco) {
+  const p = lerProjecao();
+  projecaoAtual = null;
+  $("resumoProj").textContent = "—";
+  if (!p.ligada || !p.racio || !p.distancia) return;
+
+  const largura = p.distancia / p.racio;
+  const altura = largura / formatoImagem;
+  const z0 = -sala.profundidade / 2 + 0.35;
+  const imagem = { x: 0, y: p.base + altura / 2, z: z0, largura, altura };
+  const projetor = { x: 0, y: p.altura, z: z0 + p.distancia };
+
+  desenhado.add(fazerProjecao(projetor, imagem, textura));
+  projecaoAtual = { projetor, imagem, foraDaSala: largura > sala.largura || p.base + altura > sala.altura };
+  medirSombra();
+}
+
+/**
+ * Quem tapa a imagem. Atiram-se raios da lente para 45 pontos da tela e
+ * conta-se quantos batem na figura pelo caminho.
+ *
+ * Vive à parte do desenho porque tem de poder correr enquanto se ARRASTA o
+ * orador — a pergunta é "a partir de onde e que ele deixa de fazer sombra?", e
+ * essa responde-se a mexer, não a carregar num botão.
+ */
+function medirSombra() {
+  if (!projecaoAtual) { $("resumoProj").textContent = "—"; return; }
+  const { projetor, imagem, foraDaSala } = projecaoAtual;
+
+  // A sombra calcula-se, não se amostra. A primeira versão atirava 45 raios
+  // para a tela e contava os que batiam no orador — e dava sempre zero, porque
+  // os pontos ficavam a quase um metro uns dos outros e uma pessoa tem 58 cm:
+  // ela passava entre as amostras. Agora projeta-se a caixa que a envolve a
+  // partir da lente e mede-se a área que ela tapa. É exacto e não treme.
+  let sombra = 0;
+  const figura = desenhado && desenhado.getObjectByName("figura");
+  if (figura) {
+    figura.updateMatrixWorld(true);
+    const caixa = new THREE.Box3().setFromObject(figura);
+    const lente = new THREE.Vector3(projetor.x, projetor.y, projetor.z);
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let algumAFrente = false;
+    for (const cx of [caixa.min.x, caixa.max.x]) {
+      for (const cy of [caixa.min.y, caixa.max.y]) {
+        for (const cz of [caixa.min.z, caixa.max.z]) {
+          const dz = cz - lente.z;
+          const ate = imagem.z - lente.z;
+          // só conta quem está ENTRE a lente e a tela
+          if (dz === 0 || dz / ate <= 0 || dz / ate >= 1) continue;
+          algumAFrente = true;
+          const k = ate / dz;
+          minX = Math.min(minX, lente.x + (cx - lente.x) * k);
+          maxX = Math.max(maxX, lente.x + (cx - lente.x) * k);
+          minY = Math.min(minY, lente.y + (cy - lente.y) * k);
+          maxY = Math.max(maxY, lente.y + (cy - lente.y) * k);
+        }
+      }
+    }
+
+    if (algumAFrente) {
+      const eEsq = imagem.x - imagem.largura / 2, eDir = imagem.x + imagem.largura / 2;
+      const eBaixo = imagem.y - imagem.altura / 2, eCima = imagem.y + imagem.altura / 2;
+      const larg = Math.max(0, Math.min(maxX, eDir) - Math.max(minX, eEsq));
+      const alt = Math.max(0, Math.min(maxY, eCima) - Math.max(minY, eBaixo));
+      sombra = (larg * alt) / (imagem.largura * imagem.altura);
+    }
+  }
+
+  const porCento = Math.round(sombra * 100);
+  $("resumoProj").innerHTML =
+    `Imagem <b>${imagem.largura.toFixed(2)} × ${imagem.altura.toFixed(2)} m</b>` +
+    (sombra > 0.001
+      ? ` · sombra do orador <b>${porCento < 1 ? "menos de 1" : porCento}%</b>`
+      : "") +
+    (foraDaSala ? " · <b>não cabe na sala</b>" : "");
 }
 
 function avisarSeNaoCabe(medidas, sala, palco) {
@@ -319,11 +424,117 @@ function carregar(bruto, recentrar = true) {
   }
 }
 
+document.querySelectorAll("[data-formato]").forEach(b => {
+  b.onclick = () => {
+    formatoImagem = parseFloat(b.dataset.formato);
+    document.querySelectorAll("[data-formato]").forEach(o => o.classList.remove("destaque"));
+    b.classList.add("destaque");
+    montar(false);
+  };
+});
+document.querySelector("[data-formato='1.777']").classList.add("destaque");
+
+$("btPadrao").onclick = () => { textura = padraoDeTeste(); montar(false); };
+$("btSemConteudo").onclick = () => { textura = null; montar(false); };
+$("btImagem").onclick = () => $("ficheiroImagem").click();
+$("ficheiroImagem").onchange = async () => {
+  const ficheiro = $("ficheiroImagem").files[0];
+  $("ficheiroImagem").value = "";
+  if (!ficheiro) return;
+  try {
+    textura = await texturaDeFicheiro(ficheiro);
+    montar(false);
+  } catch (e) {
+    $("aviso").textContent = e.message;
+    $("aviso").classList.add("mostra");
+  }
+};
+
 $("btCarregar").onclick = () => carregar($("colagem").value);
 $("btExemplo").onclick = () => {
   $("colagem").value = JSON.stringify(EXEMPLO, null, 2);
   carregar(EXEMPLO);
 };
+
+// ------------------------------------------------------- arrastar o orador
+//
+// A figura serve para dar escala, mas serve para mais do que isso: arrastada
+// pelo palco, mostra de onde e que ela tapa o ecra -- e a que distancia deixa
+// de tapar. Por isso anda, e anda so no chao do palco.
+
+const apontador = new THREE.Raycaster();
+const rato = new THREE.Vector2();
+const planoDoPalco = new THREE.Plane();
+const ondeCaiu = new THREE.Vector3();
+let aArrastar = false;
+
+function figuraNaCena() {
+  return desenhado ? desenhado.getObjectByName("figura") : null;
+}
+
+function porRato(e) {
+  const caixa = tela.getBoundingClientRect();
+  rato.set(
+    ((e.clientX - caixa.left) / caixa.width) * 2 - 1,
+    -((e.clientY - caixa.top) / caixa.height) * 2 + 1);
+}
+
+tela.addEventListener("pointerdown", (e) => {
+  const figura = figuraNaCena();
+  if (!figura) return;
+  porRato(e);
+  apontador.setFromCamera(rato, camara);
+  if (!apontador.intersectObject(figura, true).length) return;
+
+  aArrastar = true;
+  controlos.enabled = false;                       // senao a camara vem atras
+  tela.setPointerCapture(e.pointerId);
+  planoDoPalco.set(new THREE.Vector3(0, 1, 0), -figura.position.y);
+  tela.style.cursor = "grabbing";
+});
+
+tela.addEventListener("pointermove", (e) => {
+  const figura = figuraNaCena();
+  if (!figura) return;
+
+  if (!aArrastar) {
+    // Um cursor de mao a dizer que aquilo se pega — senao ninguem descobre.
+    porRato(e);
+    apontador.setFromCamera(rato, camara);
+    tela.style.cursor = apontador.intersectObject(figura, true).length ? "grab" : "";
+    return;
+  }
+
+  porRato(e);
+  apontador.setFromCamera(rato, camara);
+  if (!apontador.ray.intersectPlane(planoDoPalco, ondeCaiu)) return;
+
+  const sala = lerSala();
+  const palco = lerPalco();
+  const noPalco = palco.altura > 0 && palco.profundidade > 0;
+  const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
+  const limiteX = (noPalco ? larguraPalco : sala.largura) / 2 - 0.4;
+  const fundoZ = -sala.profundidade / 2 + 0.5;
+  const frenteZ = noPalco
+    ? -sala.profundidade / 2 + palco.profundidade - 0.3
+    : sala.profundidade / 2 - 0.5;
+
+  figura.position.x = Math.max(-limiteX, Math.min(limiteX, ondeCaiu.x));
+  figura.position.z = Math.max(fundoZ, Math.min(frenteZ, ondeCaiu.z));
+  figura.updateMatrixWorld(true);
+  ondeEsta = { x: figura.position.x, z: figura.position.z };
+  medirSombra();
+});
+
+function largarFigura(e) {
+  if (!aArrastar) return;
+  aArrastar = false;
+  controlos.enabled = true;
+  tela.style.cursor = "";
+  try { tela.releasePointerCapture(e.pointerId); } catch (_) {}
+}
+tela.addEventListener("pointerup", largarFigura);
+tela.addEventListener("pointercancel", largarFigura);
 
 // ------------------------------------------- esconder o painel, e instalar
 
@@ -403,7 +614,8 @@ try {
 
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
-window.preview = { THREE, cena, camara, controlos, get projeto() { return projeto; } };
+window.preview = { THREE, cena, camara, controlos, medirSombra,
+                  get projeto() { return projeto; } };
 
 montar(true);
 volta();
