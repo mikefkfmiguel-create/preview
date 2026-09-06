@@ -325,6 +325,72 @@ $("btExemplo").onclick = () => {
   carregar(EXEMPLO);
 };
 
+// ------------------------------------------- esconder o painel, e instalar
+
+// A cena é o que interessa ver; o painel é para mexer e depois sair da frente.
+// Fica guardado, porque quem o fecha uma vez costuma querê-lo fechado.
+function painel(fechado) {
+  document.body.classList.toggle("fechado", fechado);
+  try { localStorage.setItem("preview-painel", fechado ? "fechado" : "aberto"); } catch (_) {}
+}
+$("btFechar").onclick = () => painel(true);
+$("btAbrir").onclick = () => painel(false);
+addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
+    e.preventDefault();
+    painel(!document.body.classList.contains("fechado"));
+  }
+});
+try {
+  if (localStorage.getItem("preview-painel") === "fechado") painel(true);
+} catch (_) {}
+
+// O convite a instalar. O evento do Chrome não chega a toda a gente — no
+// iPhone não existe de todo — por isso, quando ele não vem, explica-se o
+// caminho à mão em vez de deixar a app sem forma de ser instalada.
+(function convite() {
+  const naApp = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if (naApp) return;
+  const agente = navigator.userAgent;
+  const iPhone = /iPad|iPhone|iPod/.test(agente) && !window.MSStream;
+  let guardado = null;
+
+  addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    guardado = e;
+    $("btInstalar").hidden = false;
+    $("comoInstalar").hidden = true;
+  });
+
+  $("btInstalar").onclick = async () => {
+    if (!guardado) return;
+    guardado.prompt();
+    await guardado.userChoice;
+    guardado = null;
+    $("btInstalar").hidden = true;
+  };
+
+  if (iPhone) {
+    $("comoInstalar").textContent =
+      "Para instalar: Partilhar ⬆︎ e depois \"Adicionar ao Ecrã Principal\".";
+    $("comoInstalar").hidden = false;
+  } else {
+    // Damos um momento ao browser: se o evento chegar, o botão aparece e esta
+    // explicação nunca se mostra.
+    setTimeout(() => {
+      if ($("btInstalar").hidden) {
+        $("comoInstalar").textContent =
+          "Para instalar: no menu do browser, \"Instalar aplicação\" ou \"Adicionar ao ecrã principal\".";
+        $("comoInstalar").hidden = false;
+      }
+    }, 2500);
+  }
+  addEventListener("appinstalled", () => {
+    $("btInstalar").hidden = true;
+    $("comoInstalar").hidden = true;
+  });
+})();
+
 // ------------------------------------------------------------------ arranque
 
 try {

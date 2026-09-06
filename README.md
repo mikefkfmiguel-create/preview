@@ -15,6 +15,11 @@ nuca do da frente?*
    quanto o chão sobe por fila.
 4. Anda à volta com o rato, ou usa as vistas: **Frente**, **Lado**, **Cima**,
    **Olhos da plateia**.
+5. Esconde o painel no **‹** (ou com a tecla **Tab**) para a cena ficar inteira
+   — é assim que isto se mostra a alguém.
+
+**Instala-se como app**, e depois disso abre sem internet: o botão está no fim
+do painel, e em iPhone diz-se lá como se faz à mão.
 
 Também dá para colar o projeto à mão, se preferires.
 
