@@ -181,24 +181,58 @@ export function fazerFigura(altura = 1.75) {
  */
 export function fazerPublico(sala, palco, publico) {
   const grupo = new THREE.Group();
-  if (!publico.filas) return { grupo, olhos: null, lugares: 0 };
+  if (!publico.filas) return { grupo, olhos: null, lugares: 0, filas: 0, porFila: 0 };
 
-  const alturaOlhos = publico.sentado ? 1.20 : 1.62;
-  const raioCorpo = publico.sentado ? 0.19 : 0.17;
-  const alturaCorpo = publico.sentado ? 0.62 : 1.13;
-  const baseCorpo = publico.sentado ? 0.45 : 0.31;
+  const sentado = publico.sentado;
+  const alturaOlhos = sentado ? 1.20 : 1.62;
 
-  const larguraUtil = sala.largura - 2.0;
-  const porFila = Math.max(1, Math.floor(larguraUtil / publico.entreLugares));
+  // Medidas de uma pessoa, e não de uma botija: ombros mais largos do que a
+  // cabeça, pescoço, e uma cadeira por baixo. Vistos de trás — que é como a
+  // plateia se vê — são os ombros que fazem aquilo parecer gente.
+  const OMBROS = 0.46;                       // largura de ombro a ombro
+  const RAIO_CABECA = 0.082;                 // 16 cm de largura: uma cabeça, não um balão
+  const alturaTronco = sentado ? 0.58 : 0.66;
+  const baseTronco = sentado ? (alturaOlhos - 0.16) - alturaTronco : 1.02;
+
+  // Corredores: a largura livre parte-se em blocos, com um corredor entre cada
+  // dois. É o que faz a plateia parecer uma sala e não um autocarro — e muda a
+  // contagem de lugares, que é a razão a sério para isto existir.
+  const corredores = Math.max(0, Math.min(4, publico.corredores || 0));
+  const larguraLivre = sala.largura - 2.0;
+  const larguraSentada = Math.max(
+    publico.entreLugares, larguraLivre - corredores * (publico.larguraCorredor || 0));
+  const blocos = corredores + 1;
+  const larguraBloco = larguraSentada / blocos;
+  const porBloco = Math.max(1, Math.floor(larguraBloco / publico.entreLugares));
+  const porFila = porBloco * blocos;
   const total = porFila * publico.filas;
 
-  const material = new THREE.MeshStandardMaterial({ color: 0x54606E, roughness: 0.95 });
-  const corpos = new THREE.InstancedMesh(
-    new THREE.CapsuleGeometry(raioCorpo, alturaCorpo, 3, 8), material, total);
-  const cabecas = new THREE.InstancedMesh(
-    new THREE.SphereGeometry(0.112, 10, 8), material, total);
+  // Onde começa cada bloco, da esquerda para a direita
+  const inicios = [];
+  let cursor = -larguraLivre / 2;
+  for (let b = 0; b < blocos; b++) {
+    const sobra = larguraBloco - porBloco * publico.entreLugares;
+    inicios.push(cursor + sobra / 2);
+    cursor += larguraBloco + (publico.larguraCorredor || 0);
+  }
 
-  const dummy = new THREE.Object3D();
+  const pele = new THREE.MeshStandardMaterial({ color: 0x6B7683, roughness: 0.95 });
+  const roupa = new THREE.MeshStandardMaterial({ color: 0x4A5563, roughness: 1 });
+  const cadeiraCor = new THREE.MeshStandardMaterial({ color: 0x2A3540, roughness: 1 });
+
+  // Quatro malhas para toda a gente: o custo de desenhar não cresce com o
+  // número de pessoas, e é justamente o número de pessoas que se quer mexer.
+  const troncos = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(OMBROS * 0.78, alturaTronco, 0.28), roupa, total);
+  const ombros = new THREE.InstancedMesh(
+    new THREE.CapsuleGeometry(0.10, OMBROS - 0.20, 3, 8), roupa, total);
+  const cabecas = new THREE.InstancedMesh(
+    new THREE.SphereGeometry(RAIO_CABECA, 12, 10), pele, total);
+  const cadeiras = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(publico.entreLugares * 0.82, 0.46, 0.06), cadeiraCor,
+    sentado ? total : 1);
+
+  const boneco = new THREE.Object3D();
   const zPrimeira = -sala.profundidade / 2 + palco.profundidade + publico.primeiraFila;
   let n = 0;
   let zUltima = zPrimeira;
@@ -207,49 +241,83 @@ export function fazerPublico(sala, palco, publico) {
     const z = zPrimeira + f * publico.entreFilas;
     if (z > sala.profundidade / 2 - 0.5) break;          // não sai porta fora
     zUltima = z;
+    // A plateia sobe. Sem isto, a cabeça da fila da frente fica exactamente à
+    // altura dos teus olhos — e a vista da plateia mostrava uma nuca em vez de
+    // responder à pergunta que se lhe faz.
+    const sobe = f * (publico.inclinacao || 0);
     for (let i = 0; i < porFila; i++) {
-      const x = -larguraUtil / 2 + publico.entreLugares * (i + 0.5)
-                + (f % 2 ? publico.entreLugares / 2 : 0);   // filas alternadas
+      const bloco = Math.floor(i / porBloco);
+      const dentro = i % porBloco;
+      // O desencontro de meio lugar é por bloco: assim ninguém fica com a
+      // cabeça do da frente à frente dos olhos, que é para isso que ele serve.
+      const x = inicios[bloco] + publico.entreLugares * (dentro + 0.5)
+                + (f % 2 ? publico.entreLugares / 2 : 0);
       if (Math.abs(x) > sala.largura / 2 - 0.6) continue;
 
-      dummy.position.set(x, baseCorpo + alturaCorpo / 2, z);
-      dummy.rotation.set(0, 0, 0);
-      dummy.updateMatrix();
-      corpos.setMatrixAt(n, dummy.matrix);
+      // Ninguém tem a altura exacta do vizinho, e uma plateia de clones vê-se
+      // logo. Uma semente feita da posição chega, e é sempre igual entre
+      // desenhos — não há nada pior do que o público saltar a cada tecla.
+      const semente = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+      const variacao = 1 + ((semente - Math.floor(semente)) - 0.5) * 0.09;
+      const virado = ((semente * 3 - Math.floor(semente * 3)) - 0.5) * 0.22;
 
-      dummy.position.set(x, alturaOlhos + 0.06, z);
-      dummy.updateMatrix();
-      cabecas.setMatrixAt(n, dummy.matrix);
+      boneco.rotation.set(0, virado, 0);
+
+      boneco.position.set(x, (baseTronco + alturaTronco / 2) * variacao + sobe, z);
+      boneco.scale.set(1, variacao, 1);
+      boneco.updateMatrix();
+      troncos.setMatrixAt(n, boneco.matrix);
+
+      boneco.scale.set(1, 1, 1);
+      boneco.position.set(x, (baseTronco + alturaTronco) * variacao + sobe, z);
+      boneco.rotation.set(0, virado, Math.PI / 2);         // deitada, de ombro a ombro
+      boneco.updateMatrix();
+      ombros.setMatrixAt(n, boneco.matrix);
+
+      boneco.rotation.set(0, virado, 0);
+      boneco.position.set(x, (alturaOlhos + 0.055) * variacao + sobe, z);
+      boneco.scale.set(1, 1.16, 1.04);                     // a cabeça não é uma bola
+      boneco.updateMatrix();
+      cabecas.setMatrixAt(n, boneco.matrix);
+
+      if (sentado) {
+        boneco.scale.set(1, 1, 1);
+        boneco.rotation.set(0, virado, 0);
+        boneco.position.set(x, 0.23 + sobe, z + 0.22);      // o encosto, atrás
+        boneco.updateMatrix();
+        cadeiras.setMatrixAt(n, boneco.matrix);
+      }
       n++;
     }
+    if (sobe > 0.001) {
+      const degrau = new THREE.Mesh(
+        new THREE.BoxGeometry(sala.largura - 2.0, sobe + 0.02, publico.entreFilas),
+        new THREE.MeshStandardMaterial({ color: 0x1B242C, roughness: 1 }));
+      degrau.position.set(0, (sobe + 0.02) / 2, z + publico.entreFilas * 0.1);
+      grupo.add(degrau);
+    }
   }
-  corpos.count = n;
-  cabecas.count = n;
-  corpos.instanceMatrix.needsUpdate = true;
-  cabecas.instanceMatrix.needsUpdate = true;
 
-  // Sem isto o público desaparece. Um InstancedMesh calcula a esfera que o
-  // envolve a partir da GEOMETRIA e não das instâncias: o motor achava que as
-  // 192 pessoas eram uma bolha de meio metro na origem, e cortava-as fora do
-  // ecrã sempre que a origem saía do enquadramento — ou seja, quase sempre.
-  for (const malha of [corpos, cabecas]) {
+  for (const malha of [troncos, ombros, cabecas, cadeiras]) {
+    malha.count = malha === cadeiras && !sentado ? 0 : n;
+    malha.instanceMatrix.needsUpdate = true;
+    // Sem isto o público desaparece: um InstancedMesh calcula a esfera que o
+    // envolve a partir da GEOMETRIA e não das instâncias, e o motor achava que
+    // a plateia toda era uma bolha de meio metro na origem.
     if (typeof malha.computeBoundingSphere === "function") malha.computeBoundingSphere();
     else malha.frustumCulled = false;
   }
-
-  grupo.add(corpos, cabecas);
+  grupo.add(troncos, ombros, cabecas, cadeiras);
 
   // De onde se olha quando se quer ver o que a plateia vê. Tem de ser um LUGAR
   // e não um ponto a meio: sentada entre filas, a câmara ficava a 45 cm da nuca
-  // do vizinho da frente e não se via mais nada. Num lugar, a cabeça da frente
-  // está a uma fila de distância e desencontrada meio lugar — que é a razão de
-  // as filas se desencontrarem na vida real.
+  // do vizinho da frente e não se via mais nada.
   const filasFeitas = publico.entreFilas
     ? Math.round((zUltima - zPrimeira) / publico.entreFilas) + 1 : 0;
   const filaDoMeio = Math.floor(filasFeitas / 2);
   const olhos = new THREE.Vector3(
     (filaDoMeio % 2 ? publico.entreLugares / 2 : 0) - (porFila % 2 ? 0 : publico.entreLugares / 2),
-    alturaOlhos,
+    alturaOlhos + filaDoMeio * (publico.inclinacao || 0),
     zPrimeira + filaDoMeio * publico.entreFilas);
-  return { grupo, olhos, lugares: n, filas: filasFeitas, porFila };
+  return { grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos };
 }

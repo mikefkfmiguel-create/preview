@@ -56,6 +56,9 @@
       <label>Primeira fila a <input id="primeiraFila" type="number" value="3" min="0" max="40" step="0.5"><i>m</i></label>
       <label>Entre filas <input id="entreFilas" type="number" value="0.9" min="0.5" max="3" step="0.05"><i>m</i></label>
       <label>Entre lugares <input id="entreLugares" type="number" value="0.55" min="0.4" max="2" step="0.05"><i>m</i></label>
+      <label>Corredores <input id="corredores" type="number" value="1" min="0" max="4" step="1"><i></i></label>
+      <label>Largura deles <input id="larguraCorredor" type="number" value="1.2" min="0.6" max="4" step="0.1"><i>m</i></label>
+      <label>Sobe por fila <input id="inclinacao" type="number" value="0.12" min="0" max="0.6" step="0.01"><i>m</i></label>
     </div>
     <label class="opcao"><input id="sentado" type="checkbox" checked> Sentado</label>
   </section>
@@ -91,5 +94,14 @@
 { "imports": { "three": "./vendor/three.module.js" } }
 </script>
 <script type="module" src="js/app.js"></script>
+
+<script>
+  // Instalável e capaz de abrir sem rede. O registo é sempre relativo, porque
+  // isto vive numa subpasta no GitHub Pages e um caminho absoluto punha o
+  // service worker a mandar na raiz do domínio inteiro.
+  if ("serviceWorker" in navigator) {
+    addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+  }
+</script>
 </body>
 </html>

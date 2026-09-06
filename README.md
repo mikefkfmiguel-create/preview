@@ -11,7 +11,8 @@ nuca do da frente?*
 
 1. Nos Calculadores, monta as zonas de LED como costumas.
 2. Carrega em **Ver em 3D** — abre este preview já com o projeto lá dentro.
-3. Escreve as medidas da sala e do palco, e o número de filas.
+3. Escreve as medidas da sala e do palco, e a plateia: filas, corredores e
+   quanto o chão sobe por fila.
 4. Anda à volta com o rato, ou usa as vistas: **Frente**, **Lado**, **Cima**,
    **Olhos da plateia**.
 
@@ -69,6 +70,17 @@ python -m http.server 8123
 ```
 
 e abre-se `http://127.0.0.1:8123`.
+
+## A plateia
+
+O público não é enfeite: é ele que responde à pergunta difícil. Dá para dizer
+quantas filas, quantos corredores e de que largura, e **quanto o chão sobe por
+fila** — sem essa subida a cabeça da frente fica exactamente à altura dos teus
+olhos, e a vista da plateia mostra uma nuca em vez de um ecrã.
+
+A app conta os lugares que couberam e avisa quando as filas pedidas não cabem
+na sala. Pedir 12 e receber 6 sem ninguém dizer nada é a maneira certa de levar
+um número errado para uma reunião.
 
 ## O que ainda não faz
 

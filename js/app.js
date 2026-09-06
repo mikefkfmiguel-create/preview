@@ -42,6 +42,9 @@ function lerPublico() {
     primeiraFila: num("primeiraFila"),
     entreFilas: num("entreFilas"),
     entreLugares: num("entreLugares"),
+    corredores: Math.round(num("corredores")),
+    inclinacao: num("inclinacao"),
+    larguraCorredor: num("larguraCorredor"),
     sentado: $("sentado").checked
   };
 }
@@ -165,7 +168,8 @@ function escreverPainel(medidas, lugares, gentePosta) {
 
   $("rodape").textContent = lugares
     ? `${lugares} lugares — ${gentePosta.filas} fila${gentePosta.filas === 1 ? "" : "s"} ` +
-      `de ${gentePosta.porFila}.`
+      `de ${gentePosta.porFila}` +
+      (gentePosta.blocos > 1 ? `, em ${gentePosta.blocos} blocos.` : ".")
     : "Sem público no desenho.";
 }
 
