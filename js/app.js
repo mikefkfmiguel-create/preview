@@ -84,6 +84,11 @@ function limpar(grupo) {
 }
 
 function montar(recentrarCamara) {
+  // O aviso apaga-se sempre no princípio e volta a escrever-se quem tiver
+  // razão para isso. Antes a limpeza vivia dentro da verificação que só corre
+  // com um projeto carregado: sem zonas, um aviso antigo ficava para sempre no
+  // ecrã, a falar de filas que já ninguém tinha pedido.
+  $("aviso").classList.remove("mostra");
   if (desenhado) limpar(desenhado);
   desenhado = new THREE.Group();
   etiquetas = [];
@@ -157,7 +162,13 @@ function montar(recentrarCamara) {
     publico: {
       filas: gente.filas, porFila: gente.porFila, lugares: gente.lugares,
       corredores: publico.corredores, inclinacao: publico.inclinacao,
-      tipo: publico.inclinacao > 0.005 ? "auditorio" : "pavilhao"
+      tipo: publico.inclinacao > 0.005 ? "auditorio" : "pavilhao",
+      // do plano do ecrã ao primeiro e ao último espectador
+      primeiroEspectador: gente.zPrimeira != null
+        ? +(gente.zPrimeira - (-sala.profundidade / 2 + 0.35)).toFixed(2) : null,
+      ultimoEspectador: gente.zUltima != null
+        ? +(gente.zUltima - (-sala.profundidade / 2 + 0.35)).toFixed(2) : null,
+      larguraPlateia: gente.larguraSentada != null ? +gente.larguraSentada.toFixed(2) : null
     }
   });
   escreverPainel(medidas, gente.lugares, gente);
@@ -261,8 +272,6 @@ function avisarSeNaoCabe(medidas, sala, palco) {
   if (problemas.length) {
     aviso.textContent = "Não cabe: " + problemas.join("; ") + ".";
     aviso.classList.add("mostra");
-  } else {
-    aviso.classList.remove("mostra");
   }
 }
 

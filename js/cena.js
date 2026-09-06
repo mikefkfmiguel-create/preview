@@ -394,7 +394,13 @@ export function fazerPublico(sala, palco, publico) {
     (filaDoMeio % 2 ? publico.entreLugares / 2 : 0) - (porFila % 2 ? 0 : publico.entreLugares / 2),
     alturaOlhos + filaDoMeio * (publico.inclinacao || 0),
     zPrimeira + filaDoMeio * publico.entreFilas);
-  return { grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos };
+  return {
+    grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos,
+    // As distancias que interessam a quem tem de escolher o tamanho do ecra:
+    // do ecra ao primeiro e ao ultimo espectador, e a largura que a plateia
+    // ocupa. E o que as regras da AVIXA e da SMPTE pedem.
+    zPrimeira, zUltima, larguraSentada
+  };
 }
 
 
