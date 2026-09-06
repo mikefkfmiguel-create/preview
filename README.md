@@ -150,6 +150,20 @@ amostras.
 - **TVs**: o mesmo, com o catálogo que já lá está.
 - **Guardar a sala**: as medidas escrevem-se de cada vez (a sala fica guardada
   para os Calculadores, mas não se recarrega sozinha aqui).
-- **DXF**: a planta entra como imagem; ler linhas de um DXF à escala, sem
-  calibrar nada, é o passo a seguir.
+- **DXF**: a planta entra como **imagem** e calibra-se à mão (isso está feito).
+  Ler um DXF a sério — linhas e polilinhas à escala, sem calibrar nada — não
+  está, e é o passo a seguir nessa frente.
+
+- **Exportar a cena para 3D a sério** (ideia do mike, 6 de setembro de 2026).
+  Isto desenha volumes e cores; quem faz a imagem bonita trabalha noutro sítio
+  — Cinema 4D, Blender — onde se aplicam materiais e texturas reais e se ilumina
+  a coisa. O que falta é a ponte: exportar a sala, o palco, as zonas e a plateia
+  em **glTF ou OBJ**, com cada zona identificada pelo nome para receber a sua
+  textura do lado de lá.
+
+  O caminho é curto: o Three.js traz `GLTFExporter` e `OBJExporter` nos
+  *examples*, e ambos entram no Cinema 4D. Como o motor já vive no `vendor/`,
+  é trazer mais um ficheiro e um botão. O trabalho a sério não é exportar — é
+  decidir o que vai lá dentro: as pessoas todas? só uma para escala? o palco
+  como caixa ou como superfície? Isso decide-se com quem for receber o ficheiro.
 - **Sombra do público**: só se mede a do orador.
