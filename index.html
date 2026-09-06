@@ -105,7 +105,21 @@
   // isto vive numa subpasta no GitHub Pages e um caminho absoluto punha o
   // service worker a mandar na raiz do domínio inteiro.
   if ("serviceWorker" in navigator) {
-    addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+    addEventListener("load", async () => {
+      try {
+        const registo = await navigator.serviceWorker.register("./sw.js");
+        // Quando entra uma versao nova, ela so manda no proximo arranque. Em
+        // vez de deixar o mike a olhar para a app de ontem sem saber porque,
+        // recarrega-se assim que ela estiver pronta.
+        registo.addEventListener("updatefound", () => {
+          const novo = registo.installing;
+          if (!novo) return;
+          novo.addEventListener("statechange", () => {
+            if (novo.state === "installed" && navigator.serviceWorker.controller) location.reload();
+          });
+        });
+      } catch (_) { /* sem service worker a app funciona na mesma, so nao offline */ }
+    });
   }
 </script>
 </body>

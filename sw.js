@@ -5,7 +5,7 @@
 // costuma não haver internet. Tudo o que a app precisa está no cache — o motor
 // 3D incluído, que é o ficheiro grande.
 
-const CACHE = "preview-v1";
+const CACHE = "preview-v2";
 
 const TUDO = [
   "./",
@@ -55,13 +55,21 @@ self.addEventListener("fetch", (evento) => {
     return;
   }
 
+  // Serve-se do cache — que é o que faz isto abrir sem rede — mas vai-se
+  // buscar a versão nova em segundo plano. Sem esta segunda metade, quem
+  // abriu a app uma vez ficava com essa versão para sempre: o mike pediu a
+  // largura do palco, ela foi publicada, e ele continuava a ver a app de
+  // ontem sem nada que lho dissesse.
   evento.respondWith(
-    caches.match(pedido).then((guardado) => guardado || fetch(pedido).then((resposta) => {
-      if (resposta && resposta.ok) {
-        const copia = resposta.clone();
-        caches.open(CACHE).then((cache) => cache.put(pedido, copia));
-      }
-      return resposta;
-    }))
+    caches.match(pedido).then((guardado) => {
+      const daRede = fetch(pedido).then((resposta) => {
+        if (resposta && resposta.ok) {
+          const copia = resposta.clone();
+          caches.open(CACHE).then((cache) => cache.put(pedido, copia));
+        }
+        return resposta;
+      }).catch(() => guardado);
+      return guardado || daRede;
+    })
   );
 });
