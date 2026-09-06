@@ -92,9 +92,13 @@
       <button id="btImagem">Imagem…</button>
     </div>
     <button id="btSemConteudo" style="margin-top:8px; width:100%">Só cor</button>
+    <div class="vistas" style="margin-top:8px">
+      <button data-conteudo="espalhado" class="destaque">Espalhada</button>
+      <button data-conteudo="cada">Uma em cada</button>
+    </div>
     <input type="file" id="ficheiroImagem" accept="image/*" hidden>
-    <p class="vazio" style="margin:10px 0 0">A imagem espalha-se pelo conjunto todo, e
-       cada zona mostra o seu bocado — como o media server faz.</p>
+    <p class="vazio" style="margin:10px 0 0" id="notaConteudo">Espalhada: uma imagem só
+       pelo conjunto todo, cada zona mostra o seu bocado — como o media server faz.</p>
   </section>
 
   <section>
@@ -106,6 +110,7 @@
       <button data-vista="olhos" class="destaque">Olhos da plateia</button>
     </div>
     <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>
+    <button id="btGuardarImagem" style="margin-top:10px; width:100%">Guardar imagem (PNG)</button>
   </section>
 
   <section id="zonas">

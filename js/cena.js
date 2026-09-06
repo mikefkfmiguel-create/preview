@@ -98,7 +98,16 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
   const cor = new THREE.Color(zona.cor || "#2E7BFF");
 
   let frente;
-  if (conteudo && conteudo.textura) {
+  if (conteudo && conteudo.textura && conteudo.modo === "cada") {
+    // Uma imagem inteira em CADA zona. É o que se faz quando os ecrãs mostram
+    // conteúdos independentes -- duas alas com o mesmo grafismo, por exemplo.
+    const copia = conteudo.textura.clone();
+    copia.needsUpdate = true;
+    frente = new THREE.MeshStandardMaterial({
+      map: copia, emissiveMap: copia, emissive: 0xFFFFFF,
+      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0
+    });
+  } else if (conteudo && conteudo.textura) {
     // A imagem é UMA só, espalhada pelo conjunto todo — como na vida real,
     // onde o media server manda um canvas e cada zona mostra o seu bocado.
     // Por isso cada painel recebe a textura recortada no sítio dele, e não
@@ -154,7 +163,7 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
  * Todas as zonas, assentes no palco e centradas na sala.
  * Devolve o grupo e os pontos onde as etiquetas devem aparecer.
  */
-export function fazerZonas(projeto, medidas, sala, palco, textura) {
+export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo) {
   const grupo = new THREE.Group();
   const etiquetas = [];
 
@@ -166,7 +175,7 @@ export function fazerZonas(projeto, medidas, sala, palco, textura) {
 
   const topo = Math.min(...projeto.zonas.map(z => z.y));
   const conteudo = textura ? {
-    textura, esquerda, topo,
+    textura, esquerda, topo, modo: modoConteudo,
     largura: medidas.largura, altura: medidas.altura
   } : null;
 

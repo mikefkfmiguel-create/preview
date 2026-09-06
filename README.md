@@ -87,11 +87,35 @@ A app conta os lugares que couberam e avisa quando as filas pedidas não cabem
 na sala. Pedir 12 e receber 6 sem ninguém dizer nada é a maneira certa de levar
 um número errado para uma reunião.
 
+## As duas apps falam sozinhas
+
+O Preview e os Calculadores vivem no mesmo domínio, por isso partilham o
+`localStorage` — e é esse o canal, sem servidor nenhum pelo meio:
+
+- os **Calculadores** guardam o projeto (já em metros) sempre que as zonas
+  mudam. Abrir o Preview sozinho já mostra o projeto em que se andava a
+  trabalhar, sem carregar em nada;
+- com os dois abertos em abas lado a lado, mexer nas zonas **atualiza o Preview
+  ao vivo** — o browser avisa a outra aba;
+- o **Preview** guarda a sala (medidas, palco, plateia e se é pavilhão ou
+  auditório), e o Assistente de Projeto vai lá buscá-la no botão
+  *"Trazer sala do Preview"*.
+
+O botão *"Ver em 3D"* continua a existir e leva o projeto no próprio endereço —
+serve para abrir noutro computador ou mandar a alguém.
+
 ## Conteúdo nos ecrãs
 
-Um padrão de teste, ou uma imagem tua. **A imagem é uma só, espalhada pelo
-conjunto todo** — cada zona mostra o seu bocado, como o media server faz. É
-assim que se vê se as juntas caem onde devem, e se alguma zona está trocada.
+Um padrão de teste, ou uma imagem tua, de duas maneiras:
+
+- **Espalhada** — uma imagem só pelo conjunto todo, cada zona mostra o seu
+  bocado, como o media server faz. É assim que se vê se as juntas caem onde
+  devem e se alguma zona está trocada;
+- **Uma em cada** — a imagem inteira repetida em cada zona, para quando os ecrãs
+  mostram conteúdos independentes.
+
+E **Guardar imagem (PNG)** leva o desenho com as etiquetas e uma tira com as
+contas em baixo — um printscreen perde isso, e é metade do que ali interessa.
 
 ## Projeção
 

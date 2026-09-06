@@ -125,3 +125,27 @@ export function projetoDoEndereco() {
     throw new Error("O endereço traz um projeto que não consigo abrir: " + e.message);
   }
 }
+
+
+// As duas apps vivem no mesmo domínio, por isso partilham o localStorage — e é
+// esse o canal por onde falam uma com a outra, sem servidor nenhum pelo meio.
+export const CHAVE_PROJETO = "mikeapps-projeto-v1";
+export const CHAVE_SALA = "mikeapps-sala-v1";
+
+/** O último projeto que os Calculadores deixaram guardado, se houver. */
+export function projetoGuardado() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_PROJETO);
+    return bruto ? lerProjeto(bruto) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** A sala fica guardada para os Calculadores a poderem ir buscar. */
+export function guardarSala(sala) {
+  try {
+    localStorage.setItem(CHAVE_SALA, JSON.stringify(
+      Object.assign({ v: 1, quando: new Date().toISOString() }, sala)));
+  } catch (e) { /* sem localStorage a app funciona na mesma */ }
+}

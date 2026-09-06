@@ -2,14 +2,18 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
-import { EXEMPLO, lerProjeto, totais, projetoDoEndereco } from "./projeto.js";
+import { EXEMPLO, lerProjeto, totais, projetoDoEndereco,
+         projetoGuardado, guardarSala, CHAVE_PROJETO } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem } from "./cena.js";
 
 const $ = (id) => document.getElementById(id);
 const tela = $("tela");
 
-const renderizador = new THREE.WebGLRenderer({ canvas: tela, antialias: true });
+// preserveDrawingBuffer: sem isto o browser pode limpar o canvas antes de o
+// copiarmos, e a imagem guardada sai preta.
+const renderizador = new THREE.WebGLRenderer({ canvas: tela, antialias: true,
+                                              preserveDrawingBuffer: true });
 renderizador.setPixelRatio(Math.min(devicePixelRatio, 2));
 
 const camara = new THREE.PerspectiveCamera(52, 1, 0.05, 400);
@@ -27,6 +31,7 @@ let etiquetas = [];
 let olhosDaPlateia = null;
 let desenhado = null;      // o que está na cena agora, para se poder deitar fora
 let textura = null;        // o conteúdo a mostrar nos ecrãs, se houver
+let modoConteudo = "espalhado";   // espalhado pelo conjunto, ou um em cada zona
 let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
 
@@ -96,7 +101,7 @@ function montar(recentrarCamara) {
   let medidas = null;
   if (projeto) {
     medidas = totais(projeto);
-    const zonas = fazerZonas(projeto, medidas, sala, palco, textura);
+    const zonas = fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo);
     desenhado.add(zonas.grupo);
     etiquetas = $("verMedidas").checked ? zonas.etiquetas : [];
 
@@ -137,6 +142,15 @@ function montar(recentrarCamara) {
   }
 
   cena.add(desenhado);
+  guardarSala({
+    largura: sala.largura, profundidade: sala.profundidade, altura: sala.altura,
+    palco: { largura: palco.largura, altura: palco.altura, profundidade: palco.profundidade },
+    publico: {
+      filas: gente.filas, porFila: gente.porFila, lugares: gente.lugares,
+      corredores: publico.corredores, inclinacao: publico.inclinacao,
+      tipo: publico.inclinacao > 0.005 ? "auditorio" : "pavilhao"
+    }
+  });
   escreverPainel(medidas, gente.lugares, gente);
   if (recentrarCamara) vista("frente");
 }
@@ -434,6 +448,18 @@ document.querySelectorAll("[data-formato]").forEach(b => {
 });
 document.querySelector("[data-formato='1.777']").classList.add("destaque");
 
+document.querySelectorAll("[data-conteudo]").forEach(b => {
+  b.onclick = () => {
+    modoConteudo = b.dataset.conteudo;
+    document.querySelectorAll("[data-conteudo]").forEach(o => o.classList.remove("destaque"));
+    b.classList.add("destaque");
+    $("notaConteudo").textContent = modoConteudo === "cada"
+      ? "Uma em cada: a imagem inteira repetida em cada zona, para quando os ecrãs mostram conteúdos independentes."
+      : "Espalhada: uma imagem só pelo conjunto todo, cada zona mostra o seu bocado — como o media server faz.";
+    montar(false);
+  };
+});
+
 $("btPadrao").onclick = () => { textura = padraoDeTeste(); montar(false); };
 $("btSemConteudo").onclick = () => { textura = null; montar(false); };
 $("btImagem").onclick = () => $("ficheiroImagem").click();
@@ -455,6 +481,73 @@ $("btExemplo").onclick = () => {
   $("colagem").value = JSON.stringify(EXEMPLO, null, 2);
   carregar(EXEMPLO);
 };
+
+// --------------------------------------------------------- guardar a imagem
+//
+// Um printscreen perde as etiquetas e os numeros, que sao metade do que ali
+// interessa -- e uma imagem que so mostra caixas azuis nao serve para mandar a
+// ninguem. Por isso o desenho e recomposto: a cena, as etiquetas por cima, e
+// uma tira em baixo com as contas.
+
+function guardarImagem() {
+  renderizador.render(cena, camara);            // garantir que o que se copia e o que se ve
+
+  const folha = document.createElement("canvas");
+  const tira = 54;
+  folha.width = tela.width;
+  folha.height = tela.height + tira * (tela.width / tela.clientWidth);
+  const p = folha.getContext("2d");
+  const escala = tela.width / tela.clientWidth;
+
+  p.fillStyle = "#0E1418";
+  p.fillRect(0, 0, folha.width, folha.height);
+  p.drawImage(tela, 0, 0);
+
+  // as etiquetas, onde elas estao agora
+  p.font = `${Math.round(12 * escala)}px "Segoe UI", system-ui, sans-serif`;
+  p.textBaseline = "middle";
+  for (const etiqueta of etiquetas) {
+    const v = etiqueta.ponto.clone().project(camara);
+    if (v.z > 1) continue;
+    const x = (v.x * 0.5 + 0.5) * folha.width;
+    const y = (-v.y * 0.5 + 0.5) * tela.height;
+    const largura = p.measureText(etiqueta.texto).width + 16 * escala;
+    const altura = 22 * escala;
+    p.fillStyle = "rgba(14,20,24,0.86)";
+    p.fillRect(x - largura / 2, y - altura / 2, largura, altura);
+    p.strokeStyle = "#232D36";
+    p.strokeRect(x - largura / 2, y - altura / 2, largura, altura);
+    p.fillStyle = "#E7ECF2";
+    p.textAlign = "center";
+    p.fillText(etiqueta.texto, x, y);
+  }
+
+  // a tira com as contas
+  const linha = [
+    $("resumo").textContent.replace(/\s+/g, " ").trim(),
+    $("rodape").textContent.trim(),
+    $("resumoProj").textContent.trim()
+  ].filter(t => t && t !== "—").join("   ·   ");
+  p.fillStyle = "#141B21";
+  p.fillRect(0, tela.height, folha.width, folha.height - tela.height);
+  p.fillStyle = "#8A97A6";
+  p.textAlign = "left";
+  p.font = `${Math.round(13 * escala)}px "Segoe UI", system-ui, sans-serif`;
+  p.fillText(linha, 16 * escala, tela.height + (folha.height - tela.height) / 2);
+
+  const agora = new Date();
+  const nome = "preview-" +
+    agora.toISOString().slice(0, 16).replace("T", "-").replace(":", "h") + ".png";
+  folha.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = nome;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, "image/png");
+}
+
+$("btGuardarImagem").onclick = guardarImagem;
 
 // ------------------------------------------------------- arrastar o orador
 //
@@ -605,12 +698,29 @@ try {
 // ------------------------------------------------------------------ arranque
 
 try {
-  const doEndereco = projetoDoEndereco();
-  if (doEndereco) projeto = doEndereco;
+  // Primeiro o que vem no endereço (foi alguém que carregou no "Ver em 3D"),
+  // depois o último que os Calculadores deixaram guardado — assim abrir o
+  // preview sozinho já mostra o projeto em que se andava a trabalhar.
+  projeto = projetoDoEndereco() || projetoGuardado();
 } catch (e) {
   $("aviso").textContent = e.message;
   $("aviso").classList.add("mostra");
 }
+
+// E se os Calculadores mexerem nas zonas noutra aba, isto acompanha. O evento
+// só chega às OUTRAS abas do mesmo domínio, que é exactamente o caso: as duas
+// apps lado a lado.
+addEventListener("storage", (e) => {
+  if (e.key !== CHAVE_PROJETO || !e.newValue) return;
+  try {
+    projeto = lerProjeto(e.newValue);
+    montar(false);
+    const aviso = $("aviso");
+    aviso.textContent = "Os Calculadores mudaram o projeto — atualizei.";
+    aviso.classList.add("mostra");
+    setTimeout(() => aviso.classList.remove("mostra"), 2600);
+  } catch (_) { /* o que veio não servia; fica o que estava */ }
+});
 
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
