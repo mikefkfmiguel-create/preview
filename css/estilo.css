@@ -35,6 +35,9 @@ body { display: flex; }
 #marca { height: 30px; width: auto; }
 #painel header b { display: block; font-size: 15px; letter-spacing: .04em; }
 #painel header span { display: block; font-size: 12px; color: var(--apagado); }
+/* A versao anda a vista: sem ela, ninguem sabe se o que esta no ecra ja e o
+   que foi publicado ha cinco minutos ou o de ontem que ficou no cache. */
+#versao { font-style: normal; color: var(--ciano); font-variant-numeric: tabular-nums; }
 
 #painel section { padding: 16px 18px; border-bottom: 1px solid var(--linha); }
 #painel h2 {

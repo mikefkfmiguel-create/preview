@@ -72,6 +72,20 @@ servidor MCP `github` (conta do mike).
 - **A sombra do publico nao se soma caixa a caixa.** Numa sala cheia as sombras
   sobrepoem-se quase todas e a soma dava 300%. Rasteriza-se numa grelha.
 
+## A versao sobe SEMPRE que se mexe
+
+O painel mostra a versao ao lado de "o projeto no terreno" (`#versao` no
+`index.html`), e o `CACHE` do `sw.js` tem o mesmo numero: `preview-v1.0`.
+
+Sempre que se altera codigo, **sobem as duas** -- v1.0, v1.1, v1.2. Foi pedido
+pelo mike, e a razao e concreta: sem numero a vista, ninguem sabe se o que esta
+no ecra ja e o que foi publicado ha cinco minutos ou o de ontem que ficou no
+cache. E como o nome do cache muda com a versao, quem tiver a app aberta recebe
+a nova sem fazer nada.
+
+Vale o mesmo do outro lado: os Calculadores tem a versao no cabecalho
+(`#app-versao`) e sobe da mesma maneira.
+
 ## Provar antes de dizer que esta feito
 
 Nao ha testes automaticos. O que ha e o `#btExemplo`, que carrega um projeto de

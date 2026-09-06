@@ -5,7 +5,9 @@
 // costuma não haver internet. Tudo o que a app precisa está no cache — o motor
 // 3D incluído, que é o ficheiro grande.
 
-const CACHE = "preview-v12";
+// O nome do cache segue a versao que aparece no painel: subindo uma, sobe a
+// outra, e quem estiver com a app aberta recebe a nova sem fazer nada.
+const CACHE = "preview-v1.0";
 
 const TUDO = [
   "./",
