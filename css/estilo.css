@@ -119,6 +119,18 @@ main { flex: 1; position: relative; min-width: 0; }
   body { flex-direction: column; }
   #painel { width: 100%; flex: 0 0 46%; border-right: 0; border-bottom: 1px solid var(--linha); }
   main { flex: 1; }
+
+  /* O painel tem dezenas de campos, e um telemóvel tem uma regra sem
+     exceções: um campo com menos de 16px faz o Safari saltar sozinho para o
+     zoom ao tocar-lhe, e volta a saltar para trás ao sair — é o "andar a
+     navegar nos zooms". Aqui ficavam a 12-13px. No computador o painel
+     continua denso; isto é só para dedo, não para rato. */
+  input[type=number], textarea, select.escolha { font-size: 16px; }
+
+  /* E uma caixa de 13px de lado não se acerta com um dedo — o alvo mínimo
+     que a Apple e a Google pedem anda nos 44px; isto não vai lá, mas sai da
+     zona de "só com unha". */
+  input[type=checkbox] { width: 20px; height: 20px; }
 }
 
 /* ------------------------------------------------- esconder o painel */
