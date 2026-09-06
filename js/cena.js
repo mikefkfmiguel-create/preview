@@ -164,16 +164,55 @@ export function fazerZonas(projeto, medidas, sala, palco) {
   return { grupo, etiquetas, base, z0 };
 }
 
-/** Uma pessoa de pé, para escala. Sem cara, sem pretensões. */
+/**
+ * Uma pessoa de pé, para escala. Sem cara e sem pretensões — mas com pernas,
+ * ombros e braços: uma cápsula com uma bola em cima não é uma pessoa, é uma
+ * botija de gás, e a figura que dá a medida a tudo o resto não pode ser a
+ * coisa que se lê pior no desenho.
+ */
 export function fazerFigura(altura = 1.75) {
   const grupo = new THREE.Group();
-  const material = new THREE.MeshStandardMaterial({ color: 0xE7ECF2, roughness: 0.8 });
-  const corpo = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.17, altura - 0.62, 4, 10), material);
-  corpo.position.y = (altura - 0.62) / 2 + 0.31;
-  const cabeca = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 12), material);
-  cabeca.position.y = altura - 0.1;
-  grupo.add(corpo, cabeca);
+  grupo.name = "figura";
+  const pele = new THREE.MeshStandardMaterial({ color: 0xD7DEE8, roughness: 0.85 });
+  const roupa = new THREE.MeshStandardMaterial({ color: 0xAAB6C4, roughness: 0.95 });
+
+  // As peças vão num grupo interior para se poderem descer e escalar de uma
+  // vez no fim: os pés têm de assentar mesmo no chão e o topo cair mesmo na
+  // altura pedida. Uma figura de escala que mede 1,71 mente sobre tudo o que
+  // está ao lado dela.
+  const interior = new THREE.Group();
+  grupo.add(interior);
+  const por = (malha, x, y, z, rot) => {
+    malha.position.set(x, y, z || 0);
+    if (rot) malha.rotation.z = rot;
+    interior.add(malha);
+    return malha;
+  };
+
+  // pernas
+  for (const lado of [-1, 1]) {
+    por(new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.62, 3, 8), roupa),
+        lado * 0.095, 0.42, 0);
+  }
+  // tronco e ombros
+  por(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.52, 0.23), roupa), 0, 1.10, 0);
+  por(new THREE.Mesh(new THREE.CapsuleGeometry(0.10, 0.26, 3, 8), roupa),
+      0, 1.34, 0, Math.PI / 2);
+  // braços, ao lado do corpo
+  for (const lado of [-1, 1]) {
+    por(new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.46, 3, 8), roupa),
+        lado * 0.235, 1.06, 0);
+  }
+  // pescoço e cabeça
+  por(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 8), pele), 0, 1.50, 0);
+  // O topo da cabeça tem de cair nos 1,75: uma figura de escala que mede 1,70
+  // mente sobre tudo o que está ao lado dela.
+  const cabeca = por(new THREE.Mesh(new THREE.SphereGeometry(0.082, 14, 12), pele), 0, 1.655, 0);
+  cabeca.scale.set(1, 1.16, 1.04);
+
+  const caixa = new THREE.Box3().setFromObject(interior);
+  interior.position.y = -caixa.min.y;                       // pés no chão
+  grupo.scale.setScalar(altura / (caixa.max.y - caixa.min.y));  // altura certa
   return grupo;
 }
 

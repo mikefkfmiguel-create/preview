@@ -337,7 +337,7 @@ try {
 
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
-window.preview = { cena, camara, controlos, get projeto() { return projeto; } };
+window.preview = { THREE, cena, camara, controlos, get projeto() { return projeto; } };
 
 montar(true);
 volta();
