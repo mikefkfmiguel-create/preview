@@ -618,7 +618,19 @@ function garantirProjeto() {
   if (!projeto) {
     projeto = { v: FORMATO, nome: "Projeto (criado no Preview)", origem: "preview", zonas: [], dsm: null };
   }
+  if (!Array.isArray(projeto.zonas)) projeto.zonas = [];
   return projeto;
+}
+
+function mostrarZonas() {
+  const secao = $("zonas");
+  secao.classList.remove("fechada");
+  try {
+    localStorage.setItem("preview-dobras",
+      JSON.stringify([...document.querySelectorAll("#painel section.fechada")]
+        .filter(x => x.id !== "zonas").map(x => x.id)));
+  } catch (_) {}
+  $("listaZonas").scrollIntoView({ block: "nearest" });
 }
 
 /** Depois de mexer no projeto à mão, é a mesma rotina de sempre: voltar a
@@ -642,6 +654,7 @@ $("btNovaZona").onclick = () => {
     tipo: "led"
   });
   projetoMudou();
+  mostrarZonas();
 };
 
 $("btNovoDelay").onclick = () => {
@@ -657,6 +670,7 @@ $("btNovoDelay").onclick = () => {
     tipo: "tv"
   });
   projetoMudou();
+  mostrarZonas();
 };
 
 $("btNovoDsm").onclick = () => {
