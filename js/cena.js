@@ -282,18 +282,20 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
   }
 
   grupo.position.set(zona.centroX, alturaBase + zona.h / 2, z0);
-  if (zona.tipo === "tv" || zona.tipo === "projecao") {
-    // "YXZ": primeiro roda-se à volta do eixo vertical (para onde aponta),
-    // só depois se tomba (para onde inclina) -- a mesma ordem do DSM. Um
-    // delay ao alto (numa treliça, por exemplo) precisa de apontar para
-    // baixo, para a plateia, e não ficar direito a apontar por cima dela.
-    grupo.rotation.order = "YXZ";
-    grupo.rotation.y = -Number(rotacao || 0) * Math.PI / 180;
-    // Positivo inclina para baixo (a face que estava a apontar em frente
-    // passa a apontar também para o chão) -- é o sentido que interessa a um
-    // ecrã pendurado no alto, a apontar para a plateia lá em baixo.
-    grupo.rotation.x = Number(tombo || 0) * Math.PI / 180;
-  }
+  // "rodar"/"tilt" aplicam-se a QUALQUER zona, LED incluído -- não só a
+  // delays (tv/projeção). Isto já era assim do lado do cálculo (a cobertura
+  // e o cone de cada ecrã, em anguloDePessoa()/fazerConeCobertura(), sempre
+  // usaram centro.rotacao sem olhar ao tipo): rodar uma zona LED movia o
+  // cone no ecrã mas não o ecrã que ele representa, os dois a discordar em
+  // silêncio -- exactamente o que se reportou. "YXZ": primeiro roda-se à
+  // volta do eixo vertical (para onde aponta), só depois se tomba (para
+  // onde inclina) -- a mesma ordem do DSM.
+  grupo.rotation.order = "YXZ";
+  grupo.rotation.y = -Number(rotacao || 0) * Math.PI / 180;
+  // Positivo inclina para baixo (a face que estava a apontar em frente
+  // passa a apontar também para o chão) -- é o sentido que interessa a um
+  // ecrã pendurado no alto, a apontar para a plateia lá em baixo.
+  grupo.rotation.x = Number(tombo || 0) * Math.PI / 180;
   return grupo;
 }
 
