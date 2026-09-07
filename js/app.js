@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
-         CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING,
+         CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
@@ -1740,7 +1740,7 @@ function limparTudo() {
   // A memória partilhada com os Calculadores vai também: senão o projeto
   // voltava sozinho no arranque seguinte, e "limpar" passava a durar até ao
   // próximo F5.
-  for (const chave of [CHAVE_PROJETO, CHAVE_PROJETOR, "mikeapps-ecra-v1"]) {
+  for (const chave of [CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_DEVOLUCAO]) {
     try { localStorage.removeItem(chave); } catch (_) {}
   }
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
@@ -2219,13 +2219,40 @@ $("btDevolver").onclick = () => {
   if (!projeto) { $("notaEcra").textContent = "Não há projeto para devolver."; return; }
   const t = totais(projeto);
   try {
-    localStorage.setItem("mikeapps-ecra-v1", JSON.stringify({
+    const zonas = projeto.zonas.map((zona) => {
+      const ajuste = ajustes.delays[zona.nome];
+      return {
+        nome: zona.nome,
+        x: zona.x, y: zona.y, w: zona.w, h: zona.h,
+        cor: zona.cor, tipo: zona.tipo,
+        curva: zona.curva, tiles: zona.tiles, res: zona.res,
+        peso: zona.peso, amp: zona.amp,
+        // Os Calculadores ignoram este campo, mas o Preview consegue
+        // reabrir exatamente a posição e a rotação decididas na obra.
+        preview: ajuste ? {
+          dx: Number(ajuste.dx) || 0, dy: Number(ajuste.dy) || 0,
+          dz: Number(ajuste.dz) || 0, rot: Number(ajuste.rot) || 0
+        } : null
+      };
+    });
+    const devolucao = {
       v: 1, largura: +t.largura.toFixed(2), altura: +t.altura.toFixed(2),
-      zonas: projeto.zonas.length, quando: new Date().toISOString()
-    }));
+      zonas: zonas.length, quando: new Date().toISOString(),
+      // Mantém largura/altura/zonas no topo por compatibilidade com a ponte
+      // antiga, e acrescenta o desenho inteiro para o caminho inverso.
+      projeto: {
+        v: projeto.v, nome: projeto.nome, origem: "preview",
+        zonas, dsm: projeto.dsm || null
+      },
+      sala: lerSala(),
+      palco: lerPalco(),
+      ajustes: JSON.parse(JSON.stringify(ajustes))
+    };
+    localStorage.setItem(CHAVE_DEVOLUCAO, JSON.stringify(devolucao));
     $("notaEcra").textContent =
-      `Enviado: ${t.largura.toFixed(2)} × ${t.altura.toFixed(2)} m. Nos Calculadores, ` +
-      `na aba Ecrã LED, carrega em "Trazer do Preview".`;
+      `Projeto enviado: ${zonas.length} ecrãs, ${t.largura.toFixed(2)} × ` +
+      `${t.altura.toFixed(2)} m. Nos Calculadores, carrega em ` +
+      `"Trazer do Preview".`;
   } catch (e) {
     $("notaEcra").textContent = "Não consegui guardar — o browser não deixa.";
   }
@@ -2443,14 +2470,19 @@ async function exportar(formato) {
     comPublico: $("expPublico").checked,
     comLinhas: $("expLinhas").checked
   });
-  // Os grupos extra nunca entraram na cena — só existiram para a exportação
-  // ler as peças deles — por isso descartam-se aqui e não com cena.remove().
-  extra.forEach((g) => g.traverse((o) => {
+  // Os grupos extra nunca entraram na cena — só existiram para a exportação.
+  // A libertação fica para depois de escrever o ficheiro: o grupo preparado
+  // partilha geometria e materiais com estes temporários.
+  const libertarExtra = () => extra.forEach((g) => g.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
     if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
   }));
   const { vertices, pecas } = pesar(grupo);
-  if (!pecas) { nota.textContent = "Não há nada para exportar."; return; }
+  if (!pecas) {
+    libertarExtra();
+    nota.textContent = "Não há nada para exportar.";
+    return;
+  }
 
   // Quatrocentas pessoas assadas em geometria a serio sao muitos megabytes, e
   // o browser fica calado enquanto os escreve. Mais vale dizer que esta a
@@ -2459,12 +2491,16 @@ async function exportar(formato) {
   try {
     const blob = formato === "glb" ? await comoGLB(grupo) : comoOBJ(grupo);
     descarregar(blob, nomeDoFicheiro(formato));
+    const ecrasExportados = projeto ? projeto.zonas.length : 0;
     nota.innerHTML =
       `Guardado: <b>${pecas}</b> peças, ${(vertices / 1000).toFixed(0)} mil vértices, ` +
-      `<b>${(blob.size / 1048576).toFixed(1)} MB</b>.` +
+      `<b>${(blob.size / 1048576).toFixed(1)} MB</b>` +
+      (ecrasExportados ? ` — <b>${ecrasExportados} ecrãs</b>.` : ".") +
       (formato === "obj" ? " O .obj vai sem materiais — as cores põem-se do outro lado." : "");
   } catch (e) {
     nota.textContent = e.message;
+  } finally {
+    libertarExtra();
   }
 }
 
