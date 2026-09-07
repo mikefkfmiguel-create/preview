@@ -604,8 +604,15 @@ export function fazerPublico(sala, palco, publico, regie) {
         // A mesma margem dos corredores -- sem ela, o teste era só o
         // rectângulo da régie a direito, e a cadeira mais próxima ficava
         // encostada ao painel dela, sem espaço para lá chegar ou passar.
-        if (Math.abs(localX) < regie.largura / 2 + margemLateral
-          && Math.abs(localZ) < regie.profundidade / 2 + margemLateral) continue;
+        // Soma-se metade do lugar nos dois eixos: testar só o centro deixava
+        // uma cadeira a ocupar fisicamente a passagem, embora o seu centro
+        // ainda estivesse fora do rectângulo. No fundo, a régie e cada cadeira
+        // são volumes, não pontos; a capacidade tem de contar a fila inteira
+        // que fica atravessada pela folga.
+        const folgaX = margemLateral + publico.entreLugares / 2;
+        const folgaZ = margemLateral + publico.entreFilas / 2;
+        if (Math.abs(localX) < regie.largura / 2 + folgaX
+          && Math.abs(localZ) < regie.profundidade / 2 + folgaZ) continue;
       }
 
       // Ninguém tem a altura exacta do vizinho, e uma plateia de clones vê-se
