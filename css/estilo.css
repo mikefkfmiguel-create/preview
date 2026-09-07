@@ -42,6 +42,14 @@ body { display: flex; }
 /* A versao anda a vista: sem ela, ninguem sabe se o que esta no ecra ja e o
    que foi publicado ha cinco minutos ou o de ontem que ficou no cache. */
 #versao { font-style: normal; color: var(--ciano); font-variant-numeric: tabular-nums; }
+/* A lotacao existe para se ver de relance numa reuniao, sem ter de rolar o
+   painel ate ao rodape onde ja estava escrita. */
+.lotacao-topo {
+  display: inline-flex !important; align-items: center;
+  margin-left: auto; margin-right: 90px;
+  font-size: 14px; font-weight: 600; color: var(--ciano);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
 
 #painel section { padding: 16px 18px; border-bottom: 1px solid var(--linha); }
 #painel h2 {
@@ -147,7 +155,11 @@ main { flex: 1; position: relative; min-width: 0; }
 
 /* ------------------------------------------------- esconder o painel */
 
-#painel header { position: relative; }
+/* "position: relative" aqui pisava o "sticky" da regra lá em cima -- e o
+   cabeçalho, com a versão e agora a lotação, deixava de acompanhar o scroll
+   do painel. Os botões absolutos (#btFechar, #btSincronizar) continuam bem
+   posicionados: "sticky" também serve de âncora para eles. */
+#painel header { position: sticky; top: 0; z-index: 5; }
 #btFechar {
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   width: 30px; height: 30px; flex: 0 0 30px; padding: 0; font-size: 18px; line-height: 1;

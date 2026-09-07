@@ -584,6 +584,11 @@ function escreverPainel(medidas, lugares, gentePosta) {
       `de ${gentePosta.porFila}` +
       (gentePosta.blocos > 1 ? `, em ${gentePosta.blocos} blocos.` : ".")
     : "Sem público no desenho.";
+
+  // O mesmo número, mas sempre visível no topo — o rodapé só se vê com o
+  // painel aberto e ninguém quer andar a fazer scroll para saber a lotação
+  // no meio de uma reunião.
+  $("lotacaoTopo").textContent = lugares ? `👥 ${lugares}` : "—";
 }
 
 /**
@@ -1107,6 +1112,111 @@ function limparTudo() {
 
   montar(true);
 }
+
+// -------------------------------------------------------------------- guardar/abrir projeto todo
+
+// Ao contrário do "Trazer projeto dos Calculadores" (só zonas e DSM), isto
+// grava tudo o que está neste aparelho -- sala, palco, público, régie,
+// projeção e os ajustes de posição -- num único ficheiro. É o que dá jeito
+// numa obra sem rede: fecha-se aqui, leva-se o ficheiro, reabre-se noutro
+// computador e a sala está exactamente como se deixou, sem depender do
+// localStorage nem dos Calculadores estarem por perto.
+function estadoCompleto() {
+  return {
+    v: 1,
+    tipo: "preview-projeto",
+    quando: new Date().toISOString(),
+    sala: lerSala(),
+    palco: lerPalco(),
+    publico: lerPublico(),
+    regie: lerRegie(),
+    projecao: lerProjecao(),
+    projeto,
+    ajustes,
+    visibilidade: {
+      verEcras: $("verEcras").checked,
+      verPlanta: $("verPlanta").checked,
+      verMedidas: $("verMedidas").checked,
+      verPublico: $("verPublico").checked,
+      verRegie: $("verRegie").checked,
+      verPalco: $("verPalco").checked,
+      verOrador: $("verOrador").checked,
+      verParedes: $("verParedes").checked
+    }
+  };
+}
+
+function guardarProjetoTodo() {
+  const estado = estadoCompleto();
+  const blob = new Blob([JSON.stringify(estado, null, 2)], { type: "application/json" });
+  const base = (projeto && projeto.nome ? String(projeto.nome) : "projeto")
+    .replace(/[^\p{L}\p{N}\- ]+/gu, "").trim() || "projeto";
+  descarregar(blob, `${base}.preview.json`);
+}
+
+function preencherCampo(id, valor) {
+  if (valor == null || Number.isNaN(valor)) return;
+  $(id).value = valor;
+}
+function preencherCheckbox(id, valor) {
+  if (valor == null) return;
+  $(id).checked = !!valor;
+}
+
+function abrirProjetoTodo(estado) {
+  if (!estado || estado.tipo !== "preview-projeto") {
+    throw new Error("Este ficheiro não é um projeto do Preview.");
+  }
+  const s = estado.sala || {}, p = estado.palco || {}, pu = estado.publico || {},
+        r = estado.regie || {}, pj = estado.projecao || {};
+  preencherCampo("salaL", s.largura); preencherCampo("salaP", s.profundidade); preencherCampo("salaA", s.altura);
+  preencherCampo("palcoL", p.largura); preencherCampo("palcoA", p.altura);
+  preencherCampo("palcoP", p.profundidade); preencherCampo("ecraOffset", p.acimaDoPalco);
+  preencherCampo("filas", pu.filas); preencherCampo("primeiraFila", pu.primeiraFila);
+  preencherCampo("entreFilas", pu.entreFilas); preencherCampo("entreLugares", pu.entreLugares);
+  preencherCampo("corredores", pu.corredores); preencherCampo("inclinacao", pu.inclinacao);
+  preencherCampo("larguraCorredor", pu.larguraCorredor); preencherCheckbox("sentado", pu.sentado);
+  preencherCampo("regieL", r.largura); preencherCampo("regieP", r.profundidade);
+  preencherCampo("regieX", r.x); preencherCampo("regieZ", r.z); preencherCampo("regieR", r.rodar);
+  preencherCheckbox("projLigada", pj.ligada); preencherCampo("projRacio", pj.racio);
+  preencherCampo("projDist", pj.distancia); preencherCampo("projAltura", pj.altura);
+  preencherCampo("projLateral", pj.lateral);
+  preencherCampo("projShiftV", pj.shiftV != null ? pj.shiftV * 100 : null);
+  preencherCampo("projShiftH", pj.shiftH != null ? pj.shiftH * 100 : null);
+
+  const v = estado.visibilidade || {};
+  preencherCheckbox("verEcras", v.verEcras); preencherCheckbox("verPlanta", v.verPlanta);
+  preencherCheckbox("verMedidas", v.verMedidas); preencherCheckbox("verPublico", v.verPublico);
+  preencherCheckbox("verRegie", v.verRegie); preencherCheckbox("verPalco", v.verPalco);
+  preencherCheckbox("verOrador", v.verOrador); preencherCheckbox("verParedes", v.verParedes);
+
+  projeto = estado.projeto || null;
+  ajustes = (estado.ajustes && typeof estado.ajustes === "object")
+    ? { delays: estado.ajustes.delays || {}, dsm: estado.ajustes.dsm || [] }
+    : { delays: {}, dsm: [] };
+  guardarAjustes(ajustes);
+  montar(true);
+}
+
+$("btGuardarProjeto").onclick = guardarProjetoTodo;
+$("btAbrirProjeto").onclick = () => $("ficheiroProjeto").click();
+$("ficheiroProjeto").addEventListener("change", () => {
+  const ficheiro = $("ficheiroProjeto").files[0];
+  $("ficheiroProjeto").value = "";
+  if (!ficheiro) return;
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    try {
+      abrirProjetoTodo(JSON.parse(leitor.result));
+    } catch (e) {
+      const aviso = $("aviso");
+      aviso.textContent = "Não consegui abrir este ficheiro: " + e.message;
+      aviso.classList.add("mostra");
+      setTimeout(() => aviso.classList.remove("mostra"), 3200);
+    }
+  };
+  leitor.readAsText(ficheiro);
+});
 
 $("btLimpar").onclick = () => {
   // Uma pergunta antes, porque isto deita fora trabalho: escrever as medidas de
