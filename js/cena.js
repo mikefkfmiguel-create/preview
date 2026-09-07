@@ -165,39 +165,7 @@ export function fazerRegie(sala, regie) {
 function fazerZona(zona, alturaBase, z0, conteudo) {
   const grupo = new THREE.Group();
   const cor = new THREE.Color(zona.cor || "#2E7BFF");
-
-  let frente;
-  if (conteudo && conteudo.textura && conteudo.modo === "cada") {
-    // Uma imagem inteira em CADA zona. É o que se faz quando os ecrãs mostram
-    // conteúdos independentes -- duas alas com o mesmo grafismo, por exemplo.
-    const copia = conteudo.textura.clone();
-    copia.needsUpdate = true;
-    frente = new THREE.MeshStandardMaterial({
-      map: copia, emissiveMap: copia, emissive: 0xFFFFFF,
-      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0
-    });
-  } else if (conteudo && conteudo.textura) {
-    // A imagem é UMA só, espalhada pelo conjunto todo — como na vida real,
-    // onde o media server manda um canvas e cada zona mostra o seu bocado.
-    // Por isso cada painel recebe a textura recortada no sítio dele, e não
-    // uma cópia da imagem inteira encolhida.
-    const recorte = conteudo.textura.clone();
-    recorte.needsUpdate = true;
-    recorte.repeat.set(zona.w / conteudo.largura, zona.h / conteudo.altura);
-    recorte.offset.set(
-      (zona.x - conteudo.esquerda) / conteudo.largura,
-      1 - (zona.y - conteudo.topo + zona.h) / conteudo.altura);
-    frente = new THREE.MeshStandardMaterial({
-      map: recorte, emissiveMap: recorte, emissive: 0xFFFFFF,
-      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0
-    });
-  } else {
-    frente = new THREE.MeshStandardMaterial({
-      color: cor, emissive: cor, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1
-    });
-  }
   const tras = new THREE.MeshStandardMaterial({ color: 0x11181E, roughness: 1 });
-  const materiais = [tras, tras, tras, tras, frente, tras];   // +Z é a frente
 
   const ESPESSURA = 0.12;
   const gomos = zona.curva ? Math.max(4, Math.min(24, Math.round(zona.w / 0.5))) : 1;
@@ -211,7 +179,42 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
   const larguraGomo = zona.w / gomos;
   const raio = anguloTotal ? zona.w / (anguloTotal * Math.PI / 180) : 0;
 
+  // A imagem tem de se fatiar como os gomos se fatiam. Antes, os N gomos de
+  // uma zona curva partilhavam todos o MESMO material -- o recorte pensado
+  // para a placa inteira -- e cada gomo, com o seu UV de 0 a 1, mostrava essa
+  // imagem toda encolhida na sua fatia estreita. O resultado era a mesma
+  // imagem repetida gomo a gomo, em vez de contínua ao longo da curva: daí
+  // parecer "em pedaços". Cada gomo passa a ter o SEU material, com só a
+  // fatia horizontal que lhe compete.
+  function frenteDoGomo(i) {
+    if (!conteudo || !conteudo.textura) {
+      return new THREE.MeshStandardMaterial({
+        color: cor, emissive: cor, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1
+      });
+    }
+    const fatia = conteudo.textura.clone();
+    fatia.needsUpdate = true;
+    if (conteudo.modo === "cada") {
+      // Uma imagem inteira em CADA zona -- o gomo mostra só a tira horizontal
+      // que lhe cabe dentro dessa imagem.
+      fatia.repeat.set(1 / gomos, 1);
+      fatia.offset.set(i / gomos, 0);
+    } else {
+      // A imagem é UMA só, espalhada pelo conjunto todo -- o recorte da zona
+      // reparte-se outra vez, agora pelo gomo, na mesma fracção do canvas.
+      fatia.repeat.set((zona.w / gomos) / conteudo.largura, zona.h / conteudo.altura);
+      fatia.offset.set(
+        (zona.x - conteudo.esquerda + i * larguraGomo) / conteudo.largura,
+        1 - (zona.y - conteudo.topo + zona.h) / conteudo.altura);
+    }
+    return new THREE.MeshStandardMaterial({
+      map: fatia, emissiveMap: fatia, emissive: 0xFFFFFF,
+      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0
+    });
+  }
+
   for (let i = 0; i < gomos; i++) {
+    const materiais = [tras, tras, tras, tras, frenteDoGomo(i), tras];   // +Z é a frente
     const peca = new THREE.Mesh(
       new THREE.BoxGeometry(larguraGomo * 1.002, zona.h, ESPESSURA), materiais);
     if (anguloTotal) {
