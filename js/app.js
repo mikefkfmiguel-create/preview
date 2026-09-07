@@ -2,7 +2,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
-import { EXEMPLO, lerProjeto, totais, projetoDoEndereco,
+import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
@@ -195,7 +195,7 @@ function montar(recentrarCamara) {
   corposDoPublico = gente;
 
   let medidas = null;
-  if (projeto) {
+  if (projeto && projeto.zonas.length) {
     medidas = totais(projeto);
     // Os ecrãs também se desligam: para olhar para a sala sem eles, ou para os
     // tirar da frente da planta que se está a acertar por baixo.
@@ -203,13 +203,14 @@ function montar(recentrarCamara) {
     if ($("verEcras").checked) desenhado.add(zonas.grupo);
     etiquetas = ($("verMedidas").checked && $("verEcras").checked) ? zonas.etiquetas : [];
 
-    if (projeto.dsm && $("verEcras").checked) {
-      const dsm = fazerDSM(projeto.dsm, sala, palco, ajustes.dsm);
-      desenhado.add(dsm.grupo);
-      if ($("verMedidas").checked) etiquetas = etiquetas.concat(dsm.etiquetas);
-    }
-
     avisarSeNaoCabe(medidas, sala, palco);
+  }
+  // O DSM não depende de haver zonas — um projeto pode nascer aqui mesmo só
+  // com o monitor de confiança, antes de se acrescentar nenhum ecrã.
+  if (projeto && projeto.dsm && $("verEcras").checked) {
+    const dsm = fazerDSM(projeto.dsm, sala, palco, ajustes.dsm);
+    desenhado.add(dsm.grupo);
+    if ($("verMedidas").checked) etiquetas = etiquetas.concat(dsm.etiquetas);
   }
 
   // Uma pessoa no palco, que é o que dá a medida a tudo o resto. Fica FORA do
@@ -545,37 +546,52 @@ function avisarSeNaoCabe(medidas, sala, palco) {
 function escreverPainel(medidas, lugares, gentePosta) {
   const resumo = $("resumo");
   const lista = $("listaZonas");
+  // Um projeto criado aqui pode nascer só com um DSM, sem ecrã nenhum ainda
+  // — "sem zonas" não é o mesmo que "nada para mostrar no painel".
+  const temAlgo = projeto && (projeto.zonas.length || projeto.dsm);
 
-  if (!projeto) {
+  // A lista reconstrói-se do zero sempre que se monta a cena — inclusive a
+  // meio de se escrever um nome, porque cada tecla também dispara um
+  // remontar (com atraso). Sem isto, escrever "Ecrã da esquerda" perdia o
+  // foco a cada letra, porque o campo onde se estava a escrever deixava de
+  // existir e nascia outro igual no lugar.
+  const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
+  const focoGuardado = ativo && ativo.dataset.campo
+    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd }
+    : null;
+
+  if (!temAlgo) {
     resumo.className = "vazio";
-    resumo.textContent = "Sem projeto. Cola aqui o que vem dos Calculadores.";
+    resumo.textContent = projeto
+      ? "Projeto sem ecrãs ainda. Usa o \"+ Ecrã\" ou o \"+ DSM\" aqui em baixo."
+      : "Sem projeto. Cola aqui o que vem dos Calculadores, ou cria um ecrã aqui em baixo.";
     lista.className = "vazio";
     lista.textContent = "—";
   } else {
     const res = projeto.zonas.reduce((t, z) => t + ((z.res && z.res.x * z.res.y) || 0), 0);
     resumo.className = "";
-    resumo.innerHTML =
-      `<b>${medidas.largura.toFixed(2)} × ${medidas.altura.toFixed(2)} m</b> · ` +
-      `${medidas.zonas} zona${medidas.zonas === 1 ? "" : "s"}` +
-      (medidas.peso ? ` · <b>${Math.round(medidas.peso)}</b> kg` : "") +
-      (medidas.amp ? ` · <b>${medidas.amp.toFixed(1)}</b> A` : "") +
-      (res ? ` · <b>${(res / 1e6).toFixed(1)}</b> Mpx` : "");
+    resumo.innerHTML = medidas
+      ? `<b>${medidas.largura.toFixed(2)} × ${medidas.altura.toFixed(2)} m</b> · ` +
+        `${medidas.zonas} zona${medidas.zonas === 1 ? "" : "s"}` +
+        (medidas.peso ? ` · <b>${Math.round(medidas.peso)}</b> kg` : "") +
+        (medidas.amp ? ` · <b>${medidas.amp.toFixed(1)}</b> A` : "") +
+        (res ? ` · <b>${(res / 1e6).toFixed(1)}</b> Mpx` : "")
+      : "Só o DSM, sem ecrãs ainda.";
 
     lista.className = "";
     lista.innerHTML = "";
-    for (const z of projeto.zonas) {
-      const linha = document.createElement("div");
-      linha.className = "zona";
-      const cor = document.createElement("i");
-      cor.className = "cor";
-      cor.style.background = z.cor;
-      const nome = document.createElement("span");
-      nome.textContent = z.nome;
-      const med = document.createElement("span");
-      med.className = "med";
-      med.textContent = `${z.w.toFixed(2)} × ${z.h.toFixed(2)} m`;
-      linha.append(cor, nome, med);
-      lista.append(linha);
+    projeto.zonas.forEach((z, i) => lista.append(linhaDeZona(z, i)));
+
+    if (projeto.dsm) lista.append(linhaDeDsm());
+
+    if (focoGuardado) {
+      const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
+      if (novo) {
+        novo.focus();
+        if (typeof novo.setSelectionRange === "function" && (novo.type === "text" || novo.type === "number")) {
+          try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* alguns "number" recusam seleção — sem problema, fica só o foco */ }
+        }
+      }
     }
   }
 
@@ -589,6 +605,171 @@ function escreverPainel(medidas, lugares, gentePosta) {
   // painel aberto e ninguém quer andar a fazer scroll para saber a lotação
   // no meio de uma reunião.
   $("lotacaoTopo").textContent = lugares ? `👥 ${lugares}` : "—";
+}
+
+// As cores das zonas que os Calculadores mandam já vêm feitas; as que se
+// criam aqui têm de vir de algum lado — um ciclo curto, só para se
+// distinguirem umas das outras num relance.
+const CORES_ZONA = ["#2E7BFF", "#22D3EE", "#F59E0B", "#A855F7", "#34D399", "#F472B6"];
+
+/** Garante que há um `projeto` para se poder acrescentar um ecrã ou um DSM —
+ *  sem isto, "+ Ecrã" com o painel vazio não tinha onde pôr nada. */
+function garantirProjeto() {
+  if (!projeto) {
+    projeto = { v: FORMATO, nome: "Projeto (criado no Preview)", origem: "preview", zonas: [], dsm: null };
+  }
+  return projeto;
+}
+
+/** Depois de mexer no projeto à mão, é a mesma rotina de sempre: voltar a
+ *  montar a cena — o resto (posições dos delays/DSM, painel) já vem a
+ *  reboque de dentro do montar(). */
+function projetoMudou(recentrar = false) {
+  montar(recentrar);
+}
+
+$("btNovaZona").onclick = () => {
+  const p = garantirProjeto();
+  const n = p.zonas.length;
+  // Cada ecrã novo nasce ao lado do último, para não empilhar tudo em cima do
+  // mesmo sítio e obrigar a arrastar números antes de se ver alguma coisa.
+  const anterior = p.zonas[n - 1];
+  p.zonas.push({
+    nome: `Ecrã ${n + 1}`,
+    x: anterior ? anterior.x + anterior.w + 0.5 : 0,
+    y: 0, w: 2, h: 1.2,
+    cor: CORES_ZONA[n % CORES_ZONA.length],
+    tipo: "led"
+  });
+  projetoMudou();
+};
+
+$("btNovoDsm").onclick = () => {
+  const p = garantirProjeto();
+  if (p.dsm) return;
+  p.dsm = { n: 2, w: 0.6, h: 0.4 };
+  projetoMudou();
+};
+
+function campoDeZona(zona, campo, tipo, passo) {
+  const input = document.createElement("input");
+  input.type = tipo;
+  input.value = zona[campo];
+  if (passo) input.step = passo;
+  input.className = "zona-campo";
+  input.dataset.campo = `z${zona.__id}-${campo}`;
+  input.addEventListener("input", () => {
+    zona[campo] = tipo === "number" ? (parseFloat(input.value) || 0) : input.value;
+    remontarDaqui();
+  });
+  return input;
+}
+
+/** Uma linha de zona editável: nome, tipo, medidas, posição e um botão para
+ *  a tirar do projeto — tudo com o mesmo feitio de campo que o resto do
+ *  painel, para não parecer uma caixa de ferramentas à parte. */
+function linhaDeZona(zona, indice) {
+  // Um id estável (não o índice, que muda quando se apaga uma zona a meio da
+  // lista) para o foco se conseguir voltar a encontrar o campo certo depois
+  // de a lista se reconstruir toda. Não enumerável de propósito: senão ia
+  // parar ao ficheiro do "Guardar projeto" e ao que se manda para os
+  // Calculadores, e ninguém do outro lado precisa de saber disto.
+  if (zona.__id == null) {
+    Object.defineProperty(zona, "__id", { value: ++proximoIdZona, enumerable: false });
+  }
+
+  const linha = document.createElement("div");
+  linha.className = "zona zona-editavel";
+
+  const cor = document.createElement("input");
+  cor.type = "color";
+  cor.className = "cor";
+  cor.value = /^#[0-9a-f]{6}$/i.test(zona.cor) ? zona.cor : "#2e7bff";
+  cor.title = "Cor no desenho";
+  cor.dataset.campo = `z${zona.__id}-cor`;
+  cor.addEventListener("input", () => { zona.cor = cor.value; remontarDaqui(); });
+
+  const nome = campoDeZona(zona, "nome", "text");
+  nome.className = "zona-campo zona-nome";
+
+  const tipo = document.createElement("select");
+  tipo.className = "zona-campo";
+  tipo.dataset.campo = `z${zona.__id}-tipo`;
+  for (const [valor, rotulo] of [["led", "LED"], ["tv", "TV"], ["projecao", "Projeção"]]) {
+    const opt = document.createElement("option");
+    opt.value = valor; opt.textContent = rotulo;
+    if (zona.tipo === valor) opt.selected = true;
+    tipo.append(opt);
+  }
+  tipo.addEventListener("change", () => { zona.tipo = tipo.value; remontarDaqui(); });
+
+  const med = document.createElement("span");
+  med.className = "med";
+  med.append(campoDeZona(zona, "w", "number", "0.05"), document.createTextNode(" × "),
+             campoDeZona(zona, "h", "number", "0.05"), document.createTextNode(" m"));
+
+  const pos = document.createElement("span");
+  pos.className = "med";
+  pos.append(document.createTextNode("↔ "), campoDeZona(zona, "x", "number", "0.05"));
+
+  const remover = document.createElement("button");
+  remover.className = "zona-remover";
+  remover.textContent = "🗑";
+  remover.title = "Tirar este ecrã do projeto";
+  remover.onclick = () => {
+    projeto.zonas.splice(indice, 1);
+    projetoMudou();
+  };
+
+  linha.append(cor, nome, tipo, med, pos, remover);
+  return linha;
+}
+let proximoIdZona = 0;
+
+function campoDeDsm(campo, passo) {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = passo;
+  input.value = projeto.dsm[campo];
+  input.className = "zona-campo";
+  input.dataset.campo = `dsm-${campo}`;
+  input.addEventListener("input", () => {
+    projeto.dsm[campo] = parseFloat(input.value) || 0;
+    remontarDaqui();
+  });
+  return input;
+}
+
+/** A linha do DSM é uma quantidade e um tamanho só, não uma por unidade — como
+ *  já era quando isto só vinha dos Calculadores. */
+function linhaDeDsm() {
+  const linha = document.createElement("div");
+  linha.className = "zona zona-editavel";
+
+  const nome = document.createElement("span");
+  nome.className = "zona-nome";
+  nome.textContent = "DSM";
+
+  const qtd = document.createElement("span");
+  qtd.className = "med";
+  qtd.append(document.createTextNode("qtd "), campoDeDsm("n", "1"));
+
+  const med = document.createElement("span");
+  med.className = "med";
+  med.append(campoDeDsm("w", "0.05"), document.createTextNode(" × "),
+             campoDeDsm("h", "0.05"), document.createTextNode(" m"));
+
+  const remover = document.createElement("button");
+  remover.className = "zona-remover";
+  remover.textContent = "🗑";
+  remover.title = "Tirar o DSM do projeto";
+  remover.onclick = () => {
+    projeto.dsm = null;
+    projetoMudou();
+  };
+
+  linha.append(nome, qtd, med, remover);
+  return linha;
 }
 
 /**

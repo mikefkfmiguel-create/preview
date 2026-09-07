@@ -100,6 +100,25 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
 #listaZonas .cor { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 12px; }
 #listaZonas .med { margin-left: auto; color: var(--apagado); font-variant-numeric: tabular-nums; }
 
+/* As zonas criadas ou trazidas passam a editar-se aqui mesmo -- campos
+   pequenos, para a linha continuar a caber sem virar uma folha de cálculo. */
+#listaZonas .zona-editavel { flex-wrap: wrap; }
+#listaZonas .zona-editavel .cor {
+  width: 20px; height: 20px; border-radius: 4px; flex: 0 0 20px;
+  border: 1px solid var(--linha); padding: 0; background: none; cursor: pointer;
+}
+.zona-campo {
+  background: var(--fundo); border: 1px solid var(--linha); border-radius: 5px;
+  color: var(--texto); font-size: 12px; padding: 3px 5px; font-family: inherit;
+}
+.zona-nome { width: 84px; flex: 0 1 84px; }
+#listaZonas .zona-editavel .med { margin-left: 0; display: flex; align-items: center; gap: 3px; }
+.zona-campo[type=number] { width: 52px; font-variant-numeric: tabular-nums; }
+.zona-remover {
+  margin-left: auto; flex: 0 0 auto; width: 26px; height: 26px; padding: 0;
+  font-size: 13px; background: none; border: 1px solid var(--linha);
+}
+
 #listaAjustes .ajuste-linha {
   padding: 10px 0; border-bottom: 1px solid #1A222A;
   display: flex; flex-direction: column; gap: 6px;
