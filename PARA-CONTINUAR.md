@@ -83,45 +83,60 @@ painel o que a IA percebeu e o que ela diz faltar.
    projectada; não se mede quem tapa o ecrã a quem está atrás. A vista dos olhos
    responde a isso a olho, mas um número seria melhor.
 
-## Palco central/circular + plateia em arco ou blocos (pedido a 7/9, por fazer)
+## Palco central/circular + plateia em gomos (pedido a 7/9)
 
 Pedido do mike: (1) poder ter um **palco circular e central**, com a plateia
 a envolvê-lo, para eventos "em redondo"; (2) numa **sala muito larga** com o
-palco normal à frente, poder curvar/dividir a plateia para melhorar a
-visualização sem ter de acrescentar ecrãs de cobertura.
+palco normal à frente, poder dividir a plateia em gomos rodados para melhorar
+a visualização sem ter de acrescentar ecrãs de cobertura.
 
-**Decisões já tomadas com o mike (não voltar a perguntar):**
-- O Palco ganha um seletor **Retangular / Circular**. Circular ganha
-  controlos de posição (deslocar X/Z, como a Régie já tem) — pode ir para o
-  centro da sala ou para onde se quiser, não fica preso ao centro.
-- A plateia à volta de um palco circular tem um **ângulo ajustável** (não é
-  sempre 360° fixo) — de uma abertura parcial (ex. 90°, só de um lado) até à
-  volta toda.
-- Para a sala larga, quer **os dois modos** — e descreveu-os melhor a
-  seguir: um seletor de forma da plateia, **Circular / Reto** (paralelo ao
-  seletor do Palco, mas são coisas distintas — a plateia pode ser Circular
-  com um palco Retangular, por exemplo). "Reto" é o arco único de hoje
-  (plateia toda curvada para um ponto focal à frente). "Circular" divide a
-  plateia em **gomos** — fatias em cunha, como as de uma laranja, dispostas
-  à volta do centro — em vez de um bloco retangular só a rodar (a diferença
-  para "blocos angulados" é a forma de cada peça: cunha/gomo, não retângulo).
-  Não é para escolher um dos dois modos — os dois hão de existir, com o
-  próprio seletor Circular/Reto a decidir qual se usa.
+**Feito (v2.41): a plateia em gomos.** Secção "Público", seletor **Reto /
+Circular** (`#formatoPlateia`, `data-forma` — não usar `data-formato`, esse
+nome já é do seletor de rácio de imagem em "Conteúdo nos ecrãs" e colidia
+com ele, os dois clicáveis mas só um a responder; foi o primeiro tropeço
+disto). "Circular" reparte a plateia em **N gomos iguais** (`#gomos`,
+2 a 12) espalhados por um **ângulo total** (`#anguloGomos`, 20° a 360°),
+cada gomo é um bloco normal (as mesmas filas/corredores/inclinação de
+sempre) rodado à volta do ponto onde o palco de hoje fica — como fatias de
+laranja apontadas para o centro. Implementado em `fazerPublicoGomos()`
+(`js/cena.js`), que chama `fazerPublico()` uma vez por gomo sem lhe mexer
+nada (zero risco para "Reto", que continua a ser exatamente a mesma função
+de sempre) e só depois roda/desloca o resultado. Testado com Playwright
+(vista de cima, frente, olhos da plateia, e com "Cobertura dos ecrãs"
+ligada) sem erros e com a cobertura a apontar ao sítio certo.
 
-**Porque não ficou feito na mesma sessão em que foi pedido:** o palco não é
-um campo isolado — `palco.profundidade` e a posição dele contra a parede da
-frente são a referência de onde os ecrãs nascem por omissão, dos cálculos de
-pé-direito/teto, do export DXF e da planta 2D (grep por `palco.` em
-`js/app.js` para ver a extensão). Tornar o palco circular e móvel implica
-rever todos esses pontos, não só acrescentar um seletor. E o gerador de
-plateia (`fazerPublico`, `js/cena.js`) é código já bastante trabalhado —
-corredores, o recuo de "meio lugar" por fila, o rebaixo da régie calculado
-no referencial dela, degraus por fila — tudo hoje assumindo filas retas;
-curvar isto num arco sem partir nenhum desses detalhes é trabalho de
-geometria a sério, e sem conseguir testar ao vivo com o mike (sessão cloud,
-sem acesso de push a este repositório nessa altura) não fazia sentido
-arriscar às cegas. Ficou combinado fazer isto com calma, testado a sério,
-não às pressas sem verificação.
+De caminho, corrigido um bug à parte que isto tropeçou: o `return` principal
+de `fazerPublico()` tinha um comentário com um `\n` escrito por engano a
+meio da linha (texto literal, não uma quebra de linha a sério) que comia a
+propriedade `blocoPorLugar` para dentro do comentário — a função nunca
+devolvia isso, e ninguém tinha reparado porque nada lia essa propriedade até
+`fazerPublicoGomos()` precisar dela.
+
+**Simplificações conhecidas do modo gomos, por afinar se vier a ser preciso:**
+- `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
+  função devolve são os de UM gomo (todos são iguais entre si, por
+  desenho), não uma conta agregada dos N — para os "lugares" totais (que é
+  o número que mais se vê) soma-se certo.
+- "Olhos da plateia" usa o gomo mais próximo do centro (ângulo mais perto
+  de 0°) — não foi testado com N par (não há gomo exatamente ao centro
+  nesse caso, fica o mais próximo).
+- Não testado com a Régie visível dentro de um gomo rodado (o carve-out da
+  régie já testa em coordenadas locais do bloco, deve funcionar, mas não
+  foi verificado com o desenho todo rodado).
+
+**Por fazer: o palco central/circular a sério.** Isto ainda roda a plateia à
+volta do PONTO onde o palco reto de hoje já fica — não existe um palco que
+mude de forma (Retangular/Circular) nem de posição. Continua por fazer
+porque `palco.profundidade` e a posição dele contra a parede da frente são a
+referência de onde os ecrãs nascem por omissão, dos cálculos de pé-direito/
+teto, do export DXF e da planta 2D (grep por `palco.` em `js/app.js` para
+ver a extensão) — tornar o palco circular e móvel implica rever todos esses
+pontos, não só acrescentar um seletor. Decisões já tomadas com o mike, para
+quando isto avançar: seletor Retangular/Circular no Palco, com controlos de
+posição (deslocar X/Z, como a Régie já tem) quando circular; e a plateia à
+volta de um palco circular com um ângulo ajustável (não sempre 360°) — os
+mesmos controlos de gomos que já existem servem para isso, uma vez o palco
+em si resolvido.
 
 **Por onde começar:** provavelmente pelo modo "Arco" da plateia primeiro
 (mais contido — só mexe no gerador de lugares, não no palco nem nos ecrãs),

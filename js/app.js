@@ -8,6 +8,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          CHAVE_SINCRONIZACAO,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
+         fazerPublicoGomos,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
@@ -107,7 +108,13 @@ function lerPublico() {
     corredores: Math.round(num("corredores")),
     inclinacao: num("inclinacao"),
     larguraCorredor: num("larguraCorredor"),
-    sentado: $("sentado").checked
+    sentado: $("sentado").checked,
+    // "Circular": a plateia parte-se em gomos iguais, cada um rodado à volta
+    // do palco -- ver fazerPublicoGomos() em cena.js e a nota em
+    // PARA-CONTINUAR.md sobre o que ainda falta (palco central de verdade).
+    formato: $("formatoPlateia").dataset.valor || "reto",
+    gomos: Math.max(2, Math.round(num("gomos")) || 3),
+    anguloGomos: Math.max(20, Math.min(360, num("anguloGomos") || 180))
   };
 }
 
@@ -208,7 +215,9 @@ function montar(recentrarCamara) {
   // sem paredes vê-se a sala de fora, sem público vê-se a estrutura, e sem
   // ninguém no palco mede-se o ecrã sem nada a tapá-lo.
   const gente = $("verPublico").checked
-    ? fazerPublico(sala, palco, publico, regie)
+    ? (publico.formato === "circular"
+        ? fazerPublicoGomos(sala, palco, publico, regie)
+        : fazerPublico(sala, palco, publico, regie))
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
   olhosDaPlateia = gente.olhos;
@@ -1576,6 +1585,28 @@ document.querySelectorAll("#tipoPlateia button").forEach(b => {
 });
 $("inclinacao").addEventListener("input", marcarTipoDePlateia);
 marcarTipoDePlateia();
+
+// Reto (uma fileira de blocos, como sempre foi) ou circular (gomos iguais
+// à volta do palco). Guarda-se no próprio contentor (dataset), não há
+// campo nenhum de onde isto se possa derivar como o "tipoPlateia" deriva
+// da inclinação.
+function marcarFormatoPlateia() {
+  const valor = $("formatoPlateia").dataset.valor || "reto";
+  document.querySelectorAll("#formatoPlateia button").forEach(b => {
+    b.classList.toggle("destaque", b.dataset.forma === valor);
+  });
+  const circular = valor === "circular";
+  $("camposGomos").style.display = circular ? "" : "none";
+  $("notaGomos").style.display = circular ? "" : "none";
+}
+document.querySelectorAll("#formatoPlateia button").forEach(b => {
+  b.onclick = () => {
+    $("formatoPlateia").dataset.valor = b.dataset.forma;
+    marcarFormatoPlateia();
+    montar(false);
+  };
+});
+marcarFormatoPlateia();
 
 function carregar(bruto, recentrar = true) {
   try {

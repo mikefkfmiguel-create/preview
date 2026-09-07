@@ -300,6 +300,103 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
 }
 
 /**
+ * A plateia em gomos: N blocos iguais (o mesmo que fazerPublico() já faz),
+ * cada um rodado à volta do palco -- como fatias de laranja apontadas para
+ * o centro, em vez de uma única fileira de blocos direita ao palco.
+ *
+ * Reaproveita fazerPublico() sem lhe mexer: cada gomo é uma chamada normal
+ * a essa função (mesmas filas/corredores/inclinação), só que o grupo 3D
+ * resultante entra dentro de um "pivot" que o roda e desloca para o seu
+ * lugar no leque. O que fazerPublico() desenha sozinha continua exatamente
+ * igual a zero risco para quem usa "Reto" (o caso de sempre).
+ *
+ * O "corpos" (as posições da plateia, em números simples, usadas pela
+ * cobertura/sombra) NÃO viaja com a transformação do Three.js -- essa
+ * transformação só pinta a cena, não mexe nos números -- por isso cada
+ * ponto recalcula-se aqui à mão com a mesma rotação, à volta do mesmo
+ * ponto focal (o palco), para a cobertura continuar a apontar ao sítio
+ * certo mesmo com a plateia em leque.
+ *
+ * Falta ainda (ver PARA-CONTINUAR.md): um palco central/circular a sério
+ * -- isto roda a plateia à volta do PONTO onde o palco reto de hoje fica,
+ * não à volta de um palco que também mude de forma ou de posição.
+ */
+export function fazerPublicoGomos(sala, palco, publico, regie) {
+  const grupo = new THREE.Group();
+  grupo.name = "publico-gomos";
+  const n = Math.max(1, Math.round(publico.gomos || 3));
+  const anguloTotal = Math.max(10, Math.min(360, publico.anguloGomos || 180));
+  // A largura de cada gomo é a da sala a dividir por N -- um gomo sozinho
+  // (n=1) fica com a sala toda, e por isso comporta-se exactamente como
+  // "Reto" hoje se alguém ligar "Circular" com um gomo só.
+  const larguraGomo = Math.max(4, sala.largura / n);
+  const salaGomo = Object.assign({}, sala, { largura: larguraGomo });
+  // O ponto focal: onde já fica a primeira fila do modo "Reto", menos a
+  // distância a que ela está -- ou seja, a boca do palco. É à volta deste
+  // ponto que cada gomo roda, não do centro da sala.
+  const focoZ = -sala.profundidade / 2 + palco.profundidade;
+
+  let lugares = 0, blocos = 0;
+  let filas = 0, porFila = 0, largura = 0.46, fundura = 0.34;
+  let zPrimeira = null, zUltima = null, larguraSentada = 0;
+  const corpos = [];
+  const blocoPorLugar = [];
+  let olhos = null, melhorAngulo = Infinity;
+
+  for (let i = 0; i < n; i++) {
+    const anguloDeg = n > 1 ? (-anguloTotal / 2 + anguloTotal * (i + 0.5) / n) : 0;
+    const ang = anguloDeg * Math.PI / 180;
+    const sub = fazerPublico(salaGomo, palco, publico, regie);
+
+    // O grupo 3D: desloca-se para a origem ficar no ponto focal, e um
+    // "pivot" por cima roda-o e volta a pô-lo no sítio -- a mesma conta,
+    // feita pelo motor em vez de à mão, para o desenho ficar sempre certo.
+    sub.grupo.position.z = -focoZ;
+    const pivot = new THREE.Group();
+    pivot.name = "gomo-" + i;
+    pivot.position.set(0, 0, focoZ);
+    pivot.rotation.y = ang;
+    pivot.add(sub.grupo);
+    grupo.add(pivot);
+
+    // O "corpos": os mesmos números que fazerPublico() devolveria sozinha,
+    // rodados à mão com a MESMA rotação do pivot (seno/cosseno de "ang"),
+    // porque a cobertura lê estes números directamente, sem passar pela
+    // cena 3D nem pelas suas transformações.
+    const cosA = Math.cos(ang), sinA = Math.sin(ang);
+    for (let p = 0; p < sub.corpos.length; p += 4) {
+      const x = sub.corpos[p], y1 = sub.corpos[p + 1];
+      const zRel = sub.corpos[p + 2] - focoZ, y2 = sub.corpos[p + 3];
+      corpos.push(x * cosA + zRel * sinA, y1, focoZ + (-x * sinA + zRel * cosA), y2);
+    }
+    for (let b = 0; b < sub.blocoPorLugar.length; b++) blocoPorLugar.push(sub.blocoPorLugar[b] + i * 1000);
+
+    lugares += sub.lugares;
+    blocos += sub.blocos;
+    // Os restantes números (filas, tamanho de uma pessoa, distâncias ao
+    // palco) são iguais em todos os gomos -- é o mesmo bloco repetido,
+    // só rodado -- por isso bastam os do último.
+    filas = sub.filas; porFila = sub.porFila; largura = sub.largura; fundura = sub.fundura;
+    zPrimeira = sub.zPrimeira; zUltima = sub.zUltima; larguraSentada = sub.larguraSentada;
+
+    // Os "olhos da plateia" ficam no gomo mais ao centro (ângulo mais perto
+    // de 0°) -- é o ponto de vista mais parecido ao que "Reto" já dava.
+    if (sub.olhos && Math.abs(anguloDeg) < melhorAngulo) {
+      melhorAngulo = Math.abs(anguloDeg);
+      const ox = sub.olhos.x, oz = sub.olhos.z - focoZ;
+      olhos = new THREE.Vector3(ox * cosA + oz * sinA, sub.olhos.y, focoZ + (-ox * sinA + oz * cosA));
+    }
+  }
+
+  return {
+    grupo, olhos, lugares, filas, porFila, blocos,
+    corpos: new Float32Array(corpos), largura, fundura,
+    blocoPorLugar: new Int16Array(blocoPorLugar),
+    zPrimeira, zUltima, larguraSentada
+  };
+}
+
+/**
  * Todas as zonas, assentes no palco e centradas na sala.
  * Devolve o grupo e os pontos onde as etiquetas devem aparecer.
  *
@@ -742,7 +839,8 @@ export function fazerPublico(sala, palco, publico, regie) {
     grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos,
     // x, topo da cabeça, z e o chão debaixo dela — quatro números por pessoa
     corpos: new Float32Array(corpos), largura: OMBROS, fundura: 0.34,
-    // o bloco de cada lugar, na mesma ordem e no mesmo passo de \corpos\n    blocoPorLugar: new Int16Array(blocoPorLugar),
+    // o bloco de cada lugar, na mesma ordem e no mesmo passo de "corpos"
+    blocoPorLugar: new Int16Array(blocoPorLugar),
     // As distancias que interessam a quem tem de escolher o tamanho do ecra:
     // do ecra ao primeiro e ao ultimo espectador, e a largura que a plateia
     // ocupa. E o que as regras da AVIXA e da SMPTE pedem.

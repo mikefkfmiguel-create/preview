@@ -18,7 +18,7 @@
       <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v2.40</i></span>
+        <span>o projeto no terreno       <i id="versao">v2.41</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, com a sala como está agora">—</span>
     </div>
@@ -129,6 +129,18 @@
       <button data-plateia="pavilhao">Pavilhão · plano</button>
       <button data-plateia="auditorio">Auditório · sobe</button>
     </div>
+    <div class="vistas" id="formatoPlateia" style="margin-top:8px">
+      <button data-forma="reto">Reto</button>
+      <button data-forma="circular">Circular (gomos)</button>
+    </div>
+    <div class="campos" id="camposGomos" style="margin-top:8px; display:none">
+      <label>Nº de gomos <input id="gomos" type="number" value="3" min="2" max="12" step="1"><i></i></label>
+      <label>Ângulo total <input id="anguloGomos" type="number" value="180" min="20" max="360" step="10"><i>°</i></label>
+    </div>
+    <p class="vazio" id="notaGomos" style="margin:8px 0 0; display:none">Cada gomo é um bloco igual
+      (mesmas filas/corredores abaixo), rodado à volta do palco — como fatias
+      de laranja apontadas para o centro. Para um palco central/circular a
+      envolver de vez, é preciso mais do que isto (ver PARA-CONTINUAR.md).</p>
     <div class="campos" style="margin-top:10px">
       <label>Filas <input id="filas" type="number" value="10" min="0" max="80" step="1"><i></i></label>
       <label>Primeira fila a <input id="primeiraFila" type="number" value="3" min="0" max="40" step="0.5"><i>m</i></label>
