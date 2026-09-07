@@ -1,7 +1,13 @@
 # Para continuar
 
 Onde isto está, e o que falta. Escrito a 6 de setembro de 2026, com a app na
-**v1.9**.
+**v1.9**. **Nota de 7 de setembro (sessão Claude Code):** a app já vai na
+v2.31 — houve trabalho substancial entre as duas datas (feito localmente,
+fora desta sessão) que este documento não chegou a registar. O resto desta
+lista pode estar parcialmente desatualizado; confirmar no código antes de
+assumir que um item "por fazer" continua por fazer. (O item 5, TVs, foi
+verificado a 7/9 do lado dos Calculadores: continua por fazer — nenhum botão
+"Ver no Preview 3D" na aba TVs ainda.)
 
 Quem pegar nisto — pessoa ou agente — deve ler primeiro o `README.md` (o que a
 app faz) e o `.github/copilot-instructions.md` (como se trabalha aqui, e a lista
@@ -76,6 +82,45 @@ painel o que a IA percebeu e o que ela diz faltar.
 8. **Sombra do público sobre o próprio público.** Mede-se o que tapa a imagem
    projectada; não se mede quem tapa o ecrã a quem está atrás. A vista dos olhos
    responde a isso a olho, mas um número seria melhor.
+
+## Palco central/circular + plateia em arco ou blocos (pedido a 7/9, por fazer)
+
+Pedido do mike: (1) poder ter um **palco circular e central**, com a plateia
+a envolvê-lo, para eventos "em redondo"; (2) numa **sala muito larga** com o
+palco normal à frente, poder curvar/dividir a plateia para melhorar a
+visualização sem ter de acrescentar ecrãs de cobertura.
+
+**Decisões já tomadas com o mike (não voltar a perguntar):**
+- O Palco ganha um seletor **Retangular / Circular**. Circular ganha
+  controlos de posição (deslocar X/Z, como a Régie já tem) — pode ir para o
+  centro da sala ou para onde se quiser, não fica preso ao centro.
+- A plateia à volta de um palco circular tem um **ângulo ajustável** (não é
+  sempre 360° fixo) — de uma abertura parcial (ex. 90°, só de um lado) até à
+  volta toda.
+- Para a sala larga, quer **os dois modos**: um arco único (a plateia toda
+  curva-se para um ponto focal à frente, como um teatro clássico) E blocos
+  angulados (a plateia divide-se em blocos que rodam cada um para apontar
+  aos ecrãs). Não é para escolher um dos dois — os dois hão de existir.
+
+**Porque não ficou feito na mesma sessão em que foi pedido:** o palco não é
+um campo isolado — `palco.profundidade` e a posição dele contra a parede da
+frente são a referência de onde os ecrãs nascem por omissão, dos cálculos de
+pé-direito/teto, do export DXF e da planta 2D (grep por `palco.` em
+`js/app.js` para ver a extensão). Tornar o palco circular e móvel implica
+rever todos esses pontos, não só acrescentar um seletor. E o gerador de
+plateia (`fazerPublico`, `js/cena.js`) é código já bastante trabalhado —
+corredores, o recuo de "meio lugar" por fila, o rebaixo da régie calculado
+no referencial dela, degraus por fila — tudo hoje assumindo filas retas;
+curvar isto num arco sem partir nenhum desses detalhes é trabalho de
+geometria a sério, e sem conseguir testar ao vivo com o mike (sessão cloud,
+sem acesso de push a este repositório nessa altura) não fazia sentido
+arriscar às cegas. Ficou combinado fazer isto com calma, testado a sério,
+não às pressas sem verificação.
+
+**Por onde começar:** provavelmente pelo modo "Arco" da plateia primeiro
+(mais contido — só mexe no gerador de lugares, não no palco nem nos ecrãs),
+deixando o palco circular/móvel para depois, já que esse sim obriga a rever
+a posição por omissão dos ecrãs e os cálculos que dependem dela.
 
 ## Coisas que se decidiram e não se voltam a discutir
 
