@@ -665,6 +665,34 @@ function campoDeZona(zona, campo, tipo, passo) {
   return input;
 }
 
+/** O ajuste de posição de uma zona (dx/dy/dz) — o mesmo sítio onde já
+ *  vivem os ajustes dos delays, só que agora aberto a qualquer zona, não
+ *  só às de tipo TV/Projeção. Cria a entrada se ainda não existir. */
+function ajusteDaZona(nome) {
+  if (!ajustes.delays[nome]) ajustes.delays[nome] = { dx: 0, dy: 0, dz: 0 };
+  return ajustes.delays[nome];
+}
+
+/** O campo ↔ da linha da zona: em vez de editar zona.x (que só tem sentido
+ *  em relação às outras zonas do mesmo conjunto), mexe no ajuste — uma
+ *  correcção absoluta que se soma por cima do que os Calculadores mandaram,
+ *  e que por isso também funciona com um ecrã sozinho. */
+function campoPosicaoDeZona(zona) {
+  const aj = ajusteDaZona(zona.nome);
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.05";
+  input.value = aj.dx || 0;
+  input.className = "zona-campo";
+  input.dataset.campo = `z${zona.__id}-pos`;
+  input.addEventListener("input", () => {
+    aj.dx = parseFloat(input.value) || 0;
+    guardarAjustes(ajustes);
+    remontarDaqui();
+  });
+  return input;
+}
+
 /** Uma linha de zona editável: nome, tipo, medidas, posição e um botão para
  *  a tirar do projeto — tudo com o mesmo feitio de campo que o resto do
  *  painel, para não parecer uma caixa de ferramentas à parte. */
@@ -708,9 +736,17 @@ function linhaDeZona(zona, indice) {
   med.append(campoDeZona(zona, "w", "number", "0.05"), document.createTextNode(" × "),
              campoDeZona(zona, "h", "number", "0.05"), document.createTextNode(" m"));
 
+  // O ↔ NÃO edita zona.x: essa coordenada só diz onde a zona fica em relação
+  // ÀS OUTRAS zonas do mesmo conjunto (é o que os Calculadores mandam, e é
+  // por isso que um conjunto de ecrãs se mantém coerente entre si). Com um
+  // ecrã só, o cálculo do centro do conjunto cancela sempre essa diferença —
+  // mudar zona.x não mexia em nada, e era exactamente o que se via. Este
+  // campo usa em vez disso o mesmo ajuste (dx) que já move os delays e o
+  // DSM: uma correcção absoluta, por cima do que os Calculadores mandaram,
+  // que funciona com um ecrã ou com o conjunto todo.
   const pos = document.createElement("span");
   pos.className = "med";
-  pos.append(document.createTextNode("↔ "), campoDeZona(zona, "x", "number", "0.05"));
+  pos.append(document.createTextNode("↔ "), campoPosicaoDeZona(zona));
 
   const remover = document.createElement("button");
   remover.className = "zona-remover";
@@ -778,13 +814,13 @@ function linhaDeDsm() {
  * objeto `alvo` (a entrada de `ajustes.delays[nome]` ou `ajustes.dsm[i]`) e
  * volta a montar a cena, com o mesmo atraso dos outros campos do painel.
  */
-function campoAjuste(rotulo, alvo, chave) {
+function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05") {
   const campo = document.createElement("label");
   campo.className = "ajuste-campo";
   campo.textContent = rotulo + " ";
   const input = document.createElement("input");
   input.type = "number";
-  input.step = "0.05";
+  input.step = passo;
   input.value = alvo[chave] || 0;
   input.addEventListener("input", () => {
     alvo[chave] = parseFloat(input.value) || 0;
@@ -792,7 +828,7 @@ function campoAjuste(rotulo, alvo, chave) {
     remontarDaqui();
   });
   const unidade = document.createElement("i");
-  unidade.textContent = "m";
+  unidade.textContent = unidadeTexto;
   campo.append(input, unidade);
   return campo;
 }
@@ -824,7 +860,7 @@ function desenharAjustes() {
   }
 
   for (let i = 0; i < numDsm; i++) {
-    if (!ajustes.dsm[i]) ajustes.dsm[i] = { dx: 0, dz: 0 };
+    if (!ajustes.dsm[i]) ajustes.dsm[i] = { dx: 0, dz: 0, rot: 0 };
     const linha = document.createElement("div");
     linha.className = "ajuste-linha";
     const nome = document.createElement("strong");
@@ -832,6 +868,7 @@ function desenharAjustes() {
     linha.append(nome);
     linha.append(campoAjuste("↔", ajustes.dsm[i], "dx"));
     linha.append(campoAjuste("profundidade", ajustes.dsm[i], "dz"));
+    linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5"));
     lista.append(linha);
   }
 }

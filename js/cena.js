@@ -309,9 +309,14 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo,
     // e o Y ao contrário: o que estava mais em baixo no alçado assenta no palco
     let alturaBase = base + (fundo - (zona.y + zona.h));
     let zPeca = z0;
-    // Só os delays (TV/projeção) têm ajuste próprio — o LED principal fica
-    // sempre exatamente onde os Calculadores mandaram.
-    const aj = zona.tipo !== "led" ? ajustes[zona.nome] : null;
+    // O ajuste aplica-se a qualquer zona, não só aos delays: um ecrã criado
+    // aqui no preview (que nasce "led" por omissão) também precisa de se
+    // conseguir deslocar, e sem uma zona irmã ao lado para servir de
+    // referência, "zona.x" sozinho não desloca nada — o cálculo do centro do
+    // conjunto cancela sempre a diferença. Já um LED que veio dos
+    // Calculadores nunca tem entrada aqui (a secção "Posições" só cria
+    // ajustes para delays), por isso continua exactamente onde de lá veio.
+    const aj = ajustes[zona.nome];
     if (aj) {
       zona.centroX += Number(aj.dx) || 0;
       alturaBase += Number(aj.dy) || 0;
@@ -352,6 +357,15 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm) {
   const espaco = Math.min(2.2, palco.largura / (dsm.n + 1));
   const inicioX = -espaco * (dsm.n - 1) / 2;
 
+  // A face que brilha (o +Z da caixa, antes de rodar) já nasce virada para
+  // a plateia -- é a direção do próprio eixo, sala adentro. Um tombo
+  // pequeno (30°) só inclina essa face para cima sem a tirar dali: o
+  // resultado ficava sempre visível de quem está sentado, nunca de quem
+  // fala. Para virar para quem fala, tomba-se para lá dos 180°: primeiro dá
+  // a volta, depois inclina para cima, e só assim a face passa a apontar
+  // para o palco em vez de para a plateia.
+  const TOMBO = Math.PI + Math.PI / 6;
+
   for (let i = 0; i < dsm.n; i++) {
     const aj = ajustes[i] || {};
     const x = inicioX + espaco * i + (Number(aj.dx) || 0);
@@ -361,10 +375,12 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm) {
       new THREE.MeshStandardMaterial({
         color: 0x1B2126, emissive: 0x2E7BFF, emissiveIntensity: 0.4, roughness: 0.4, metalness: 0.2
       }));
-    // Deitado sobre a base e inclinado para trás, como um monitor de chão a
-    // olhar para quem está de pé -- não em pé na vertical, que ninguém
-    // baixa os olhos 90° para ver um monitor de confiança.
-    monitor.rotation.x = -Math.PI / 6;
+    // "rodar" gira o monitor à volta do eixo vertical ANTES do tombo — a
+    // ordem "YXZ" garante isso, e é o que deixa apontá-lo para onde quer que
+    // o orador esteja, e não só em frente, sem perder a inclinação para cima.
+    monitor.rotation.order = "YXZ";
+    monitor.rotation.y = ((Number(aj.rot) || 0) * Math.PI) / 180;
+    monitor.rotation.x = TOMBO;
     monitor.position.set(x, y0, z);
     monitor.name = "dsm " + (i + 1);
     grupo.add(monitor);
