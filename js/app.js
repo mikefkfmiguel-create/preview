@@ -4,10 +4,11 @@ import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
-         CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING } from "./projeto.js";
+         CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING,
+         ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
-         fazerPlanta, fazerPlantaCad, fazerRegie } from "./cena.js";
+         fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -46,6 +47,9 @@ let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
+// Onde é que um delay ou um DSM ficam de verdade na sala -- decisão só do
+// preview, guardada neste aparelho (ver CHAVE_AJUSTES em projeto.js).
+let ajustes = ajustesGuardados();
 
 // ------------------------------------------------------------------ leituras
 
@@ -195,10 +199,15 @@ function montar(recentrarCamara) {
     medidas = totais(projeto);
     // Os ecrãs também se desligam: para olhar para a sala sem eles, ou para os
     // tirar da frente da planta que se está a acertar por baixo.
-    const zonas = fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo);
+    const zonas = fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo, ajustes.delays);
     if ($("verEcras").checked) desenhado.add(zonas.grupo);
     etiquetas = ($("verMedidas").checked && $("verEcras").checked) ? zonas.etiquetas : [];
 
+    if (projeto.dsm && $("verEcras").checked) {
+      const dsm = fazerDSM(projeto.dsm, sala, palco, ajustes.dsm);
+      desenhado.add(dsm.grupo);
+      if ($("verMedidas").checked) etiquetas = etiquetas.concat(dsm.etiquetas);
+    }
 
     avisarSeNaoCabe(medidas, sala, palco);
   }
@@ -256,6 +265,7 @@ function montar(recentrarCamara) {
     }
   });
   escreverPainel(medidas, gente.lugares, gente);
+  desenharAjustes();
   if (recentrarCamara) vista("frente");
 }
 
@@ -574,6 +584,70 @@ function escreverPainel(medidas, lugares, gentePosta) {
       `de ${gentePosta.porFila}` +
       (gentePosta.blocos > 1 ? `, em ${gentePosta.blocos} blocos.` : ".")
     : "Sem público no desenho.";
+}
+
+/**
+ * Um campo ↔/↕ para afinar a posição de um delay ou de um DSM — o valor
+ * inicial vem do que já estiver guardado, e cada alteração escreve logo no
+ * objeto `alvo` (a entrada de `ajustes.delays[nome]` ou `ajustes.dsm[i]`) e
+ * volta a montar a cena, com o mesmo atraso dos outros campos do painel.
+ */
+function campoAjuste(rotulo, alvo, chave) {
+  const campo = document.createElement("label");
+  campo.className = "ajuste-campo";
+  campo.textContent = rotulo + " ";
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.05";
+  input.value = alvo[chave] || 0;
+  input.addEventListener("input", () => {
+    alvo[chave] = parseFloat(input.value) || 0;
+    guardarAjustes(ajustes);
+    remontarDaqui();
+  });
+  const unidade = document.createElement("i");
+  unidade.textContent = "m";
+  campo.append(input, unidade);
+  return campo;
+}
+
+function desenharAjustes() {
+  const lista = $("listaAjustes");
+  const delays = projeto ? projeto.zonas.filter(z => z.tipo !== "led") : [];
+  const numDsm = (projeto && projeto.dsm) ? projeto.dsm.n : 0;
+
+  if (!delays.length && !numDsm) {
+    lista.className = "vazio";
+    lista.textContent = "—";
+    return;
+  }
+  lista.className = "";
+  lista.innerHTML = "";
+
+  for (const z of delays) {
+    if (!ajustes.delays[z.nome]) ajustes.delays[z.nome] = { dx: 0, dz: 0, dy: 0 };
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = z.nome + (z.tipo === "tv" ? " (TV)" : " (Projeção)");
+    linha.append(nome);
+    linha.append(campoAjuste("↔", ajustes.delays[z.nome], "dx"));
+    linha.append(campoAjuste("profundidade", ajustes.delays[z.nome], "dz"));
+    linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy"));
+    lista.append(linha);
+  }
+
+  for (let i = 0; i < numDsm; i++) {
+    if (!ajustes.dsm[i]) ajustes.dsm[i] = { dx: 0, dz: 0 };
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = "DSM " + (i + 1);
+    linha.append(nome);
+    linha.append(campoAjuste("↔", ajustes.dsm[i], "dx"));
+    linha.append(campoAjuste("profundidade", ajustes.dsm[i], "dz"));
+    lista.append(linha);
+  }
 }
 
 // -------------------------------------------------------------------- vistas

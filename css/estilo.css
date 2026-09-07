@@ -92,6 +92,18 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
 #listaZonas .cor { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 12px; }
 #listaZonas .med { margin-left: auto; color: var(--apagado); font-variant-numeric: tabular-nums; }
 
+#listaAjustes .ajuste-linha {
+  padding: 10px 0; border-bottom: 1px solid #1A222A;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#listaAjustes .ajuste-linha:last-child { border-bottom: 0; }
+#listaAjustes .ajuste-linha strong { font-size: 13px; }
+#listaAjustes .ajuste-linha .ajuste-campo {
+  display: grid; grid-template-columns: 90px 1fr 22px; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--apagado);
+}
+#listaAjustes .ajuste-campo i { font-style: normal; font-size: 12px; color: var(--apagado); }
+
 #rodape { padding: 14px 18px; color: var(--apagado); font-size: 12px; }
 
 /* -------------------------------------------------------------------- cena */

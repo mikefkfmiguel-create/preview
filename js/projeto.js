@@ -97,7 +97,10 @@ export function lerProjeto(bruto) {
       tiles: z.tiles || null,
       res: z.res || null,
       peso: numero(z.peso, null),
-      amp: numero(z.amp, null)
+      amp: numero(z.amp, null),
+      // O tipo vem dos Calculadores (LED, TV ou projeção) — sem ele, uma
+      // zona é sempre LED, que é o que este preview sempre desenhou.
+      tipo: (z.tipo === "tv" || z.tipo === "projecao") ? z.tipo : "led"
     });
   });
 
@@ -106,12 +109,21 @@ export function lerProjeto(bruto) {
                     "Isto veio do localStorage em vez do botão dos Calculadores?");
   }
 
+  // O DSM (monitor de confiança no palco) não é uma zona — é uma
+  // quantidade e um tamanho para o conjunto todo, decididos lá nos
+  // Calculadores. Sem quantidade não há nada para desenhar.
+  const dsmBruto = dados.dsm;
+  const dsm = (dsmBruto && numero(dsmBruto.n, 0) > 0 && numero(dsmBruto.w, 0) > 0 && numero(dsmBruto.h, 0) > 0)
+    ? { n: Math.round(numero(dsmBruto.n, 0)), w: numero(dsmBruto.w, 0.6), h: numero(dsmBruto.h, 0.4) }
+    : null;
+
   return {
     v: numero(dados.v, FORMATO),
     nome: dados.nome || dados.name || "Projeto",
     origem: dados.origem || "colado",
     sala: dados.sala || null,
     zonas,
+    dsm,
     recusadas
   };
 }
@@ -241,6 +253,33 @@ export const CHAVE_PROJETO = "mikeapps-projeto-v1";
 export const CHAVE_SALA = "mikeapps-sala-v1";
 export const CHAVE_PROJETOR = "mikeapps-projetor-v1";
 export const CHAVE_BRIEFING = "mikeapps-briefing-v1";
+
+// Onde é que um delay ou um DSM ficam exatamente na sala é uma decisão do
+// preview, não dos Calculadores — quem sabe a parede/coluna certa é quem está
+// a olhar para a sala em 3D. Por isso este ajuste fica só cá, à parte do
+// projeto que vem de lá, e não viaja de volta.
+export const CHAVE_AJUSTES = "mikeapps-preview-ajustes-v1";
+
+/** Os ajustes de posição (delays e DSM) que ficaram guardados neste aparelho. */
+export function ajustesGuardados() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_AJUSTES);
+    const dados = bruto ? JSON.parse(bruto) : null;
+    return {
+      delays: (dados && typeof dados.delays === "object" && dados.delays) || {},
+      dsm: (dados && Array.isArray(dados.dsm)) ? dados.dsm : []
+    };
+  } catch (e) {
+    return { delays: {}, dsm: [] };
+  }
+}
+
+/** Guarda os ajustes de posição — chamado sempre que se mexe num campo destes. */
+export function guardarAjustes(ajustes) {
+  try {
+    localStorage.setItem(CHAVE_AJUSTES, JSON.stringify(ajustes));
+  } catch (e) { /* sem localStorage a app funciona na mesma, só sem memória disto */ }
+}
 
 /** O último projeto que os Calculadores deixaram guardado, se houver. */
 export function projetoGuardado() {

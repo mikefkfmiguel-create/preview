@@ -167,14 +167,18 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
   const cor = new THREE.Color(zona.cor || "#2E7BFF");
   const tras = new THREE.MeshStandardMaterial({ color: 0x11181E, roughness: 1 });
 
+  // Um delay (TV ou projeção) não é um LED: não se curva por gomos — é um
+  // ecrã único, plano, tal como se vê numa parede. A curvatura só faz
+  // sentido para o painel principal.
+  const ehLed = zona.tipo !== "tv" && zona.tipo !== "projecao";
   const ESPESSURA = 0.12;
-  const gomos = zona.curva ? Math.max(4, Math.min(24, Math.round(zona.w / 0.5))) : 1;
+  const gomos = (ehLed && zona.curva) ? Math.max(4, Math.min(24, Math.round(zona.w / 0.5))) : 1;
   // Um raio pequeno para uma zona larga dá um ângulo enorme -- e passado
   // dos 360°, os gomos deixam de fazer um arco e passam a dar a volta sobre
   // si próprios, gomo em cima de gomo, o que no ecrã parece um leque de
   // papel aberto em vez de uma parede curva. Um ecrã não se dobra mais do
   // que uma volta inteira, por isso o ângulo fica preso a menos de 360°.
-  const anguloTotal = zona.curva
+  const anguloTotal = (ehLed && zona.curva)
     ? Math.max(-359, Math.min(359, zona.curva.modo === "raio"
         ? (zona.w / Math.max(0.5, zona.curva.valor)) * (180 / Math.PI)
         : zona.curva.valor))
@@ -191,10 +195,29 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
   // imagem repetida gomo a gomo, em vez de contínua ao longo da curva: daí
   // parecer "em pedaços". Cada gomo passa a ter o SEU material, com só a
   // fatia horizontal que lhe compete.
+  //
+  // Um LED brilha por si (emissivo). Uma TV de delay é a mesma ideia mas
+  // mais fraca -- é um ecrã comum, não uma parede de módulos. Uma projeção
+  // não brilha nada: é um pano/tela à espera da luz de um projetor, por
+  // isso fica sem emissivo nenhum, só a cor clara do próprio pano.
+  const INTENSIDADE_EMISSIVA = zona.tipo === "tv" ? 0.5 : 0.85;
   function frenteDoGomo(i) {
+    if (zona.tipo === "projecao") {
+      const fatiaProj = (conteudo && conteudo.textura) ? conteudo.textura.clone() : null;
+      if (fatiaProj) {
+        fatiaProj.needsUpdate = true;
+        fatiaProj.repeat.set((zona.w / gomos) / conteudo.largura, zona.h / conteudo.altura);
+        fatiaProj.offset.set(
+          (zona.x - conteudo.esquerda + i * larguraGomo) / conteudo.largura,
+          1 - (zona.y - conteudo.topo + zona.h) / conteudo.altura);
+      }
+      return new THREE.MeshStandardMaterial({
+        color: 0xEDEDED, map: fatiaProj, roughness: 0.92, metalness: 0
+      });
+    }
     if (!conteudo || !conteudo.textura) {
       return new THREE.MeshStandardMaterial({
-        color: cor, emissive: cor, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1
+        color: cor, emissive: cor, emissiveIntensity: INTENSIDADE_EMISSIVA, roughness: 0.35, metalness: 0.1
       });
     }
     const fatia = conteudo.textura.clone();
@@ -214,7 +237,7 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
     }
     return new THREE.MeshStandardMaterial({
       map: fatia, emissiveMap: fatia, emissive: 0xFFFFFF,
-      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0
+      emissiveIntensity: INTENSIDADE_EMISSIVA, roughness: 0.45, metalness: 0
     });
   }
 
@@ -240,6 +263,17 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
     grupo.add(peca);
   }
 
+  // A TV de delay não é um painel modular como o LED -- tem uma moldura à
+  // volta do ecrã, e é essa moldura escura que diz "isto é uma televisão"
+  // ao primeiro olhar, sem precisar de etiqueta nenhuma.
+  if (zona.tipo === "tv") {
+    const moldura = new THREE.Mesh(
+      new THREE.BoxGeometry(zona.w + 0.06, zona.h + 0.06, ESPESSURA * 0.7),
+      new THREE.MeshStandardMaterial({ color: 0x0B0F12, roughness: 0.6, metalness: 0.2 }));
+    moldura.position.z = -ESPESSURA * 0.2;
+    grupo.add(moldura);
+  }
+
   grupo.position.set(zona.centroX, alturaBase + zona.h / 2, z0);
   return grupo;
 }
@@ -247,10 +281,15 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
 /**
  * Todas as zonas, assentes no palco e centradas na sala.
  * Devolve o grupo e os pontos onde as etiquetas devem aparecer.
+ *
+ * `ajustesDelays` é o que o preview guarda LOCALMENTE (não vem dos
+ * Calculadores) para afinar onde um delay ou uma TV ficam de verdade na
+ * sala — uma coluna, uma parede lateral — sem mexer nas contas de lá.
  */
-export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo) {
+export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo, ajustesDelays) {
   const grupo = new THREE.Group();
   const etiquetas = [];
+  const ajustes = ajustesDelays || {};
 
   const esquerda = Math.min(...projeto.zonas.map(z => z.x));
   const fundo = Math.max(...projeto.zonas.map(z => z.y + z.h));
@@ -268,8 +307,17 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo)
     // do canto superior esquerdo do conjunto para o meio da sala
     zona.centroX = (zona.x - esquerda) + zona.w / 2 - meio;
     // e o Y ao contrário: o que estava mais em baixo no alçado assenta no palco
-    const alturaBase = base + (fundo - (zona.y + zona.h));
-    const peca = fazerZona(zona, alturaBase, z0, conteudo);
+    let alturaBase = base + (fundo - (zona.y + zona.h));
+    let zPeca = z0;
+    // Só os delays (TV/projeção) têm ajuste próprio — o LED principal fica
+    // sempre exatamente onde os Calculadores mandaram.
+    const aj = zona.tipo !== "led" ? ajustes[zona.nome] : null;
+    if (aj) {
+      zona.centroX += Number(aj.dx) || 0;
+      alturaBase += Number(aj.dy) || 0;
+      zPeca += Number(aj.dz) || 0;
+    }
+    const peca = fazerZona(zona, alturaBase, zPeca, conteudo);
     // O nome viaja para o Cinema 4D: e por ele que, do outro lado, se escolhe
     // a zona a que se vai por a textura de verdade.
     peca.name = "zona " + zona.nome;
@@ -278,11 +326,54 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo)
     // painel e fazia uma parede de 3,4 m parecer duas de 1,6.
     etiquetas.push({
       texto: `${zona.nome} · ${zona.w.toFixed(2)} × ${zona.h.toFixed(2)} m`,
-      ponto: new THREE.Vector3(zona.centroX, alturaBase + zona.h + 0.32, z0 + 0.2)
+      ponto: new THREE.Vector3(zona.centroX, alturaBase + zona.h + 0.32, zPeca + 0.2)
     });
   }
 
   return { grupo, etiquetas, base, z0 };
+}
+
+/**
+ * Os DSM (monitores de confiança no palco) — não vêm de uma zona, vêm de uma
+ * quantidade e um tamanho decididos nos Calculadores. Onde cada um fica é só
+ * do preview: por omissão espalham-se ao centro do palco, perto da frente
+ * (onde o orador está), e cada um pode ser corrigido à parte com
+ * `ajustesDsm[i] = { dx, dz }`.
+ */
+export function fazerDSM(dsm, sala, palco, ajustesDsm) {
+  const grupo = new THREE.Group();
+  const etiquetas = [];
+  if (!dsm || !dsm.n) return { grupo, etiquetas };
+  const ajustes = ajustesDsm || [];
+  // Perto da frente do palco -- é aí que quem fala normalmente para, não ao
+  // fundo, onde o ecrã está.
+  const z0 = -sala.profundidade / 2 + palco.profundidade * 0.7;
+  const y0 = palco.altura + dsm.h / 2 + 0.02;
+  const espaco = Math.min(2.2, palco.largura / (dsm.n + 1));
+  const inicioX = -espaco * (dsm.n - 1) / 2;
+
+  for (let i = 0; i < dsm.n; i++) {
+    const aj = ajustes[i] || {};
+    const x = inicioX + espaco * i + (Number(aj.dx) || 0);
+    const z = z0 + (Number(aj.dz) || 0);
+    const monitor = new THREE.Mesh(
+      new THREE.BoxGeometry(dsm.w, dsm.h, 0.05),
+      new THREE.MeshStandardMaterial({
+        color: 0x1B2126, emissive: 0x2E7BFF, emissiveIntensity: 0.4, roughness: 0.4, metalness: 0.2
+      }));
+    // Deitado sobre a base e inclinado para trás, como um monitor de chão a
+    // olhar para quem está de pé -- não em pé na vertical, que ninguém
+    // baixa os olhos 90° para ver um monitor de confiança.
+    monitor.rotation.x = -Math.PI / 6;
+    monitor.position.set(x, y0, z);
+    monitor.name = "dsm " + (i + 1);
+    grupo.add(monitor);
+    etiquetas.push({
+      texto: `DSM ${i + 1} · ${dsm.w.toFixed(2)} × ${dsm.h.toFixed(2)} m`,
+      ponto: new THREE.Vector3(x, y0 + dsm.h / 2 + 0.25, z)
+    });
+  }
+  return { grupo, etiquetas };
 }
 
 /**
