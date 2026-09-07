@@ -162,7 +162,7 @@ export function fazerRegie(sala, regie) {
  * é assim que ela se monta de verdade, e é a única forma de a curva se ver de
  * cima em vez de ser um desenho na textura.
  */
-function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0) {
+function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
   const grupo = new THREE.Group();
   const cor = new THREE.Color(zona.cor || "#2E7BFF");
   const tras = new THREE.MeshStandardMaterial({ color: 0x11181E, roughness: 1 });
@@ -283,7 +283,16 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0) {
 
   grupo.position.set(zona.centroX, alturaBase + zona.h / 2, z0);
   if (zona.tipo === "tv" || zona.tipo === "projecao") {
+    // "YXZ": primeiro roda-se à volta do eixo vertical (para onde aponta),
+    // só depois se tomba (para onde inclina) -- a mesma ordem do DSM. Um
+    // delay ao alto (numa treliça, por exemplo) precisa de apontar para
+    // baixo, para a plateia, e não ficar direito a apontar por cima dela.
+    grupo.rotation.order = "YXZ";
     grupo.rotation.y = -Number(rotacao || 0) * Math.PI / 180;
+    // Positivo inclina para baixo (a face que estava a apontar em frente
+    // passa a apontar também para o chão) -- é o sentido que interessa a um
+    // ecrã pendurado no alto, a apontar para a plateia lá em baixo.
+    grupo.rotation.x = Number(tombo || 0) * Math.PI / 180;
   }
   return grupo;
 }
@@ -332,7 +341,7 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo,
       alturaBase += Number(aj.dy) || 0;
       zPeca += Number(aj.dz) || 0;
     }
-    const peca = fazerZona(zona, alturaBase, zPeca, conteudo, aj ? aj.rot : 0);
+    const peca = fazerZona(zona, alturaBase, zPeca, conteudo, aj ? aj.rot : 0, aj ? aj.tilt : 0);
     // O nome viaja para o Cinema 4D: e por ele que, do outro lado, se escolhe
     // a zona a que se vai por a textura de verdade.
     peca.name = "zona " + zona.nome;
@@ -401,7 +410,9 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm, textura) {
     // o orador esteja, e não só em frente, sem perder a inclinação para cima.
     monitor.rotation.order = "YXZ";
     monitor.rotation.y = ((Number(aj.rot) || 0) * Math.PI) / 180;
-    monitor.rotation.x = TOMBO;
+    // O TOMBO fixo já aponta para quem fala; "tilt" é só um afinar por cima
+    // disso, para quando o suporte real não fica exatamente nos 30°.
+    monitor.rotation.x = TOMBO + ((Number(aj.tilt) || 0) * Math.PI) / 180;
     monitor.position.set(x, y0, z);
     monitor.name = "dsm " + (i + 1);
     grupo.add(monitor);

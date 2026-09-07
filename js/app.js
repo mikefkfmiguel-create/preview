@@ -1299,8 +1299,9 @@ function desenharAjustes() {
   lista.innerHTML = "";
 
   for (const z of delays) {
-    if (!ajustes.delays[z.nome]) ajustes.delays[z.nome] = { dx: 0, dz: 0, dy: 0, rot: 0 };
+    if (!ajustes.delays[z.nome]) ajustes.delays[z.nome] = { dx: 0, dz: 0, dy: 0, rot: 0, tilt: 0 };
     if (ajustes.delays[z.nome].rot == null) ajustes.delays[z.nome].rot = 0;
+    if (ajustes.delays[z.nome].tilt == null) ajustes.delays[z.nome].tilt = 0;
     const linha = document.createElement("div");
     linha.className = "ajuste-linha";
     const nome = document.createElement("strong");
@@ -1310,11 +1311,15 @@ function desenharAjustes() {
     linha.append(campoAjuste("profundidade", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
     linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy", "m", "0.05", `d-${z.nome}-dy`));
     linha.append(campoAjuste("rodar", ajustes.delays[z.nome], "rot", "°", "5", `d-${z.nome}-rot`, -180, 180));
+    // "tilt": para um delay pendurado no alto, a apontar para baixo, para a
+    // plateia -- positivo inclina para baixo (ver o comentário em cena.js).
+    linha.append(campoAjuste("tilt", ajustes.delays[z.nome], "tilt", "°", "5", `d-${z.nome}-tilt`, -90, 90));
     lista.append(linha);
   }
 
   for (let i = 0; i < numDsm; i++) {
-    if (!ajustes.dsm[i]) ajustes.dsm[i] = { dx: 0, dz: 0, rot: 0 };
+    if (!ajustes.dsm[i]) ajustes.dsm[i] = { dx: 0, dz: 0, rot: 0, tilt: 0 };
+    if (ajustes.dsm[i].tilt == null) ajustes.dsm[i].tilt = 0;
     const linha = document.createElement("div");
     linha.className = "ajuste-linha";
     const nome = document.createElement("strong");
@@ -1323,6 +1328,8 @@ function desenharAjustes() {
     linha.append(campoAjuste("↔", ajustes.dsm[i], "dx", "m", "0.05", `m${i}-dx`));
     linha.append(campoAjuste("profundidade", ajustes.dsm[i], "dz", "m", "0.05", `m${i}-dz`));
     linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5", `m${i}-rot`, -180, 180));
+    // Afinação por cima do tombo fixo (ver o comentário em fazerDSM, cena.js).
+    linha.append(campoAjuste("tilt", ajustes.dsm[i], "tilt", "°", "5", `m${i}-tilt`, -45, 45));
     lista.append(linha);
   }
 
