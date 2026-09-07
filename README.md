@@ -29,10 +29,10 @@ de um DWG na lista, 320 px deixam de chegar e um nome cortado com reticências
 não serve para escolher a camada que se vai levantar.
 
 Cada vista serve uma pergunta diferente, por isso tudo o que está na cena liga e
-desliga: **ecrãs**, **planta**, **palco**, **público**, **orador**, **paredes e
-tecto**, e as **medidas**. Sem paredes vê-se a sala de fora, sem público vê-se a
-estrutura, sem ninguém no palco mede-se o ecrã sem nada a tapá-lo, e sem ecrãs
-acerta-se a planta que está por baixo.
+desliga: **ecrãs**, **planta**, **palco**, **público**, **régie**, **orador**,
+**paredes e tecto**, e as **medidas**. Sem paredes vê-se a sala de fora, sem
+público vê-se a estrutura, sem ninguém no palco mede-se o ecrã sem nada a
+tapá-lo, e sem ecrãs acerta-se a planta que está por baixo.
 
 **Instala-se como app**, e depois disso abre sem internet: o botão está no fim
 do painel, e em iPhone diz-se lá como se faz à mão.
@@ -216,6 +216,26 @@ cor da cadeira separada da da roupa, senão o conjunto lê-se como uma coluna.
 **De pé**, é a mesma figura do orador, repetida: pernas, braços e ombros, e sem
 cadeira nenhuma. Uma cápsula com uma bola em cima não é uma pessoa, e um público
 que se lê mal engana sobre tudo o que está ao lado dele.
+
+A distância da plateia às paredes — dos dois lados e ao fundo — usa a **mesma
+largura dos corredores**: é a mesma pergunta ("que folga entre filas de
+cadeiras?") respondida uma vez só, e não um metro fixo à parte. Só a frente
+tem resposta própria, porque essa é a distância ao palco ("primeira fila a"),
+não uma folga de corredor.
+
+### A régie
+
+Um rectângulo reservado a quem opera som, luz e vídeo — não é lugar de
+plateia. Tem sempre **pelo menos 2 × 2 m** (o mínimo aplica-se mesmo que se
+tente menos), mas cresce e desloca-se pelos campos, como o palco. Uma mesa
+marca o lado virado para o palco, e o rectângulo fica visível no chão para se
+perceber logo que ali não há cadeiras.
+
+Quem cairia num lugar dentro da régie fica sem cadeira — é um vão na plateia,
+contado a menos nos lugares totais, não uma pessoa sentada por cima de uma
+mesa de mistura. Esse vão existe sempre, mesmo com a régie escondida da
+vista: o interruptor só tira o desenho da mesa, não devolve o espaço à
+plateia — a régie continua lá, só não se está a olhar para ela.
 
 ## As duas apps falam sozinhas
 
