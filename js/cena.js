@@ -162,7 +162,7 @@ export function fazerRegie(sala, regie) {
  * é assim que ela se monta de verdade, e é a única forma de a curva se ver de
  * cima em vez de ser um desenho na textura.
  */
-function fazerZona(zona, alturaBase, z0, conteudo) {
+function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0) {
   const grupo = new THREE.Group();
   const cor = new THREE.Color(zona.cor || "#2E7BFF");
   const tras = new THREE.MeshStandardMaterial({ color: 0x11181E, roughness: 1 });
@@ -275,6 +275,9 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
   }
 
   grupo.position.set(zona.centroX, alturaBase + zona.h / 2, z0);
+  if (zona.tipo === "tv" || zona.tipo === "projecao") {
+    grupo.rotation.y = -Number(rotacao || 0) * Math.PI / 180;
+  }
   return grupo;
 }
 
@@ -322,7 +325,7 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo,
       alturaBase += Number(aj.dy) || 0;
       zPeca += Number(aj.dz) || 0;
     }
-    const peca = fazerZona(zona, alturaBase, zPeca, conteudo);
+    const peca = fazerZona(zona, alturaBase, zPeca, conteudo, aj ? aj.rot : 0);
     // O nome viaja para o Cinema 4D: e por ele que, do outro lado, se escolhe
     // a zona a que se vai por a textura de verdade.
     peca.name = "zona " + zona.nome;

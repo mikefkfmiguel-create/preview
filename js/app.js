@@ -888,7 +888,8 @@ function desenharAjustes() {
   lista.innerHTML = "";
 
   for (const z of delays) {
-    if (!ajustes.delays[z.nome]) ajustes.delays[z.nome] = { dx: 0, dz: 0, dy: 0 };
+    if (!ajustes.delays[z.nome]) ajustes.delays[z.nome] = { dx: 0, dz: 0, dy: 0, rot: 0 };
+    if (ajustes.delays[z.nome].rot == null) ajustes.delays[z.nome].rot = 0;
     const linha = document.createElement("div");
     linha.className = "ajuste-linha";
     const nome = document.createElement("strong");
@@ -897,6 +898,7 @@ function desenharAjustes() {
     linha.append(campoAjuste("↔", ajustes.delays[z.nome], "dx", "m", "0.05", `d-${z.nome}-dx`));
     linha.append(campoAjuste("profundidade", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
     linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy", "m", "0.05", `d-${z.nome}-dy`));
+    linha.append(campoAjuste("rodar", ajustes.delays[z.nome], "rot", "°", "5", `d-${z.nome}-rot`));
     lista.append(linha);
   }
 
