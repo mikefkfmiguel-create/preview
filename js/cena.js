@@ -223,9 +223,17 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
     const peca = new THREE.Mesh(
       new THREE.BoxGeometry(larguraGomo * 1.002, zona.h, ESPESSURA), materiais);
     if (anguloTotal) {
-      const a = (-anguloTotal / 2 + anguloTotal * (i + 0.5) / gomos) * Math.PI / 180 * sentido;
+      // O ângulo de cada gomo ao longo do arco é sempre o mesmo (não depende
+      // de côncavo/convexo) -- só o sentido em que ele empurra o gomo para a
+      // frente ou para trás é que muda. Antes multiplicava-se este ângulo por
+      // "sentido" logo aqui e usava-se outra vez em "-a*sentido" na rotação:
+      // os dois sinais cancelavam-se e a rotação ficava sempre igual à do
+      // caso convexo, desencontrada da posição no caso côncavo. Cada gomo
+      // ficava bem colocado ao longo do arco mas virado para o ângulo errado
+      // -- as bordas nunca encostavam, e via-se como fatias soltas.
+      const a = (-anguloTotal / 2 + anguloTotal * (i + 0.5) / gomos) * Math.PI / 180;
       peca.position.set(Math.sin(a) * raio, 0, (Math.cos(a) - 1) * raio * sentido);
-      peca.rotation.y = -a * sentido;
+      peca.rotation.y = a * sentido;
     } else {
       peca.position.x = -zona.w / 2 + larguraGomo * (i + 0.5);
     }
