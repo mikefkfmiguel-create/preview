@@ -1372,15 +1372,31 @@ function desenharEtiquetas() {
   while (filhos.length < etiquetas.length) caixaEtiquetas.append(document.createElement("span"));
 
   const largura = tela.clientWidth, altura = tela.clientHeight;
+  const MARGEM_ETIQUETA = 4;
   etiquetas.forEach((etiqueta, i) => {
     const elemento = filhos[i];
     const p = etiqueta.ponto.clone().project(camara);
     const atras = p.z > 1;
     elemento.style.display = atras ? "none" : "block";
     if (atras) return;
-    elemento.textContent = etiqueta.texto;
-    elemento.style.left = ((p.x * 0.5 + 0.5) * largura) + "px";
-    elemento.style.top = ((-p.y * 0.5 + 0.5) * altura) + "px";
+    if (elemento.textContent !== etiqueta.texto) {
+      elemento.textContent = etiqueta.texto;
+      // O tamanho só muda quando o texto muda -- medir a cada frame (60x por
+      // segundo) só para isto seria caro à toa. offsetWidth/Height já vêm
+      // corretos mesmo com o "transform" do CSS, que não mexe na caixa.
+      elemento._larguraEtiqueta = elemento.offsetWidth;
+      elemento._alturaEtiqueta = elemento.offsetHeight;
+    }
+    // Uma etiqueta centrada mesmo em cima do canto do ecrã ficava meio
+    // cortada pela borda do "tela" (o telemóvel é estreito, o painel de
+    // largura variável também aperta a vista) -- empurra-se para dentro só
+    // o necessário para caber inteira, sem mexer nas que já cabem.
+    const meioL = (elemento._larguraEtiqueta || 0) / 2;
+    const meioA = (elemento._alturaEtiqueta || 0) / 2;
+    const x = (p.x * 0.5 + 0.5) * largura;
+    const y = (-p.y * 0.5 + 0.5) * altura;
+    elemento.style.left = Math.min(Math.max(x, meioL + MARGEM_ETIQUETA), largura - meioL - MARGEM_ETIQUETA) + "px";
+    elemento.style.top = Math.min(Math.max(y, meioA + MARGEM_ETIQUETA), altura - meioA - MARGEM_ETIQUETA) + "px";
   });
 }
 
