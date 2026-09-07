@@ -17,7 +17,7 @@
     <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
     <div>
       <b>Preview</b>
-      <span>o projeto no terreno <i id="versao">v2.26</i></span>
+      <span>o projeto no terreno <i id="versao">v2.27</i></span>
     </div>
     <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, com a sala como está agora">—</span>
     <button id="btSincronizar" title="Vai buscar já o projeto e o projetor que os Calculadores tiverem guardados — sem esperar pelo aviso automático">🔄</button>
@@ -206,6 +206,7 @@
     <label class="opcao"><input id="verPalco" type="checkbox" checked> Palco</label>
     <label class="opcao"><input id="verOrador" type="checkbox" checked> Orador</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
+    <label class="opcao"><input id="verCobertura" type="checkbox" title="Um ponto por lugar, no chão: verde vê bem, amarelo vê na marginal, vermelho não vê ecrã nenhum"> Cobertura dos ecrãs</label>
   </section>
 
   <section id="sExportar">
@@ -234,6 +235,21 @@
       <button id="btNovoDelay" title="Acrescenta um ecrã de delay (TV ou Projeção)">+ Delay</button>
       <button id="btNovoDsm" title="Acrescenta o monitor de confiança no palco (DSM)">+ DSM</button>
     </div>
+  </section>
+
+  <section id="sCobertura">
+    <h2>Cobertura da plateia</h2>
+    <p class="vazio" style="margin:0 0 10px">Compara cada lugar sentado com a
+      direção de cada ecrã: dentro de ±30° na horizontal e ±15° na
+      vertical conta como visto; dentro de ±20°/±10° conta como confortável.
+      Ativa “Cobertura dos ecrãs” na secção Vista para ver o mapa na cena.</p>
+    <div id="resumoCobertura" class="vazio">—</div>
+    <div id="listaCoberturaBlocos" class="vazio" style="margin-top:8px">—</div>
+    <div class="botoes" style="margin-top:10px">
+      <button id="btDistribuir" title="Calcula, por ecrã, um deslocamento horizontal conservador que o aproxima do centro dos lugares que ele já serve, sem tocar na largura, na altura ou na rotação">Distribuir ecrãs pela plateia</button>
+    </div>
+    <div id="resumoDistribuicao" class="vazio" style="margin-top:8px"></div>
+    <button id="btAplicarDistribuicao" class="primario" style="margin-top:8px; width:100%" hidden>Aplicar sugestão</button>
   </section>
 
   <section id="sAjustes">

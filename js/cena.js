@@ -479,8 +479,9 @@ export function fazerPublico(sala, palco, publico, regie) {
   const grupo = new THREE.Group();
   grupo.name = "publico";
   if (!publico.filas) {
-    return { grupo, olhos: null, lugares: 0, filas: 0, porFila: 0,
-             corpos: new Float32Array(0), largura: 0.46, fundura: 0.34 };
+    return { grupo, olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1,
+             corpos: new Float32Array(0), blocoPorLugar: new Int16Array(0),
+             largura: 0.46, fundura: 0.34 };
   }
 
   const sentado = publico.sentado;
@@ -568,6 +569,10 @@ export function fazerPublico(sala, palco, publico, regie) {
   // a pergunta que se faz a olhar para uma sala cheia. Uma caixa por PESSOA,
   // e não uma por peça do corpo — três vezes menos contas e dá o mesmo.
   const corpos = [];
+  // O bloco (entre corredores) de cada lugar, na mesma ordem de \corpos\ --
+  // serve para agrupar a cobertura de ecra por bloco de plateia, sem ter de
+  // recalcular a posicao de cada corredor outra vez do lado de fora.
+  const blocoPorLugar = [];
   const zPrimeira = -sala.profundidade / 2 + palco.profundidade + publico.primeiraFila;
   let n = 0;
   let zUltima = zPrimeira;
@@ -643,6 +648,7 @@ export function fazerPublico(sala, palco, publico, regie) {
           peca.malha.setMatrixAt(n, matrizDaPeca);
         }
         corpos.push(x, 1.75 * variacao + sobe, z, sobe);
+        blocoPorLugar.push(bloco);
         n++;
         continue;
       }
@@ -674,6 +680,7 @@ export function fazerPublico(sala, palco, publico, regie) {
         cadeiras.setMatrixAt(n, boneco.matrix);
       }
       corpos.push(x, (alturaOlhos + 0.055) * variacao + sobe + RAIO_CABECA * 1.16, z, sobe);
+      blocoPorLugar.push(bloco);
       n++;
     }
     if (sobe > 0.001) {
@@ -724,6 +731,7 @@ export function fazerPublico(sala, palco, publico, regie) {
     grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos,
     // x, topo da cabeça, z e o chão debaixo dela — quatro números por pessoa
     corpos: new Float32Array(corpos), largura: OMBROS, fundura: 0.34,
+    // o bloco de cada lugar, na mesma ordem e no mesmo passo de \corpos\n    blocoPorLugar: new Int16Array(blocoPorLugar),
     // As distancias que interessam a quem tem de escolher o tamanho do ecra:
     // do ecra ao primeiro e ao ultimo espectador, e a largura que a plateia
     // ocupa. E o que as regras da AVIXA e da SMPTE pedem.

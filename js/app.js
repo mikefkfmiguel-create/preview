@@ -245,7 +245,19 @@ function montar(recentrarCamara) {
       `a sala acaba antes.`;
     aviso.classList.add("mostra");
   }
-  avisarAngulosDeVisualizacao(projeto, medidas, sala, palco, gente);
+  // A cobertura substitui o aviso de ângulo da v2.26: aquele só dizia "há um
+  // ecrã rodado de mais"; isto diz QUEM fica sem ver nada, em que bloco, e
+  // desenha-o na cena se for pedido -- o aviso genérico não respondia a
+  // nenhuma dessas perguntas.
+  let cobertura = null;
+  if (projeto && projeto.zonas.length) {
+    cobertura = calcularCobertura(projeto, medidas, sala, palco, gente);
+    if (cobertura && $("verCobertura").checked) {
+      const mapa = desenharMapaCobertura(gente, cobertura);
+      if (mapa) desenhado.add(mapa);
+    }
+  }
+  escreverPainelCobertura(cobertura);
 
   cena.add(desenhado);
   if (document.activeElement !== $("ecraL") && document.activeElement !== $("ecraA")) {
@@ -542,62 +554,312 @@ function avisarSeNaoCabe(medidas, sala, palco) {
   }
 }
 
-function avisarAngulosDeVisualizacao(projetoAtual, medidas, sala, palco, gente) {
-  if (!projetoAtual || !medidas || !gente || !gente.corpos.length) return;
+// A cobertura da plateia: para cada lugar sentado, cada zona diz se o vê
+// bem, mal ou nada. Substitui o aviso genérico da v2.26 (só dizia
+// "há um ecrã rodado de mais") -- este diz QUEM fica sem ver ecrã
+// nenhum, em que bloco, e desenha-o na cena se for pedido.
+//
+// Convenção do cálculo (a mesma que já vinha da v2.26): cada
+// zona tem um referencial próprio com Z positivo a apontar para a
+// plateia; o "rot" de um delay roda esse referencial à volta do eixo
+// vertical. Horizontal e vertical são os ângulos entre um espectador
+// e o eixo central desse referencial.
+const LIMITE_HORIZONTAL = 30;
+const LIMITE_VERTICAL = 15;
+// "Confortável" é dois terços do limite -- não vem de nenhuma
+// norma, é só o que separa "ainda aceitável" de "bem colocado",
+// para dar três cores em vez de um sim/não.
+const CONFORTAVEL_HORIZONTAL = 20;
+const CONFORTAVEL_VERTICAL = 10;
 
-  const LIMITE_HORIZONTAL = 30;
-  const LIMITE_VERTICAL = 15;
-  const esquerda = Math.min(...projetoAtual.zonas.map(z => z.x));
-  const fundo = Math.max(...projetoAtual.zonas.map(z => z.y + z.h));
-  const meio = medidas.largura / 2;
-  const base = palco.altura + palco.acimaDoPalco;
-  const z0 = -sala.profundidade / 2 + 0.35;
-  const fora = [];
+function contextoDeZonas(projetoAtual, medidas, sala, palco) {
+  return {
+    esquerda: Math.min(...projetoAtual.zonas.map(z => z.x)),
+    fundo: Math.max(...projetoAtual.zonas.map(z => z.y + z.h)),
+    meio: medidas.largura / 2,
+    base: palco.altura + palco.acimaDoPalco,
+    z0: -sala.profundidade / 2 + 0.35
+  };
+}
 
-  for (const zona of projetoAtual.zonas) {
-    const aj = ajustes.delays[zona.nome] || {};
-    const centroX = (zona.x - esquerda) + zona.w / 2 - meio + (Number(aj.dx) || 0);
-    const centroY = base + (fundo - (zona.y + zona.h)) + zona.h / 2
-      + (Number(aj.dy) || 0);
-    const centroZ = z0 + (Number(aj.dz) || 0);
-    const rotacao = -(Number(aj.rot) || 0) * Math.PI / 180;
-    let maiorHorizontal = 0;
-    let maiorVertical = 0;
+function centroDeZona(zona, ajusteZona, ctx) {
+  const aj = ajusteZona || {};
+  return {
+    centroX: (zona.x - ctx.esquerda) + zona.w / 2 - ctx.meio + (Number(aj.dx) || 0),
+    centroY: ctx.base + (ctx.fundo - (zona.y + zona.h)) + zona.h / 2 + (Number(aj.dy) || 0),
+    centroZ: ctx.z0 + (Number(aj.dz) || 0),
+    rotacao: -(Number(aj.rot) || 0) * Math.PI / 180
+  };
+}
 
-    for (let i = 0; i < gente.corpos.length; i += 4) {
-      const dx = gente.corpos[i] - centroX;
-      const dy = gente.corpos[i + 1] - centroY;
-      const dz = gente.corpos[i + 2] - centroZ;
-      const localX = dx * Math.cos(rotacao) - dz * Math.sin(rotacao);
-      const localZ = dx * Math.sin(rotacao) + dz * Math.cos(rotacao);
-      const distanciaHorizontal = Math.hypot(localX, localZ);
-      if (localZ <= 0.01) {
-        maiorHorizontal = 180;
-        continue;
-      }
-      maiorHorizontal = Math.max(maiorHorizontal,
-        Math.abs(Math.atan2(localX, localZ) * 180 / Math.PI));
-      maiorVertical = Math.max(maiorVertical,
-        Math.abs(Math.atan2(dy, distanciaHorizontal) * 180 / Math.PI));
+// O ângulo com que UM espectador vê UMA zona, no referencial dessa
+// zona. Devolve null quando está atrás do ecrã (localZ <= 0):
+// daí ninguém vê nada.
+function anguloDePessoa(centro, corpos, i) {
+  const dx = corpos[i] - centro.centroX;
+  const dy = corpos[i + 1] - centro.centroY;
+  const dz = corpos[i + 2] - centro.centroZ;
+  const localX = dx * Math.cos(centro.rotacao) - dz * Math.sin(centro.rotacao);
+  const localZ = dx * Math.sin(centro.rotacao) + dz * Math.cos(centro.rotacao);
+  if (localZ <= 0.01) return null;
+  const distanciaHorizontal = Math.hypot(localX, localZ);
+  return {
+    horizontal: Math.abs(Math.atan2(localX, localZ) * 180 / Math.PI),
+    vertical: Math.abs(Math.atan2(dy, distanciaHorizontal) * 180 / Math.PI)
+  };
+}
+
+/**
+ * Cobertura de toda a plateia: por lugar (0 vermelho, 1 amarelo, 2 verde),
+ * por zona (quantos lugares conseguem ver essa zona) e por bloco (quantos
+ * ficam sem nenhum ecrã), para o painel e para o mapa na cena saberem
+ * o mesmo que este cálculo sabe.
+ */
+function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
+  if (!projetoAtual || !projetoAtual.zonas.length || !medidas
+    || !gente || !gente.corpos || !gente.corpos.length) return null;
+
+  const ctx = contextoDeZonas(projetoAtual, medidas, sala, palco);
+  const zonasInfo = projetoAtual.zonas.map(zona => ({
+    zona, centro: centroDeZona(zona, ajustes.delays[zona.nome], ctx), comLugares: 0
+  }));
+
+  const n = gente.corpos.length / 4;
+  const corPorLugar = new Uint8Array(n);
+  let confortaveis = 0, marginais = 0, semCobertura = 0;
+  const porBloco = new Map();
+
+  for (let idx = 0; idx < n; idx++) {
+    const i = idx * 4;
+    let melhor = 0;
+    for (const zi of zonasInfo) {
+      const ang = anguloDePessoa(zi.centro, gente.corpos, i);
+      if (!ang || ang.horizontal > LIMITE_HORIZONTAL || ang.vertical > LIMITE_VERTICAL) continue;
+      zi.comLugares++;
+      const confortavel = ang.horizontal <= CONFORTAVEL_HORIZONTAL && ang.vertical <= CONFORTAVEL_VERTICAL;
+      melhor = Math.max(melhor, confortavel ? 2 : 1);
     }
+    corPorLugar[idx] = melhor;
+    if (melhor === 2) confortaveis++;
+    else if (melhor === 1) marginais++;
+    else semCobertura++;
 
-    if (maiorHorizontal > LIMITE_HORIZONTAL || maiorVertical > LIMITE_VERTICAL) {
-      const limites = [];
-      if (maiorHorizontal > LIMITE_HORIZONTAL) limites.push("lateral");
-      if (maiorVertical > LIMITE_VERTICAL) limites.push("vertical");
-      fora.push(`${zona.nome} (${limites.join(" e ")})`);
-    }
+    const bloco = (gente.blocoPorLugar && gente.blocoPorLugar.length > idx) ? gente.blocoPorLugar[idx] : 0;
+    if (!porBloco.has(bloco)) porBloco.set(bloco, { sem: 0, total: 0 });
+    const registo = porBloco.get(bloco);
+    registo.total++;
+    if (melhor === 0) registo.sem++;
   }
 
-  if (fora.length) {
-    const aviso = $("aviso");
-    const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
-    aviso.textContent = jaTem +
-      `Ângulo de visualização fora do recomendado (±${LIMITE_HORIZONTAL}° lateral, ` +
-      `±${LIMITE_VERTICAL}° vertical): ${fora.join(", ")}.`;
-    aviso.classList.add("mostra");
+  const blocos = [...porBloco.entries()]
+    .map(([bloco, r]) => ({ bloco, sem: r.sem, total: r.total }))
+    .sort((a, b) => a.bloco - b.bloco);
+  const piorBloco = blocos.reduce((pior, b) => (!pior || b.sem > pior.sem) ? b : pior, null);
+
+  return {
+    totalLugares: n, confortaveis, marginais, semCobertura, corPorLugar,
+    zonasSemCobertura: zonasInfo.filter(zi => zi.comLugares === 0).map(zi => zi.zona.nome),
+    blocos, piorBloco: (piorBloco && piorBloco.sem > 0) ? piorBloco : null
+  };
+}
+
+// Cores da cobertura, partilhadas entre o mapa na cena e o texto do painel
+// (ver .cobertura-* no estilo.css) -- têm de ser a MESMA cor nos dois
+// sítios, senão o painel diz uma coisa e a cena mostra outra.
+const CORES_COBERTURA = [
+  [0.88, 0.26, 0.24],
+  [0.88, 0.72, 0.24],
+  [0.24, 0.86, 0.52]
+];
+
+/**
+ * O mapa de cobertura na cena: um ponto por lugar, rente ao chão, na
+ * cor da sua cobertura. Um único THREE.Points -- não se cria uma
+ * malha por pessoa nem se mexe no InstancedMesh do público, que
+ * continua a ser dele.
+ */
+function desenharMapaCobertura(gente, cobertura) {
+  if (!cobertura || !gente.corpos || !gente.corpos.length) return null;
+  const n = cobertura.totalLugares;
+  const posicoes = new Float32Array(n * 3);
+  const cores = new Float32Array(n * 3);
+  for (let idx = 0; idx < n; idx++) {
+    const i = idx * 4;
+    posicoes[idx * 3] = gente.corpos[i];
+    posicoes[idx * 3 + 1] = gente.corpos[i + 3] + 0.05;
+    posicoes[idx * 3 + 2] = gente.corpos[i + 2];
+    const cor = CORES_COBERTURA[cobertura.corPorLugar[idx]];
+    cores[idx * 3] = cor[0]; cores[idx * 3 + 1] = cor[1]; cores[idx * 3 + 2] = cor[2];
+  }
+  const geometria = new THREE.BufferGeometry();
+  geometria.setAttribute("position", new THREE.BufferAttribute(posicoes, 3));
+  geometria.setAttribute("color", new THREE.BufferAttribute(cores, 3));
+  geometria.computeBoundingSphere();
+  const pontos = new THREE.Points(geometria, new THREE.PointsMaterial({
+    size: 0.22, vertexColors: true, sizeAttenuation: true,
+    depthWrite: false, toneMapped: false
+  }));
+  pontos.name = "mapa-cobertura";
+  pontos.renderOrder = 4;
+  return pontos;
+}
+
+function escreverPainelCobertura(cobertura) {
+  const resumo = $("resumoCobertura");
+  const lista = $("listaCoberturaBlocos");
+  if (!cobertura) {
+    resumo.className = "vazio";
+    resumo.textContent = "Sem ecrãs ou sem público para comparar.";
+    lista.className = "vazio";
+    lista.textContent = "-";
+    return;
+  }
+  const { totalLugares, confortaveis, marginais, semCobertura, zonasSemCobertura, blocos, piorBloco } = cobertura;
+  resumo.className = "";
+  resumo.innerHTML =
+    `<b class="cobertura-verde">${confortaveis}</b> confortáveis · ` +
+    `<b class="cobertura-amarela">${marginais}</b> marginais · ` +
+    `<b class="cobertura-vermelha">${semCobertura}</b> sem cobertura ` +
+    `(de ${totalLugares} lugares).` +
+    (zonasSemCobertura.length
+      ? `<br>Sem ninguém a ver: ${zonasSemCobertura.join(", ")}.`
+      : "") +
+    (piorBloco
+      ? `<br>Bloco ${piorBloco.bloco + 1} é o pior: ${piorBloco.sem} de ${piorBloco.total} lugares sem ecrã.`
+      : "");
+
+  if (blocos.length > 1) {
+    lista.className = "";
+    lista.innerHTML = blocos.map(b =>
+      `Bloco ${b.bloco + 1}: ${b.total - b.sem}/${b.total} cobertos` +
+      (b.sem ? ` · ${b.sem} sem ecrã` : "")
+    ).join("<br>");
+  } else {
+    lista.className = "vazio";
+    lista.textContent = "-";
   }
 }
+
+// ------------------------------------------------------- distribuir ecrãs
+
+// O último cálculo de "Distribuir ecrãs pela plateia", para o
+// botão "Aplicar sugestão" não ter de o repetir -- e para não
+// aplicar em cima de uma sala que já mudou de forma entretanto.
+let ultimaSugestaoDistribuicao = null;
+
+/**
+ * Sugere um deslocamento horizontal por ecrã: para cada lugar, decide
+ * qual ecrã é o "responsável" por ele (o de menor ângulo, ou o
+ * mais próximo em X se estiver atrás de todos) e depois aproxima
+ * cada ecrã do centro dos lugares que lhe calharam. Só mexe no dx
+ * -- nunca na largura, na altura ou na rotação -- e o deslocamento
+ * sugerido fica sempre dentro de ±1,5 m de uma só vez: isto é
+ * uma sugestão, não um solver, e quem decide o resto é quem
+ * está a montar a sala.
+ */
+function sugerirDistribuicao() {
+  if (!projeto || !projeto.zonas.length) return null;
+  if (!corposDoPublico || !corposDoPublico.corpos || !corposDoPublico.corpos.length) return null;
+
+  const sala = lerSala(), palco = lerPalco();
+  const medidas = totais(projeto);
+  const gente = corposDoPublico;
+  const ctx = contextoDeZonas(projeto, medidas, sala, palco);
+  const zonasInfo = projeto.zonas.map(zona => ({
+    zona, centro: centroDeZona(zona, ajustes.delays[zona.nome], ctx), somaX: 0, n: 0
+  }));
+
+  const n = gente.corpos.length / 4;
+  for (let idx = 0; idx < n; idx++) {
+    const i = idx * 4;
+    let melhorZi = null, melhorValor = Infinity;
+    for (const zi of zonasInfo) {
+      const ang = anguloDePessoa(zi.centro, gente.corpos, i);
+      const valor = ang ? Math.max(ang.horizontal, ang.vertical) : Infinity;
+      if (valor < melhorValor) { melhorValor = valor; melhorZi = zi; }
+    }
+    if (melhorValor === Infinity) {
+      let melhorDist = Infinity;
+      for (const zi of zonasInfo) {
+        const d = Math.abs(gente.corpos[i] - zi.centro.centroX);
+        if (d < melhorDist) { melhorDist = d; melhorZi = zi; }
+      }
+    }
+    if (!melhorZi) continue;
+    melhorZi.somaX += gente.corpos[i];
+    melhorZi.n++;
+  }
+
+  const LIMITE_DELTA = 1.5;
+  return zonasInfo
+    .filter(zi => zi.n > 0)
+    .map(zi => {
+      const mediaX = zi.somaX / zi.n;
+      const deltaIdeal = mediaX - zi.centro.centroX;
+      const delta = Math.max(-LIMITE_DELTA, Math.min(LIMITE_DELTA, deltaIdeal));
+      const ajAtual = ajustes.delays[zi.zona.nome];
+      const dxAtual = ajAtual ? (Number(ajAtual.dx) || 0) : 0;
+      return {
+        nome: zi.zona.nome,
+        dxAtual: +dxAtual.toFixed(2),
+        dxSugerido: +(dxAtual + delta).toFixed(2),
+        delta: +delta.toFixed(2),
+        lugares: zi.n
+      };
+    })
+    .filter(s => Math.abs(s.delta) >= 0.05);
+}
+
+function calcularEDesenharDistribuicao() {
+  const resumo = $("resumoDistribuicao");
+  const aplicar = $("btAplicarDistribuicao");
+  ultimaSugestaoDistribuicao = null;
+  aplicar.hidden = true;
+
+  if (!projeto || !projeto.zonas.length) {
+    resumo.className = "vazio";
+    resumo.textContent = "Sem ecrãs para distribuir.";
+    return;
+  }
+  if (!corposDoPublico || !corposDoPublico.corpos || !corposDoPublico.corpos.length) {
+    resumo.className = "vazio";
+    resumo.textContent = "Liga o público (secção Vista) para calcular a distribuição.";
+    return;
+  }
+
+  const sugestoes = sugerirDistribuicao();
+  if (!sugestoes || !sugestoes.length) {
+    resumo.className = "vazio";
+    resumo.textContent = "Já estão bem distribuídos: nenhum ecrã precisa de mais de 5 cm de ajuste.";
+    return;
+  }
+
+  ultimaSugestaoDistribuicao = sugestoes;
+  resumo.className = "";
+  resumo.innerHTML = "Sugestão (deslocamento horizontal ↔):<br>" +
+    sugestoes.map(s =>
+      `${s.nome}: ${s.dxAtual.toFixed(2)} m → <b>${s.dxSugerido.toFixed(2)} m</b> ` +
+      `(${s.delta > 0 ? "+" : ""}${s.delta.toFixed(2)} m, serve ${s.lugares} lugares)`
+    ).join("<br>");
+  aplicar.hidden = false;
+}
+
+function aplicarDistribuicaoSugerida() {
+  if (!ultimaSugestaoDistribuicao || !ultimaSugestaoDistribuicao.length) return;
+  for (const s of ultimaSugestaoDistribuicao) {
+    if (!ajustes.delays[s.nome]) ajustes.delays[s.nome] = { dx: 0, dz: 0, dy: 0, rot: 0 };
+    ajustes.delays[s.nome].dx = s.dxSugerido;
+  }
+  guardarAjustes(ajustes);
+  ultimaSugestaoDistribuicao = null;
+  $("btAplicarDistribuicao").hidden = true;
+  $("resumoDistribuicao").className = "vazio";
+  $("resumoDistribuicao").textContent = "Aplicado -- os campos de posição foram atualizados.";
+  montar(false);
+}
+
+$("btDistribuir").onclick = calcularEDesenharDistribuicao;
+$("btAplicarDistribuicao").onclick = aplicarDistribuicaoSugerida;
 
 // ------------------------------------------------------------------- painel
 
@@ -1520,7 +1782,8 @@ function estadoCompleto() {
       verRegie: $("verRegie").checked,
       verPalco: $("verPalco").checked,
       verOrador: $("verOrador").checked,
-      verParedes: $("verParedes").checked
+      verParedes: $("verParedes").checked,
+      verCobertura: $("verCobertura").checked
     }
   };
 }
@@ -1568,6 +1831,7 @@ function abrirProjetoTodo(estado) {
   preencherCheckbox("verMedidas", v.verMedidas); preencherCheckbox("verPublico", v.verPublico);
   preencherCheckbox("verRegie", v.verRegie); preencherCheckbox("verPalco", v.verPalco);
   preencherCheckbox("verOrador", v.verOrador); preencherCheckbox("verParedes", v.verParedes);
+  preencherCheckbox("verCobertura", v.verCobertura);
 
   projeto = estado.projeto || null;
   ajustes = (estado.ajustes && typeof estado.ajustes === "object")
