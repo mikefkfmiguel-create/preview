@@ -644,6 +644,21 @@ $("btNovaZona").onclick = () => {
   projetoMudou();
 };
 
+$("btNovoDelay").onclick = () => {
+  const p = garantirProjeto();
+  const delays = p.zonas.filter(z => z.tipo === "tv" || z.tipo === "projecao");
+  const n = delays.length;
+  const anterior = delays[n - 1];
+  p.zonas.push({
+    nome: `Delay ${n + 1}`,
+    x: anterior ? anterior.x + anterior.w + 0.5 : 0,
+    y: 0, w: 0.8, h: 0.45,
+    cor: "#F59E0B",
+    tipo: "tv"
+  });
+  projetoMudou();
+};
+
 $("btNovoDsm").onclick = () => {
   const p = garantirProjeto();
   if (p.dsm) return;
