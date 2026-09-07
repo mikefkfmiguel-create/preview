@@ -8,7 +8,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
-         fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM } from "./cena.js";
+         fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -253,8 +253,7 @@ function montar(recentrarCamara) {
   if (projeto && projeto.zonas.length) {
     cobertura = calcularCobertura(projeto, medidas, sala, palco, gente);
     if (cobertura && $("verCobertura").checked) {
-      const mapa = desenharMapaCobertura(gente, cobertura);
-      if (mapa) desenhado.add(mapa);
+      desenhado.add(desenharConesCobertura(projeto, medidas, sala, palco, gente));
     }
   }
   escreverPainelCobertura(cobertura);
@@ -571,6 +570,13 @@ const LIMITE_VERTICAL = 15;
 // para dar três cores em vez de um sim/não.
 const CONFORTAVEL_HORIZONTAL = 20;
 const CONFORTAVEL_VERTICAL = 10;
+// A distância também entra na regra, não só o ângulo: um lugar pode estar
+// exactamente em frente do ecrã e ainda assim longe de mais para ler o que
+// lá está. A régua comum é "distância ≤ 8 a 10 vezes a altura da imagem" --
+// 8 para quem tem de ler detalhe (texto, dados), 10 é o limite antes de já
+// não se distinguir nada.
+const CONFORTAVEL_DISTANCIA_ALTURA = 8;
+const LIMITE_DISTANCIA_ALTURA = 10;
 
 function contextoDeZonas(projetoAtual, medidas, sala, palco) {
   return {
@@ -593,8 +599,8 @@ function centroDeZona(zona, ajusteZona, ctx) {
 }
 
 // O ângulo com que UM espectador vê UMA zona, no referencial dessa
-// zona. Devolve null quando está atrás do ecrã (localZ <= 0):
-// daí ninguém vê nada.
+// zona, e a distância a que está dela. Devolve null quando está atrás
+// do ecrã (localZ <= 0): daí ninguém vê nada.
 function anguloDePessoa(centro, corpos, i) {
   const dx = corpos[i] - centro.centroX;
   const dy = corpos[i + 1] - centro.centroY;
@@ -605,7 +611,8 @@ function anguloDePessoa(centro, corpos, i) {
   const distanciaHorizontal = Math.hypot(localX, localZ);
   return {
     horizontal: Math.abs(Math.atan2(localX, localZ) * 180 / Math.PI),
-    vertical: Math.abs(Math.atan2(dy, distanciaHorizontal) * 180 / Math.PI)
+    vertical: Math.abs(Math.atan2(dy, distanciaHorizontal) * 180 / Math.PI),
+    distancia: Math.hypot(localX, localZ, dy)
   };
 }
 
@@ -635,8 +642,13 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
     for (const zi of zonasInfo) {
       const ang = anguloDePessoa(zi.centro, gente.corpos, i);
       if (!ang || ang.horizontal > LIMITE_HORIZONTAL || ang.vertical > LIMITE_VERTICAL) continue;
+      // A distância mede-se em "alturas de imagem": um ecrã de 4 m aceita
+      // gente até 40 m (10×), um delay de 0,9 m já não aceita passar dos 9 m.
+      const distanciaEmAlturas = ang.distancia / zi.zona.h;
+      if (distanciaEmAlturas > LIMITE_DISTANCIA_ALTURA) continue;
       zi.comLugares++;
-      const confortavel = ang.horizontal <= CONFORTAVEL_HORIZONTAL && ang.vertical <= CONFORTAVEL_VERTICAL;
+      const confortavel = ang.horizontal <= CONFORTAVEL_HORIZONTAL && ang.vertical <= CONFORTAVEL_VERTICAL
+        && distanciaEmAlturas <= CONFORTAVEL_DISTANCIA_ALTURA;
       melhor = Math.max(melhor, confortavel ? 2 : 1);
     }
     corPorLugar[idx] = melhor;
@@ -663,45 +675,31 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
   };
 }
 
-// Cores da cobertura, partilhadas entre o mapa na cena e o texto do painel
-// (ver .cobertura-* no estilo.css) -- têm de ser a MESMA cor nos dois
-// sítios, senão o painel diz uma coisa e a cena mostra outra.
-const CORES_COBERTURA = [
-  [0.88, 0.26, 0.24],
-  [0.88, 0.72, 0.24],
-  [0.24, 0.86, 0.52]
-];
-
 /**
- * O mapa de cobertura na cena: um ponto por lugar, rente ao chão, na
- * cor da sua cobertura. Um único THREE.Points -- não se cria uma
- * malha por pessoa nem se mexe no InstancedMesh do público, que
- * continua a ser dele.
+ * O mapa de cobertura na cena: um cone translúcido por ecrã, do mesmo
+ * feitio do cone do projetor -- é o que se pediu ("um cone como na
+ * projecção"), e resolve também o problema de fundo: um ponto de 0,22 m
+ * rente ao chão perdia-se contra o público sentado à frente da câmara,
+ * e um cone grande, com contorno, não passa despercebido a ninguém.
  */
-function desenharMapaCobertura(gente, cobertura) {
-  if (!cobertura || !gente.corpos || !gente.corpos.length) return null;
-  const n = cobertura.totalLugares;
-  const posicoes = new Float32Array(n * 3);
-  const cores = new Float32Array(n * 3);
-  for (let idx = 0; idx < n; idx++) {
-    const i = idx * 4;
-    posicoes[idx * 3] = gente.corpos[i];
-    posicoes[idx * 3 + 1] = gente.corpos[i + 3] + 0.05;
-    posicoes[idx * 3 + 2] = gente.corpos[i + 2];
-    const cor = CORES_COBERTURA[cobertura.corPorLugar[idx]];
-    cores[idx * 3] = cor[0]; cores[idx * 3 + 1] = cor[1]; cores[idx * 3 + 2] = cor[2];
+function desenharConesCobertura(projetoAtual, medidas, sala, palco, gente) {
+  const grupo = new THREE.Group();
+  grupo.name = "aux:mapa-cobertura";
+  const ctx = contextoDeZonas(projetoAtual, medidas, sala, palco);
+  // O cone estende-se até ao mais curto de dois limites: o último
+  // espectador (para lá disso já não há ninguém) ou a regra da distância
+  // (10 alturas de imagem) -- um ecrã pequeno numa sala funda tem de
+  // mostrar um cone curto, senão o desenho promete alcance que a regra
+  // de leitura já reprovou.
+  const fundoDaPlateia = (gente && gente.zUltima != null) ? gente.zUltima : sala.profundidade / 2;
+  for (const zona of projetoAtual.zonas) {
+    const centro = centroDeZona(zona, ajustes.delays[zona.nome], ctx);
+    const alcancePlateia = fundoDaPlateia - centro.centroZ;
+    const alcanceDistancia = zona.h * LIMITE_DISTANCIA_ALTURA;
+    const alcance = Math.max(3, Math.min(alcancePlateia, alcanceDistancia));
+    grupo.add(fazerConeCobertura(centro, alcance, LIMITE_HORIZONTAL, LIMITE_VERTICAL));
   }
-  const geometria = new THREE.BufferGeometry();
-  geometria.setAttribute("position", new THREE.BufferAttribute(posicoes, 3));
-  geometria.setAttribute("color", new THREE.BufferAttribute(cores, 3));
-  geometria.computeBoundingSphere();
-  const pontos = new THREE.Points(geometria, new THREE.PointsMaterial({
-    size: 0.22, vertexColors: true, sizeAttenuation: true,
-    depthWrite: false, toneMapped: false
-  }));
-  pontos.name = "mapa-cobertura";
-  pontos.renderOrder = 4;
-  return pontos;
+  return grupo;
 }
 
 function escreverPainelCobertura(cobertura) {
@@ -1008,6 +1006,20 @@ function campoDeZona(zona, campo, tipo, passo) {
   input.className = "zona-campo";
   input.dataset.campo = `z${zona.__id}-${campo}`;
   input.addEventListener("input", () => {
+    // Os ajustes de posição/rotação vivem em ajustes.delays[nome] — chave
+    // pelo NOME, não pelo __id. Mudar o nome sem mudar a chave deixava o
+    // ajuste velho pendurado num nome que já ninguém usa, e a zona
+    // reaparecia com a posição de fábrica como se nunca tivesse sido
+    // deslocada.
+    if (campo === "nome") {
+      const nomeAntigo = zona.nome;
+      const nomeNovo = input.value;
+      if (nomeAntigo !== nomeNovo && ajustes.delays[nomeAntigo] && !ajustes.delays[nomeNovo]) {
+        ajustes.delays[nomeNovo] = ajustes.delays[nomeAntigo];
+        delete ajustes.delays[nomeAntigo];
+        guardarAjustes(ajustes);
+      }
+    }
     zona[campo] = tipo === "number" ? (parseFloat(input.value) || 0) : input.value;
     remontarDaqui();
   });
@@ -2406,10 +2418,37 @@ async function exportar(formato) {
   const nota = $("notaExportar");
   if (!desenhado) return;
 
-  const grupo = prepararParaExportar(desenhado, {
+  // O interruptor "Ecrãs" da secção Vista serve para olhar para a sala vazia
+  // -- não é uma decisão sobre o que sai no ficheiro. Sem isto, desligá-lo um
+  // instante (para medir uma parede, por exemplo) e esquecer de o voltar a
+  // ligar tirava os ecrãs e o DSM do .glb sem nenhum aviso a dizer porquê:
+  // parecia um defeito na exportação, quando era só um interruptor esquecido.
+  // Por isso a exportação constrói-os sempre de novo aqui, à parte da cena
+  // visível, sem tocar no que está ligado no ecrã.
+  let paraExportar = desenhado;
+  const temZonasOuDsm = projeto && ((projeto.zonas && projeto.zonas.length) || (projeto.dsm && projeto.dsm.n));
+  const extra = [];
+  if (temZonasOuDsm && !$("verEcras").checked) {
+    const salaAtual = lerSala(), palcoAtual = lerPalco();
+    if (projeto.zonas.length) {
+      extra.push(fazerZonas(projeto, totais(projeto), salaAtual, palcoAtual, textura, modoConteudo, ajustes.delays).grupo);
+    }
+    if (projeto.dsm) {
+      extra.push(fazerDSM(projeto.dsm, salaAtual, palcoAtual, ajustes.dsm, textura).grupo);
+    }
+    paraExportar = { traverse(cb) { desenhado.traverse(cb); extra.forEach((g) => g.traverse(cb)); } };
+  }
+
+  const grupo = prepararParaExportar(paraExportar, {
     comPublico: $("expPublico").checked,
     comLinhas: $("expLinhas").checked
   });
+  // Os grupos extra nunca entraram na cena — só existiram para a exportação
+  // ler as peças deles — por isso descartam-se aqui e não com cena.remove().
+  extra.forEach((g) => g.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+  }));
   const { vertices, pecas } = pesar(grupo);
   if (!pecas) { nota.textContent = "Não há nada para exportar."; return; }
 

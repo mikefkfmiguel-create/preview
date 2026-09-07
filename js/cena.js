@@ -616,16 +616,14 @@ export function fazerPublico(sala, palco, publico, regie) {
         const dz = z - regie.z;
         const localX = dx * Math.cos(rodarRad) + dz * Math.sin(rodarRad);
         const localZ = -dx * Math.sin(rodarRad) + dz * Math.cos(rodarRad);
-        // A mesma margem dos corredores -- sem ela, o teste era só o
-        // rectângulo da régie a direito, e a cadeira mais próxima ficava
-        // encostada ao painel dela, sem espaço para lá chegar ou passar.
-        // Soma-se metade do lugar nos dois eixos: testar só o centro deixava
-        // uma cadeira a ocupar fisicamente a passagem, embora o seu centro
-        // ainda estivesse fora do rectângulo. No fundo, a régie e cada cadeira
-        // são volumes, não pontos; a capacidade tem de contar a fila inteira
-        // que fica atravessada pela folga.
-        const folgaX = margemLateral + publico.entreLugares / 2;
-        const folgaZ = margemLateral + publico.entreFilas / 2;
+        // A folga é a distância de UM lugar, não a largura do corredor: a
+        // régie não é uma parede lateral, é uma mesa no meio da plateia, e
+        // "margemLateral" (1,2 m por omissão) empurrava a fila mais próxima
+        // para bem mais longe do que um espectador aceitaria à volta de
+        // qualquer outra cadeira. Um lugar inteiro de vão já dá espaço para
+        // passar e não deixa ninguém sentado em cima do painel.
+        const folgaX = publico.entreLugares;
+        const folgaZ = publico.entreFilas;
         if (Math.abs(localX) < regie.largura / 2 + folgaX
           && Math.abs(localZ) < regie.profundidade / 2 + folgaZ) continue;
       }
@@ -858,6 +856,67 @@ export function fazerProjecao(projetor, imagem, textura) {
   }));
   cone.name = "aux:cone";
   grupo.add(cone);
+
+  return grupo;
+}
+
+/**
+ * O cone de cobertura de UM ecrã: o mesmo desenho do cone do projetor, ao
+ * contrário — ali é o feixe da lente até à tela, aqui é o ecrã a apontar
+ * para a plateia, até onde o ângulo ainda é aceitável.
+ *
+ * `centro` é o referencial da zona (centroX/Y/Z + rotacao, o mesmo que
+ * `anguloDePessoa` usa do lado do cálculo) e `angH`/`angV` os limites em
+ * graus. Sem um cone destes, "o ecrã cumpre a regra" era só um número no
+ * painel — via-se a contagem, não se via ONDE é que a sala deixa de ver bem.
+ */
+export function fazerConeCobertura(centro, alcance, angH, angV, cor = 0x8FC2FF) {
+  const grupo = new THREE.Group();
+  grupo.name = "aux:cobertura";
+  const rad = Math.PI / 180;
+  const rot = centro.rotacao || 0;
+  const apice = [centro.centroX, centro.centroY, centro.centroZ];
+
+  // Do referencial da zona (rodado) para o do mundo -- o inverso exacto da
+  // conta que `anguloDePessoa` faz para ir do mundo para a zona.
+  function ponto(h, v) {
+    const hr = h * rad, vr = v * rad;
+    const localZ = alcance * Math.cos(hr);
+    const localX = alcance * Math.sin(hr);
+    const y = Math.hypot(localX, localZ) * Math.tan(vr);
+    const wx = localX * Math.cos(rot) + localZ * Math.sin(rot);
+    const wz = -localX * Math.sin(rot) + localZ * Math.cos(rot);
+    return [centro.centroX + wx, centro.centroY + y, centro.centroZ + wz];
+  }
+
+  const cantos = [ponto(-angH, -angV), ponto(angH, -angV), ponto(angH, angV), ponto(-angH, angV)];
+
+  const vertices = [];
+  for (let i = 0; i < 4; i++) {
+    const a = cantos[i], b = cantos[(i + 1) % 4];
+    vertices.push(...apice, ...a, ...b);
+  }
+  const geometria = new THREE.BufferGeometry();
+  geometria.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometria.computeVertexNormals();
+  const malha = new THREE.Mesh(geometria, new THREE.MeshBasicMaterial({
+    color: cor, transparent: true, opacity: 0.12,
+    side: THREE.DoubleSide, depthWrite: false
+  }));
+  malha.name = "aux:cobertura-cone";
+  grupo.add(malha);
+
+  // O contorno: quatro arestas do ápice e as quatro da boca do cone, para se
+  // ver o limite mesmo à luz do dia, quando o preenchimento quase não se nota.
+  const linhas = [];
+  for (const c of cantos) linhas.push(...apice, ...c);
+  for (let i = 0; i < 4; i++) linhas.push(...cantos[i], ...cantos[(i + 1) % 4]);
+  const geomLinhas = new THREE.BufferGeometry();
+  geomLinhas.setAttribute("position", new THREE.Float32BufferAttribute(linhas, 3));
+  const contorno = new THREE.LineSegments(geomLinhas,
+    new THREE.LineBasicMaterial({ color: cor, transparent: true, opacity: 0.45 }));
+  contorno.name = "aux:cobertura-contorno";
+  grupo.add(contorno);
 
   return grupo;
 }

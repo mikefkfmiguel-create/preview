@@ -120,7 +120,10 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
 }
 .zona-nome { width: 84px; flex: 0 1 84px; }
 #listaZonas .zona-editavel .med { margin-left: 0; display: flex; align-items: center; gap: 3px; }
-.zona-campo[type=number] { width: 52px; font-variant-numeric: tabular-nums; }
+/* 52px cortava dígitos de valores com sinal e casas decimais (p.ex.
+   "-6,80" na posição ou "-30" na rotação): as setas do campo numérico
+   comem uma fatia da caixa que o width não tinha em conta. */
+.zona-campo[type=number] { width: 68px; font-variant-numeric: tabular-nums; }
 .zona-remover {
   margin-left: auto; flex: 0 0 auto; width: 26px; height: 26px; padding: 0;
   font-size: 13px; background: none; border: 1px solid var(--linha);
