@@ -1247,13 +1247,20 @@ function linhaDeDsm() {
  * objeto `alvo` (a entrada de `ajustes.delays[nome]` ou `ajustes.dsm[i]`) e
  * volta a montar a cena, com o mesmo atraso dos outros campos do painel.
  */
-function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", idCampo) {
+function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", idCampo, min = -500, max = 500) {
   const campo = document.createElement("label");
   campo.className = "ajuste-campo";
   campo.textContent = rotulo + " ";
   const input = document.createElement("input");
   input.type = "number";
   input.step = passo;
+  // Sem "min" negativo, o teclado numérico do telemóvel (sobretudo Android)
+  // não mostra a tecla de menos -- e um deslocamento ou rotação negativa
+  // (para a esquerda, para trás, ao contrário) fica impossível de escrever
+  // a dedo, só dava para chegar lá pelas setas. O "min" é o sinal de que o
+  // teclado precisa para desenhar essa tecla.
+  input.min = String(min);
+  input.max = String(max);
   input.value = alvo[chave] || 0;
   if (idCampo) input.dataset.campo = idCampo;
   input.addEventListener("input", () => {
@@ -1302,7 +1309,7 @@ function desenharAjustes() {
     linha.append(campoAjuste("↔", ajustes.delays[z.nome], "dx", "m", "0.05", `d-${z.nome}-dx`));
     linha.append(campoAjuste("profundidade", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
     linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy", "m", "0.05", `d-${z.nome}-dy`));
-    linha.append(campoAjuste("rodar", ajustes.delays[z.nome], "rot", "°", "5", `d-${z.nome}-rot`));
+    linha.append(campoAjuste("rodar", ajustes.delays[z.nome], "rot", "°", "5", `d-${z.nome}-rot`, -180, 180));
     lista.append(linha);
   }
 
@@ -1315,7 +1322,7 @@ function desenharAjustes() {
     linha.append(nome);
     linha.append(campoAjuste("↔", ajustes.dsm[i], "dx", "m", "0.05", `m${i}-dx`));
     linha.append(campoAjuste("profundidade", ajustes.dsm[i], "dz", "m", "0.05", `m${i}-dz`));
-    linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5", `m${i}-rot`));
+    linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5", `m${i}-rot`, -180, 180));
     lista.append(linha);
   }
 
