@@ -245,6 +245,7 @@ function montar(recentrarCamara) {
       `a sala acaba antes.`;
     aviso.classList.add("mostra");
   }
+  avisarAngulosDeVisualizacao(projeto, medidas, sala, palco, gente);
 
   cena.add(desenhado);
   if (document.activeElement !== $("ecraL") && document.activeElement !== $("ecraA")) {
@@ -537,6 +538,63 @@ function avisarSeNaoCabe(medidas, sala, palco) {
   const aviso = $("aviso");
   if (problemas.length) {
     aviso.textContent = "Não cabe: " + problemas.join("; ") + ".";
+    aviso.classList.add("mostra");
+  }
+}
+
+function avisarAngulosDeVisualizacao(projetoAtual, medidas, sala, palco, gente) {
+  if (!projetoAtual || !medidas || !gente || !gente.corpos.length) return;
+
+  const LIMITE_HORIZONTAL = 30;
+  const LIMITE_VERTICAL = 15;
+  const esquerda = Math.min(...projetoAtual.zonas.map(z => z.x));
+  const fundo = Math.max(...projetoAtual.zonas.map(z => z.y + z.h));
+  const meio = medidas.largura / 2;
+  const base = palco.altura + palco.acimaDoPalco;
+  const z0 = -sala.profundidade / 2 + 0.35;
+  const fora = [];
+
+  for (const zona of projetoAtual.zonas) {
+    const aj = ajustes.delays[zona.nome] || {};
+    const centroX = (zona.x - esquerda) + zona.w / 2 - meio + (Number(aj.dx) || 0);
+    const centroY = base + (fundo - (zona.y + zona.h)) + zona.h / 2
+      + (Number(aj.dy) || 0);
+    const centroZ = z0 + (Number(aj.dz) || 0);
+    const rotacao = -(Number(aj.rot) || 0) * Math.PI / 180;
+    let maiorHorizontal = 0;
+    let maiorVertical = 0;
+
+    for (let i = 0; i < gente.corpos.length; i += 4) {
+      const dx = gente.corpos[i] - centroX;
+      const dy = gente.corpos[i + 1] - centroY;
+      const dz = gente.corpos[i + 2] - centroZ;
+      const localX = dx * Math.cos(rotacao) - dz * Math.sin(rotacao);
+      const localZ = dx * Math.sin(rotacao) + dz * Math.cos(rotacao);
+      const distanciaHorizontal = Math.hypot(localX, localZ);
+      if (localZ <= 0.01) {
+        maiorHorizontal = 180;
+        continue;
+      }
+      maiorHorizontal = Math.max(maiorHorizontal,
+        Math.abs(Math.atan2(localX, localZ) * 180 / Math.PI));
+      maiorVertical = Math.max(maiorVertical,
+        Math.abs(Math.atan2(dy, distanciaHorizontal) * 180 / Math.PI));
+    }
+
+    if (maiorHorizontal > LIMITE_HORIZONTAL || maiorVertical > LIMITE_VERTICAL) {
+      const limites = [];
+      if (maiorHorizontal > LIMITE_HORIZONTAL) limites.push("lateral");
+      if (maiorVertical > LIMITE_VERTICAL) limites.push("vertical");
+      fora.push(`${zona.nome} (${limites.join(" e ")})`);
+    }
+  }
+
+  if (fora.length) {
+    const aviso = $("aviso");
+    const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
+    aviso.textContent = jaTem +
+      `Ângulo de visualização fora do recomendado (±${LIMITE_HORIZONTAL}° lateral, ` +
+      `±${LIMITE_VERTICAL}° vertical): ${fora.join(", ")}.`;
     aviso.classList.add("mostra");
   }
 }
