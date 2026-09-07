@@ -1110,6 +1110,28 @@ function campoPosicaoDeZona(zona) {
   return campoComPasso(input, "0.05", -500, 500);
 }
 
+/** O campo "profundidade" da linha da zona: o mesmo ajuste (dz) que já
+ *  desloca os delays e o DSM para a frente/trás do palco — falta aqui era
+ *  só a UI, o resto (fazerZonas() em cena.js) já lia "dz" para qualquer
+ *  zona, LED incluído. Sem isto, rodar uma zona perto do fim da sala podia
+ *  fazê-la sair pela parede fora, sem maneira nenhuma de a trazer de volta
+ *  para dentro. */
+function campoProfundidadeDeZona(zona) {
+  const aj = ajusteDaZona(zona.nome);
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.05";
+  input.value = aj.dz || 0;
+  input.className = "zona-campo";
+  input.dataset.campo = `z${zona.__id}-prof`;
+  input.addEventListener("input", () => {
+    aj.dz = parseFloat(input.value) || 0;
+    guardarAjustes(ajustes);
+    remontarDaqui();
+  });
+  return campoComPasso(input, "0.05", -500, 500);
+}
+
 function campoRotacaoDeZona(zona) {
   const aj = ajusteDaZona(zona.nome);
   if (aj.rot == null) aj.rot = 0;
@@ -1125,6 +1147,26 @@ function campoRotacaoDeZona(zona) {
     remontarDaqui();
   });
   return campoComPasso(input, "5", -180, 180);
+}
+
+/** O "tilt" da linha da zona — o mesmo eixo de cima/baixo que já existe em
+ *  "Posições" para delays e DSM, agora também aqui para qualquer zona.
+ *  Positivo inclina para baixo (ver o comentário em fazerZona(), cena.js). */
+function campoTiltDeZona(zona) {
+  const aj = ajusteDaZona(zona.nome);
+  if (aj.tilt == null) aj.tilt = 0;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "5";
+  input.value = aj.tilt || 0;
+  input.className = "zona-campo";
+  input.dataset.campo = `z${zona.__id}-tilt`;
+  input.addEventListener("input", () => {
+    aj.tilt = parseFloat(input.value) || 0;
+    guardarAjustes(ajustes);
+    remontarDaqui();
+  });
+  return campoComPasso(input, "5", -90, 90);
 }
 
 function nomeLivreDeDelay(projetoAtual) {
@@ -1189,9 +1231,17 @@ function linhaDeZona(zona, indice) {
   pos.className = "med";
   pos.append(document.createTextNode("↔ "), campoPosicaoDeZona(zona));
 
+  const prof = document.createElement("span");
+  prof.className = "med";
+  prof.append(document.createTextNode("profundidade "), campoProfundidadeDeZona(zona));
+
   const rodar = document.createElement("span");
   rodar.className = "med";
   rodar.append(document.createTextNode("rodar "), campoRotacaoDeZona(zona), document.createTextNode(" °"));
+
+  const tilt = document.createElement("span");
+  tilt.className = "med";
+  tilt.append(document.createTextNode("tilt "), campoTiltDeZona(zona), document.createTextNode(" °"));
 
   let duplicar = null;
   if (zona.tipo === "tv" || zona.tipo === "projecao") {
@@ -1224,7 +1274,7 @@ function linhaDeZona(zona, indice) {
     projetoMudou();
   };
 
-  linha.append(cor, nome, tipo, med, pos, rodar);
+  linha.append(cor, nome, tipo, med, pos, prof, rodar, tilt);
   if (duplicar) linha.append(duplicar);
   linha.append(remover);
   return linha;
