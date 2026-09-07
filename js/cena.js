@@ -483,7 +483,11 @@ export function fazerPublico(sala, palco, publico, regie) {
         const dz = z - regie.z;
         const localX = dx * Math.cos(rodarRad) + dz * Math.sin(rodarRad);
         const localZ = -dx * Math.sin(rodarRad) + dz * Math.cos(rodarRad);
-        if (Math.abs(localX) < regie.largura / 2 && Math.abs(localZ) < regie.profundidade / 2) continue;
+        // A mesma margem dos corredores -- sem ela, o teste era só o
+        // rectângulo da régie a direito, e a cadeira mais próxima ficava
+        // encostada ao painel dela, sem espaço para lá chegar ou passar.
+        if (Math.abs(localX) < regie.largura / 2 + margemLateral
+          && Math.abs(localZ) < regie.profundidade / 2 + margemLateral) continue;
       }
 
       // Ninguém tem a altura exacta do vizinho, e uma plateia de clones vê-se
