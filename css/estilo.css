@@ -31,11 +31,16 @@ body { display: flex; }
   padding-bottom: 30px;
 }
 
+/* Duas linhas, não uma: com o logo + título + lotação já a ocupar quase todo
+   o painel (320px de largura), 4 botões de ação a 30px cada não cabiam ao
+   lado -- ficavam a transbordar para fora do painel, sem erro nenhum a
+   avisar (foi o que aconteceu ao "devolver" entrar como 4º botão). */
 #painel header {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; gap: 10px;
   padding: 16px 18px; border-bottom: 1px solid var(--linha);
   position: sticky; top: 0; background: var(--painel); z-index: 3;
 }
+.cabecalho-linha1 { display: flex; align-items: center; gap: 12px; }
 #marca { height: 30px; width: auto; }
 #painel header b { display: block; font-size: 15px; letter-spacing: .04em; }
 #painel header span { display: block; font-size: 12px; color: var(--apagado); }
@@ -46,10 +51,26 @@ body { display: flex; }
    painel ate ao rodape onde ja estava escrita. */
 .lotacao-topo {
   display: inline-flex !important; align-items: center;
-  margin-left: auto; margin-right: 90px;
+  margin-left: auto;
   font-size: 14px; font-weight: 600; color: var(--ciano);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+/* O grupo de acoes do cabecalho (sincronizar, auto, devolver, fechar) --
+   antes eram 2 botoes com "position: absolute" e a lotacao com um
+   "margin-right: 90px" a decorar o espaco a olho. Ao entrar um 3o botao
+   (devolver) isso partiu-se: ficava fora do painel, invisivel, sem erro
+   nenhum a avisar. Flex normal nao tem esse problema -- cresce sozinho. */
+.acoes-topo { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.btn-icone {
+  flex: 0 0 30px; width: 30px; height: 30px; padding: 0;
+  font-size: 15px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+/* O toggle de sincronizacao automatica so tinha o texto "ON"/"OFF" a dizer
+   o estado -- ao encolher para so o icone, isso ficava sem nenhum sinal
+   visual. A cor faz agora esse papel (title continua a dizer por extenso). */
+#btSincronizacao:not(.desligado) { border-color: var(--azul); color: var(--azul); }
+.desligado { opacity: .55; }
 
 #painel section { padding: 16px 18px; border-bottom: 1px solid var(--linha); }
 #painel h2 {
@@ -186,20 +207,8 @@ main { flex: 1; position: relative; min-width: 0; }
 
 /* "position: relative" aqui pisava o "sticky" da regra lá em cima -- e o
    cabeçalho, com a versão e agora a lotação, deixava de acompanhar o scroll
-   do painel. Os botões absolutos (#btFechar, #btSincronizar) continuam bem
-   posicionados: "sticky" também serve de âncora para eles. */
+   do painel. */
 #painel header { position: sticky; top: 0; z-index: 5; }
-#btFechar {
-  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-  width: 30px; height: 30px; flex: 0 0 30px; padding: 0; font-size: 18px; line-height: 1;
-}
-/* Ao lado do fechar, e não a competir com ele: forçar a ponte com os
-   Calculadores sem depender do evento "storage", que é silencioso e às
-   vezes não dispara consoante como as duas janelas foram abertas. */
-#btSincronizar {
-  position: absolute; right: 50px; top: 50%; transform: translateY(-50%);
-  width: 30px; height: 30px; flex: 0 0 30px; padding: 0; font-size: 15px; line-height: 1;
-}
 #btAbrir {
   position: absolute; left: 12px; top: 12px; z-index: 4; width: 38px; height: 38px;
   padding: 0; font-size: 17px; display: none;
