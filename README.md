@@ -227,15 +227,23 @@ não uma folga de corredor.
 
 Um rectângulo reservado a quem opera som, luz e vídeo — não é lugar de
 plateia. Tem sempre **pelo menos 2 × 2 m** (o mínimo aplica-se mesmo que se
-tente menos), mas cresce e desloca-se pelos campos, como o palco. Uma mesa
-marca o lado virado para o palco, e o rectângulo fica visível no chão para se
-perceber logo que ali não há cadeiras.
+tente menos), mas cresce, desloca-se e **roda** pelos campos, como o palco —
+rodar serve para a encostar a uma parede lateral em vez de a deixar sempre de
+frente para o palco. Uma mesa marca o lado virado para o palco (e roda com o
+resto), e o rectângulo fica visível no chão para se perceber logo que ali não
+há cadeiras.
 
 Quem cairia num lugar dentro da régie fica sem cadeira — é um vão na plateia,
 contado a menos nos lugares totais, não uma pessoa sentada por cima de uma
-mesa de mistura. Esse vão existe sempre, mesmo com a régie escondida da
-vista: o interruptor só tira o desenho da mesa, não devolve o espaço à
-plateia — a régie continua lá, só não se está a olhar para ela.
+mesa de mistura. Isto testa-se já com a régie rodada: o rectângulo entra no
+seu próprio referencial antes de se perguntar "cai cá dentro?", por isso o
+vão acompanha a rotação e não fica preso ao eixo original. E é um interruptor
+a sério — desligar a régie devolve os lugares todos à plateia, não é só
+esconder o desenho da mesa.
+
+Num auditório a subir, a régie sobe com a plateia: fica à altura do degrau
+onde a sua profundidade cai, e não no nível do chão como se estivesse sempre
+na primeira fila.
 
 ## As duas apps falam sozinhas
 

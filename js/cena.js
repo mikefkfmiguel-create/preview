@@ -102,7 +102,16 @@ export function fazerPalco({ largura, profundidade }, palco) {
  * lugares) com uma mesa por cima, virada para o palco.
  *
  * Tem sempre pelo menos 2×2 m — é o que cabe uma mesa de mistura e alguém
- * atrás dela — mas cresce e desloca-se pelos campos, como o palco.
+ * atrás dela — mas cresce e desloca-se pelos campos, como o palco. Roda para
+ * se poder encostar a uma parede lateral em vez de ficar sempre de frente
+ * para o palco, e sobe com o degrau da plateia num auditório -- senão ficava
+ * a meio caminho dentro do chão, e não em cima dele.
+ *
+ * Ao contrário da primeira versão, aqui é o GRUPO que leva a posição e a
+ * rotação -- as peças ficam todas na origem local. Posicionar cada peça já
+ * em coordenadas do mundo (como se fazia antes) funciona sem rotação, mas
+ * assim que se roda o grupo, tudo passa a rodar à volta do CANTO da sala em
+ * vez de rodar no próprio sítio.
  */
 export function fazerRegie(sala, regie) {
   const grupo = new THREE.Group();
@@ -117,7 +126,7 @@ export function fazerRegie(sala, regie) {
     }));
   chao.name = "regie-chao";
   chao.rotation.x = -Math.PI / 2;
-  chao.position.set(regie.x || 0, 0.012, regie.z || 0);
+  chao.position.y = 0.012;
   grupo.add(chao);
 
   // O contorno é só uma ajuda de leitura -- marca "aux:" como a grelha e as
@@ -128,18 +137,22 @@ export function fazerRegie(sala, regie) {
     new THREE.LineBasicMaterial({ color: 0xC9A227 }));
   contorno.name = "aux:regie-contorno";
   contorno.rotation.copy(chao.rotation);
-  contorno.position.copy(chao.position);
-  contorno.position.y = 0.014;
+  contorno.position.set(0, 0.014, 0);
   grupo.add(contorno);
 
-  // A mesa, virada para o palco (para -Z) e encostada à metade da frente do
-  // rectângulo -- é daí que se opera, não do meio do espaço reservado.
+  // A mesa, virada para o palco (-Z local) e encostada à metade da frente do
+  // rectângulo -- é daí que se opera, não do meio do espaço reservado. Roda
+  // com o resto do grupo, por isso vira sempre para o mesmo lado do
+  // rectângulo, mesmo com a régie de lado na sala.
   const mesa = new THREE.Mesh(
     new THREE.BoxGeometry(largura * 0.8, 0.9, Math.min(0.6, profundidade * 0.4)),
     new THREE.MeshStandardMaterial({ color: 0x2A2320, roughness: 0.8 }));
   mesa.name = "regie-mesa";
-  mesa.position.set(regie.x || 0, 0.45, (regie.z || 0) - profundidade / 2 + 0.35);
+  mesa.position.set(0, 0.45, -profundidade / 2 + 0.35);
   grupo.add(mesa);
+
+  grupo.rotation.y = -(regie.rodar || 0) * Math.PI / 180;
+  grupo.position.set(regie.x || 0, regie.elevacao || 0, regie.z || 0);
 
   return grupo;
 }
@@ -442,10 +455,19 @@ export function fazerPublico(sala, palco, publico, regie) {
       // A régie não é um lugar de plateia — quem lá está opera, não assiste
       // sentado nesse mesmo metro quadrado. Um lugar que caia dentro do
       // rectângulo dela salta-se, e fica ali um vão em vez de uma cadeira.
+      //
+      // O rectângulo pode estar rodado (encostado a uma parede lateral, por
+      // exemplo), por isso o lugar não se testa em X/Z do mundo directamente:
+      // primeiro traz-se para o referencial da régie -- rodado ao contrário
+      // do que ela está -- e só depois se pergunta se cai dentro da caixa,
+      // que aí volta a ser só largura/2 e profundidade/2.
       if (regie) {
-        const dentroX = Math.abs(x - regie.x) < regie.largura / 2;
-        const dentroZ = Math.abs(z - regie.z) < regie.profundidade / 2;
-        if (dentroX && dentroZ) continue;
+        const rodarRad = (regie.rodar || 0) * Math.PI / 180;
+        const dx = x - regie.x;
+        const dz = z - regie.z;
+        const localX = dx * Math.cos(rodarRad) + dz * Math.sin(rodarRad);
+        const localZ = -dx * Math.sin(rodarRad) + dz * Math.cos(rodarRad);
+        if (Math.abs(localX) < regie.largura / 2 && Math.abs(localZ) < regie.profundidade / 2) continue;
       }
 
       // Ninguém tem a altura exacta do vizinho, e uma plateia de clones vê-se

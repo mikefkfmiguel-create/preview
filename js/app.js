@@ -91,8 +91,31 @@ function lerRegie() {
   return {
     largura: Math.max(2, num("regieL") || 2),
     profundidade: Math.max(2, num("regieP") || 2),
-    x: num("regieX"), z: num("regieZ")
+    x: num("regieX"), z: num("regieZ"),
+    rodar: num("regieR")
   };
+}
+
+// Em que degrau do auditório cai a régie, dada a profundidade a que ela está.
+// É a mesma conta que fazerPublico faz fila a fila (zPrimeira + f*entreFilas),
+// só que ao contrário: dada uma profundidade, que fila é essa. Sem isto a
+// régie ficava sempre ao nível do chão, e num auditório a subir isso é ficar
+// meio enterrada dentro do degrau em vez de assentar em cima dele.
+//
+// O tecto da fila não é só o número pedido no campo "filas" -- fazerPublico
+// pára mais cedo se a sala não tiver profundidade para todas (a mesma margem
+// dos corredores lá atrás). Usar só publico.filas-1 aqui dava um degrau a
+// mais nesse caso: a régie subia para uma fila que nem chega a ser desenhada.
+function elevacaoDaRegie(sala, palco, publico, z) {
+  if (!publico.filas || !publico.inclinacao) return 0;
+  const margemLateral = publico.larguraCorredor || 1.2;
+  const zPrimeira = -sala.profundidade / 2 + palco.profundidade + publico.primeiraFila;
+  const zUltimaPossivel = sala.profundidade / 2 - margemLateral;
+  const ultimaFilaQueCabe = Math.max(0, Math.floor((zUltimaPossivel - zPrimeira) / publico.entreFilas));
+  const tecto = Math.min(publico.filas - 1, ultimaFilaQueCabe);
+  const fila = Math.round((z - zPrimeira) / publico.entreFilas);
+  const filaLimitada = Math.max(0, Math.min(tecto, fila));
+  return filaLimitada * publico.inclinacao;
 }
 
 // -------------------------------------------------------------------- montar
@@ -152,7 +175,10 @@ function montar(recentrarCamara) {
   // desta lista, e não uma opção que só esconde o desenho.
   const verRegie = $("verRegie").checked;
   const regie = verRegie ? lerRegie() : null;
-  if (regie) desenhado.add(fazerRegie(sala, regie));
+  if (regie) {
+    regie.elevacao = elevacaoDaRegie(sala, palco, publico, regie.z);
+    desenhado.add(fazerRegie(sala, regie));
+  }
 
   // Os interruptores existem porque cada vista serve uma pergunta diferente:
   // sem paredes vê-se a sala de fora, sem público vê-se a estrutura, e sem
