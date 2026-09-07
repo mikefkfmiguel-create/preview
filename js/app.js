@@ -894,8 +894,13 @@ function escreverPainel(medidas, lugares, gentePosta) {
   // foco a cada letra, porque o campo onde se estava a escrever deixava de
   // existir e nascia outro igual no lugar.
   const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
+  // O valor TAL COMO ESTÁ ESCRITO, não só a posição do cursor -- um campo
+  // "number" a meio de se apagar (vazio, ou só um "-" a começar um
+  // negativo) não é um número válido, e sem isto o campo reconstruído
+  // saltava de volta para o último valor válido no instante seguinte:
+  // parecia que o telemóvel não deixava apagar o que lá estava.
   const focoGuardado = ativo && ativo.dataset.campo
-    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd }
+    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd, valor: ativo.value }
     : null;
 
   if (!temAlgo) {
@@ -925,6 +930,7 @@ function escreverPainel(medidas, lugares, gentePosta) {
     if (focoGuardado) {
       const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
       if (novo) {
+        if (novo.type === "text" || novo.type === "number") novo.value = focoGuardado.valor;
         novo.focus();
         if (typeof novo.setSelectionRange === "function" && (novo.type === "text" || novo.type === "number")) {
           try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* alguns "number" recusam seleção — sem problema, fica só o foco */ }
@@ -1293,7 +1299,7 @@ function desenharAjustes() {
   // escrever a direito.
   const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
   const focoGuardado = ativo && ativo.dataset.campo
-    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd }
+    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd, valor: ativo.value }
     : null;
 
   lista.innerHTML = "";
@@ -1336,6 +1342,7 @@ function desenharAjustes() {
   if (focoGuardado) {
     const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
     if (novo) {
+      novo.value = focoGuardado.valor;
       novo.focus();
       try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* alguns "number" recusam seleção — sem problema, fica só o foco */ }
     }
