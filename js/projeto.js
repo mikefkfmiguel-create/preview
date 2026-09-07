@@ -256,6 +256,7 @@ export const CHAVE_BRIEFING = "mikeapps-briefing-v1";
 // A resposta do Preview para os Calculadores. Mantém o nome antigo para que
 // o botão "Trazer do Preview" continue a reconhecer o aviso.
 export const CHAVE_DEVOLUCAO = "mikeapps-ecra-v1";
+export const CHAVE_SINCRONIZACAO = "mikeapps-sincronizacao-v1";
 
 // Onde é que um delay ou um DSM ficam exatamente na sala é uma decisão do
 // preview, não dos Calculadores — quem sabe a parede/coluna certa é quem está

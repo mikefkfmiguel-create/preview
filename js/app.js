@@ -5,6 +5,7 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
+         CHAVE_SINCRONIZACAO,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
@@ -51,6 +52,25 @@ let limitesDoShift = null; // até onde a lente escolhida faz shift, se se soube
 // preview, guardada neste aparelho (ver CHAVE_AJUSTES em projeto.js).
 let ajustes = ajustesGuardados();
 
+function sincronizacaoAutomaticaLigada() {
+  try {
+    return localStorage.getItem(CHAVE_SINCRONIZACAO) !== "desligada";
+  } catch (_) {
+    return true;
+  }
+}
+
+function atualizarBotaoSincronizacao() {
+  const botao = $("btSincronizacao");
+  if (!botao) return;
+  const ligada = sincronizacaoAutomaticaLigada();
+  botao.textContent = ligada ? "↔ ON" : "↔ OFF";
+  botao.classList.toggle("desligado", !ligada);
+  botao.title = ligada
+    ? "Sincronização automática ligada — clica para desligar"
+    : "Sincronização automática desligada — clica para ligar";
+}
+
 // ------------------------------------------------------------------ leituras
 
 const num = (id) => parseFloat($(id).value) || 0;
@@ -76,6 +96,7 @@ function lerProjecao() {
     shiftV: num("projShiftV") / 100,
     shiftH: num("projShiftH") / 100
   };
+
 }
 
 function lerPublico() {
@@ -2641,6 +2662,15 @@ $("btSincronizar").onclick = () => {
   setTimeout(() => aviso.classList.remove("mostra"), 3000);
 };
 
+$("btSincronizacao").onclick = () => {
+  try {
+    localStorage.setItem(CHAVE_SINCRONIZACAO,
+      sincronizacaoAutomaticaLigada() ? "desligada" : "ligada");
+  } catch (_) {}
+  atualizarBotaoSincronizacao();
+};
+atualizarBotaoSincronizacao();
+
 // ------------------------------------------------------------ dobrar o painel
 //
 // O painel cresceu -- sala, palco, publico, projecao, conteudo, planta,
@@ -2813,7 +2843,7 @@ try {
   // Primeiro o que vem no endereço (foi alguém que carregou no "Ver em 3D"),
   // depois o último que os Calculadores deixaram guardado — assim abrir o
   // preview sozinho já mostra o projeto em que se andava a trabalhar.
-  projeto = projetoDoEndereco() || projetoGuardado();
+  projeto = projetoDoEndereco() || (sincronizacaoAutomaticaLigada() ? projetoGuardado() : null);
   // E a sala que vier com ele manda: quem carrega no botão do assistente já lá
   // escreveu as medidas do sítio, e chegar cá a uma sala de 20 × 14 por
   // omissão é receber de volta uma resposta a uma pergunta que não fez.
@@ -2860,6 +2890,11 @@ addEventListener("hashchange", () => {
 // só chega às OUTRAS abas do mesmo domínio, que é exactamente o caso: as duas
 // apps lado a lado.
 addEventListener("storage", (e) => {
+  if (e.key === CHAVE_SINCRONIZACAO) {
+    atualizarBotaoSincronizacao();
+    return;
+  }
+  if (!sincronizacaoAutomaticaLigada()) return;
   // O projetor tambem atravessa por aqui, e esse aplica-se logo: do outro lado
   // foi preciso carregar num botao para ele vir, o que ja e a decisao tomada.
   if (e.key === CHAVE_PROJETOR && e.newValue) {
@@ -2900,7 +2935,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
     document.getElementById("sProjecao").classList.remove("fechada");
     return;
   }
-  const p = projetorGuardado();
+  const p = sincronizacaoAutomaticaLigada() ? projetorGuardado() : null;
   if (!p) return;
   $("btTrazerProjetor").textContent = "Trazer: " + (p.modelo || "projetor dos Calculadores");
   $("notaProj").innerHTML = `Está guardado um projetor` +
