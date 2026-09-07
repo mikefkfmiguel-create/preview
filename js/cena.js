@@ -169,10 +169,15 @@ function fazerZona(zona, alturaBase, z0, conteudo) {
 
   const ESPESSURA = 0.12;
   const gomos = zona.curva ? Math.max(4, Math.min(24, Math.round(zona.w / 0.5))) : 1;
+  // Um raio pequeno para uma zona larga dá um ângulo enorme -- e passado
+  // dos 360°, os gomos deixam de fazer um arco e passam a dar a volta sobre
+  // si próprios, gomo em cima de gomo, o que no ecrã parece um leque de
+  // papel aberto em vez de uma parede curva. Um ecrã não se dobra mais do
+  // que uma volta inteira, por isso o ângulo fica preso a menos de 360°.
   const anguloTotal = zona.curva
-    ? (zona.curva.modo === "raio"
+    ? Math.max(-359, Math.min(359, zona.curva.modo === "raio"
         ? (zona.w / Math.max(0.5, zona.curva.valor)) * (180 / Math.PI)
-        : zona.curva.valor)
+        : zona.curva.valor))
     : 0;
   const sentido = zona.curva && zona.curva.dir === "concavo" ? -1 : 1;
 
