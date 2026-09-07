@@ -739,6 +739,13 @@ function campoRotacaoDeZona(zona) {
   return input;
 }
 
+function nomeLivreDeDelay(projetoAtual) {
+  let numero = projetoAtual.zonas.filter(z => z.tipo === "tv" || z.tipo === "projecao").length + 1;
+  let nome = `Delay ${numero}`;
+  while (projetoAtual.zonas.some(z => z.nome === nome)) nome = `Delay ${++numero}`;
+  return nome;
+}
+
 /** Uma linha de zona editável: nome, tipo, medidas, posição e um botão para
  *  a tirar do projeto — tudo com o mesmo feitio de campo que o resto do
  *  painel, para não parecer uma caixa de ferramentas à parte. */
@@ -798,6 +805,28 @@ function linhaDeZona(zona, indice) {
   rodar.className = "med";
   rodar.append(document.createTextNode("rodar "), campoRotacaoDeZona(zona), document.createTextNode(" °"));
 
+  let duplicar = null;
+  if (zona.tipo === "tv" || zona.tipo === "projecao") {
+    duplicar = document.createElement("button");
+    duplicar.className = "zona-remover";
+    duplicar.textContent = "⧉";
+    duplicar.title = "Duplicar este delay";
+    duplicar.onclick = () => {
+      const novoNome = nomeLivreDeDelay(projeto);
+      const copia = {
+        ...zona,
+        nome: novoNome,
+        x: (Number(zona.x) || 0) + (Number(zona.w) || 0) + 0.5
+      };
+      projeto.zonas.splice(indice + 1, 0, copia);
+      const original = ajusteDaZona(zona.nome);
+      ajustes.delays[novoNome] = { ...original };
+      guardarAjustes(ajustes);
+      projetoMudou();
+      mostrarZonas();
+    };
+  }
+
   const remover = document.createElement("button");
   remover.className = "zona-remover";
   remover.textContent = "🗑";
@@ -807,7 +836,9 @@ function linhaDeZona(zona, indice) {
     projetoMudou();
   };
 
-  linha.append(cor, nome, tipo, med, pos, rodar, remover);
+  linha.append(cor, nome, tipo, med, pos, rodar);
+  if (duplicar) linha.append(duplicar);
+  linha.append(remover);
   return linha;
 }
 let proximoIdZona = 0;
