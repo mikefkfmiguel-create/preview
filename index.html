@@ -14,15 +14,20 @@
 
 <aside id="painel">
   <header>
-    <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
-    <div>
-      <b>Preview</b>
-      <span>o projeto no terreno       <i id="versao">v2.30</i></span>
+    <div class="cabecalho-linha1">
+      <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
+      <div>
+        <b>Preview</b>
+        <span>o projeto no terreno       <i id="versao">v2.31</i></span>
+      </div>
+      <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, com a sala como está agora">—</span>
     </div>
-    <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, com a sala como está agora">—</span>
-    <button id="btSincronizar" title="Vai buscar já o projeto e o projetor que os Calculadores tiverem guardados — sem esperar pelo aviso automático">🔄</button>
-    <button id="btSincronizacao" title="Sincronização automática ligada — clica para desligar">↔ ON</button>
-    <button id="btFechar" title="Esconder o painel (Tab)">‹</button>
+    <div class="acoes-topo">
+      <button id="btSincronizar" class="btn-icone" title="Vai buscar já o projeto e o projetor que os Calculadores tiverem guardados — sem esperar pelo aviso automático">🔄</button>
+      <button id="btSincronizacao" class="btn-icone" title="Sincronização automática ligada — clica para desligar">↔</button>
+      <button id="btDevolver" class="btn-icone" title="Devolver projeto aos Calculadores">📤</button>
+      <button id="btFechar" class="btn-icone" title="Esconder o painel (Tab)">‹</button>
+    </div>
   </header>
 
   <section id="sProjeto">
@@ -53,10 +58,9 @@
       <label>Largura <input id="ecraL" type="number" min="0.5" max="200" step="0.1"><i>m</i></label>
       <label>Altura <input id="ecraA" type="number" min="0.3" max="60" step="0.1"><i>m</i></label>
     </div>
-    <button id="btDevolver" style="margin-top:10px; width:100%">Devolver projeto aos Calculadores</button>
     <p class="vazio" id="notaEcra" style="margin:10px 0 0">Muda o tamanho aqui para
-       ver como fica, e devolve o projeto completo aos Calculadores para eles
-       escolherem os tiles.</p>
+       ver como fica, e usa 📤 no topo para devolver o projeto completo aos
+       Calculadores para eles escolherem os tiles.</p>
   </section>
 
   <section id="sSala">

@@ -64,7 +64,6 @@ function atualizarBotaoSincronizacao() {
   const botao = $("btSincronizacao");
   if (!botao) return;
   const ligada = sincronizacaoAutomaticaLigada();
-  botao.textContent = ligada ? "↔ ON" : "↔ OFF";
   botao.classList.toggle("desligado", !ligada);
   botao.title = ligada
     ? "Sincronização automática ligada — clica para desligar"
