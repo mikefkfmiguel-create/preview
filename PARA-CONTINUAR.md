@@ -97,10 +97,16 @@ visualização sem ter de acrescentar ecrãs de cobertura.
 - A plateia à volta de um palco circular tem um **ângulo ajustável** (não é
   sempre 360° fixo) — de uma abertura parcial (ex. 90°, só de um lado) até à
   volta toda.
-- Para a sala larga, quer **os dois modos**: um arco único (a plateia toda
-  curva-se para um ponto focal à frente, como um teatro clássico) E blocos
-  angulados (a plateia divide-se em blocos que rodam cada um para apontar
-  aos ecrãs). Não é para escolher um dos dois — os dois hão de existir.
+- Para a sala larga, quer **os dois modos** — e descreveu-os melhor a
+  seguir: um seletor de forma da plateia, **Circular / Reto** (paralelo ao
+  seletor do Palco, mas são coisas distintas — a plateia pode ser Circular
+  com um palco Retangular, por exemplo). "Reto" é o arco único de hoje
+  (plateia toda curvada para um ponto focal à frente). "Circular" divide a
+  plateia em **gomos** — fatias em cunha, como as de uma laranja, dispostas
+  à volta do centro — em vez de um bloco retangular só a rodar (a diferença
+  para "blocos angulados" é a forma de cada peça: cunha/gomo, não retângulo).
+  Não é para escolher um dos dois modos — os dois hão de existir, com o
+  próprio seletor Circular/Reto a decidir qual se usa.
 
 **Porque não ficou feito na mesma sessão em que foi pedido:** o palco não é
 um campo isolado — `palco.profundidade` e a posição dele contra a parede da
