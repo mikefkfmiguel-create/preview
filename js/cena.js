@@ -202,17 +202,24 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0) {
   // isso fica sem emissivo nenhum, só a cor clara do próprio pano.
   const INTENSIDADE_EMISSIVA = zona.tipo === "tv" ? 0.5 : 0.85;
   function frenteDoGomo(i) {
-    if (zona.tipo === "projecao") {
-      const fatiaProj = (conteudo && conteudo.textura) ? conteudo.textura.clone() : null;
-      if (fatiaProj) {
-        fatiaProj.needsUpdate = true;
-        fatiaProj.repeat.set((zona.w / gomos) / conteudo.largura, zona.h / conteudo.altura);
-        fatiaProj.offset.set(
-          (zona.x - conteudo.esquerda + i * larguraGomo) / conteudo.largura,
-          1 - (zona.y - conteudo.topo + zona.h) / conteudo.altura);
-      }
+    // Um delay é um monitor independente: recebe a imagem inteira, como um
+    // DSM. O recorte espalhado pelo conjunto só faz sentido para as zonas LED
+    // que formam uma parede; num delay, esse recorte podia deixar a imagem
+    // fora do UV e mostrava apenas a cor lisa.
+    if ((zona.tipo === "tv" || zona.tipo === "projecao")
+      && conteudo && conteudo.textura) {
+      const imagem = conteudo.textura.clone();
+      imagem.needsUpdate = true;
+      imagem.repeat.set(1 / gomos, 1);
+      imagem.offset.set(i / gomos, 0);
       return new THREE.MeshStandardMaterial({
-        color: 0xEDEDED, map: fatiaProj, roughness: 0.92, metalness: 0
+        color: zona.tipo === "projecao" ? 0xEDEDED : 0xFFFFFF,
+        map: imagem,
+        emissiveMap: zona.tipo === "tv" ? imagem : null,
+        emissive: zona.tipo === "tv" ? 0xFFFFFF : 0x000000,
+        emissiveIntensity: zona.tipo === "tv" ? INTENSIDADE_EMISSIVA : 0,
+        roughness: zona.tipo === "projecao" ? 0.92 : 0.45,
+        metalness: 0
       });
     }
     if (!conteudo || !conteudo.textura) {

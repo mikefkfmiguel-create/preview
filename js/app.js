@@ -722,6 +722,23 @@ function campoPosicaoDeZona(zona) {
   return input;
 }
 
+function campoRotacaoDeZona(zona) {
+  const aj = ajusteDaZona(zona.nome);
+  if (aj.rot == null) aj.rot = 0;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "5";
+  input.value = aj.rot || 0;
+  input.className = "zona-campo";
+  input.dataset.campo = `z${zona.__id}-rot`;
+  input.addEventListener("input", () => {
+    aj.rot = parseFloat(input.value) || 0;
+    guardarAjustes(ajustes);
+    remontarDaqui();
+  });
+  return input;
+}
+
 /** Uma linha de zona editável: nome, tipo, medidas, posição e um botão para
  *  a tirar do projeto — tudo com o mesmo feitio de campo que o resto do
  *  painel, para não parecer uma caixa de ferramentas à parte. */
@@ -777,6 +794,10 @@ function linhaDeZona(zona, indice) {
   pos.className = "med";
   pos.append(document.createTextNode("↔ "), campoPosicaoDeZona(zona));
 
+  const rodar = document.createElement("span");
+  rodar.className = "med";
+  rodar.append(document.createTextNode("rodar "), campoRotacaoDeZona(zona), document.createTextNode(" °"));
+
   const remover = document.createElement("button");
   remover.className = "zona-remover";
   remover.textContent = "🗑";
@@ -786,7 +807,7 @@ function linhaDeZona(zona, indice) {
     projetoMudou();
   };
 
-  linha.append(cor, nome, tipo, med, pos, remover);
+  linha.append(cor, nome, tipo, med, pos, rodar, remover);
   return linha;
 }
 let proximoIdZona = 0;
