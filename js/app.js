@@ -208,7 +208,7 @@ function montar(recentrarCamara) {
   // O DSM não depende de haver zonas — um projeto pode nascer aqui mesmo só
   // com o monitor de confiança, antes de se acrescentar nenhum ecrã.
   if (projeto && projeto.dsm && $("verEcras").checked) {
-    const dsm = fazerDSM(projeto.dsm, sala, palco, ajustes.dsm);
+    const dsm = fazerDSM(projeto.dsm, sala, palco, ajustes.dsm, textura);
     desenhado.add(dsm.grupo);
     if ($("verMedidas").checked) etiquetas = etiquetas.concat(dsm.etiquetas);
   }
@@ -814,7 +814,7 @@ function linhaDeDsm() {
  * objeto `alvo` (a entrada de `ajustes.delays[nome]` ou `ajustes.dsm[i]`) e
  * volta a montar a cena, com o mesmo atraso dos outros campos do painel.
  */
-function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05") {
+function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", idCampo) {
   const campo = document.createElement("label");
   campo.className = "ajuste-campo";
   campo.textContent = rotulo + " ";
@@ -822,6 +822,7 @@ function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05") {
   input.type = "number";
   input.step = passo;
   input.value = alvo[chave] || 0;
+  if (idCampo) input.dataset.campo = idCampo;
   input.addEventListener("input", () => {
     alvo[chave] = parseFloat(input.value) || 0;
     guardarAjustes(ajustes);
@@ -844,6 +845,17 @@ function desenharAjustes() {
     return;
   }
   lista.className = "";
+
+  // A mesma razão da lista de zonas: isto reconstrói-se do zero a cada tecla
+  // (o remontar com atraso dispara a cada "input"), e sem guardar o foco de
+  // propósito, o campo onde se estava a escrever morria e nascia outro igual
+  // no lugar — dava para MEXER o número com as setas, mas não para o
+  // escrever a direito.
+  const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
+  const focoGuardado = ativo && ativo.dataset.campo
+    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd }
+    : null;
+
   lista.innerHTML = "";
 
   for (const z of delays) {
@@ -853,9 +865,9 @@ function desenharAjustes() {
     const nome = document.createElement("strong");
     nome.textContent = z.nome + (z.tipo === "tv" ? " (TV)" : " (Projeção)");
     linha.append(nome);
-    linha.append(campoAjuste("↔", ajustes.delays[z.nome], "dx"));
-    linha.append(campoAjuste("profundidade", ajustes.delays[z.nome], "dz"));
-    linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy"));
+    linha.append(campoAjuste("↔", ajustes.delays[z.nome], "dx", "m", "0.05", `d-${z.nome}-dx`));
+    linha.append(campoAjuste("profundidade", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
+    linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy", "m", "0.05", `d-${z.nome}-dy`));
     lista.append(linha);
   }
 
@@ -866,10 +878,18 @@ function desenharAjustes() {
     const nome = document.createElement("strong");
     nome.textContent = "DSM " + (i + 1);
     linha.append(nome);
-    linha.append(campoAjuste("↔", ajustes.dsm[i], "dx"));
-    linha.append(campoAjuste("profundidade", ajustes.dsm[i], "dz"));
-    linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5"));
+    linha.append(campoAjuste("↔", ajustes.dsm[i], "dx", "m", "0.05", `m${i}-dx`));
+    linha.append(campoAjuste("profundidade", ajustes.dsm[i], "dz", "m", "0.05", `m${i}-dz`));
+    linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5", `m${i}-rot`));
     lista.append(linha);
+  }
+
+  if (focoGuardado) {
+    const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
+    if (novo) {
+      novo.focus();
+      try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* alguns "number" recusam seleção — sem problema, fica só o foco */ }
+    }
   }
 }
 

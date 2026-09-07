@@ -343,9 +343,9 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo,
  * quantidade e um tamanho decididos nos Calculadores. Onde cada um fica é só
  * do preview: por omissão espalham-se ao centro do palco, perto da frente
  * (onde o orador está), e cada um pode ser corrigido à parte com
- * `ajustesDsm[i] = { dx, dz }`.
+ * `ajustesDsm[i] = { dx, dz, rot }`.
  */
-export function fazerDSM(dsm, sala, palco, ajustesDsm) {
+export function fazerDSM(dsm, sala, palco, ajustesDsm, textura) {
   const grupo = new THREE.Group();
   const etiquetas = [];
   if (!dsm || !dsm.n) return { grupo, etiquetas };
@@ -365,16 +365,27 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm) {
   // a volta, depois inclina para cima, e só assim a face passa a apontar
   // para o palco em vez de para a plateia.
   const TOMBO = Math.PI + Math.PI / 6;
+  const tras = new THREE.MeshStandardMaterial({ color: 0x11181E, roughness: 1 });
 
   for (let i = 0; i < dsm.n; i++) {
     const aj = ajustes[i] || {};
     const x = inicioX + espaco * i + (Number(aj.dx) || 0);
     const z = z0 + (Number(aj.dz) || 0);
+    // Um DSM é um ecrã sozinho, sem irmãos ao lado a formar um conjunto --
+    // por isso mostra a imagem TODA nele, e não um recorte (o recorte por
+    // posição só faz sentido dentro de uma parede de LED, que é o que
+    // "espalhada"/"cada" resolvem para as zonas).
+    const frente = (textura)
+      ? new THREE.MeshStandardMaterial({
+          map: textura.clone(), emissiveMap: textura.clone(), emissive: 0xFFFFFF,
+          emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.1
+        })
+      : new THREE.MeshStandardMaterial({
+          color: 0x1B2126, emissive: 0x2E7BFF, emissiveIntensity: 0.4, roughness: 0.4, metalness: 0.2
+        });
     const monitor = new THREE.Mesh(
       new THREE.BoxGeometry(dsm.w, dsm.h, 0.05),
-      new THREE.MeshStandardMaterial({
-        color: 0x1B2126, emissive: 0x2E7BFF, emissiveIntensity: 0.4, roughness: 0.4, metalness: 0.2
-      }));
+      [tras, tras, tras, tras, frente, tras]);
     // "rodar" gira o monitor à volta do eixo vertical ANTES do tombo — a
     // ordem "YXZ" garante isso, e é o que deixa apontá-lo para onde quer que
     // o orador esteja, e não só em frente, sem perder a inclinação para cima.
