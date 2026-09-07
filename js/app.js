@@ -7,7 +7,7 @@ import { EXEMPLO, lerProjeto, totais, projetoDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
-         fazerPlanta, fazerPlantaCad } from "./cena.js";
+         fazerPlanta, fazerPlantaCad, fazerRegie } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -87,6 +87,14 @@ function lerPublico() {
   };
 }
 
+function lerRegie() {
+  return {
+    largura: Math.max(2, num("regieL") || 2),
+    profundidade: Math.max(2, num("regieP") || 2),
+    x: num("regieX"), z: num("regieZ")
+  };
+}
+
 // -------------------------------------------------------------------- montar
 
 function limpar(grupo) {
@@ -136,11 +144,18 @@ function montar(recentrarCamara) {
   // em cima dela.
   if ($("verPalco").checked) desenhado.add(fazerPalco(sala, palco));
 
+  // A régie entra ANTES do público, porque é o público que precisa de saber
+  // onde ela está para lhe deixar o vão -- mesmo que a régie esteja escondida
+  // da vista, esse vão continua lá: esconder o desenho da mesa não é o mesmo
+  // que dizer que ali já não há mais ninguém a operar.
+  const regie = lerRegie();
+  if ($("verRegie").checked) desenhado.add(fazerRegie(sala, regie));
+
   // Os interruptores existem porque cada vista serve uma pergunta diferente:
   // sem paredes vê-se a sala de fora, sem público vê-se a estrutura, e sem
   // ninguém no palco mede-se o ecrã sem nada a tapá-lo.
   const gente = $("verPublico").checked
-    ? fazerPublico(sala, palco, publico)
+    ? fazerPublico(sala, palco, publico, regie)
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
   olhosDaPlateia = gente.olhos;

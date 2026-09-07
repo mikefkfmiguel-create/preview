@@ -17,7 +17,7 @@
     <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
     <div>
       <b>Preview</b>
-      <span>o projeto no terreno <i id="versao">v2.6</i></span>
+      <span>o projeto no terreno <i id="versao">v2.7</i></span>
     </div>
     <button id="btSincronizar" title="Vai buscar já o projeto e o projetor que os Calculadores tiverem guardados — sem esperar pelo aviso automático">🔄</button>
     <button id="btFechar" title="Esconder o painel (Tab)">‹</button>
@@ -129,6 +129,19 @@
     <label class="opcao"><input id="sentado" type="checkbox" checked> Sentado</label>
   </section>
 
+  <section id="sRegie">
+    <h2>Régie</h2>
+    <div class="campos">
+      <label>Largura <input id="regieL" type="number" value="2" min="2" max="12" step="0.5"><i>m</i></label>
+      <label>Profundidade <input id="regieP" type="number" value="2" min="2" max="12" step="0.5"><i>m</i></label>
+      <label>Deslocar ↔ <input id="regieX" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
+      <label>Deslocar ↕ <input id="regieZ" type="number" value="7" min="-100" max="100" step="0.25"><i>m</i></label>
+    </div>
+    <p class="vazio" style="margin:10px 0 0">Mínimo 2 × 2 m — cabe uma mesa de
+       mistura e alguém atrás dela. Não é lugar de plateia: quem estiver
+       dentro do rectângulo fica sem cadeira.</p>
+  </section>
+
   <section id="sProjecao">
     <h2>Projeção</h2>
     <label class="opcao" style="margin:0 0 12px"><input id="projLigada" type="checkbox"> Mostrar projeção</label>
@@ -182,6 +195,7 @@
     <label class="opcao"><input id="verPlanta" type="checkbox" checked> Planta</label>
     <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>
     <label class="opcao"><input id="verPublico" type="checkbox" checked> Público</label>
+    <label class="opcao"><input id="verRegie" type="checkbox" checked> Régie</label>
     <label class="opcao"><input id="verPalco" type="checkbox" checked> Palco</label>
     <label class="opcao"><input id="verOrador" type="checkbox" checked> Orador</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>

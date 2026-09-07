@@ -97,6 +97,54 @@ export function fazerPalco({ largura, profundidade }, palco) {
 }
 
 /**
+ * A régie: o lugar reservado a quem opera som, luz e vídeo — e não se senta
+ * na plateia. Marca-se um rectângulo no chão (para se ver logo que ali não há
+ * lugares) com uma mesa por cima, virada para o palco.
+ *
+ * Tem sempre pelo menos 2×2 m — é o que cabe uma mesa de mistura e alguém
+ * atrás dela — mas cresce e desloca-se pelos campos, como o palco.
+ */
+export function fazerRegie(sala, regie) {
+  const grupo = new THREE.Group();
+  grupo.name = "regie";
+  const largura = Math.max(2, regie.largura || 2);
+  const profundidade = Math.max(2, regie.profundidade || 2);
+
+  const chao = new THREE.Mesh(
+    new THREE.PlaneGeometry(largura, profundidade),
+    new THREE.MeshStandardMaterial({
+      color: 0x8A6D2E, roughness: 1, transparent: true, opacity: 0.35, depthWrite: false
+    }));
+  chao.name = "regie-chao";
+  chao.rotation.x = -Math.PI / 2;
+  chao.position.set(regie.x || 0, 0.012, regie.z || 0);
+  grupo.add(chao);
+
+  // O contorno é só uma ajuda de leitura -- marca "aux:" como a grelha e as
+  // outras linhas que não existem na sala a sério, e por isso fica de fora
+  // quando isto se exporta para o Cinema 4D.
+  const contorno = new THREE.LineSegments(
+    new THREE.EdgesGeometry(chao.geometry),
+    new THREE.LineBasicMaterial({ color: 0xC9A227 }));
+  contorno.name = "aux:regie-contorno";
+  contorno.rotation.copy(chao.rotation);
+  contorno.position.copy(chao.position);
+  contorno.position.y = 0.014;
+  grupo.add(contorno);
+
+  // A mesa, virada para o palco (para -Z) e encostada à metade da frente do
+  // rectângulo -- é daí que se opera, não do meio do espaço reservado.
+  const mesa = new THREE.Mesh(
+    new THREE.BoxGeometry(largura * 0.8, 0.9, Math.min(0.6, profundidade * 0.4)),
+    new THREE.MeshStandardMaterial({ color: 0x2A2320, roughness: 0.8 }));
+  mesa.name = "regie-mesa";
+  mesa.position.set(regie.x || 0, 0.45, (regie.z || 0) - profundidade / 2 + 0.35);
+  grupo.add(mesa);
+
+  return grupo;
+}
+
+/**
  * Uma zona de LED. Se tiver curvatura, é feita de gomos em vez de uma placa só —
  * é assim que ela se monta de verdade, e é a única forma de a curva se ver de
  * cima em vez de ser um desenho na textura.
@@ -270,7 +318,7 @@ export function fazerFigura(altura = 1.75, cores) {
  * malhas separadas põem qualquer portátil de joelhos, e o número de pessoas é
  * precisamente o que se quer poder mexer à vontade.
  */
-export function fazerPublico(sala, palco, publico) {
+export function fazerPublico(sala, palco, publico, regie) {
   const grupo = new THREE.Group();
   grupo.name = "publico";
   if (!publico.filas) {
@@ -369,7 +417,11 @@ export function fazerPublico(sala, palco, publico) {
 
   for (let f = 0; f < publico.filas; f++) {
     const z = zPrimeira + f * publico.entreFilas;
-    if (z > sala.profundidade / 2 - 0.5) break;          // não sai porta fora
+    // A mesma margem dos corredores, agora atrás: "toda a volta da sala" é a
+    // mesma pergunta nas quatro direções, e só a frente tem resposta própria
+    // (a distância ao palco, que é a "primeira fila a" — não uma folga de
+    // corredor, mas a distância a quem está a falar).
+    if (z > sala.profundidade / 2 - margemLateral) break;
     zUltima = z;
     // A plateia sobe. Sem isto, a cabeça da fila da frente fica exactamente à
     // altura dos teus olhos — e a vista da plateia mostrava uma nuca em vez de
@@ -382,7 +434,19 @@ export function fazerPublico(sala, palco, publico) {
       // cabeça do da frente à frente dos olhos, que é para isso que ele serve.
       const x = inicios[bloco] + publico.entreLugares * (dentro + 0.5)
                 + (f % 2 ? publico.entreLugares / 2 : 0);
-      if (Math.abs(x) > sala.largura / 2 - 0.6) continue;
+      // A mesma margem outra vez, e não um número à parte — um corredor mais
+      // estreito do que 0,6 m não podia deixar gente mais perto da parede do
+      // que essa margem promete.
+      if (Math.abs(x) > sala.largura / 2 - margemLateral) continue;
+
+      // A régie não é um lugar de plateia — quem lá está opera, não assiste
+      // sentado nesse mesmo metro quadrado. Um lugar que caia dentro do
+      // rectângulo dela salta-se, e fica ali um vão em vez de uma cadeira.
+      if (regie) {
+        const dentroX = Math.abs(x - regie.x) < regie.largura / 2;
+        const dentroZ = Math.abs(z - regie.z) < regie.profundidade / 2;
+        if (dentroX && dentroZ) continue;
+      }
 
       // Ninguém tem a altura exacta do vizinho, e uma plateia de clones vê-se
       // logo. Uma semente feita da posição chega, e é sempre igual entre
