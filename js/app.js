@@ -1274,9 +1274,29 @@ function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", id
     guardarAjustes(ajustes);
     remontarDaqui();
   });
+  // As setas nativas do <input type="number"> não aparecem em telemóvel
+  // nenhum a sério (é comportamento do browser, não deste código) -- e são
+  // pequenas demais para um dedo mesmo onde aparecem. Este +/- é o mesmo
+  // valor de "step" que o campo já tinha, só que sempre visível e sempre
+  // do tamanho de um alvo de toque.
+  function passar(sinal) {
+    const p = parseFloat(passo) || 1;
+    const atual = parseFloat(input.value);
+    const novo = Math.min(max, Math.max(min, (Number.isFinite(atual) ? atual : 0) + sinal * p));
+    input.value = String(Math.round(novo * 1e6) / 1e6);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  const menos = document.createElement("button");
+  menos.type = "button"; menos.className = "ajuste-passo"; menos.textContent = "−";
+  menos.setAttribute("aria-label", "Diminuir " + rotulo);
+  menos.addEventListener("click", () => passar(-1));
+  const mais = document.createElement("button");
+  mais.type = "button"; mais.className = "ajuste-passo"; mais.textContent = "+";
+  mais.setAttribute("aria-label", "Aumentar " + rotulo);
+  mais.addEventListener("click", () => passar(1));
   const unidade = document.createElement("i");
   unidade.textContent = unidadeTexto;
-  campo.append(input, unidade);
+  campo.append(menos, input, mais, unidade);
   return campo;
 }
 
