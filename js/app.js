@@ -1060,6 +1060,36 @@ function ajusteDaZona(nome) {
   return ajustes.delays[nome];
 }
 
+/** Um +/- ao lado de um campo numérico já criado -- mesma razão do
+ *  campoAjuste() em "Posições": as setas nativas do <input type="number">
+ *  não se veem (ou não se tocam bem) em telemóvel nenhum a sério. Devolve
+ *  um fragmento [menos, input, mais] para pôr no sítio onde só o "input"
+ *  entraria antes. Também define min/max no próprio campo -- sem um "min"
+ *  negativo, o teclado numérico do telemóvel não desenha a tecla de "-".
+ */
+function campoComPasso(input, passo, min, max) {
+  input.min = String(min);
+  input.max = String(max);
+  function passar(sinal) {
+    const p = parseFloat(passo) || 1;
+    const atual = parseFloat(input.value);
+    const novo = Math.min(max, Math.max(min, (Number.isFinite(atual) ? atual : 0) + sinal * p));
+    input.value = String(Math.round(novo * 1e6) / 1e6);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  const menos = document.createElement("button");
+  menos.type = "button"; menos.className = "zona-passo"; menos.textContent = "−";
+  menos.setAttribute("aria-label", "Diminuir");
+  menos.addEventListener("click", () => passar(-1));
+  const mais = document.createElement("button");
+  mais.type = "button"; mais.className = "zona-passo"; mais.textContent = "+";
+  mais.setAttribute("aria-label", "Aumentar");
+  mais.addEventListener("click", () => passar(1));
+  const frag = document.createDocumentFragment();
+  frag.append(menos, input, mais);
+  return frag;
+}
+
 /** O campo ↔ da linha da zona: em vez de editar zona.x (que só tem sentido
  *  em relação às outras zonas do mesmo conjunto), mexe no ajuste — uma
  *  correcção absoluta que se soma por cima do que os Calculadores mandaram,
@@ -1077,7 +1107,7 @@ function campoPosicaoDeZona(zona) {
     guardarAjustes(ajustes);
     remontarDaqui();
   });
-  return input;
+  return campoComPasso(input, "0.05", -500, 500);
 }
 
 function campoRotacaoDeZona(zona) {
@@ -1094,7 +1124,7 @@ function campoRotacaoDeZona(zona) {
     guardarAjustes(ajustes);
     remontarDaqui();
   });
-  return input;
+  return campoComPasso(input, "5", -180, 180);
 }
 
 function nomeLivreDeDelay(projetoAtual) {
