@@ -145,11 +145,14 @@ function montar(recentrarCamara) {
   if ($("verPalco").checked) desenhado.add(fazerPalco(sala, palco));
 
   // A régie entra ANTES do público, porque é o público que precisa de saber
-  // onde ela está para lhe deixar o vão -- mesmo que a régie esteja escondida
-  // da vista, esse vão continua lá: esconder o desenho da mesa não é o mesmo
-  // que dizer que ali já não há mais ninguém a operar.
-  const regie = lerRegie();
-  if ($("verRegie").checked) desenhado.add(fazerRegie(sala, regie));
+  // onde ela está para lhe deixar o vão. Isto ia ficar reservado mesmo com a
+  // régie escondida — parecia mais correcto, "o espaço existe sempre" — mas
+  // na prática ninguém consegue comparar "com" e "sem" régie assim: o
+  // interruptor tem de ser um interruptor a sério, como todos os outros
+  // desta lista, e não uma opção que só esconde o desenho.
+  const verRegie = $("verRegie").checked;
+  const regie = verRegie ? lerRegie() : null;
+  if (regie) desenhado.add(fazerRegie(sala, regie));
 
   // Os interruptores existem porque cada vista serve uma pergunta diferente:
   // sem paredes vê-se a sala de fora, sem público vê-se a estrutura, e sem
