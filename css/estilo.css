@@ -149,6 +149,13 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
   margin-left: auto; flex: 0 0 auto; width: 26px; height: 26px; padding: 0;
   font-size: 13px; background: none; border: 1px solid var(--linha);
 }
+/* Mesma razão do .ajuste-passo em "Posições": setas nativas do "number"
+   não se veem (ou não se tocam bem) em telemóvel nenhum a sério. */
+.zona-passo {
+  flex: none; width: 24px; height: 24px; padding: 0;
+  font-size: 14px; line-height: 1; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
 
 #listaAjustes .ajuste-linha {
   padding: 10px 0; border-bottom: 1px solid #1A222A;

@@ -222,21 +222,34 @@
   // "rodar"/"tilt" e onde a falta do "-" no teclado do telemóvel foi
   // reportada. Os outros campos numéricos da app continuam com o teclado
   // do sistema, como sempre tiveram.
+  function fazerBotaoCalc(input) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "calcw-btn";
+    btn.title = "Calculadora — soma, subtrai, multiplica ou divide e aplica o resultado aqui";
+    btn.innerHTML = CALC_ICON_SVG;
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      openFor(input);
+    });
+    return btn;
+  }
+
   function attachIcons() {
     document.querySelectorAll("#listaAjustes .ajuste-campo input[type=\"number\"]").forEach(function (input) {
       var campo = input.closest(".ajuste-campo");
       if (!campo || campo.querySelector(".calcw-btn")) return;
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "calcw-btn";
-      btn.title = "Calculadora — soma, subtrai, multiplica ou divide e aplica o resultado aqui";
-      btn.innerHTML = CALC_ICON_SVG;
-      btn.addEventListener("click", function (e) {
-        e.preventDefault();
-        openFor(input);
-      });
       // Antes da unidade ("°"/"m"), que é sempre o último item da grelha.
-      campo.insertBefore(btn, campo.lastElementChild);
+      campo.insertBefore(fazerBotaoCalc(input), campo.lastElementChild);
+    });
+    // Os campos ↔/rodar de cada zona (lista "Zonas", não "Posições") --
+    // mesmo ajuste (dx/rot), UI diferente. O botão "+" é sempre o último
+    // elemento aqui (não há nenhuma unidade a seguir que seja um elemento:
+    // o "°"/"m" que às vezes vem depois é só texto solto).
+    document.querySelectorAll("#listaZonas .med input.zona-campo[type=\"number\"]").forEach(function (input) {
+      var campo = input.closest(".med");
+      if (!campo || campo.querySelector(".calcw-btn")) return;
+      campo.insertBefore(fazerBotaoCalc(input), campo.lastElementChild.nextSibling);
     });
   }
 
