@@ -7,7 +7,7 @@
 
 // O nome do cache segue a versao que aparece no painel: subindo uma, sobe a
 // outra, e quem estiver com a app aberta recebe a nova sem fazer nada.
-const CACHE = "preview-v2.20";
+const CACHE = "preview-v2.21";
 
 const TUDO = [
   "./",
@@ -65,6 +65,23 @@ self.addEventListener("fetch", (evento) => {
   if (pedido.mode === "navigate") {
     evento.respondWith(
       fetch(pedido).catch(() => caches.match("./index.html").then((r) => r || caches.match("./"))));
+    return;
+  }
+
+  // Estes dois módulos mudam com frequência e a página pode já ter recebido
+  // o HTML novo enquanto o cache ainda devolve o JavaScript anterior. Primeiro
+  // tenta-se a rede; sem rede, o cache continua a permitir trabalhar offline.
+  const caminho = new URL(pedido.url).pathname;
+  if (caminho.endsWith("/js/app.js") || caminho.endsWith("/js/cena.js")) {
+    evento.respondWith(
+      fetch(pedido).then((resposta) => {
+        if (resposta && resposta.ok) {
+          const copia = resposta.clone();
+          caches.open(CACHE).then((cache) => cache.put(pedido, copia));
+        }
+        return resposta;
+      }).catch(() => caches.match(pedido))
+    );
     return;
   }
 
