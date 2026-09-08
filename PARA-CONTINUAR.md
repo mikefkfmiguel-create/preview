@@ -291,6 +291,39 @@ a cada tecla), em silêncio (sem escrever em `#notaEcra`, ao contrário do
 clique manual, que continua a confirmar por ali). O botão continua a
 existir para um envio imediato e explícito.
 
+**Susto corrigido no mesmo dia (v2.49): a v2.48 entrou num loop contínuo.**
+Reportado logo a seguir a publicar a v2.48: "abriram com o sync em loop
+contínuo" / "fica a dizer sempre que teve alterações e não para". Causa: os
+Calculadores já reescreviam `mikeapps-projeto-v1` a CADA recálculo
+(`calcLedZones()` → `lzGuardarParaPreview()`, sem guarda nenhuma sobre
+"isto é uma alteração local ou só a aplicar o que chegou de fora?"), o que
+nunca tinha sido um problema porque o Preview nunca escrevia de volta
+sozinho — mas a v2.48, ao pôr `devolverDaqui()` a correr no fim de TODO
+`montar()` (incluindo os que só aplicam um projeto recebido dos
+Calculadores), deu ao par um caminho fechado: Preview recebe → aplica →
+`montar()` → devolve → Calculadores recebe → aplica → `calcLedZones()` →
+reenvia → Preview recebe outra vez → ... para sempre, um ciclo a cada
+~700ms enquanto as duas abas ficassem abertas com "Auto" ligado.
+
+Corrigido dos dois lados (o mesmo princípio: nunca ecoar de volta uma
+alteração que acabou de chegar de fora):
+- **Preview** (`js/app.js`): `marcarRecebidoDeFora()`, chamada em todos os
+  sítios que aplicam algo vindo dos Calculadores (evento `storage` em
+  `mikeapps-projeto-v1`, "🔄 Sincronizar", "Trazer projeto dos
+  Calculadores", `#p=` no endereço/`hashchange`, arranque) — marca uma
+  bandeira (`ignorarProximoDevolver`) que `devolverDaqui()` consome (e
+  reinicia) no `montar()` seguinte, saltando esse envio.
+- **Calculadores** (`js/zonas.js`): `lzAImportarDoPreview`, ligada durante
+  toda a `lzImportarProjetoDoPreview()` (não só o primeiro recálculo —
+  `lzAddZone()` chama `calcLedZones()` por zona) — `lzGuardarParaPreview()`
+  sai logo se estiver ligada.
+
+Corrigir só um dos lados já quebraria o ciclo (basta UM elo deixar de
+ecoar), mas os dois ficaram corrigidos — o problema de fundo
+("recalcular" e "aplicar o que chegou de fora" a acionar sempre o mesmo
+caminho de escrita automática) já existia antes da v2.48 de um dos lados,
+só nunca se tinha manifestado por o outro lado ser sempre manual.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
