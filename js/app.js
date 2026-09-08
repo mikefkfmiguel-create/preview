@@ -53,12 +53,27 @@ let limitesDoShift = null; // até onde a lente escolhida faz shift, se se soube
 // preview, guardada neste aparelho (ver CHAVE_AJUSTES em projeto.js).
 let ajustes = ajustesGuardados();
 
+// A preferência é partilhada com os Calculadores (mesma chave), mas eles
+// gravam-na com JSON.stringify — o valor real em localStorage fica
+// `"desligada"`, ASPAS INCLUÍDAS, não `desligada`. Uma comparação direta
+// contra a string em bruto nunca batia com o que os Calculadores escrevem,
+// e o Preview ficava sempre a pensar que a sincronização estava ligada,
+// mesmo depois de alguém a desligar do outro lado — dava dois interruptores
+// a mostrar coisas diferentes, e o auto-sync a continuar a aplicar mudanças
+// que já deviam ter parado. Tenta descodificar como JSON primeiro (o que os
+// Calculadores gravam); se não for JSON válido (o que o Preview grava
+// sozinho, em bruto), usa o valor tal como está — os dois lados leem-se um
+// ao outro corretamente, e qualquer um dos dois formatos continua a servir.
 function sincronizacaoAutomaticaLigada() {
+  let bruto;
+  try { bruto = localStorage.getItem(CHAVE_SINCRONIZACAO); } catch (_) { return true; }
+  if (bruto == null) return true;
+  let valor = bruto;
   try {
-    return localStorage.getItem(CHAVE_SINCRONIZACAO) !== "desligada";
-  } catch (_) {
-    return true;
-  }
+    const interpretado = JSON.parse(bruto);
+    if (typeof interpretado === "string") valor = interpretado;
+  } catch (_) { /* não era JSON — fica o valor em bruto */ }
+  return String(valor).trim().toLowerCase() !== "desligada";
 }
 
 function atualizarBotaoSincronizacao() {
@@ -66,9 +81,15 @@ function atualizarBotaoSincronizacao() {
   if (!botao) return;
   const ligada = sincronizacaoAutomaticaLigada();
   botao.classList.toggle("desligado", !ligada);
+  // Os mesmos dois ícones que os Calculadores já usam no botão deles ("🔗
+  // Auto: ligada" / "⛔ Auto: desligada") — antes disto o botão aqui era
+  // sempre o mesmo "↔", só a mudar de cor, o que é fácil de não reparar
+  // (e ainda mais fácil de confundir com o "🔄 Sincronizar" ao lado, que é
+  // uma ação e não um interruptor). O ícone a mudar a sério é o sinal.
+  botao.textContent = ligada ? "🔗" : "⛔";
   botao.title = ligada
-    ? "Sincronização automática ligada — clica para desligar"
-    : "Sincronização automática desligada — clica para ligar";
+    ? "Sincronização automática ligada — o que mudar nos Calculadores chega sozinho aqui. Clica para desligar."
+    : "Sincronização automática desligada — nada chega sozinho. \"🔄 Sincronizar\" ao lado continua a funcionar. Clica para ligar.";
 }
 
 // ------------------------------------------------------------------ leituras
@@ -2624,6 +2645,7 @@ function porRato(e) {
 }
 
 tela.addEventListener("pointerdown", (e) => {
+  if (!edicaoLivreLigada()) return;   // cadeado fechado: só a câmara mexe
   const figura = figuraNaCena();
   if (!figura) return;
   porRato(e);
@@ -2643,6 +2665,9 @@ tela.addEventListener("pointermove", (e) => {
 
   if (!aArrastar) {
     // Um cursor de mao a dizer que aquilo se pega — senao ninguem descobre.
+    // Só com o cadeado aberto: fechado, nada se pega, e um cursor de mao a
+    // prometer isso enganava.
+    if (!edicaoLivreLigada()) { tela.style.cursor = ""; return; }
     porRato(e);
     apontador.setFromCamera(rato, camara);
     tela.style.cursor = apontador.intersectObject(figura, true).length ? "grab" : "";
@@ -2680,23 +2705,49 @@ function largarFigura(e) {
 tela.addEventListener("pointerup", largarFigura);
 tela.addEventListener("pointercancel", largarFigura);
 
-// ---------------------------------------------------- arrastar gomos/delays/DSM
+// ------------------------------------------------ arrastar gomos/delays/DSM/régie
 //
 // Pedido direto: arrastar em vez de só ter campos numéricos. Reaproveita a
 // mesma ideia do arrastar do orador (raio + plano horizontal), mas em cima
-// de qualquer objeto com um ajuste próprio de posição -- um gomo (nome
-// "gomo-N", só quando "Circular" está ligado), uma zona delay (nome "zona
-// NOME", só se tiver entrada em ajustes.delays -- uma zona LED não se
-// arrasta, a posição dela vem toda do conjunto lá dos Calculadores) ou um
-// DSM (nome "dsm N"). O ajuste (dx/dz) muda ao vivo durante o arrasto -- e
-// como é o MESMO objeto que os campos ↔/profundidade leem e escrevem, os
-// campos actualizam-se sozinhos a seguir a um remontar, sem código à parte.
+// de qualquer objeto com uma posição própria -- um gomo (nome "gomo-N", só
+// quando "Circular" está ligado), uma zona delay (nome "zona NOME", só se
+// tiver entrada em ajustes.delays -- uma zona LED não se arrasta, a posição
+// dela vem toda do conjunto lá dos Calculadores), um DSM (nome "dsm N") ou
+// a régie (nome "regie"). A posição muda ao vivo durante o arrasto -- e
+// como é a MESMA fonte que os campos numéricos leem e escrevem (o objeto
+// do ajuste, ou os campos regieX/regieZ), eles acompanham-se sozinhos a
+// seguir a um remontar, sem código à parte.
+//
+// Dois "alvos" possíveis, por trás da mesma interface (getXZ/setXZ): um
+// gomo/delay/DSM guarda dx/dz num objeto próprio (ajustes.*); a régie não
+// tem ajuste nenhum -- a posição dela são os campos regieX/regieZ do
+// formulário, como o palco. alvoDeCampos() escreve lá e dispara "input",
+// que já é o que faz o resto da app reagir a um campo escrito à mão.
 
 const apontadorAjuste = new THREE.Raycaster();
 const ratoAjuste = new THREE.Vector2();
 const planoAjuste = new THREE.Plane();
 const ondeCaiuAjuste = new THREE.Vector3();
 let alvoArrasto = null;
+
+function alvoDeAjuste(ajuste) {
+  return {
+    getXZ: () => ({ x: Number(ajuste.dx) || 0, z: Number(ajuste.dz) || 0 }),
+    setXZ: (x, z) => { ajuste.dx = x; ajuste.dz = z; }
+  };
+}
+
+function alvoDeCampos(idX, idZ) {
+  return {
+    getXZ: () => ({ x: parseFloat($(idX).value) || 0, z: parseFloat($(idZ).value) || 0 }),
+    setXZ: (x, z) => {
+      $(idX).value = String(Math.round(x * 1e6) / 1e6);
+      $(idZ).value = String(Math.round(z * 1e6) / 1e6);
+      $(idX).dispatchEvent(new Event("input", { bubbles: true }));
+      $(idZ).dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
+}
 
 function objetosArrastaveis() {
   if (!desenhado) return [];
@@ -2706,13 +2757,15 @@ function objetosArrastaveis() {
     if (!o.name) return;
     if (publicoAtual.formato === "circular" && o.name.indexOf("gomo-") === 0) {
       const i = parseInt(o.name.slice(5), 10);
-      if (ajustes.gomos[i]) alvos.push({ obj: o, ajuste: ajustes.gomos[i] });
+      if (ajustes.gomos[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.gomos[i]) });
     } else if (o.name.indexOf("zona ") === 0) {
       const aj = ajustes.delays[o.name.slice(5)];
-      if (aj) alvos.push({ obj: o, ajuste: aj });
+      if (aj) alvos.push({ obj: o, ...alvoDeAjuste(aj) });
     } else if (o.name.indexOf("dsm ") === 0) {
       const aj = ajustes.dsm[parseInt(o.name.slice(4), 10) - 1];
-      if (aj) alvos.push({ obj: o, ajuste: aj });
+      if (aj) alvos.push({ obj: o, ...alvoDeAjuste(aj) });
+    } else if (o.name === "regie") {
+      alvos.push({ obj: o, ...alvoDeCampos("regieX", "regieZ") });
     }
   });
   return alvos;
@@ -2726,6 +2779,7 @@ function porRatoAjuste(e) {
 }
 
 tela.addEventListener("pointerdown", (e) => {
+  if (!edicaoLivreLigada()) return;   // cadeado fechado: só a câmara mexe
   if (aArrastar) return;              // já vai o orador
   const alvos = objetosArrastaveis();
   if (!alvos.length) return;
@@ -2736,7 +2790,7 @@ tela.addEventListener("pointerdown", (e) => {
     const hits = apontadorAjuste.intersectObject(alvo.obj, true);
     if (hits.length && hits[0].distance < melhorDist) {
       melhorDist = hits[0].distance;
-      melhor = { ajuste: alvo.ajuste, ponto: hits[0].point };
+      melhor = { alvo, ponto: hits[0].point };
     }
   }
   if (!melhor) return;
@@ -2744,11 +2798,11 @@ tela.addEventListener("pointerdown", (e) => {
   controlos.enabled = false;
   tela.setPointerCapture(e.pointerId);
   planoAjuste.set(new THREE.Vector3(0, 1, 0), -melhor.ponto.y);
+  const inicial = melhor.alvo.getXZ();
   alvoArrasto = {
-    ajuste: melhor.ajuste,
-    dx0: Number(melhor.ajuste.dx) || 0,
-    dz0: Number(melhor.ajuste.dz) || 0,
-    x0: melhor.ponto.x, z0: melhor.ponto.z
+    alvo: melhor.alvo,
+    x0: inicial.x, z0: inicial.z,
+    px0: melhor.ponto.x, pz0: melhor.ponto.z
   };
   tela.style.cursor = "grabbing";
 });
@@ -2758,8 +2812,9 @@ tela.addEventListener("pointermove", (e) => {
   porRatoAjuste(e);
   apontadorAjuste.setFromCamera(ratoAjuste, camara);
   if (!apontadorAjuste.ray.intersectPlane(planoAjuste, ondeCaiuAjuste)) return;
-  alvoArrasto.ajuste.dx = alvoArrasto.dx0 + (ondeCaiuAjuste.x - alvoArrasto.x0);
-  alvoArrasto.ajuste.dz = alvoArrasto.dz0 + (ondeCaiuAjuste.z - alvoArrasto.z0);
+  const novoX = alvoArrasto.x0 + (ondeCaiuAjuste.x - alvoArrasto.px0);
+  const novoZ = alvoArrasto.z0 + (ondeCaiuAjuste.z - alvoArrasto.pz0);
+  alvoArrasto.alvo.setXZ(novoX, novoZ);
   remontarDaqui(0);
 });
 
@@ -2990,8 +3045,11 @@ $("btSincronizar").onclick = () => {
 
 $("btSincronizacao").onclick = () => {
   try {
+    // Mesmo formato que os Calculadores usam (JSON.stringify) — ver a nota em
+    // sincronizacaoAutomaticaLigada() sobre porque isto tinha de ficar igual
+    // dos dois lados.
     localStorage.setItem(CHAVE_SINCRONIZACAO,
-      sincronizacaoAutomaticaLigada() ? "desligada" : "ligada");
+      JSON.stringify(sincronizacaoAutomaticaLigada() ? "desligada" : "ligada"));
   } catch (_) {}
   atualizarBotaoSincronizacao();
 };
@@ -3089,6 +3147,36 @@ addEventListener("keydown", (e) => {
 try {
   if (localStorage.getItem("preview-painel") === "fechado") painel(true);
 } catch (_) {}
+
+// --------------------------------------------------------- edição livre
+//
+// Pedido direto: rodar a vista mexe o rato exactamente por cima do orador,
+// de um gomo, de um delay ou de um DSM — e desde que estes passaram a
+// arrastar-se, um clique para rodar a câmara podia em vez disso arrastar
+// algo sem se dar por isso. Este cadeado é só sobre ISSO: enquanto estiver
+// fechado (por omissão), arrastar na cena roda/desloca só a câmara — os
+// campos numéricos continuam a funcionar sempre, cadeado aberto ou
+// fechado, porque esses nunca se mexem sem se querer. Fica guardado por
+// aparelho (não é uma preferência para partilhar com os Calculadores).
+const CHAVE_EDICAO_LIVRE = "preview-edicao-livre";
+function edicaoLivreLigada() {
+  try { return localStorage.getItem(CHAVE_EDICAO_LIVRE) === "ligada"; } catch (_) { return false; }
+}
+function atualizarBotaoEdicaoLivre() {
+  const botao = $("btEdicaoLivre");
+  if (!botao) return;
+  const ligada = edicaoLivreLigada();
+  botao.classList.toggle("ligada", ligada);
+  botao.textContent = ligada ? "🔓" : "🔒";
+  botao.title = ligada
+    ? "Edição livre ligada — arrastar na cena move o orador, um gomo, um delay ou um DSM. Clica para desligar."
+    : "Edição livre desligada — arrastar na cena só muda a vista, nada se mexe sem querer. Clica para ligar.";
+}
+$("btEdicaoLivre").onclick = () => {
+  try { localStorage.setItem(CHAVE_EDICAO_LIVRE, edicaoLivreLigada() ? "desligada" : "ligada"); } catch (_) {}
+  atualizarBotaoEdicaoLivre();
+};
+atualizarBotaoEdicaoLivre();
 
 // O convite a instalar. O evento do Chrome não chega a toda a gente — no
 // iPhone não existe de todo — por isso, quando ele não vem, explica-se o
