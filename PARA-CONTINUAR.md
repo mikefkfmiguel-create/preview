@@ -518,6 +518,31 @@ do `toBlob`) — chamadas sem `await` no `onclick`, como já era. Testado
 com Playwright: as duas exportações saem com o logo pequeno, legível, no
 canto inferior direito, sem tapar etiquetas nem a tira de contas.
 
+**v2.59: o padrão de teste com a marca completa ao meio e só o símbolo
+nas pontas.** Pedido: "esse exemplo para teste deve ter o logotipo
+completo no centro e apenas o logo de símbolos nas laterais para não
+distorcer". A `padraoDeTeste()` (`js/cena.js`) já desenhava a marca —
+mas usava `icons/mike-logo.png`, que apesar do nome e do comentário no
+código ("a marca") é só o símbolo, sem o "MIKE APPS" escrito por baixo;
+esticado ou repetido pelos três ecrãs, nunca ia ter onde aparecer a
+marca completa. Trazidos dois ficheiros novos da pasta `marca/` do
+Calculadores (fonte oficial da marca): `icons/mike-marca-branco.png`
+(logotipo completo, texto branco, fundo transparente — para o fundo
+azul do padrão) e `icons/mike-simbolo.png` (só o símbolo, quadrado). A
+função passou a devolver uma promessa (antes devolvia a textura direta)
+e divide a imagem em três terços: o do meio recebe a marca completa
+centrada, os dois das pontas recebem só o símbolo, cada um centrado no
+seu terço — assim cada ecrã do conjunto mostra algo pensado para a sua
+largura, sem esticar nem distorcer nada. `icons/mike-logo.png` manteve-se
+como estava (é usado noutros sítios, como o cabeçalho da app, onde só o
+símbolo é mesmo o correto — o "MIKE APPS" aí já é texto HTML à parte).
+Os dois ficheiros novos entraram também no `TUDO` do `sw.js`, para não
+ficarem de fora do arranque offline. Testado com Playwright: a textura
+composta isolada sai simétrica e legível; aplicada ao projeto de exemplo
+de 3 ecrãs em modo "Espalhada", o ecrã "Principal" (o do meio) mostra a
+marca completa e "Ala esquerda"/"Ala direita" mostram só o símbolo, sem
+distorção nenhuma — exatamente o pedido.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

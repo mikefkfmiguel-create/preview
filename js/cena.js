@@ -966,16 +966,20 @@ export function fazerPublico(sala, palco, publico, regie) {
 
 
 /**
- * Um padrão de teste, para se ver o conjunto com conteúdo sem ter de arranjar
- * uma imagem. Grelha, barras de cor e uma cruz ao meio — o suficiente para se
- * perceber onde ficam as juntas entre zonas e se alguma está trocada.
- */
-/**
  * O padrão de teste: a marca sobre um fundo azul.
+ *
+ * A marca completa (com "MIKE APPS" escrito) só se lê inteira numa fatia
+ * larga — ao meio, onde costuma estar o ecrã principal do conjunto. Nas
+ * pontas, onde os ecrãs laterais costumam ser mais estreitos, essa mesma
+ * marca esticada ou cortada por "espalhada" ficava ilegível ou distorcida.
+ * Por isso o desenho já nasce em três fatias: a marca completa ao meio, e só
+ * o símbolo (quadrado, aguenta qualquer fatia estreita sem esticar) nas duas
+ * pontas — cada ecrã do conjunto mostra algo já pensado para o seu lugar,
+ * não um recorte de má sorte de uma imagem pensada só para o meio.
  *
  * Devolve uma promessa e não a textura à seca, e a razão é uma armadilha que
  * já mordeu: cada zona recebe uma CÓPIA da textura, e uma cópia não fica a
- * saber que a original mudou. Se a imagem da marca chegasse depois das cópias
+ * saber que a original mudou. Se as imagens chegassem depois das cópias
  * feitas, os ecrãs ficavam com o fundo azul e mais nada.
  */
 export function padraoDeTeste(largura = 1920, altura = 1080) {
@@ -989,22 +993,35 @@ export function padraoDeTeste(largura = 1920, altura = 1080) {
   p.fillStyle = gradiente;
   p.fillRect(0, 0, largura, altura);
 
-  return new Promise((resolve) => {
-    const pronto = () => {
-      const textura = new THREE.CanvasTexture(tela);
-      textura.colorSpace = THREE.SRGBColorSpace;
-      resolve(textura);
-    };
-    const marca = new Image();
-    marca.onload = () => {
-      const larguraMarca = largura * 0.52;
+  function carregar(src) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);   // sem a imagem, fica o fundo — não parte nada
+      img.src = src;
+    });
+  }
+
+  return Promise.all([
+    carregar("icons/mike-marca-branco.png"),
+    carregar("icons/mike-simbolo.png")
+  ]).then(([marca, simbolo]) => {
+    const terco = largura / 3;
+    if (marca) {
+      const larguraMarca = terco * 0.78;
       const alturaMarca = larguraMarca * (marca.height / marca.width);
-      p.drawImage(marca, (largura - larguraMarca) / 2, (altura - alturaMarca) / 2,
+      p.drawImage(marca, terco + (terco - larguraMarca) / 2, (altura - alturaMarca) / 2,
                   larguraMarca, alturaMarca);
-      pronto();
-    };
-    marca.onerror = pronto;          // sem marca, fica o fundo — não fica nada partido
-    marca.src = "icons/mike-logo.png";
+    }
+    if (simbolo) {
+      const ladoSimbolo = Math.min(terco * 0.42, altura * 0.32);
+      const y = (altura - ladoSimbolo) / 2;
+      p.drawImage(simbolo, (terco - ladoSimbolo) / 2, y, ladoSimbolo, ladoSimbolo);
+      p.drawImage(simbolo, largura - terco + (terco - ladoSimbolo) / 2, y, ladoSimbolo, ladoSimbolo);
+    }
+    const textura = new THREE.CanvasTexture(tela);
+    textura.colorSpace = THREE.SRGBColorSpace;
+    return textura;
   });
 }
 
