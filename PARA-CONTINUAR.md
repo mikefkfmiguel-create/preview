@@ -324,6 +324,44 @@ ecoar), mas os dois ficaram corrigidos — o problema de fundo
 caminho de escrita automática) já existia antes da v2.48 de um dos lados,
 só nunca se tinha manifestado por o outro lado ser sempre manual.
 
+**Cadeado da edição livre a preencher a cheio quando aberto (v2.50).**
+Reportado: o contorno fino a mudar de cor não se notava a este tamanho
+(38×38px) — a diferença entre 🔒 e 🔓 quase não se vê. `#btEdicaoLivre.ligada`
+passou a preencher-se a cheio com a cor de destaque (`css/estilo.css`),
+mesmo tratamento visual que `button.primario` já usava noutros botões
+"ligados" da app.
+
+**Bug corrigido (v2.51): mudar para "Circular" perdia mais de metade da
+plateia.** Reportado: "perdi tudo quando marco público em circular".
+Reproduzido com o projeto de exemplo — 317 → 155 lugares, só por trocar
+"Reto" por "Circular (gomos)", sem mexer em mais nada. Causa, uma
+combinação de dois efeitos que a v2.44 (ver acima) não previu ao passar a
+tratar cada gomo como um "Reto" à parte:
+- `ajustesDeGomosGarantidos()` (`js/app.js`) semeava `corredor` de um gomo
+  novo com o valor GLOBAL de "Largura dos corredores" tal e qual — mas
+  esse valor conta para os DOIS lados de CADA gomo (é o que serve de vão
+  entre vizinhos, desde a v2.44). Com N gomos lado a lado, o total gasto
+  em margens cresce como 2×N×corredor — a mesma margem pensada para UMA
+  sala inteira (2 lados) estava a ser gasta 2×N vezes.
+- `fazerPublicoGomos()` (`js/cena.js`) também deixava cada gomo herdar o
+  campo global `publico.corredores` (nº de corredores INTERNOS) sem
+  qualquer desconto — um gomo já É um pedaço separado dos vizinhos por
+  "corredor"; manter esse valor global fazia cada gomo abrir mais um
+  corredor lá dentro, a multiplicar a perda por N outra vez.
+
+Corrigido nos dois sítios:
+- `fazerPublicoGomos()` força `corredores: 0` no `publicoGomo` que passa a
+  `fazerPublico()` — um gomo nasce sem corredor interno (não há campo para
+  configurar isto por gomo ainda; quem quiser dividir um gomo em dois faz
+  dois gomos).
+- `ajustesDeGomosGarantidos()` passou a semear `corredor` de um gomo NOVO
+  com `larguraCorredor × (2 + corredores) / (2 × N)` — a mesma largura
+  total que "Reto" perderia (2 margens + os corredores internos de sempre)
+  a dividir pelos 2×N lados dos N gomos, para a lotação ficar parecida ao
+  trocar de modo. Testado com o exemplo em N = 1/2/3/4/6: ficou sempre
+  entre 317 e 354 lugares (antes: 120 a 218, a colapsar com N mais alto).
+  Continua tudo ajustável à mão a partir daí, como já era.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
