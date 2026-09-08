@@ -5,15 +5,16 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
-         CHAVE_SINCRONIZACAO,
+         CHAVE_SINCRONIZACAO, idPartilhaDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
-         padraoDeTeste, texturaDeFicheiro, fazerProjecao, pontosDaImagem,
+         padraoDeTeste, texturaDeFicheiro, dataURLDeFicheiro, texturaDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
+import { criarLinkPartilha, lerLinkPartilha } from "./partilha.js";
 import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
 
 const $ = (id) => document.getElementById(id);
@@ -36,17 +37,32 @@ controlos.dampingFactor = 0.08;
 // Quem impede de furar o chão é o travão de altura no laço, mais abaixo.
 
 let projeto = null;
+// Ligado quando o endereço traz um "#ver=<id>" -- um link "🔗 Link para ver"
+// criado por outra pessoa. Esconde o painel todo e desliga a edição livre à
+// força (ver edicaoLivreLigada() mais abaixo): quem abre isto só olha, nunca
+// edita -- mesmo que o cadeado tenha ficado "aberto" de uma sessão anterior
+// NESTE aparelho (edicaoLivreLigada() lê o localStorage, que não sabe nada
+// de "isto é um link partilhado").
+let modoVisualizacao = false;
 let etiquetas = [];
 let olhosDaPlateia = null;
 let desenhado = null;      // o que está na cena agora, para se poder deitar fora
-let textura = null;        // o conteúdo a mostrar nos ecrãs, se houver
+let textura = null;        // o conteúdo a mostrar nos ecrãs (e nos DSM), se houver
+// O data URL por trás de "textura" -- só quando veio de um ficheiro escolhido
+// pelo mike (texturaDeFicheiro/ficheiroImagem). É isto, não a THREE.Texture
+// em si (que não sobrevive a um JSON.stringify), que viaja no "Guardar
+// projeto"/link partilhado -- ver estadoCompleto()/abrirProjetoTodo(). Fica
+// null com o padrão de teste (regenera-se sozinho, não precisa de viajar) ou
+// sem conteúdo nenhum.
+let texturaDataURL = null;
 let modoConteudo = "espalhado";   // espalhado pelo conjunto, ou um em cada zona
 // Imagem PRÓPRIA de um ecrã, por nome da zona -- sobrepõe-se a "textura" só
 // nesse ecrã. Pedido direto: "poder por uma imagem em cada ecrã" (diferente
-// entre eles, não a mesma repetida -- isso já era "Uma em cada" acima). Não
-// viaja no "Guardar projeto" (nem "textura" viaja hoje) -- é conteúdo de
-// sessão, como o padrão de teste.
+// entre eles, não a mesma repetida -- isso já era "Uma em cada" acima).
 let texturasPorZona = {};
+// O par de texturasPorZona que viaja no "Guardar projeto" -- mesma razão de
+// texturaDataURL acima (o data URL, não o objeto Texture vivo).
+let texturasPorZonaDataURL = {};
 let planta = null;         // a planta em imagem, se alguem a tiver aberto
 let plantaCad = null;      // a planta em DXF, que ja vem a escala
 const camadasEscondidas = new Set();   // camadas da planta que nao se veem
@@ -204,8 +220,11 @@ function montar(recentrarCamara) {
   const nomeViewport = $("nomeProjetoViewport");
   if (nomeViewport) {
     const nome = projeto && projeto.nome ? String(projeto.nome) : "";
-    nomeViewport.textContent = nome;
-    nomeViewport.hidden = !nome;
+    // Num link partilhado o painel está escondido -- é aqui, e só aqui, que
+    // quem o abriu percebe que está só a ver, não a editar.
+    const texto = modoVisualizacao ? (nome ? nome + " · só visualização" : "Só visualização") : nome;
+    nomeViewport.textContent = texto;
+    nomeViewport.hidden = !texto;
   }
 
   const sala = lerSala();
@@ -1647,6 +1666,7 @@ function desenharListaConteudoZonas(projetoAtual) {
   // memória para sempre -- só as que aparecem agora é que interessam.
   const nomesAtuais = new Set(zonas.map(z => z.nome));
   Object.keys(texturasPorZona).forEach(nome => { if (!nomesAtuais.has(nome)) delete texturasPorZona[nome]; });
+  Object.keys(texturasPorZonaDataURL).forEach(nome => { if (!nomesAtuais.has(nome)) delete texturasPorZonaDataURL[nome]; });
 
   lista.innerHTML = "";
   zonas.forEach(zona => {
@@ -1678,7 +1698,11 @@ function desenharListaConteudoZonas(projetoAtual) {
       const btRemover = document.createElement("button");
       btRemover.type = "button";
       btRemover.textContent = "Remover";
-      btRemover.onclick = () => { delete texturasPorZona[zona.nome]; montar(false); };
+      btRemover.onclick = () => {
+        delete texturasPorZona[zona.nome];
+        delete texturasPorZonaDataURL[zona.nome];
+        montar(false);
+      };
       linha.append(btRemover);
     }
 
@@ -1686,7 +1710,9 @@ function desenharListaConteudoZonas(projetoAtual) {
       const f = ficheiro.files[0];
       if (!f) return;
       try {
-        texturasPorZona[zona.nome] = await texturaDeFicheiro(f);
+        const [t, url] = await Promise.all([texturaDeFicheiro(f), dataURLDeFicheiro(f)]);
+        texturasPorZona[zona.nome] = t;
+        texturasPorZonaDataURL[zona.nome] = url;
         montar(false);
       } catch (e) {
         $("aviso").textContent = e.message;
@@ -2121,15 +2147,17 @@ $("ficheiroPlanta").onchange = async () => {
   }
 };
 
-$("btPadrao").onclick = async () => { textura = await padraoDeTeste(); montar(false); };
-$("btSemConteudo").onclick = () => { textura = null; montar(false); };
+$("btPadrao").onclick = async () => { textura = await padraoDeTeste(); texturaDataURL = null; montar(false); };
+$("btSemConteudo").onclick = () => { textura = null; texturaDataURL = null; montar(false); };
 $("btImagem").onclick = () => $("ficheiroImagem").click();
 $("ficheiroImagem").onchange = async () => {
   const ficheiro = $("ficheiroImagem").files[0];
   $("ficheiroImagem").value = "";
   if (!ficheiro) return;
   try {
-    textura = await texturaDeFicheiro(ficheiro);
+    const [t, url] = await Promise.all([texturaDeFicheiro(ficheiro), dataURLDeFicheiro(ficheiro)]);
+    textura = t;
+    texturaDataURL = url;
     montar(false);
   } catch (e) {
     $("aviso").textContent = e.message;
@@ -2161,7 +2189,9 @@ function limparTudo() {
   camadasEscondidas.clear();
   camadasLevantadas.clear();
   textura = null;
+  texturaDataURL = null;
   texturasPorZona = {};
+  texturasPorZonaDataURL = {};
   ondeEsta = null;
   limitesDoShift = null;
   projecaoAtual = null;
@@ -2225,6 +2255,17 @@ function estadoCompleto() {
     projecao: lerProjecao(),
     projeto,
     ajustes,
+    // As imagens que o mike põe nos ecrãs e nos DSM -- pedido direto: "não
+    // vão as imagens quando abro noutro device". Vivem em memória como
+    // THREE.Texture (texturasPorZona/textura), que não sobrevive a um
+    // JSON.stringify -- é o data URL a par (texturasPorZonaDataURL/
+    // texturaDataURL) que viaja aqui, e volta a virar textura em
+    // abrirProjetoTodo(). O padrão de teste fica de fora de propósito: não é
+    // um ficheiro do mike, regenera-se sozinho (padraoDeTeste()).
+    conteudo: {
+      textura: texturaDataURL,
+      porZona: { ...texturasPorZonaDataURL }
+    },
     visibilidade: {
       verEcras: $("verEcras").checked,
       verPlanta: $("verPlanta").checked,
@@ -2256,7 +2297,7 @@ function preencherCheckbox(id, valor) {
   $(id).checked = !!valor;
 }
 
-function abrirProjetoTodo(estado) {
+async function abrirProjetoTodo(estado) {
   if (!estado || estado.tipo !== "preview-projeto") {
     throw new Error("Este ficheiro não é um projeto do Preview.");
   }
@@ -2309,19 +2350,88 @@ function abrirProjetoTodo(estado) {
       }
     : { delays: {}, dsm: [], gomos: [] };
   guardarAjustes(ajustes);
+
+  // As imagens (ver estadoCompleto()) -- carregam-se de volta antes do
+  // montar() final, para a cena já nascer com elas em vez de aparecerem um
+  // instante depois. Uma imagem corrompida/em falta no ficheiro não deve
+  // travar o resto do projeto: texturaDeDataURL() nunca rejeita, só devolve
+  // null nesse caso, e fica sem conteúdo nessa zona (como se nunca tivesse
+  // tido imagem).
+  const conteudo = (estado.conteudo && typeof estado.conteudo === "object") ? estado.conteudo : {};
+  texturaDataURL = typeof conteudo.textura === "string" ? conteudo.textura : null;
+  textura = texturaDataURL ? await texturaDeDataURL(texturaDataURL) : null;
+
+  texturasPorZonaDataURL = (conteudo.porZona && typeof conteudo.porZona === "object") ? conteudo.porZona : {};
+  texturasPorZona = {};
+  const nomes = Object.keys(texturasPorZonaDataURL);
+  const carregadas = await Promise.all(nomes.map((n) => texturaDeDataURL(texturasPorZonaDataURL[n])));
+  nomes.forEach((n, i) => { if (carregadas[i]) texturasPorZona[n] = carregadas[i]; });
+
   montar(true);
 }
 
 $("btGuardarProjeto").onclick = guardarProjetoTodo;
 $("btAbrirProjeto").onclick = () => $("ficheiroProjeto").click();
+
+// -------------------------------------------------------- link para partilhar
+
+// "🔗 Link para ver": o mesmo estadoCompleto() de "Guardar projeto", mas em
+// vez de descarregar um ficheiro, vai para o Worker e volta um link -- para
+// mandar a um cliente ou colega ver e rodar a sala, sem editar nada (ver
+// modoVisualizacao, mais acima, e o guarda em edicaoLivreLigada()).
+// Guardado atrás de "existe mesmo?": mesma razão do #btRecentrarVista (HTML
+// em cache vs. JS sempre fresco -- ver PARA-CONTINUAR.md).
+if ($("btPartilhar")) $("btPartilhar").onclick = async () => {
+  if (!projeto) {
+    const aviso = $("aviso");
+    aviso.textContent = "Carrega um projeto primeiro.";
+    aviso.classList.add("mostra");
+    setTimeout(() => aviso.classList.remove("mostra"), 2400);
+    return;
+  }
+  const botao = $("btPartilhar");
+  const textoOriginal = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = "A criar o link…";
+  try {
+    const link = await criarLinkPartilha(estadoCompleto());
+    $("linkPartilhaTexto").value = link;
+    $("resultadoPartilha").hidden = false;
+    $("linkPartilhaTexto").select();
+  } catch (e) {
+    const aviso = $("aviso");
+    aviso.textContent = e.message;
+    aviso.classList.add("mostra");
+    setTimeout(() => aviso.classList.remove("mostra"), 3200);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
+  }
+};
+
+if ($("btCopiarLinkPartilha")) $("btCopiarLinkPartilha").onclick = async () => {
+  const campo = $("linkPartilhaTexto");
+  const botao = $("btCopiarLinkPartilha");
+  campo.select();
+  try {
+    await navigator.clipboard.writeText(campo.value);
+    const original = botao.textContent;
+    botao.textContent = "Copiado";
+    setTimeout(() => { botao.textContent = original; }, 2200);
+  } catch (_) { /* sem permissão -- o campo já está selecionado, copia-se à mão */ }
+};
 $("ficheiroProjeto").addEventListener("change", () => {
   const ficheiro = $("ficheiroProjeto").files[0];
   $("ficheiroProjeto").value = "";
   if (!ficheiro) return;
   const leitor = new FileReader();
-  leitor.onload = () => {
+  // abrirProjetoTodo() é async (carrega as imagens do projeto antes do
+  // montar() final) -- um "throw" lá dentro vira uma promessa rejeitada, não
+  // uma exceção síncrona, por isso o catch tem de estar aqui, à volta do
+  // await, e não só à volta do JSON.parse.
+  leitor.onload = async () => {
     try {
-      abrirProjetoTodo(JSON.parse(leitor.result));
+      await abrirProjetoTodo(JSON.parse(leitor.result));
     } catch (e) {
       const aviso = $("aviso");
       aviso.textContent = "Não consegui abrir este ficheiro: " + e.message;
@@ -3459,6 +3569,7 @@ try {
 // aparelho (não é uma preferência para partilhar com os Calculadores).
 const CHAVE_EDICAO_LIVRE = "preview-edicao-livre";
 function edicaoLivreLigada() {
+  if (modoVisualizacao) return false;   // um link partilhado nunca edita, cadeado ou não
   try { return localStorage.getItem(CHAVE_EDICAO_LIVRE) === "ligada"; } catch (_) { return false; }
 }
 function atualizarBotaoEdicaoLivre() {
@@ -3554,23 +3665,40 @@ atualizarBotaoEdicaoLivre();
 
 // ------------------------------------------------------------------ arranque
 
-try {
-  // Primeiro o que vem no endereço (foi alguém que carregou no "Ver em 3D"),
-  // depois o último que os Calculadores deixaram guardado — assim abrir o
-  // preview sozinho já mostra o projeto em que se andava a trabalhar.
-  projeto = projetoDoEndereco() || (sincronizacaoAutomaticaLigada() ? projetoGuardado() : null);
-  if (projeto) marcarRecebidoDeFora();
-  // E a sala que vier com ele manda: quem carrega no botão do assistente já lá
-  // escreveu as medidas do sítio, e chegar cá a uma sala de 20 × 14 por
-  // omissão é receber de volta uma resposta a uma pergunta que não fez.
-  if (projeto && projeto.sala) {
-    if (projeto.sala.largura) $("salaL").value = projeto.sala.largura;
-    if (projeto.sala.profundidade) $("salaP").value = projeto.sala.profundidade;
-    if (projeto.sala.altura) $("salaA").value = projeto.sala.altura;
+const idPartilha = idPartilhaDoEndereco();
+if (idPartilha) {
+  // Um link "🔗 Link para ver" -- o projeto não cabe no próprio endereço (é
+  // grande demais para isso), vem do Worker, e só há algo para desenhar
+  // depois de o ir lá buscar. Fica fora do resto do arranque de propósito:
+  // um link partilhado nunca deve tocar no localStorage nem na
+  // sincronização com os Calculadores -- quem o abre não é o mike.
+  modoVisualizacao = true;
+  document.body.classList.add("modo-ver");
+  lerLinkPartilha(idPartilha).then((estado) => {
+    return abrirProjetoTodo(estado);   // abrirProjetoTodo() é async -- sem o "return", um erro dela não caía no catch abaixo
+  }).catch((e) => {
+    $("aviso").textContent = e.message;
+    $("aviso").classList.add("mostra");
+  });
+} else {
+  try {
+    // Primeiro o que vem no endereço (foi alguém que carregou no "Ver em 3D"),
+    // depois o último que os Calculadores deixaram guardado — assim abrir o
+    // preview sozinho já mostra o projeto em que se andava a trabalhar.
+    projeto = projetoDoEndereco() || (sincronizacaoAutomaticaLigada() ? projetoGuardado() : null);
+    if (projeto) marcarRecebidoDeFora();
+    // E a sala que vier com ele manda: quem carrega no botão do assistente já lá
+    // escreveu as medidas do sítio, e chegar cá a uma sala de 20 × 14 por
+    // omissão é receber de volta uma resposta a uma pergunta que não fez.
+    if (projeto && projeto.sala) {
+      if (projeto.sala.largura) $("salaL").value = projeto.sala.largura;
+      if (projeto.sala.profundidade) $("salaP").value = projeto.sala.profundidade;
+      if (projeto.sala.altura) $("salaA").value = projeto.sala.altura;
+    }
+  } catch (e) {
+    $("aviso").textContent = e.message;
+    $("aviso").classList.add("mostra");
   }
-} catch (e) {
-  $("aviso").textContent = e.message;
-  $("aviso").classList.add("mostra");
 }
 
 // Reaproveitar a janela do Preview tem um preço: uma navegação que muda só o

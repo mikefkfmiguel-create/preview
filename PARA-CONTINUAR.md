@@ -543,6 +543,78 @@ de 3 ecrãs em modo "Espalhada", o ecrã "Principal" (o do meio) mostra a
 marca completa e "Ala esquerda"/"Ala direita" mostram só o símbolo, sem
 distorção nenhuma — exatamente o pedido.
 
+**v2.60: um link temporário só para ver, sem editar.** Pedido: "enviar
+um link temporário a um cliente ou colega para ver e navegar no
+viewport 3D, só a visualizar". Botão novo em Projeto, "🔗 Link para ver
+(só visualização)": grava o projeto todo (o mesmo `estadoCompleto()`
+que "Guardar projeto" já exporta) num endpoint novo do Worker
+(`POST /partilha`, ver o repositório `calculadores`) e devolve um link
+com um id curto (`#ver=<id>`), válido 7 dias — o KV apaga-o sozinho.
+Quem abre o link não fala com este aparelho nem com os Calculadores, só
+com o Worker (`GET /partilha/<id>`).
+
+No arranque, um `#ver=<id>` no endereço entra num `modoVisualizacao`
+próprio, separado do caminho normal (`projetoDoEndereco`/sincronização
+automática) — de propósito, para um link partilhado nunca tocar no
+localStorage nem devolver nada aos Calculadores. Duas coisas escondem-se
+nesse modo: o painel inteiro (`body.modo-ver #painel`) e o cadeado da
+edição livre (`#btEdicaoLivre`) — mas esconder o botão não bastava por
+si só. `edicaoLivreLigada()` lê o cadeado do `localStorage`, que é por
+*aparelho*, não por projeto: se alguém tivesse deixado o cadeado aberto
+numa sessão de edição normal NESSE MESMO browser, o link partilhado
+herdava esse "aberto" e dava para arrastar gomos/delays/DSM na mesma,
+apesar do botão escondido. Por isso `edicaoLivreLigada()` passou a
+devolver `false` sempre que `modoVisualizacao` está ligado, antes de
+sequer olhar para o `localStorage` — o painel escondido é só a parte
+visível da garantia, quem impede o arrasto de verdade é esta linha.
+`#nomeProjetoViewport` (já existia, v2.58) ganha " · só visualização" a
+seguir ao nome, para quem abre perceber o que está a ver.
+
+O Worker precisa de um KV novo (`PARTILHAS`) — passo manual de deploy
+documentado no `wrangler.toml` de lá, ainda por fazer nalgum momento
+antes disto funcionar em produção; até lá o botão fica a dar erro
+("Worker sem armazenamento configurado"), sem afetar nada mais.
+Testado com Playwright (Worker simulado com `fetch` substituído):
+criar o link, abrir noutra "sessão" com só o id no endereço — painel
+escondido, `#btEdicaoLivre` escondido, `#nomeProjetoViewport` a mostrar
+"Nome · só visualização", e a arrastar o orador na cena sem ele se
+mexer (posição comparada antes/depois, byte a byte) mesmo com o
+cadeado "ligado" no `localStorage` desse browser.
+
+**v2.60 (continuação): as imagens dos ecrãs/DSM também viajam no
+"Guardar projeto".** Reportado: "no save do projeto não vão as imagens
+quando abro em outro device — as imagens que pus nos ecrãs e dsms não
+foram". Tinha razão: `texturasPorZona` (imagem própria por ecrã) e
+`textura` (a imagem geral, que os DSM também usam — não têm imagem
+própria) só existiam como `THREE.Texture` em memória, e isso não
+sobrevive a um `JSON.stringify` — nem `estadoCompleto()` («Guardar
+projeto») nem o link de partilha acima as levavam. Cada uma passou a
+guardar-se a par do seu data URL (`texturaDataURL`/
+`texturasPorZonaDataURL`, preenchidos no mesmo `onchange` que já lia o
+ficheiro escolhido — `dataURLDeFicheiro()`, novo em `js/cena.js`, lê o
+MESMO ficheiro em paralelo com `texturaDeFicheiro()`, sem duplicar a
+escolha) e é esse texto que vai dentro de `conteudo: { textura, porZona
+}` no JSON. `abrirProjetoTodo()` passou a `async` para poder recarregar
+essas imagens (`texturaDeDataURL()`, novo, nunca rejeita — uma imagem
+corrompida no ficheiro fica sem conteúdo nessa zona em vez de travar a
+abertura do resto do projeto) antes do `montar()` final; os dois
+sítios que a chamam foram ajustados a manter o `catch` a funcionar (um
+`throw` numa função `async` vira promessa rejeitada, não uma exceção
+síncrona — o `try/catch` à volta do "Abrir projeto" só continuava a
+apanhar erros por ter passado a `await`ar). O padrão de teste fica de
+fora de propósito: não é um ficheiro do mike, regenera-se sozinho.
+Consequência directa: o Worker (`calculadores`) subiu o limite de
+partilha de 300KB para 8MB, porque com imagens um projeto já não cabe
+no limite pensado só para números.
+Testado com Playwright: escolher uma imagem geral e uma imagem numa
+zona, "Guardar projeto", abrir esse ficheiro numa página nova (sem
+nada em comum — `localStorage` limpo, sessão à parte, como um
+computador diferente), confirmar que a zona continua marcada "imagem
+própria", voltar a guardar e comparar os dois JSON a byte — os data
+URL saem idênticos aos originais depois do ciclo completo
+guardar→abrir→guardar. E que "Remover" tira a imagem também do
+ficheiro seguinte que se guardar.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

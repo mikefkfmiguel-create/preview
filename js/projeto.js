@@ -235,6 +235,16 @@ export function projetoDoEndereco() {
   }
 }
 
+/**
+ * O id de um link "🔗 Link para ver" (`#ver=<id>`), se for isso que vem no
+ * endereço. Ao contrário de `p`/`proj`, não traz o projeto — só o id: quem
+ * abre isto vai buscar o projeto ao Worker (ver js/partilha.js), não ao
+ * próprio endereço.
+ */
+export function idPartilhaDoEndereco() {
+  return doEndereco("ver") || null;
+}
+
 /** E o projetor, quando vem do botão "Ver no Preview 3D" da aba da projeção. */
 export function projetorDoEndereco() {
   const bruto = doEndereco("proj");

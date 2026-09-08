@@ -85,12 +85,18 @@ body { display: flex; }
 }
 .campos i { font-style: normal; font-size: 12px; color: var(--apagado); }
 
-input[type=number], textarea {
+input[type=number], input[type=text], textarea {
   background: var(--fundo); color: var(--texto); border: 1px solid var(--linha);
   border-radius: 7px; padding: 7px 9px; font: inherit; width: 100%;
 }
-input[type=number]:focus, textarea:focus { outline: 2px solid var(--azul); outline-offset: -1px; }
+input[type=number]:focus, input[type=text]:focus, textarea:focus { outline: 2px solid var(--azul); outline-offset: -1px; }
 textarea { font-family: Consolas, monospace; font-size: 12px; resize: vertical; }
+
+/* O link de "🔗 Link para ver": um campo só de leitura ao lado do botão de
+   copiar -- não usa .campos (isso é para pares rótulo+número). */
+.linha-copia { display: flex; gap: 8px; }
+.linha-copia input { flex: 1; font-size: 12px; }
+.linha-copia button { flex: none; width: auto; padding: 7px 12px; }
 
 .opcao {
   display: flex; align-items: center; gap: 9px; margin-top: 12px;
@@ -240,6 +246,12 @@ main { flex: 1; position: relative; min-width: 0; }
 }
 body.fechado #painel { display: none; }
 body.fechado #btAbrir { display: block; }
+
+/* Um link "🔗 Link para ver" (modoVisualizacao, js/app.js): painel todo
+   escondido, e sem maneira nenhuma de o reabrir nem de ligar a edição livre
+   -- ao contrário de "fechado" acima, que é só o painel encolhido por quem
+   está a trabalhar e volta a abrir-se a qualquer momento. */
+body.modo-ver #painel, body.modo-ver #btAbrir, body.modo-ver #btEdicaoLivre { display: none; }
 
 /* O cadeado da edição livre -- sempre visível (ao contrário do #btAbrir,
    que só aparece com o painel escondido): é precisamente enquanto se olha
