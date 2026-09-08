@@ -615,6 +615,27 @@ URL saem idênticos aos originais depois do ciclo completo
 guardar→abrir→guardar. E que "Remover" tira a imagem também do
 ficheiro seguinte que se guardar.
 
+**v2.61: a marca do "PNG com medidas" saiu da tira de contas para a
+própria imagem 3D.** Reportado com uma captura do telemóvel do mike:
+"o logo a tapar info" — a tira de contas, por baixo do render, tinha
+uma linha de texto E o logo os dois a disputar o mesmo canto direito.
+`guardarImagem()` (`js/app.js`) assumia (comentário de v2.58: "o texto
+das contas começa à esquerda") que a linha nunca lá chegava — verdade
+num export largo, falso com a "Sala WxDxH m" que o v2.58 juntou ao
+início da linha, e pior ainda num export estreito (telemóvel: menos
+pixels de largura para o mesmo texto). Uma primeira tentativa cortou o
+texto com "…" antes de tocar no logo — resolvia o problema, mas não
+era o que foi pedido a seguir: "põe na imagem mesmo, não na barra de
+informação". A marca passou para o canto inferior direito da PRÓPRIA
+imagem 3D (por cima do `tela`, antes de se desenhar a tira por baixo),
+com o mesmo fundo semitransparente que `guardarVista()` já usava —
+agora as duas exportações de imagem marcam a cena da mesma maneira, e a
+tira de contas ficou livre para mostrar a linha inteira, sem cortar
+nada. Testado com Playwright num viewport estreito (412×915, como o
+telemóvel da captura): a linha "Sala 24.00 × 18.00 × 8.00 m · 15.00 ×
+4.50 m · 3 zonas" sai completa, e a marca fica visível no canto da
+imagem, sem sobrepor texto nenhum.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
