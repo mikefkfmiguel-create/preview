@@ -239,6 +239,32 @@ fosse a sala a faltar espaço. `fazerPublicoGomos()` devolve agora
 sala lhes deixou encaixar) e `montar()` usa isso em vez do campo global
 quando `formato === "circular"`.
 
+**Bug corrigido (v2.47): gomos antigos mostravam "0" no campo corredor mas
+desenhavam com um corredor a sério.** Um gomo criado ANTES da v2.46 (já
+guardado em `ajustes.gomos` no localStorage) não tinha as propriedades
+`corredor`/`filas` — só passaram a existir nessa versão. O campo mostrava
+"0" (a omissão do próprio `campoAjuste()` quando o valor está em falta),
+mas `fazerPublicoGomos()` caía na omissão DELA quando `aj.corredor` não é
+um número válido, que é o campo GLOBAL (ex: 1.2), não 0 — campo e desenho
+diziam coisas diferentes até a pessoa escrever no campo, altura em que os
+dois passavam a concordar. `ajustesDeGomosGarantidos()` (`js/app.js`)
+passou a percorrer TODOS os gomos até N (não só a acrescentar novos a
+seguir aos já existentes) e a preencher `corredor`/`filas` em falta com os
+valores globais, uma vez, para os dois nunca mais discordarem.
+
+**v2.47: identificar gomos na cena.** Pedido direto — com vários gomos
+deslocados/rodados por cima uns dos outros, difícil de perceber qual é
+qual sem contar. Checkbox novo "Identificar gomos na cena" (`#verGomosId`,
+só visível em "Circular", ao lado dos campos de gomos) que desenha uma
+etiqueta "Gomo N" flutuante ao meio das filas de cada um (reaproveita o
+mesmo mecanismo das etiquetas de zona/DSM — `#etiquetas`,
+`desenharEtiquetas()`). `fazerPublicoGomos()` devolve `gomosInfo` (um
+ponto por gomo, com a mesma transformação dx/dz/rot que já se aplica a
+"corpos"), e `montar()` acrescenta-os a `etiquetas` DEPOIS dos blocos de
+zonas/DSM — que ainda REESCREVEM `etiquetas` do zero (não só acrescentam),
+por isso entrar antes fazia as etiquetas dos gomos desaparecerem sempre
+que houvesse um projeto com ecrãs.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

@@ -353,6 +353,7 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
   const corpos = [];
   const blocoPorLugar = [];
   const gomosApertados = [];
+  const gomosInfo = [];
   let olhos = null, melhorAngulo = Infinity;
 
   for (let i = 0; i < n; i++) {
@@ -442,13 +443,28 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
       const ox = sub.olhos.x, oz = sub.olhos.z - focoZ;
       olhos = new THREE.Vector3(dx + (ox * cosA + oz * sinA), sub.olhos.y, focoZ + dz + (-ox * sinA + oz * cosA));
     }
+
+    // Ponto para uma etiqueta "Gomo N" -- ao meio das filas dele (não do
+    // ponto focal, que costuma cair antes da primeira fila) e um pouco
+    // acima da cabeça de pé, para se ler mesmo com a plateia a tapar.
+    // Mesma transformação (dx/dz/rot) que "corpos", à mão, pela mesma razão:
+    // isto nasce em coordenadas canónicas (como "Reto"), não já na cena 3D.
+    if (sub.zPrimeira != null && sub.zUltima != null) {
+      const zMeio = (sub.zPrimeira + sub.zUltima) / 2 - focoZ;
+      gomosInfo.push({
+        gomo: i + 1,
+        x: dx + (zMeio * sinA),
+        y: 1.9,
+        z: focoZ + dz + (zMeio * cosA)
+      });
+    }
   }
 
   return {
     grupo, olhos, lugares, filas, porFila, blocos,
     corpos: new Float32Array(corpos), largura, fundura,
     blocoPorLugar: new Int16Array(blocoPorLugar),
-    zPrimeira, zUltima, larguraSentada, gomosApertados
+    zPrimeira, zUltima, larguraSentada, gomosApertados, gomosInfo
   };
 }
 

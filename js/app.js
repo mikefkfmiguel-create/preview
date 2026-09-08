@@ -263,6 +263,21 @@ function montar(recentrarCamara) {
     if ($("verMedidas").checked) etiquetas = etiquetas.concat(dsm.etiquetas);
   }
 
+  // "Identificar gomos": pedido direto — com vários gomos deslocados/
+  // rodados por cima uns dos outros (vistos de lado ou de perto), difícil
+  // de perceber qual é qual sem contar. Interruptor à parte do "Medidas e
+  // grelha" (isto não é uma medida, é só um nome), por isso entra DEPOIS
+  // dos blocos de zonas/DSM acima — que ainda REESCREVEM "etiquetas" do
+  // zero, não só acrescentam — para não desaparecer sempre que houver um
+  // projeto com ecrãs. Ao meio das filas de cada gomo, não do ponto focal
+  // (que cai antes da primeira fila).
+  if (publico.formato === "circular" && $("verPublico").checked && $("verGomosId").checked && gente.gomosInfo) {
+    etiquetas = etiquetas.concat(gente.gomosInfo.map((g) => ({
+      texto: "Gomo " + g.gomo,
+      ponto: new THREE.Vector3(g.x, g.y, g.z)
+    })));
+  }
+
   // Uma pessoa no palco, que é o que dá a medida a tudo o resto. Fica FORA do
   // "se houver projeto": sem zonas nenhumas ela é ainda mais precisa, porque é
   // a única coisa na cena com um tamanho que toda a gente conhece.
@@ -1504,21 +1519,32 @@ function desenharAjustes() {
  */
 function ajustesDeGomosGarantidos(publico) {
   const n = publico.gomos;
-  if (ajustes.gomos.length >= n) return ajustes.gomos;
   const sala = lerSala();
   const larguraGomo = sala.largura / n;
-  while (ajustes.gomos.length < n) {
-    const i = ajustes.gomos.length;
-    const dx = -sala.largura / 2 + larguraGomo * (i + 0.5);
-    // "corredor" e "filas" nascem iguais aos campos globais de "Público"
-    // (o que já se via antes disto existir) mas passam a viver à parte —
-    // a pessoa pode depois pôr um gomo sem corredor lateral nenhum
-    // (encostado ao vizinho) ou com menos filas do que os outros (uma ala
-    // mais curta do que o centro), sem mexer no resto.
-    ajustes.gomos.push({
-      largura: larguraGomo, dx, dz: 0, rot: 0,
-      corredor: publico.larguraCorredor, filas: publico.filas
-    });
+  for (let i = 0; i < n; i++) {
+    if (!ajustes.gomos[i]) {
+      const dx = -sala.largura / 2 + larguraGomo * (i + 0.5);
+      // "corredor" e "filas" nascem iguais aos campos globais de "Público"
+      // (o que já se via antes disto existir) mas passam a viver à parte —
+      // a pessoa pode depois pôr um gomo sem corredor lateral nenhum
+      // (encostado ao vizinho) ou com menos filas do que os outros (uma
+      // ala mais curta do que o centro), sem mexer no resto.
+      ajustes.gomos[i] = {
+        largura: larguraGomo, dx, dz: 0, rot: 0,
+        corredor: publico.larguraCorredor, filas: publico.filas
+      };
+    } else {
+      // Um gomo criado ANTES de "corredor"/"filas" existirem (guardado em
+      // localStorage de uma versão anterior) não tem estas duas
+      // propriedades — o campo mostrava "0" (a omissão do próprio campo
+      // quando falta o valor) mas o desenho usava o valor GLOBAL (a
+      // omissão de fazerPublicoGomos quando o ajuste não tem "corredor"
+      // válido): o campo dizia uma coisa, a sala mostrava outra, até a
+      // pessoa escrever no campo e os dois passarem a concordar. Preenche-se
+      // aqui, uma vez, para os dois começarem sempre iguais.
+      if (ajustes.gomos[i].corredor == null) ajustes.gomos[i].corredor = publico.larguraCorredor;
+      if (ajustes.gomos[i].filas == null) ajustes.gomos[i].filas = publico.filas;
+    }
   }
   return ajustes.gomos;
 }
@@ -1710,6 +1736,7 @@ function marcarFormatoPlateia() {
   });
   const circular = valor === "circular";
   $("camposGomos").style.display = circular ? "" : "none";
+  $("opcaoGomosId").style.display = circular ? "" : "none";
   $("notaGomos").style.display = circular ? "" : "none";
 }
 document.querySelectorAll("#formatoPlateia button").forEach(b => {
