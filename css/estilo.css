@@ -240,7 +240,12 @@ body.fechado #btAbrir { display: block; }
   padding: 0; font-size: 17px;
   background: rgba(20, 27, 33, .9);
 }
-#btEdicaoLivre.ligada { border-color: var(--azul); color: var(--azul); }
+/* Antes só mudava a cor do contorno/ícone -- pouco visível com o cadeado
+   tão pequeno (a diferença entre 🔒 e 🔓 quase não se nota a este
+   tamanho). Preenchido a cheio com a cor de destaque, como os outros
+   botões "ligados" da app (ver button.primario), dá para ver de relance,
+   sem ter de reparar no ícone. */
+#btEdicaoLivre.ligada { background: var(--azul); border-color: var(--azul); color: #fff; }
 
 #cauda { padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 10px; }
 #cauda .ligacao { color: var(--azul); text-decoration: none; font-size: 13px; }
