@@ -14,9 +14,16 @@ export const EXEMPLO = {
   origem: "exemplo",
   nome: "Palco com duas alas",
   // A sala vai com ele de propósito: um conjunto de 15 m numa sala de 20 fica
-  // encostado às paredes, e as 12 filas pedidas por omissão não cabiam em 14 m
-  // de profundidade — a app abria a avisar-se a si própria.
-  sala: { largura: 24, profundidade: 18, altura: 8 },
+  // encostado às paredes, e as filas pedidas por omissão têm de caber na
+  // profundidade -- senão a app abre já a avisar-se a si própria, o pior
+  // ponto de partida possível. Contas com os valores por omissão do HTML
+  // (palco 6 m, "primeira fila a" 3 m, "entre filas" 0,9 m, corredores 1,2 m,
+  // 10 filas): a última fila cai a 3 + 9×0,9 = 11,1 m da boca de palco, logo
+  // a sala precisa de pelo menos 6 + 11,1 + 1,2 = 18,3 m de profundidade para
+  // as 10 caberem todas. 18 m (o valor de antes, já uma correção de um "12
+  // filas em 14 m" ainda pior) ficava mesmo abaixo disso -- reportado:
+  // "só cabem 9 das 10 filas". 20 m dá folga a sério, não só o mínimo exato.
+  sala: { largura: 24, profundidade: 20, altura: 8 },
   zonas: [
     { nome: "Ala esquerda", x: 0,    y: 0.6, w: 3.0, h: 3.4, cor: "#22D3EE",
       tiles: { x: 6, y: 7 },  res: { x: 768,  y: 896  }, peso: 252, amp: 24 },
