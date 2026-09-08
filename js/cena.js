@@ -1040,6 +1040,31 @@ export function texturaDeFicheiro(ficheiro) {
   });
 }
 
+/**
+ * O mesmo ficheiro, mas só o data URL -- para guardar a par da textura no
+ * "Guardar projeto"/link partilhado. Uma `THREE.Texture` não sobrevive a um
+ * `JSON.stringify` (é um objeto vivo, com um WebGLTexture lá dentro); o data
+ * URL é só texto, e é dele que se reconstrói a textura noutro aparelho.
+ */
+export function dataURLDeFicheiro(ficheiro) {
+  return new Promise((ok, mal) => {
+    const leitor = new FileReader();
+    leitor.onerror = () => mal(new Error("Não consegui ler essa imagem."));
+    leitor.onload = () => ok(leitor.result);
+    leitor.readAsDataURL(ficheiro);
+  });
+}
+
+/** O inverso: de um data URL (vindo de um projeto guardado) para textura. */
+export function texturaDeDataURL(url) {
+  return new Promise((ok) => {
+    new THREE.TextureLoader().load(url, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      ok(t);
+    }, undefined, () => ok(null));   // uma imagem corrompida no ficheiro não deve travar o resto do projeto
+  });
+}
+
 
 /**
  * A projeção: o projetor, o cone de luz e a imagem na tela.
