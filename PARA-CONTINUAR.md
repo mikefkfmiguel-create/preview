@@ -458,6 +458,22 @@ ecrã.** Dois pedidos diretos no mesmo fôlego:
   do exemplo — só essa zona muda de cor na cena, as outras duas continuam
   na cor normal; "Remover" devolve-a ao normal.
 
+**v2.56: sala na tira do "PNG com medidas", e "Exportar" junto a
+"Projeto".** Dois pedidos diretos:
+- A tira de contas por baixo do "PNG com medidas" (`guardarImagem()`,
+  `js/app.js`) tinha o tamanho dos ecrãs, dos lugares, do peso/amperagem
+  — mas não a própria SALA, o contexto que dá sentido a tudo o resto.
+  Passa a vir primeiro na tira, via `lerSala()`: `Sala 27.00 × 19.00 ×
+  8.00 m`.
+- A secção "Exportar" (`#sExportar`, `index.html`) vivia lá para o fim
+  do painel (depois de Conteúdo/Vista); passou para logo a seguir a
+  "Projeto" — quem guarda o projeto e quem tira o PNG/exporta o .glb são
+  o mesmo gesto de fechar o trabalho, faz sentido ficarem lado a lado.
+  O estado aberta/fechada de cada secção guarda-se por `id`
+  (`document.querySelectorAll("#painel section.fechada")].map(x=>x.id)`),
+  não por posição — mudar a ordem no HTML não mexeu em preferências já
+  guardadas de ninguém.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

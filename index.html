@@ -18,7 +18,7 @@
       <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v2.55</i></span>
+        <span>o projeto no terreno       <i id="versao">v2.56</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, com a sala como está agora">—</span>
     </div>
@@ -50,6 +50,21 @@
     <div id="respostaIA" hidden></div>
     <button id="btLimpar" style="margin-top:8px; width:100%"
             title="Deita fora o projeto e põe todas as medidas no princípio">Limpar tudo</button>
+  </section>
+
+  <section id="sExportar">
+    <h2>Exportar</h2>
+    <div class="vistas">
+      <button data-saida="png" class="destaque">PNG da vista</button>
+      <button data-saida="png-medidas">PNG com medidas</button>
+      <button data-saida="glb">Cinema 4D (.glb)</button>
+      <button data-saida="obj">.obj</button>
+    </div>
+    <label class="opcao" id="opcaoPublico" hidden><input id="expPublico" type="checkbox"> Incluir o público</label>
+    <label class="opcao" id="opcaoLinhas" hidden><input id="expLinhas" type="checkbox"> Incluir a planta CAD</label>
+    <button id="btGuardar" class="primario" style="margin-top:12px; width:100%">Guardar</button>
+    <p class="vazio" style="margin:10px 0 0" id="notaExportar">A vista como está no
+       ecrã, tal e qual — para entrar num slide ou num email.</p>
   </section>
 
   <section id="sEcra">
@@ -239,21 +254,6 @@
     <label class="opcao"><input id="verOrador" type="checkbox" checked> Orador</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
     <label class="opcao"><input id="verCobertura" type="checkbox" title="Um ponto por lugar, no chão: verde vê bem, amarelo vê na marginal, vermelho não vê ecrã nenhum"> Cobertura dos ecrãs</label>
-  </section>
-
-  <section id="sExportar">
-    <h2>Exportar</h2>
-    <div class="vistas">
-      <button data-saida="png" class="destaque">PNG da vista</button>
-      <button data-saida="png-medidas">PNG com medidas</button>
-      <button data-saida="glb">Cinema 4D (.glb)</button>
-      <button data-saida="obj">.obj</button>
-    </div>
-    <label class="opcao" id="opcaoPublico" hidden><input id="expPublico" type="checkbox"> Incluir o público</label>
-    <label class="opcao" id="opcaoLinhas" hidden><input id="expLinhas" type="checkbox"> Incluir a planta CAD</label>
-    <button id="btGuardar" class="primario" style="margin-top:12px; width:100%">Guardar</button>
-    <p class="vazio" style="margin:10px 0 0" id="notaExportar">A vista como está no
-       ecrã, tal e qual — para entrar num slide ou num email.</p>
   </section>
 
   <section id="zonas">

@@ -2809,8 +2809,11 @@ function guardarImagem() {
     p.fillText(etiqueta.texto, x, y);
   }
 
-  // a tira com as contas
+  // a tira com as contas -- a sala primeiro, porque é o contexto que dá
+  // sentido a tudo o resto (reportado: faltava, só vinham os ecrãs).
+  const sala = lerSala();
   const linha = [
+    `Sala ${sala.largura.toFixed(2)} × ${sala.profundidade.toFixed(2)} × ${sala.altura.toFixed(2)} m`,
     $("resumo").textContent.replace(/\s+/g, " ").trim(),
     $("rodape").textContent.trim(),
     $("resumoProj").textContent.trim()
