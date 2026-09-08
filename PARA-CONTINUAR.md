@@ -112,7 +112,28 @@ propriedade `blocoPorLugar` para dentro do comentário — a função nunca
 devolvia isso, e ninguém tinha reparado porque nada lia essa propriedade até
 `fazerPublicoGomos()` precisar dela.
 
-**Simplificações conhecidas do modo gomos, por afinar se vier a ser preciso:**
+**Corrigido depois (v2.42), reportado com screenshot (6 gomos, 50°):** os
+gomos apareciam empilhados uns nos outros, e a régie não abria vão nenhum
+nos gomos rodados. Duas causas, as duas na `fazerPublicoGomos()`:
+1. A largura de cada gomo vinha só de `sala.largura / n`, sem checar se
+   cabia mesmo no ângulo disponível àquela distância do palco — muitos
+   gomos num ângulo apertado pediam uma largura maior do que o espaço
+   angular tinha para dar, e os vizinhos ficavam a espetar-se uns nos
+   outros. Agora a largura fica presa ao que o ângulo permite (a corda do
+   arco, com 8% de folga), com um mínimo para nunca desaparecer gente —
+   e um aviso novo (`aviso`, o mesmo sítio do "só cabem X filas") diz
+   quando isso acontece, com a sugestão de aumentar o ângulo ou reduzir o
+   nº de gomos.
+2. A régie (mesa física, não roda com o gomo) entrava sem transformação
+   nenhuma em cada chamada a `fazerPublico()` — cada gomo testava "a régie
+   cai aqui?" como se ela estivesse sempre na mesma posição/rotação do
+   modo Reto, quando na realidade, visto de dentro de um gomo rodado, ela
+   aparece nou outro sítio (ou nenhum). Agora a régie entra já rodada ao
+   contrário do gomo (a inversa da rotação que se aplica ao "corpos") antes
+   de chegar a `fazerPublico()`.
+
+**Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
+preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
   função devolve são os de UM gomo (todos são iguais entre si, por
   desenho), não uma conta agregada dos N — para os "lugares" totais (que é
@@ -120,9 +141,6 @@ devolvia isso, e ninguém tinha reparado porque nada lia essa propriedade até
 - "Olhos da plateia" usa o gomo mais próximo do centro (ângulo mais perto
   de 0°) — não foi testado com N par (não há gomo exatamente ao centro
   nesse caso, fica o mais próximo).
-- Não testado com a Régie visível dentro de um gomo rodado (o carve-out da
-  régie já testa em coordenadas locais do bloco, deve funcionar, mas não
-  foi verificado com o desenho todo rodado).
 
 **Por fazer: o palco central/circular a sério.** Isto ainda roda a plateia à
 volta do PONTO onde o palco reto de hoje já fica — não existe um palco que
