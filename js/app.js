@@ -2179,6 +2179,16 @@ function abrirProjetoTodo(estado) {
   preencherCampo("entreFilas", pu.entreFilas); preencherCampo("entreLugares", pu.entreLugares);
   preencherCampo("corredores", pu.corredores); preencherCampo("inclinacao", pu.inclinacao);
   preencherCampo("larguraCorredor", pu.larguraCorredor); preencherCheckbox("sentado", pu.sentado);
+  // "formato" (Reto/Circular) e "gomos" (nº de gomos) nunca tinham sido
+  // repostos aqui — um projeto guardado em Circular voltava sempre a abrir
+  // em Reto, silenciosamente (reportado: "tudo o que é plateia não [volta],
+  // ... se voltar ao reto está lá"). formatoPlateia é um <div> com o valor
+  // no dataset, não um campo — não dá para usar preencherCampo/Checkbox.
+  if (pu.formato) {
+    $("formatoPlateia").dataset.valor = pu.formato;
+    marcarFormatoPlateia();
+  }
+  preencherCampo("gomos", pu.gomos);
   preencherCampo("regieL", r.largura); preencherCampo("regieP", r.profundidade);
   preencherCampo("regieX", r.x); preencherCampo("regieZ", r.z); preencherCampo("regieR", r.rodar);
   preencherCheckbox("projLigada", pj.ligada); preencherCampo("projRacio", pj.racio);
@@ -2195,9 +2205,19 @@ function abrirProjetoTodo(estado) {
   preencherCheckbox("verCobertura", v.verCobertura);
 
   projeto = estado.projeto || null;
+  // "gomos" faltava aqui — ficava undefined (nem um array vazio) em vez de
+  // manter os ajustes de cada gomo (largura/corredor/filas/posição). Sem
+  // isto, fazerPublicoGomos()/ajustesDeGomosGarantidos() (que fazem
+  // "ajustes.gomos[i] = ...") rebentavam ao trocar para "Circular" depois
+  // de abrir um projeto guardado — reportado como "tudo desaparece" só
+  // nessa vista. Mesma forma que ajustesGuardados() já usa (js/projeto.js).
   ajustes = (estado.ajustes && typeof estado.ajustes === "object")
-    ? { delays: estado.ajustes.delays || {}, dsm: estado.ajustes.dsm || [] }
-    : { delays: {}, dsm: [] };
+    ? {
+        delays: (estado.ajustes.delays && typeof estado.ajustes.delays === "object") ? estado.ajustes.delays : {},
+        dsm: Array.isArray(estado.ajustes.dsm) ? estado.ajustes.dsm : [],
+        gomos: Array.isArray(estado.ajustes.gomos) ? estado.ajustes.gomos : []
+      }
+    : { delays: {}, dsm: [], gomos: [] };
   guardarAjustes(ajustes);
   montar(true);
 }
