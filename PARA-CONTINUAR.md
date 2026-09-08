@@ -730,6 +730,38 @@ defeito a corrigir — nenhuma sala real tem 100% dos lugares no ponto
 ideal, e o que importa a sério (0 sem cobertura nenhuma) já estava e
 continua a zero.
 
+**v2.65: a cobertura junto da lotação, logo no topo, com cores.** Pedido
+direto: "podemos logo de início ter a cobertura declarada no topo junto
+da capacidade em números e usando as cores, ficaria logo mais visível".
+`calcularCobertura()` já corria sempre que há projeto com zonas --
+ligado ou não o "Cobertura dos ecrãs" -- só não se mostrava em lado
+nenhum sem esse toggle. `escreverPainel()` (`js/app.js`) passou a
+receber a `cobertura` (já calculada em `montar()`, só faltava chegar lá)
+e o badge `#lotacaoTopo` ganha, a seguir ao "👥 352" de sempre, três
+números coloridos -- ●verde confortáveis, ●amarelo marginais, ●vermelho
+sem cobertura nenhuma -- as MESMAS classes/cores do painel de cobertura
+que já existia (`.cobertura-verde/amarela/vermelha`), não cores novas à
+parte.
+
+Duas coisas encontradas a testar, corrigidas no mesmo PR:
+- **As cores saíam cinzentas.** `#painel header span { color:
+  var(--apagado); }` (com um id lá dentro, mais específico) ganhava a
+  `.cobertura-verde`/etc. (só uma classe) -- as três bolinhas apareciam
+  todas na mesma cor apagada, o oposto do pedido ("usando as cores").
+  Corrigido com `#lotacaoTopo .cobertura-verde` (e as outras duas),
+  específico que chegue para ganhar de vez.
+- **Uma sala em branco (sem projeto nenhum) já mostrava "Só cabem 9 das
+  10 filas"**, mesmo sem ter carregado nada -- o valor por omissão de
+  `#salaP` no HTML (18 m) tinha o mesmo problema do v2.63 (18,3 m é o
+  mínimo para 10 filas com os outros valores por omissão), só que para
+  a sala em branco, não para o exemplo. Subido para 20 m também aqui,
+  pela mesma conta.
+Testado com Playwright: sem projeto nenhum, "👥 352" sem aviso e sem
+cobertura nenhuma a mostrar (não há zonas para calcular); a carregar
+"Exemplo", sem tocar em "Cobertura dos ecrãs", aparecem logo "●306
+●46 ●0" com as cores certas (verde `rgb(61,220,132)`, confirmado por
+`getComputedStyle`).
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

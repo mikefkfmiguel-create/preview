@@ -391,7 +391,7 @@ function montar(recentrarCamara) {
       larguraPlateia: gente.larguraSentada != null ? +gente.larguraSentada.toFixed(2) : null
     }
   });
-  escreverPainel(medidas, gente.lugares, gente);
+  escreverPainel(medidas, gente.lugares, gente, cobertura);
   desenharAjustes();
   desenharGomos(publico);
   devolverDaqui();
@@ -990,7 +990,7 @@ $("btAplicarDistribuicao").onclick = aplicarDistribuicaoSugerida;
 
 // ------------------------------------------------------------------- painel
 
-function escreverPainel(medidas, lugares, gentePosta) {
+function escreverPainel(medidas, lugares, gentePosta, cobertura) {
   const resumo = $("resumo");
   const lista = $("listaZonas");
   // Um projeto criado aqui pode nascer só com um DSM, sem ecrã nenhum ainda
@@ -1056,8 +1056,24 @@ function escreverPainel(medidas, lugares, gentePosta) {
 
   // O mesmo número, mas sempre visível no topo — o rodapé só se vê com o
   // painel aberto e ninguém quer andar a fazer scroll para saber a lotação
-  // no meio de uma reunião.
-  $("lotacaoTopo").textContent = lugares ? `👥 ${lugares}` : "—";
+  // no meio de uma reunião. E, junto dele, a cobertura -- pedido direto:
+  // "logo de início... junto da capacidade, em números e usando as cores,
+  // ficaria logo mais visível". Antes só se via com "Cobertura dos ecrãs"
+  // ligado (ver escreverPainelCobertura()); calcularCobertura() já corria
+  // sempre que há projeto com zonas, ligado ou não -- só faltava mostrar-se
+  // aqui. Mesmas cores/classes do painel de cobertura (css/estilo.css), não
+  // cores novas à parte.
+  const topo = $("lotacaoTopo");
+  if (!lugares) {
+    topo.textContent = "—";
+  } else if (cobertura) {
+    topo.innerHTML = `👥 ${lugares} ` +
+      `<span class="cobertura-verde">●${cobertura.confortaveis}</span>` +
+      `<span class="cobertura-amarela">●${cobertura.marginais}</span>` +
+      `<span class="cobertura-vermelha">●${cobertura.semCobertura}</span>`;
+  } else {
+    topo.textContent = `👥 ${lugares}`;
+  }
 }
 
 // As cores das zonas que os Calculadores mandam já vêm feitas; as que se
