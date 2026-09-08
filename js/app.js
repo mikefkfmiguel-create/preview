@@ -1717,6 +1717,7 @@ document.querySelectorAll("#painel input").forEach(campo => {
 document.querySelectorAll(".vistas button[data-vista]").forEach(b => {
   b.onclick = () => vista(b.dataset.vista);
 });
+$("btRecentrarVista").onclick = () => vista("frente");
 
 // Pavilhão ou auditório. São dois mundos: num, o chão é plano e quem está atrás
 // vê a nuca de quem está à frente; no outro, o chão sobe e por isso é que se
