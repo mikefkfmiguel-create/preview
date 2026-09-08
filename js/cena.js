@@ -598,9 +598,20 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm, textura) {
     // por isso mostra a imagem TODA nele, e não um recorte (o recorte por
     // posição só faz sentido dentro de uma parede de LED, que é o que
     // "espalhada"/"cada" resolvem para as zonas).
+    // O TOMBO (~210°, à volta do X) já vira o monitor para o orador -- mas
+    // rodar em torno de um eixo DEITADO (X) inverte o que ficava para cima,
+    // e nunca é uma rotação em Y ("rodar") que desfaz isso, por mais que se
+    // rode: é um eixo diferente. Reportado: "a imagem está ao contrário e
+    // não consigo rodar 360 para ficar direita" -- confirmado com uma
+    // imagem em quadrantes, a que chega ao ecrã sai rodada 180° (cima
+    // fica em baixo E esquerda em direita ao mesmo tempo, não só um dos
+    // dois). Pré-roda-se a textura 180° aqui, só para o DSM -- as zonas
+    // LED/delay não têm este tombo, não precisam disto.
+    const frenteTextura = textura ? textura.clone() : null;
+    if (frenteTextura) { frenteTextura.repeat.set(-1, -1); frenteTextura.offset.set(1, 1); }
     const frente = (textura)
       ? new THREE.MeshStandardMaterial({
-          map: textura.clone(), emissiveMap: textura.clone(), emissive: 0xFFFFFF,
+          map: frenteTextura, emissiveMap: frenteTextura, emissive: 0xFFFFFF,
           emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.1
         })
       : new THREE.MeshStandardMaterial({
