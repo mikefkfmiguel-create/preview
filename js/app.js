@@ -274,6 +274,17 @@ function montar(recentrarCamara) {
       `a sala acaba antes.`;
     aviso.classList.add("mostra");
   }
+  // Gomos a mais para o ângulo pedido -- a largura de cada um ficou presa
+  // no mínimo para não desaparecer gente (ver fazerPublicoGomos()), mas
+  // aqui ficam mais próximos uns dos outros do que o ângulo pedia: reduzir
+  // o nº de gomos ou aumentar o ângulo tira-os de cima uns dos outros.
+  if ($("verPublico").checked && publico.formato === "circular" && gente.apertado) {
+    const aviso = $("aviso");
+    const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
+    aviso.textContent = jaTem + `${publico.gomos} gomos não cabem, direitos, em ${publico.anguloGomos}°: ` +
+      `ficam mais juntos do que pedido. Aumenta o ângulo ou reduz o nº de gomos.`;
+    aviso.classList.add("mostra");
+  }
   // A cobertura substitui o aviso de ângulo da v2.26: aquele só dizia "há um
   // ecrã rodado de mais"; isto diz QUEM fica sem ver nada, em que bloco, e
   // desenha-o na cena se for pedido -- o aviso genérico não respondia a
