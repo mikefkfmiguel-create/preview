@@ -287,8 +287,20 @@ function montar(recentrarCamara) {
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
   // levar um número errado para uma reunião. Mas com o público DESLIGADO não
   // cabem zero de dez, e dizer isso é só ruído: o que ali não está é porque
-  // alguém o mandou embora.
-  if ($("verPublico").checked && publico.filas && gente.filas < publico.filas) {
+  // alguém o mandou embora. Em "Circular" cada gomo pode ter menos filas do
+  // que as outras DE PROPÓSITO (uma ala mais curta) -- isso não é a sala a
+  // faltar espaço, por isso usa-se gomosApertados (só os gomos que pediram
+  // mais filas do que a sala lhes deixou encaixar), não o campo global.
+  if ($("verPublico").checked && publico.formato === "circular") {
+    if (gente.gomosApertados && gente.gomosApertados.length) {
+      const aviso = $("aviso");
+      const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
+      const lista = gente.gomosApertados
+        .map((g) => `Gomo ${g.gomo}: ${g.filas} de ${g.pedidas}`).join("; ");
+      aviso.textContent = jaTem + `Nem todas as filas pedidas cabem — ${lista} (a sala acaba antes).`;
+      aviso.classList.add("mostra");
+    }
+  } else if ($("verPublico").checked && publico.filas && gente.filas < publico.filas) {
     const aviso = $("aviso");
     const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
     aviso.textContent = jaTem + `Só cabem ${gente.filas} das ${publico.filas} filas: ` +
@@ -1498,7 +1510,15 @@ function ajustesDeGomosGarantidos(publico) {
   while (ajustes.gomos.length < n) {
     const i = ajustes.gomos.length;
     const dx = -sala.largura / 2 + larguraGomo * (i + 0.5);
-    ajustes.gomos.push({ largura: larguraGomo, dx, dz: 0, rot: 0 });
+    // "corredor" e "filas" nascem iguais aos campos globais de "Público"
+    // (o que já se via antes disto existir) mas passam a viver à parte —
+    // a pessoa pode depois pôr um gomo sem corredor lateral nenhum
+    // (encostado ao vizinho) ou com menos filas do que os outros (uma ala
+    // mais curta do que o centro), sem mexer no resto.
+    ajustes.gomos.push({
+      largura: larguraGomo, dx, dz: 0, rot: 0,
+      corredor: publico.larguraCorredor, filas: publico.filas
+    });
   }
   return ajustes.gomos;
 }
@@ -1531,6 +1551,13 @@ function desenharGomos(publico) {
     linha.append(campoAjuste("↔", aj, "dx", "m", "0.1", `gomo-${i}-dx`));
     linha.append(campoAjuste("profundidade", aj, "dz", "m", "0.1", `gomo-${i}-dz`));
     linha.append(campoAjuste("rodar", aj, "rot", "°", "5", `gomo-${i}-rot`, -180, 180));
+    // "corredor" a 0 encosta este gomo ao vizinho, sem vão nenhum entre os
+    // dois -- nasce igual ao "Largura dos corredores" global (secção
+    // Público), mas fica independente a partir daqui.
+    linha.append(campoAjuste("corredor", aj, "corredor", "m", "0.1", `gomo-${i}-corredor`, 0, 5));
+    // "filas" nasce igual ao campo global, mas cada gomo pode ter menos (ou
+    // mais) do que os outros -- uma ala mais curta do que o centro, etc.
+    linha.append(campoAjuste("filas", aj, "filas", "", "1", `gomo-${i}-filas`, 0, 60));
     lista.append(linha);
   }
 
