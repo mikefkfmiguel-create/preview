@@ -357,6 +357,7 @@ function montar(recentrarCamara) {
   escreverPainel(medidas, gente.lugares, gente);
   desenharAjustes();
   desenharGomos(publico);
+  devolverDaqui();
   if (recentrarCamara) vista("frente");
 }
 
@@ -2543,8 +2544,19 @@ function redimensionarEcra(qual) {
 $("ecraL").addEventListener("change", () => redimensionarEcra("largura"));
 $("ecraA").addEventListener("change", () => redimensionarEcra("altura"));
 
-$("btDevolver").onclick = () => {
-  if (!projeto) { $("notaEcra").textContent = "Não há projeto para devolver."; return; }
+/**
+ * Devolve aos Calculadores o tamanho do ecrã, as zonas (posição/rotação
+ * decididas aqui incluídas) e a sala/palco — o caminho contrário ao que
+ * "Sincronizar" já faz. `comAviso` escreve em #notaEcra (o clique manual
+ * quer essa confirmação; o envio automático, mais abaixo, não — corre em
+ * silêncio de propósito, como o resto da sincronização automática).
+ * Devolve true se conseguiu escrever.
+ */
+function devolverAosCalculadores(comAviso) {
+  if (!projeto) {
+    if (comAviso) $("notaEcra").textContent = "Não há projeto para devolver.";
+    return false;
+  }
   const t = totais(projeto);
   try {
     const zonas = projeto.zonas.map((zona) => {
@@ -2577,14 +2589,39 @@ $("btDevolver").onclick = () => {
       ajustes: JSON.parse(JSON.stringify(ajustes))
     };
     localStorage.setItem(CHAVE_DEVOLUCAO, JSON.stringify(devolucao));
-    $("notaEcra").textContent =
-      `Projeto enviado: ${zonas.length} ecrãs, ${t.largura.toFixed(2)} × ` +
-      `${t.altura.toFixed(2)} m. Nos Calculadores, carrega em ` +
-      `"Trazer do Preview".`;
+    if (comAviso) {
+      $("notaEcra").textContent =
+        `Projeto enviado: ${zonas.length} ecrãs, ${t.largura.toFixed(2)} × ` +
+        `${t.altura.toFixed(2)} m. Nos Calculadores, carrega em ` +
+        `"Trazer do Preview".`;
+    }
+    return true;
   } catch (e) {
-    $("notaEcra").textContent = "Não consegui guardar — o browser não deixa.";
+    if (comAviso) $("notaEcra").textContent = "Não consegui guardar — o browser não deixa.";
+    return false;
   }
-};
+}
+$("btDevolver").onclick = () => devolverAosCalculadores(true);
+
+// Ao vivo, no sentido Preview -> Calculadores: antes disto, só "🔄
+// Sincronizar" (Calculadores -> Preview) tinha um lado automático — o
+// tamanho/zonas ajustados aqui só chegavam lá com um clique manual em
+// "📤 Devolver", e era fácil esquecer o clique depois de mais um ajuste,
+// ficando os Calculadores a mostrar um tamanho antigo mesmo com a
+// sincronização automática ligada. Reportado: "se estão em sync, a
+// calculadora devia ter o tamanho do ecrã e os delays do preview, e
+// vice-versa". Agora, com a sincronização automática ligada, qualquer
+// remontar com projeto carregado devolve sozinho (com uma pausa depois da
+// última alteração, não a cada tecla) — em silêncio, sem escrever em
+// #notaEcra, tal como o sentido contrário já corria em silêncio. O botão
+// continua a existir para um envio imediato, com confirmação visível.
+let temporizadorDevolver = null;
+function devolverDaqui(ms = 700) {
+  clearTimeout(temporizadorDevolver);
+  temporizadorDevolver = setTimeout(() => {
+    if (sincronizacaoAutomaticaLigada()) devolverAosCalculadores(false);
+  }, ms);
+}
 
 // --------------------------------------------------------- guardar a imagem
 //
