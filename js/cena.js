@@ -319,8 +319,13 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
  * disseram. O que fazerPublico() desenha sozinha continua exatamente igual
  * a zero risco para quem usa "Reto".
  *
- * `ajustesGomos[i] = { largura, dx, dz, rot }` -- largura/dx/dz em metros
- * (dx/dz a partir do ponto focal, a boca do palco), rot em graus.
+ * `ajustesGomos[i] = { largura, dx, dz, rot, corredor, filas }` --
+ * largura/dx/dz/corredor em metros (dx/dz a partir do ponto focal, a boca
+ * do palco), rot em graus, filas em número de filas. `corredor` e `filas`
+ * nascem iguais aos campos globais (Público → corredores/filas) mas depois
+ * são independentes -- um gomo pode ter menos filas do que os outros (uma
+ * ala mais curta do que o centro) ou zero corredor lateral (encostado ao
+ * vizinho, sem vão nenhum entre os dois).
  *
  * O "corpos" (as posições da plateia, em números simples, usadas pela
  * cobertura/sombra) NÃO viaja com a transformação do Three.js -- essa
@@ -341,20 +346,28 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
   // distância a que ela está -- ou seja, a boca do palco. É à volta deste
   // ponto que cada gomo roda e a partir dele que dx/dz se medem.
   const focoZ = -sala.profundidade / 2 + palco.profundidade;
-  // Nunca abaixo do que cabe pelo menos UM lugar (as duas margens laterais,
-  // que aqui já servem de corredor entre gomos, mais um lugar) -- um gomo
-  // mais estreito do que isto ficava sempre vazio, sem ninguém.
-  const larguraMinima = 2 * (publico.larguraCorredor || 1.2) + publico.entreLugares;
 
   let lugares = 0, blocos = 0;
   let filas = 0, porFila = 0, largura = 0.46, fundura = 0.34;
   let zPrimeira = null, zUltima = null, larguraSentada = 0;
   const corpos = [];
   const blocoPorLugar = [];
+  const gomosApertados = [];
   let olhos = null, melhorAngulo = Infinity;
 
   for (let i = 0; i < n; i++) {
     const aj = ajustes[i] || {};
+    // "corredor" e "filas" começam iguais aos campos globais (ver
+    // ajustesDeGomosGarantidos em app.js) mas o valor guardado no ajuste
+    // manda sempre que existir -- é o que os torna independentes por gomo.
+    const corredorGomo = Number.isFinite(Number(aj.corredor)) ? Math.max(0, Number(aj.corredor)) : (publico.larguraCorredor || 1.2);
+    const filasGomo = Number.isFinite(Number(aj.filas)) && aj.filas !== "" ? Math.max(0, Math.round(Number(aj.filas))) : publico.filas;
+    const publicoGomo = Object.assign({}, publico, { larguraCorredor: corredorGomo, filas: filasGomo });
+    // Nunca abaixo do que cabe pelo menos UM lugar (as duas margens
+    // laterais, que aqui já servem de corredor entre gomos -- ou não,
+    // se "corredor" for 0 -- mais um lugar) -- um gomo mais estreito do
+    // que isto ficava sempre vazio, sem ninguém.
+    const larguraMinima = 2 * corredorGomo + publico.entreLugares;
     const larguraGomo = Math.max(larguraMinima, Number(aj.largura) || (sala.largura / n));
     const salaGomo = Object.assign({}, sala, { largura: larguraGomo });
     const dx = Number(aj.dx) || 0;
@@ -381,7 +394,7 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
         rodar: (regie.rodar || 0) - anguloDeg
       });
     }
-    const sub = fazerPublico(salaGomo, palco, publico, regieDoGomo);
+    const sub = fazerPublico(salaGomo, palco, publicoGomo, regieDoGomo);
 
     // O grupo 3D: desloca-se para a origem ficar no ponto focal, e um
     // "pivot" por cima roda-o e desloca-o (dx, dz) -- a mesma conta, feita
@@ -408,10 +421,18 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
     lugares += sub.lugares;
     blocos += sub.blocos;
     // Os restantes números (filas, tamanho de uma pessoa, distâncias ao
-    // palco) são iguais em todos os gomos -- cada um é o mesmo bloco de
-    // "Reto" repetido, só deslocado/rodado -- por isso bastam os do último.
+    // palco) são os do último gomo -- desde que "filas" passou a poder ser
+    // diferente por gomo, isto já não é "todos são iguais, tanto faz", mas
+    // continua a ser só para o painel de medidas, que só tem lugar para um
+    // número (ver gomosApertados, abaixo, para o aviso a sério).
     filas = sub.filas; porFila = sub.porFila; largura = sub.largura; fundura = sub.fundura;
     zPrimeira = sub.zPrimeira; zUltima = sub.zUltima; larguraSentada = sub.larguraSentada;
+    // Um gomo pode pedir menos filas do que os outros DE PROPÓSITO (uma ala
+    // mais curta) -- isso não é a sala a faltar espaço, é a pessoa a
+    // escolher. Só entra aqui quando o PRÓPRIO gomo pediu mais filas do que
+    // as que a sala lhe deixou encaixar (zPrimeira + filas*entreFilas passa
+    // a parede de trás) -- aí sim, a sala é que acaba antes.
+    if (sub.filas < filasGomo) gomosApertados.push({ gomo: i + 1, filas: sub.filas, pedidas: filasGomo });
 
     // Os "olhos da plateia" ficam no gomo mais próximo de estar direito
     // (rot mais perto de 0°) -- é o ponto de vista mais parecido ao que
@@ -427,7 +448,7 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
     grupo, olhos, lugares, filas, porFila, blocos,
     corpos: new Float32Array(corpos), largura, fundura,
     blocoPorLugar: new Int16Array(blocoPorLugar),
-    zPrimeira, zUltima, larguraSentada
+    zPrimeira, zUltima, larguraSentada, gomosApertados
   };
 }
 

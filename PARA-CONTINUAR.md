@@ -212,6 +212,33 @@ deles) em vez de só mudar de cor — reportado como "difícil de entender
 entre os dois quando está ligado e não", ao lado do "🔄 Sincronizar" (que é
 uma ação, não um interruptor, e não muda nunca de ícone).
 
+**v2.46: gomos sem corredor entre eles, e filas independentes por gomo.**
+Pedido direto: "gomos sem corredores" e "alterar as filas deles
+independente". Dois campos novos em `ajustesGomos[i]` (`js/cena.js`,
+`js/app.js`):
+- **corredor** (m) — substitui, só para este gomo, o "Largura dos
+  corredores" global que `fazerPublico()` desconta dos dois lados (essa
+  margem é o que serve de corredor vertical entre um gomo e o seguinte,
+  desde a v2.44). A 0, este gomo fica encostado ao vizinho, sem vão nenhum
+  entre os dois — mas só se o vizinho TAMBÉM tiver `corredor: 0` do seu
+  lado, já que o vão real é a soma dos dois lados que se tocam.
+- **filas** — substitui, só para este gomo, o "Filas" global. Uma ala pode
+  ter menos filas do que o centro, por exemplo.
+
+Os dois nascem iguais aos campos globais (`ajustesDeGomosGarantidos()`
+semeia-os a partir de `publico.larguraCorredor`/`publico.filas` na
+primeira vez que o gomo aparece) e ficam independentes a partir daí — tal
+e qual `largura`/`dx`/`dz`/`rot` já faziam.
+
+De caminho, corrigido um efeito secundário que isto ia introduzir: o aviso
+"Só cabem X das Y filas" comparava sempre contra o campo GLOBAL de filas —
+com "filas" agora independente por gomo, um gomo com menos filas DE
+PROPÓSITO (a escolha da pessoa) ia disparar esse aviso por engano, como se
+fosse a sala a faltar espaço. `fazerPublicoGomos()` devolve agora
+`gomosApertados` (só os gomos que pediram mais filas do que a SUA PRÓPRIA
+sala lhes deixou encaixar) e `montar()` usa isso em vez do campo global
+quando `formato === "circular"`.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
