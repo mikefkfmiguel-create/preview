@@ -236,7 +236,7 @@
   }
 
   function attachIcons() {
-    document.querySelectorAll("#listaAjustes .ajuste-campo input[type=\"number\"]").forEach(function (input) {
+    document.querySelectorAll("#listaAjustes .ajuste-campo input[type=\"number\"], #listaGomos .ajuste-campo input[type=\"number\"]").forEach(function (input) {
       var campo = input.closest(".ajuste-campo");
       if (!campo || campo.querySelector(".calcw-btn")) return;
       // Antes da unidade ("°"/"m"), que é sempre o último item da grelha.

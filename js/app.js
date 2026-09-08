@@ -109,12 +109,12 @@ function lerPublico() {
     inclinacao: num("inclinacao"),
     larguraCorredor: num("larguraCorredor"),
     sentado: $("sentado").checked,
-    // "Circular": a plateia parte-se em gomos iguais, cada um rodado à volta
-    // do palco -- ver fazerPublicoGomos() em cena.js e a nota em
-    // PARA-CONTINUAR.md sobre o que ainda falta (palco central de verdade).
+    // "Circular": a plateia parte-se em N blocos iguais ao de "Reto" (gomos),
+    // cada um deslocado/rodado à mão -- ver fazerPublicoGomos() em cena.js,
+    // ajustesDeGomosGarantidos() aqui e a nota em PARA-CONTINUAR.md sobre o
+    // que ainda falta (palco central de verdade).
     formato: $("formatoPlateia").dataset.valor || "reto",
-    gomos: Math.max(2, Math.round(num("gomos")) || 3),
-    anguloGomos: Math.max(20, Math.min(360, num("anguloGomos") || 180))
+    gomos: Math.max(1, Math.min(12, Math.round(num("gomos")) || 3))
   };
 }
 
@@ -216,7 +216,7 @@ function montar(recentrarCamara) {
   // ninguém no palco mede-se o ecrã sem nada a tapá-lo.
   const gente = $("verPublico").checked
     ? (publico.formato === "circular"
-        ? fazerPublicoGomos(sala, palco, publico, regie)
+        ? fazerPublicoGomos(sala, palco, publico, regie, ajustesDeGomosGarantidos(publico.gomos))
         : fazerPublico(sala, palco, publico, regie))
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
@@ -274,17 +274,6 @@ function montar(recentrarCamara) {
       `a sala acaba antes.`;
     aviso.classList.add("mostra");
   }
-  // Gomos a mais para o ângulo pedido -- a largura de cada um ficou presa
-  // no mínimo para não desaparecer gente (ver fazerPublicoGomos()), mas
-  // aqui ficam mais próximos uns dos outros do que o ângulo pedia: reduzir
-  // o nº de gomos ou aumentar o ângulo tira-os de cima uns dos outros.
-  if ($("verPublico").checked && publico.formato === "circular" && gente.apertado) {
-    const aviso = $("aviso");
-    const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
-    aviso.textContent = jaTem + `${publico.gomos} gomos não cabem, direitos, em ${publico.anguloGomos}°: ` +
-      `ficam mais juntos do que pedido. Aumenta o ângulo ou reduz o nº de gomos.`;
-    aviso.classList.add("mostra");
-  }
   // A cobertura substitui o aviso de ângulo da v2.26: aquele só dizia "há um
   // ecrã rodado de mais"; isto diz QUEM fica sem ver nada, em que bloco, e
   // desenha-o na cena se for pedido -- o aviso genérico não respondia a
@@ -319,6 +308,7 @@ function montar(recentrarCamara) {
   });
   escreverPainel(medidas, gente.lugares, gente);
   desenharAjustes();
+  desenharGomos(publico);
   if (recentrarCamara) vista("frente");
 }
 
@@ -1465,6 +1455,64 @@ function desenharAjustes() {
       novo.value = focoGuardado.valor;
       novo.focus();
       try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* alguns "number" recusam seleção — sem problema, fica só o foco */ }
+    }
+  }
+}
+
+/**
+ * Cada gomo (em "Circular") precisa de um dx/dz/rot próprio — sem
+ * automático nenhum a decidir por quem usa a app, é a pessoa que arruma
+ * cada um, arrastando-o na cena (ver arrastarGomos, mais abaixo) ou pelos
+ * campos que desenharGomos() mostra. Só o PRIMEIRO valor de um gomo novo é
+ * que precisa de omissão — e nunca (0,0,0) para todos, que os deixava
+ * empilhados uns em cima dos outros, parecendo um bloco só e escondendo que
+ * havia mais para arrumar: cada gomo novo nasce um pouco mais atrás do que
+ * o anterior, só para ficarem visíveis e óbvios de arrastar.
+ */
+function ajustesDeGomosGarantidos(n) {
+  while (ajustes.gomos.length < n) {
+    const i = ajustes.gomos.length;
+    ajustes.gomos.push({ dx: 0, dz: i * 2, rot: 0 });
+  }
+  return ajustes.gomos;
+}
+
+function desenharGomos(publico) {
+  const lista = $("listaGomos");
+  if (publico.formato !== "circular") {
+    lista.style.display = "none";
+    return;
+  }
+  lista.style.display = "";
+  const n = publico.gomos;
+  ajustesDeGomosGarantidos(n);
+  lista.className = "";
+
+  const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
+  const focoGuardado = ativo && ativo.dataset.campo
+    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd, valor: ativo.value }
+    : null;
+
+  lista.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const aj = ajustes.gomos[i];
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = "Gomo " + (i + 1);
+    linha.append(nome);
+    linha.append(campoAjuste("↔", aj, "dx", "m", "0.1", `gomo-${i}-dx`));
+    linha.append(campoAjuste("profundidade", aj, "dz", "m", "0.1", `gomo-${i}-dz`));
+    linha.append(campoAjuste("rodar", aj, "rot", "°", "5", `gomo-${i}-rot`, -180, 180));
+    lista.append(linha);
+  }
+
+  if (focoGuardado) {
+    const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
+    if (novo) {
+      novo.value = focoGuardado.valor;
+      novo.focus();
+      try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* idem */ }
     }
   }
 }
@@ -2625,6 +2673,100 @@ function largarFigura(e) {
 }
 tela.addEventListener("pointerup", largarFigura);
 tela.addEventListener("pointercancel", largarFigura);
+
+// ---------------------------------------------------- arrastar gomos/delays/DSM
+//
+// Pedido direto: arrastar em vez de só ter campos numéricos. Reaproveita a
+// mesma ideia do arrastar do orador (raio + plano horizontal), mas em cima
+// de qualquer objeto com um ajuste próprio de posição -- um gomo (nome
+// "gomo-N", só quando "Circular" está ligado), uma zona delay (nome "zona
+// NOME", só se tiver entrada em ajustes.delays -- uma zona LED não se
+// arrasta, a posição dela vem toda do conjunto lá dos Calculadores) ou um
+// DSM (nome "dsm N"). O ajuste (dx/dz) muda ao vivo durante o arrasto -- e
+// como é o MESMO objeto que os campos ↔/profundidade leem e escrevem, os
+// campos actualizam-se sozinhos a seguir a um remontar, sem código à parte.
+
+const apontadorAjuste = new THREE.Raycaster();
+const ratoAjuste = new THREE.Vector2();
+const planoAjuste = new THREE.Plane();
+const ondeCaiuAjuste = new THREE.Vector3();
+let alvoArrasto = null;
+
+function objetosArrastaveis() {
+  if (!desenhado) return [];
+  const publicoAtual = lerPublico();
+  const alvos = [];
+  desenhado.traverse((o) => {
+    if (!o.name) return;
+    if (publicoAtual.formato === "circular" && o.name.indexOf("gomo-") === 0) {
+      const i = parseInt(o.name.slice(5), 10);
+      if (ajustes.gomos[i]) alvos.push({ obj: o, ajuste: ajustes.gomos[i] });
+    } else if (o.name.indexOf("zona ") === 0) {
+      const aj = ajustes.delays[o.name.slice(5)];
+      if (aj) alvos.push({ obj: o, ajuste: aj });
+    } else if (o.name.indexOf("dsm ") === 0) {
+      const aj = ajustes.dsm[parseInt(o.name.slice(4), 10) - 1];
+      if (aj) alvos.push({ obj: o, ajuste: aj });
+    }
+  });
+  return alvos;
+}
+
+function porRatoAjuste(e) {
+  const caixa = tela.getBoundingClientRect();
+  ratoAjuste.set(
+    ((e.clientX - caixa.left) / caixa.width) * 2 - 1,
+    -((e.clientY - caixa.top) / caixa.height) * 2 + 1);
+}
+
+tela.addEventListener("pointerdown", (e) => {
+  if (aArrastar) return;              // já vai o orador
+  const alvos = objetosArrastaveis();
+  if (!alvos.length) return;
+  porRatoAjuste(e);
+  apontadorAjuste.setFromCamera(ratoAjuste, camara);
+  let melhor = null, melhorDist = Infinity;
+  for (const alvo of alvos) {
+    const hits = apontadorAjuste.intersectObject(alvo.obj, true);
+    if (hits.length && hits[0].distance < melhorDist) {
+      melhorDist = hits[0].distance;
+      melhor = { ajuste: alvo.ajuste, ponto: hits[0].point };
+    }
+  }
+  if (!melhor) return;
+
+  controlos.enabled = false;
+  tela.setPointerCapture(e.pointerId);
+  planoAjuste.set(new THREE.Vector3(0, 1, 0), -melhor.ponto.y);
+  alvoArrasto = {
+    ajuste: melhor.ajuste,
+    dx0: Number(melhor.ajuste.dx) || 0,
+    dz0: Number(melhor.ajuste.dz) || 0,
+    x0: melhor.ponto.x, z0: melhor.ponto.z
+  };
+  tela.style.cursor = "grabbing";
+});
+
+tela.addEventListener("pointermove", (e) => {
+  if (!alvoArrasto) return;
+  porRatoAjuste(e);
+  apontadorAjuste.setFromCamera(ratoAjuste, camara);
+  if (!apontadorAjuste.ray.intersectPlane(planoAjuste, ondeCaiuAjuste)) return;
+  alvoArrasto.ajuste.dx = alvoArrasto.dx0 + (ondeCaiuAjuste.x - alvoArrasto.x0);
+  alvoArrasto.ajuste.dz = alvoArrasto.dz0 + (ondeCaiuAjuste.z - alvoArrasto.z0);
+  remontarDaqui(0);
+});
+
+function largarAjuste(e) {
+  if (!alvoArrasto) return;
+  guardarAjustes(ajustes);
+  alvoArrasto = null;
+  controlos.enabled = true;
+  tela.style.cursor = "";
+  try { tela.releasePointerCapture(e.pointerId); } catch (_) {}
+}
+tela.addEventListener("pointerup", largarAjuste);
+tela.addEventListener("pointercancel", largarAjuste);
 
 // ----------------------------------------------------------------- exportar
 //
