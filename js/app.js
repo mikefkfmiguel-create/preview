@@ -2490,6 +2490,7 @@ $("btTrazerProjeto").onclick = () => {
     $("aviso").classList.add("mostra");
     return;
   }
+  marcarRecebidoDeFora();
   carregar(guardado, true);
 };
 
@@ -2615,8 +2616,23 @@ $("btDevolver").onclick = () => devolverAosCalculadores(true);
 // última alteração, não a cada tecla) — em silêncio, sem escrever em
 // #notaEcra, tal como o sentido contrário já corria em silêncio. O botão
 // continua a existir para um envio imediato, com confirmação visível.
+//
+// SUSTO (v2.49): as duas apps entraram num loop -- os Calculadores reescrevem
+// mikeapps-projeto-v1 a cada recálculo (mesmo quando esse recálculo foi
+// só a APLICAR um projeto que tinha acabado de chegar do Preview), e agora
+// o Preview também reescreve mikeapps-ecra-v1 a cada remontar (mesmo um
+// remontar causado só por ACABAR de receber isso dos Calculadores). Com as
+// duas automáticas ao mesmo tempo, cada lado ecoava de volta o que o outro
+// tinha acabado de mandar, para sempre -- "sincronizar" nunca mais parava.
+// marcarRecebidoDeFora() diz "o próximo remontar não é uma alteração
+// local, é só a aplicar o que chegou de lá — não devolvas isto de volta".
+// Chamado em todos os sítios que aplicam algo vindo dos Calculadores
+// (evento "storage", "🔄 Sincronizar", "Trazer projeto", arranque).
+let ignorarProximoDevolver = false;
+function marcarRecebidoDeFora() { ignorarProximoDevolver = true; }
 let temporizadorDevolver = null;
 function devolverDaqui(ms = 700) {
+  if (ignorarProximoDevolver) { ignorarProximoDevolver = false; return; }
   clearTimeout(temporizadorDevolver);
   temporizadorDevolver = setTimeout(() => {
     if (sincronizacaoAutomaticaLigada()) devolverAosCalculadores(false);
@@ -3119,7 +3135,7 @@ $("btTrazerProjetor").onclick = () => {
  */
 $("btSincronizar").onclick = () => {
   const projetoTrazido = projetoGuardado();
-  if (projetoTrazido) carregar(projetoTrazido, false);
+  if (projetoTrazido) { marcarRecebidoDeFora(); carregar(projetoTrazido, false); }
   const projetorTrazido = aplicarProjetor(projetorGuardado());
 
   const aviso = $("aviso");
@@ -3349,6 +3365,7 @@ try {
   // depois o último que os Calculadores deixaram guardado — assim abrir o
   // preview sozinho já mostra o projeto em que se andava a trabalhar.
   projeto = projetoDoEndereco() || (sincronizacaoAutomaticaLigada() ? projetoGuardado() : null);
+  if (projeto) marcarRecebidoDeFora();
   // E a sala que vier com ele manda: quem carrega no botão do assistente já lá
   // escreveu as medidas do sítio, e chegar cá a uma sala de 20 × 14 por
   // omissão é receber de volta uma resposta a uma pergunta que não fez.
@@ -3370,7 +3387,7 @@ addEventListener("hashchange", () => {
   let algo = false;
   try {
     const doEndereco = projetoDoEndereco();
-    if (doEndereco) { carregar(doEndereco, true); algo = true; }
+    if (doEndereco) { marcarRecebidoDeFora(); carregar(doEndereco, true); algo = true; }
   } catch (e) {
     $("aviso").textContent = e.message;
     $("aviso").classList.add("mostra");
@@ -3414,6 +3431,7 @@ addEventListener("storage", (e) => {
   if (e.key !== CHAVE_PROJETO || !e.newValue) return;
   try {
     projeto = lerProjeto(e.newValue);
+    marcarRecebidoDeFora();
     montar(false);
     const aviso = $("aviso");
     aviso.textContent = "Os Calculadores mudaram o projeto — atualizei.";
