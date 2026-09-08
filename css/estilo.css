@@ -55,6 +55,16 @@ body { display: flex; }
   font-size: 14px; font-weight: 600; color: var(--ciano);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+/* A cobertura junto da lotação (●verde/amarelo/vermelho) -- mesmas cores do
+   painel "Cobertura dos ecrãs", só que sempre à vista, ligado ou não. Os
+   seletores levam o #lotacaoTopo à frente de propósito: "#painel header
+   span" (acima) tem um id lá dentro e ganhava à cor por especificidade --
+   as três cores saíam todas cinzentas (var(--apagado)), o oposto do que
+   se pediu ("usando as cores"). */
+.lotacao-topo span { margin-left: 6px; font-size: 12px; }
+#lotacaoTopo .cobertura-verde { color: #3ddc84; }
+#lotacaoTopo .cobertura-amarela { color: #e0b93d; }
+#lotacaoTopo .cobertura-vermelha { color: #e0433d; }
 /* O grupo de acoes do cabecalho (sincronizar, auto, devolver, fechar) --
    antes eram 2 botoes com "position: absolute" e a lotacao com um
    "margin-right: 90px" a decorar o espaco a olho. Ao entrar um 3o botao
