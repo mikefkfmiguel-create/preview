@@ -402,6 +402,33 @@ com guarda (`if ($(id)) $(id).onclick = ...`), nunca `$(id).onclick =
 ...` direto — o desfasamento entre HTML em cache e JS sempre fresco é
 estrutural desta app, não um acaso de uma vez.
 
+**Bug corrigido (v2.54): "Abrir projeto" esquecia a plateia toda.**
+Reportado: "ao gravar o projeto no Preview a plateia não fica, o tamanho
+da sala não fica — apenas traz a disposição dos ecrãs". Isolei por
+partes com Playwright (guardar, abrir numa aba nova, comparar campo a
+campo): sala/palco/regie afinal voltavam bem — o problema real era só o
+"Público":
+- `abrirProjetoTodo()` nunca repunha `formato` (Reto/Circular) nem
+  `gomos` (nº de gomos) — um projeto guardado em Circular abria sempre em
+  Reto, sem aviso nenhum. Corrigido: repõe `$("formatoPlateia").dataset.valor`
+  (chamando `marcarFormatoPlateia()` a seguir) e o campo `#gomos`.
+- Pior: a reconstrução de `ajustes` ao abrir só copiava `delays` e `dsm`
+  — a chave `gomos` (largura/corredor/filas/posição de cada gomo) ficava
+  `undefined`, nem sequer um array vazio. Ao trocar para "Circular" depois
+  de abrir um projeto guardado, `ajustesDeGomosGarantidos()` fazia
+  `ajustes.gomos[i] = ...` sobre `undefined` e rebentava — reproduzido a
+  valer: "Cannot read properties of undefined (reading '0')", cena
+  totalmente preta (o mesmo sintoma do susto da v2.53, causa completamente
+  diferente). Isto batia certo com o que foi reportado a seguir: "quando
+  tento refazer desaparece tudo na visão de curvado, mas se voltar ao
+  reto está lá" — SIM, o Reto tem lugares nascidos aqui, mas os campos que
+  os controlam não voltam a bater certo até se escrever à mão. Corrigido
+  para a mesma forma que `ajustesGuardados()` já usa (`js/projeto.js`):
+  `gomos` também com garantia de array.
+  Testado de ponta a ponta: guardar em Circular com um gomo redimensionado
+  à mão, abrir numa aba nova — já abre em Circular, com o gomo do tamanho
+  certo, sem erros, mesmo a trocar Reto→Circular outra vez a seguir.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
