@@ -9,7 +9,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
-         padraoDeTeste, texturaDeFicheiro, dataURLDeFicheiro, texturaDeDataURL, fazerProjecao, pontosDaImagem,
+         padraoDeTeste, texturaDaMarca, texturaDeFicheiro, dataURLDeFicheiro, texturaDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
@@ -2705,10 +2705,30 @@ $("btAnalisar").onclick = async () => {
   }
 };
 
+/**
+ * A marca já no ecrã ao abrir o exemplo -- pedido direto: "no arranque do
+ * projeto de exemplo é que deve abrir com, no ecrã do centro logo completo
+ * e nos das laterais apenas o logotipo sozinho". Os nomes vêm do próprio
+ * EXEMPLO (js/projeto.js) -- "Principal" é sempre o ecrã do meio.
+ *
+ * Fica de fora do "Guardar projeto" de propósito: sem texturasPorZonaDataURL
+ * a par (ver estadoCompleto()), como o padrão de teste também fica --
+ * regenera-se sozinho ao clicar "Exemplo" outra vez, não é um ficheiro do
+ * mike.
+ */
+async function aplicarConteudoDeExemplo() {
+  const [completa, simbolo] = await Promise.all([texturaDaMarca(true), texturaDaMarca(false)]);
+  texturasPorZona["Principal"] = completa;
+  texturasPorZona["Ala esquerda"] = simbolo;
+  texturasPorZona["Ala direita"] = simbolo;
+  montar(false);
+}
+
 $("btCarregar").onclick = () => carregar($("colagem").value);
 $("btExemplo").onclick = () => {
   $("colagem").value = JSON.stringify(EXEMPLO, null, 2);
   carregar(EXEMPLO);
+  aplicarConteudoDeExemplo();
 };
 
 /**
