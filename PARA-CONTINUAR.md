@@ -636,6 +636,45 @@ telemóvel da captura): a linha "Sala 24.00 × 18.00 × 8.00 m · 15.00 ×
 4.50 m · 3 zonas" sai completa, e a marca fica visível no canto da
 imagem, sem sobrepor texto nenhum.
 
+**v2.62: o padrão de teste volta a ser neutro — a marca passou para o
+projeto de exemplo.** Corrigido logo a seguir ao v2.59/v2.60 terem
+posto a marca dentro do PRÓPRIO `padraoDeTeste()`: "não era bem assim,
+o padrão teste é apenas o logo sem o Mike Apps... no arranque do
+projeto de exemplo é que deve abrir com, no ecrã do centro logo
+completo e nos das laterais apenas o logotipo sozinho, as formas
+geométricas". Duas coisas distintas, que se tinham misturado numa só:
+- **`padraoDeTeste()`** (`js/cena.js`) voltou a ser o que o nome diz —
+  um padrão neutro, sem marca nenhuma: grelha, barras de cor e uma
+  cruz de canto a canto (o desenho que um comentário antigo já descrevia,
+  mas cujo código nunca chegou a existir neste repositório — foi escrito
+  de novo). A cruz é o mais útil: se uma zona estiver trocada ou
+  espelhada, a diagonal deixa de bater certo ali, visível a olho. Voltou
+  a ser síncrono (devolve a textura direta, não uma promessa) — já não
+  depende de carregar imagem nenhuma.
+- **A marca no projeto de exemplo**: `texturaDaMarca(completa)`, nova em
+  `js/cena.js` (o desenho que estava dentro do `padraoDeTeste()` de
+  v2.59, agora à parte) — logotipo completo ou só o símbolo, centrado
+  sobre o mesmo fundo azul. `aplicarConteudoDeExemplo()`, nova em
+  `js/app.js`, chama-a duas vezes (`Principal` → completa, `Ala
+  esquerda`/`Ala direita` → só o símbolo, os nomes vêm do próprio
+  `EXEMPLO`) e põe o resultado em `texturasPorZona` — o mesmo mecanismo
+  da "Imagem à parte por ecrã" (v2.58). Chama-se sozinha a seguir a
+  `carregar(EXEMPLO)`, ao clicar em "Exemplo": já não é preciso ir a
+  lado nenhum escolher nada, a marca aparece com o resto do projeto.
+  Fica de fora do "Guardar projeto" de propósito, como o padrão de teste
+  já ficava — sem `texturasPorZonaDataURL` a par, regenera-se sozinha ao
+  clicar "Exemplo" outra vez.
+Um efeito secundário a saber, não um defeito: como cada zona do exemplo
+já fica com imagem própria, clicar depois em "Padrão de teste" muda a
+`textura` geral mas não se vê — a imagem própria de cada zona continua
+a sobrepor-se-lhe (mecanismo antigo, "Imagem à parte por ecrã" já dizia
+"sobrepõe-se ao que estiver acima"). Para ver o padrão de teste sozinho
+num projeto que já tenha imagens próprias por zona, é preciso "Remover"
+essas imagens primeiro. Testado com Playwright: "Exemplo" sozinho já
+mostra a marca certa (Playwright confirma "MIKE APPS" ao centro, símbolo
+nas pontas, sem tocar em mais nada); com as imagens próprias das 3 zonas
+removidas, "Padrão de teste" mostra grelha/barras/cruz, sem logo nenhum.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

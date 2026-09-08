@@ -966,23 +966,74 @@ export function fazerPublico(sala, palco, publico, regie) {
 
 
 /**
- * O padrão de teste: a marca sobre um fundo azul.
- *
- * A marca completa (com "MIKE APPS" escrito) só se lê inteira numa fatia
- * larga — ao meio, onde costuma estar o ecrã principal do conjunto. Nas
- * pontas, onde os ecrãs laterais costumam ser mais estreitos, essa mesma
- * marca esticada ou cortada por "espalhada" ficava ilegível ou distorcida.
- * Por isso o desenho já nasce em três fatias: a marca completa ao meio, e só
- * o símbolo (quadrado, aguenta qualquer fatia estreita sem esticar) nas duas
- * pontas — cada ecrã do conjunto mostra algo já pensado para o seu lugar,
- * não um recorte de má sorte de uma imagem pensada só para o meio.
- *
- * Devolve uma promessa e não a textura à seca, e a razão é uma armadilha que
- * já mordeu: cada zona recebe uma CÓPIA da textura, e uma cópia não fica a
- * saber que a original mudou. Se as imagens chegassem depois das cópias
- * feitas, os ecrãs ficavam com o fundo azul e mais nada.
+ * O padrão de teste: grelha, barras de cor e uma cruz de canto a canto — o
+ * suficiente para se ver o conjunto com conteúdo sem ter de arranjar uma
+ * imagem, e para saltar à vista se alguma zona está trocada ou espelhada (a
+ * diagonal parte-se ali, bem visível). Sem marca nenhuma — isso é o que o
+ * projeto de exemplo mostra sozinho (ver texturaDaMarca() e
+ * aplicarConteudoDeExemplo() em js/app.js), este é só um padrão neutro.
  */
 export function padraoDeTeste(largura = 1920, altura = 1080) {
+  const tela = document.createElement("canvas");
+  tela.width = largura; tela.height = altura;
+  const p = tela.getContext("2d");
+
+  p.fillStyle = "#101418";
+  p.fillRect(0, 0, largura, altura);
+
+  // A grelha -- ajuda a ver se o espaçamento continua igual de uma zona
+  // para a seguinte, e onde ficam as juntas entre elas.
+  const passo = Math.max(40, Math.round(largura / 24));
+  p.strokeStyle = "rgba(255,255,255,0.16)";
+  p.lineWidth = 1;
+  for (let x = 0; x <= largura; x += passo) {
+    p.beginPath(); p.moveTo(x + 0.5, 0); p.lineTo(x + 0.5, altura); p.stroke();
+  }
+  for (let y = 0; y <= altura; y += passo) {
+    p.beginPath(); p.moveTo(0, y + 0.5); p.lineTo(largura, y + 0.5); p.stroke();
+  }
+
+  // Barras de cor bem distintas -- de relance já se percebe se uma zona
+  // está a mostrar a fatia certa, ou repetida/trocada com outra.
+  const CORES = ["#FFFFFF", "#FFE800", "#00E5FF", "#00C853", "#FF00C8", "#FF3D3D", "#2E7BFF"];
+  const yBarras = altura * 0.42, alturaBarras = altura * 0.16;
+  const larguraBarra = largura / CORES.length;
+  CORES.forEach((cor, i) => {
+    p.fillStyle = cor;
+    p.fillRect(i * larguraBarra, yBarras, larguraBarra, alturaBarras);
+  });
+
+  // A cruz de canto a canto -- o que mais depressa denuncia uma zona
+  // trocada ou espelhada: a diagonal deixa de bater certo ali.
+  p.strokeStyle = "#FF3D3D";
+  p.lineWidth = Math.max(2, largura * 0.0025);
+  p.beginPath(); p.moveTo(0, 0); p.lineTo(largura, altura); p.stroke();
+  p.beginPath(); p.moveTo(largura, 0); p.lineTo(0, altura); p.stroke();
+
+  const textura = new THREE.CanvasTexture(tela);
+  textura.colorSpace = THREE.SRGBColorSpace;
+  return textura;
+}
+
+function carregarImagem(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);   // sem a imagem, fica só o fundo — não parte nada
+    img.src = src;
+  });
+}
+
+/**
+ * A marca (logotipo completo, ou só o símbolo) centrada sobre um fundo azul,
+ * já pronta a ser textura de um ecrã — usada só no arranque do projeto de
+ * exemplo (ver aplicarConteudoDeExemplo() em js/app.js): o ecrã "Principal"
+ * mostra o logotipo completo, "Ala esquerda"/"Ala direita" mostram só o
+ * símbolo (quadrado, aguenta a fatia estreita sem esticar). Ao contrário do
+ * padrão de teste (genérico, sem marca), isto é só para o exemplo se
+ * apresentar com a cara da app — não é o que se aplica a um projeto real.
+ */
+export function texturaDaMarca(completa, largura = 1024, altura = 576) {
   const tela = document.createElement("canvas");
   tela.width = largura; tela.height = altura;
   const p = tela.getContext("2d");
@@ -993,36 +1044,18 @@ export function padraoDeTeste(largura = 1920, altura = 1080) {
   p.fillStyle = gradiente;
   p.fillRect(0, 0, largura, altura);
 
-  function carregar(src) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);   // sem a imagem, fica o fundo — não parte nada
-      img.src = src;
+  return carregarImagem(completa ? "icons/mike-marca-branco.png" : "icons/mike-simbolo.png")
+    .then((img) => {
+      if (img) {
+        const fator = completa ? 0.7 : 0.5;
+        const larguraImg = completa ? largura * fator : Math.min(largura, altura) * fator;
+        const alturaImg = larguraImg * (img.height / img.width);
+        p.drawImage(img, (largura - larguraImg) / 2, (altura - alturaImg) / 2, larguraImg, alturaImg);
+      }
+      const textura = new THREE.CanvasTexture(tela);
+      textura.colorSpace = THREE.SRGBColorSpace;
+      return textura;
     });
-  }
-
-  return Promise.all([
-    carregar("icons/mike-marca-branco.png"),
-    carregar("icons/mike-simbolo.png")
-  ]).then(([marca, simbolo]) => {
-    const terco = largura / 3;
-    if (marca) {
-      const larguraMarca = terco * 0.78;
-      const alturaMarca = larguraMarca * (marca.height / marca.width);
-      p.drawImage(marca, terco + (terco - larguraMarca) / 2, (altura - alturaMarca) / 2,
-                  larguraMarca, alturaMarca);
-    }
-    if (simbolo) {
-      const ladoSimbolo = Math.min(terco * 0.42, altura * 0.32);
-      const y = (altura - ladoSimbolo) / 2;
-      p.drawImage(simbolo, (terco - ladoSimbolo) / 2, y, ladoSimbolo, ladoSimbolo);
-      p.drawImage(simbolo, largura - terco + (terco - ladoSimbolo) / 2, y, ladoSimbolo, ladoSimbolo);
-    }
-    const textura = new THREE.CanvasTexture(tela);
-    textura.colorSpace = THREE.SRGBColorSpace;
-    return textura;
-  });
 }
 
 /** Uma imagem escolhida pelo mike, pronta a ser recortada pelas zonas. */
