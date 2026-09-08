@@ -474,6 +474,27 @@ ecrã.** Dois pedidos diretos no mesmo fôlego:
   não por posição — mudar a ordem no HTML não mexeu em preferências já
   guardadas de ninguém.
 
+**Bug corrigido (v2.57): a imagem nos DSM saía rodada 180°, e nenhuma
+rotação a punha direita.** Reportado: "a imagem nos DSM está ao contrário
+e não consigo rodar o DSM 360 para ficar direita". Não era falta de
+alcance no campo "rodar" (`-180` a `180` já é o círculo todo) — era a
+imagem em si, virada de pernas para o ar E ao contrário ao mesmo tempo
+(confirmado com uma imagem em quadrantes de cor: saía TL↔BR e TR↔BL
+trocados, uma rotação de 180° a sério, não só um espelho de um dos
+eixos). Causa: o TOMBO fixo (`Math.PI + Math.PI/6`, ~210°) que já vira o
+DSM para o orador é uma rotação à volta de X (um eixo DEITADO) — isso
+inverte o que ficava virado para cima, e nenhuma rotação em Y ("rodar",
+o único campo que a pessoa mexe) desfaz uma inversão de X, são eixos
+diferentes; por mais que se rodasse, a imagem nunca ficava direita.
+Corrigido em `fazerDSM()` (`js/cena.js`): a textura do DSM pré-roda-se
+180° (`repeat.set(-1,-1); offset.set(1,1)`, um ponto-reflexo — o mesmo
+que uma rotação de 180° em UV) antes de entrar no material, só para o
+DSM — as zonas LED/delay não têm este tombo, não precisam disto e não
+foram tocadas. Testado com Playwright: câmara posicionada a apontar
+exatamente para a normal mundial da face do DSM (não uma vista
+aproximada) — antes saía com os quadrantes trocados na diagonal e a
+seta ao contrário; depois, tudo direito.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
