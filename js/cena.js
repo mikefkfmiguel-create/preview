@@ -300,23 +300,27 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
 }
 
 /**
- * A plateia em gomos: N blocos iguais (o mesmo que fazerPublico() já faz),
- * cada um deslocado/rodado à volta do palco por quem usa a app -- não há
- * "leque automático" nenhum: cada gomo é um bloco igual ao de "Reto" (sala
- * toda de largura, mesmas filas/corredores/inclinação), e é a pessoa que o
- * arruma, arrastando-o na cena ou pelos campos ↔ / profundidade / rodar.
+ * A plateia em gomos: N blocos (o mesmo que fazerPublico() já faz para
+ * "Reto"), cada um com a sua PRÓPRIA largura, deslocado/rodado à volta do
+ * palco por quem usa a app -- não há "leque automático" nenhum a decidir
+ * por ninguém, é a pessoa que arruma cada um, arrastando-o na cena ou pelos
+ * campos largura / ↔ / profundidade / rodar. Por omissão nascem lado a
+ * lado (a largura da sala dividida por N, encostados uns aos outros, sem
+ * rodar) -- o mesmo que "Reto" mostraria, só que agora cada fatia é um
+ * bloco à parte, que se pode rodar para dentro ("angular as pontas") ou
+ * deslocar como se quiser.
  *
  * Reaproveita fazerPublico() sem lhe mexer -- cada gomo é uma chamada normal
- * a essa função, com a SALA por inteiro (não uma fatia estreita: uma fatia
- * fica com filas de dois ou três lugares, porque a margem de corredor da
- * sala como um todo comia sozinha quase toda a largura de uma fatia
- * pequena) -- e o grupo 3D resultante entra dentro de um "pivot" que o roda
- * e desloca para onde lhe disseram. O que fazerPublico() desenha sozinha
- * continua exatamente igual a zero risco para quem usa "Reto".
+ * a essa função, só que com a LARGURA do gomo em vez da da sala toda (a
+ * margem de corredor que fazerPublico() já desconta dos dois lados serve
+ * agora de propósito o corredor vertical que separa um gomo do seguinte,
+ * exatamente o que se pediu: "separados pelos corredores"). O grupo 3D
+ * resultante entra dentro de um "pivot" que o roda e desloca para onde lhe
+ * disseram. O que fazerPublico() desenha sozinha continua exatamente igual
+ * a zero risco para quem usa "Reto".
  *
- * `ajustesGomos[i] = { dx, dz, rot }` -- dx/dz em metros a partir do ponto
- * focal (a boca do palco), rot em graus. Falta uma entrada, o gomo fica no
- * próprio ponto focal, sem rodar (empilhado com os outros até se arrumar).
+ * `ajustesGomos[i] = { largura, dx, dz, rot }` -- largura/dx/dz em metros
+ * (dx/dz a partir do ponto focal, a boca do palco), rot em graus.
  *
  * O "corpos" (as posições da plateia, em números simples, usadas pela
  * cobertura/sombra) NÃO viaja com a transformação do Three.js -- essa
@@ -337,6 +341,10 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
   // distância a que ela está -- ou seja, a boca do palco. É à volta deste
   // ponto que cada gomo roda e a partir dele que dx/dz se medem.
   const focoZ = -sala.profundidade / 2 + palco.profundidade;
+  // Nunca abaixo do que cabe pelo menos UM lugar (as duas margens laterais,
+  // que aqui já servem de corredor entre gomos, mais um lugar) -- um gomo
+  // mais estreito do que isto ficava sempre vazio, sem ninguém.
+  const larguraMinima = 2 * (publico.larguraCorredor || 1.2) + publico.entreLugares;
 
   let lugares = 0, blocos = 0;
   let filas = 0, porFila = 0, largura = 0.46, fundura = 0.34;
@@ -347,6 +355,8 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
 
   for (let i = 0; i < n; i++) {
     const aj = ajustes[i] || {};
+    const larguraGomo = Math.max(larguraMinima, Number(aj.largura) || (sala.largura / n));
+    const salaGomo = Object.assign({}, sala, { largura: larguraGomo });
     const dx = Number(aj.dx) || 0;
     const dz = Number(aj.dz) || 0;
     const anguloDeg = Number(aj.rot) || 0;
@@ -371,7 +381,7 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
         rodar: (regie.rodar || 0) - anguloDeg
       });
     }
-    const sub = fazerPublico(sala, palco, publico, regieDoGomo);
+    const sub = fazerPublico(salaGomo, palco, publico, regieDoGomo);
 
     // O grupo 3D: desloca-se para a origem ficar no ponto focal, e um
     // "pivot" por cima roda-o e desloca-o (dx, dz) -- a mesma conta, feita

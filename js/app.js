@@ -216,7 +216,7 @@ function montar(recentrarCamara) {
   // ninguém no palco mede-se o ecrã sem nada a tapá-lo.
   const gente = $("verPublico").checked
     ? (publico.formato === "circular"
-        ? fazerPublicoGomos(sala, palco, publico, regie, ajustesDeGomosGarantidos(publico.gomos))
+        ? fazerPublicoGomos(sala, palco, publico, regie, ajustesDeGomosGarantidos(publico))
         : fazerPublico(sala, palco, publico, regie))
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
@@ -1460,19 +1460,24 @@ function desenharAjustes() {
 }
 
 /**
- * Cada gomo (em "Circular") precisa de um dx/dz/rot próprio — sem
- * automático nenhum a decidir por quem usa a app, é a pessoa que arruma
- * cada um, arrastando-o na cena (ver arrastarGomos, mais abaixo) ou pelos
- * campos que desenharGomos() mostra. Só o PRIMEIRO valor de um gomo novo é
- * que precisa de omissão — e nunca (0,0,0) para todos, que os deixava
- * empilhados uns em cima dos outros, parecendo um bloco só e escondendo que
- * havia mais para arrumar: cada gomo novo nasce um pouco mais atrás do que
- * o anterior, só para ficarem visíveis e óbvios de arrastar.
+ * Cada gomo (em "Circular") precisa de uma largura, dx, dz e rot próprios —
+ * sem automático nenhum a decidir por quem usa a app, é a pessoa que arruma
+ * cada um, arrastando-o na cena (ver "arrastar gomos/delays/DSM", mais
+ * abaixo) ou pelos campos que desenharGomos() mostra. Só o PRIMEIRO valor
+ * de um gomo novo é que precisa de omissão, e o que faz sentido de origem
+ * é o que "Reto" já mostra: os N gomos lado a lado, encostados (a largura
+ * da sala a dividir por N cada um), sem rodar nem deslocar — a pessoa parte
+ * daí para rodar as pontas para dentro, ou para arrumar como quiser.
  */
-function ajustesDeGomosGarantidos(n) {
+function ajustesDeGomosGarantidos(publico) {
+  const n = publico.gomos;
+  if (ajustes.gomos.length >= n) return ajustes.gomos;
+  const sala = lerSala();
+  const larguraGomo = sala.largura / n;
   while (ajustes.gomos.length < n) {
     const i = ajustes.gomos.length;
-    ajustes.gomos.push({ dx: 0, dz: i * 2, rot: 0 });
+    const dx = -sala.largura / 2 + larguraGomo * (i + 0.5);
+    ajustes.gomos.push({ largura: larguraGomo, dx, dz: 0, rot: 0 });
   }
   return ajustes.gomos;
 }
@@ -1485,7 +1490,7 @@ function desenharGomos(publico) {
   }
   lista.style.display = "";
   const n = publico.gomos;
-  ajustesDeGomosGarantidos(n);
+  ajustesDeGomosGarantidos(publico);
   lista.className = "";
 
   const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
@@ -1501,6 +1506,7 @@ function desenharGomos(publico) {
     const nome = document.createElement("strong");
     nome.textContent = "Gomo " + (i + 1);
     linha.append(nome);
+    linha.append(campoAjuste("largura", aj, "largura", "m", "0.5", `gomo-${i}-largura`, 0.5, 60));
     linha.append(campoAjuste("↔", aj, "dx", "m", "0.1", `gomo-${i}-dx`));
     linha.append(campoAjuste("profundidade", aj, "dz", "m", "0.1", `gomo-${i}-dz`));
     linha.append(campoAjuste("rodar", aj, "rot", "°", "5", `gomo-${i}-rot`, -180, 180));

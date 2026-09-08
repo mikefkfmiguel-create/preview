@@ -90,16 +90,17 @@ a envolvê-lo, para eventos "em redondo"; (2) numa **sala muito larga** com o
 palco normal à frente, poder dividir a plateia em gomos rodados para melhorar
 a visualização sem ter de acrescentar ecrãs de cobertura.
 
-**Feito (v2.41, refeito em v2.43): a plateia em gomos.** Secção "Público",
-seletor **Reto / Circular** (`#formatoPlateia`, `data-forma` — não usar
-`data-formato`, esse nome já é do seletor de rácio de imagem em "Conteúdo
-nos ecrãs" e colidia com ele, os dois clicáveis mas só um a responder; foi
-o primeiro tropeço disto). "Circular" reparte a plateia em **N gomos**
-(`#gomos`, 1 a 12), cada gomo é um bloco igual ao de "Reto" (as mesmas
-filas/corredores/inclinação, sala toda de largura). Implementado em
-`fazerPublicoGomos()` (`js/cena.js`), que chama `fazerPublico()` uma vez
-por gomo sem lhe mexer nada (zero risco para "Reto", que continua a ser
-exatamente a mesma função de sempre) e só depois roda/desloca o resultado.
+**Feito (v2.41, refeito em v2.43 e v2.44): a plateia em gomos.** Secção
+"Público", seletor **Reto / Circular** (`#formatoPlateia`, `data-forma` —
+não usar `data-formato`, esse nome já é do seletor de rácio de imagem em
+"Conteúdo nos ecrãs" e colidia com ele, os dois clicáveis mas só um a
+responder; foi o primeiro tropeço disto). "Circular" reparte a plateia em
+**N gomos** (`#gomos`, 1 a 12), cada gomo é um bloco igual ao de "Reto" (as
+mesmas filas/corredores/inclinação), com a sua própria largura.
+Implementado em `fazerPublicoGomos()` (`js/cena.js`), que chama
+`fazerPublico()` uma vez por gomo sem lhe mexer nada (zero risco para
+"Reto", que continua a ser exatamente a mesma função de sempre) e só depois
+roda/desloca o resultado.
 
 De caminho (v2.41), corrigido um bug à parte que isto tropeçou: o `return`
 principal de `fazerPublico()` tinha um comentário com um `\n` escrito por
@@ -108,63 +109,75 @@ comia a propriedade `blocoPorLugar` para dentro do comentário — a função
 nunca devolvia isso, e ninguém tinha reparado porque nada lia essa
 propriedade até `fazerPublicoGomos()` precisar dela.
 
-**v2.41→v2.42 (histórico, já não se aplica): leque automático.** As duas
-primeiras versões espalhavam os gomos sozinhas por um "ângulo total"
-(`#anguloGomos`), cada um do tamanho que coubesse nesse ângulo. Reportado
-com screenshot (6 gomos, 50°): os gomos apareciam empilhados/sem gente (a
-largura de cada fatia, espremida pelo ângulo, comia-se quase toda em
-margens de corredor) e a régie não abria vão nenhum nos gomos rodados.
-Corrigido nessa altura, mas a v2.43 substituiu esta ideia inteira (ver a
-seguir) — por isso já não há `#anguloGomos` nem largura à medida do
-ângulo no código.
+**v2.41→v2.44 — três voltas até chegar ao sítio certo, todas por reports
+de screenshot; as duas primeiras ideias já não estão no código:**
 
-**v2.43: automático fora, arrastar e campos numéricos dentro.** Reportado
-de novo (screenshot, 4 gomos/180°): mesmo corrigido, o leque automático
-"tirava espaço a mais" (a largura de cada fatia era sempre uma fração
-estreita da sala) e não dava para ajustar gomo a gomo — só havia um ângulo
-total para todos, sem forma de deixar o do meio direito e só virar as
-pontas. Pedido do mike: cada gomo com posição/rotação próprias, e poder
-**arrastar** na própria cena, não só por campos.
+1. **v2.41→v2.42 (histórico): leque automático por ângulo.** Os gomos
+   espalhavam-se sozinhos por um "ângulo total" (`#anguloGomos`), cada um
+   do tamanho que coubesse nesse ângulo. Reportado (6 gomos, 50°): gomos
+   empilhados/sem gente (a largura de cada fatia, espremida pelo ângulo,
+   comia-se quase toda em margens de corredor) e a régie sem vão nenhum
+   nos gomos rodados. Corrigido nessa altura, mas a ideia toda foi
+   substituída a seguir — já não há `#anguloGomos` no código.
+2. **v2.43 (histórico): automático fora, cada gomo = a sala inteira.**
+   Reportado de novo (4 gomos/180°): mesmo corrigido, o leque automático
+   "tirava espaço a mais" e não dava para ajustar gomo a gomo. Tirei o
+   automático todo: cada gomo passou a ser a SALA INTEIRA (o bloco de
+   "Reto" completo), só deslocado/rodado por `ajustesGomos[i] = { dx, dz,
+   rot }`. Reportado outra vez (4 gomos, todos com a sala toda de
+   largura): "não são separados" — ao empilhar em profundidade (`dz`,
+   omissão de `i*2`), cada gomo com ~9 m de filas só tinha 2 m de folga
+   para o seguinte, e ficavam a espetar-se uns nos outros; ao corrigir só
+   a distância, os gomos seguintes saíam para fora da sala visível (uma
+   sala não cresce sozinha para caber 4 cópias inteiras da plateia). Ideia
+   de novo trocada — ver a seguir.
+3. **v2.44 (atual): cada gomo com a sua própria largura, lado a lado por
+   omissão.** Perguntei directamente ao mike qual dos dois desenhos fazia
+   sentido — "lado a lado, mais estreitos" venceu, é o que está feito:
+   - `fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos)` volta
+     a passar uma `salaGomo` (só a `largura` trocada) para `fazerPublico()`
+     — mas agora a largura de cada gomo é **um valor à parte por gomo**
+     (`ajustesGomos[i].largura`), não uma fatia calculada por um ângulo. A
+     margem de corredor que `fazerPublico()` já desconta dos dois lados
+     (`margemLateral`/`larguraCorredor`) passa a servir, de propósito, de
+     corredor VERTICAL entre um gomo e o seguinte — a mesma conta de
+     sempre, só que agora com um propósito novo, não um bug.
+   - Omissão de um gomo novo: `{ largura: sala.largura/n, dx: <lado a lado,
+     encostados>, dz: 0, rot: 0 }` — visualmente idêntico a "Reto" ao ligar
+     "Circular" pela primeira vez (nada salta), e a pessoa parte daí para
+     rodar as pontas para dentro ou arrumar como quiser.
+   - Campo novo em `#listaGomos`/`desenharGomos()`: **largura** (m, min
+     0.5), ao lado dos já existentes ↔ / profundidade / rodar.
+   - `ajustesDeGomosGarantidos(publico)` (antes recebia só `n`, agora o
+     `publico` inteiro) chama `lerSala()` para saber a largura total a
+     dividir.
 
-- `fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos)` já não
-  encolhe a largura do gomo a um ângulo — cada gomo é a SALA INTEIRA (o
-  mesmo bloco que "Reto" desenharia), só deslocado por `ajustesGomos[i] =
-  { dx, dz, rot }` (metros/graus, a partir do ponto focal — a boca do
-  palco). Sem automático nenhum: um gomo sem entrada em `ajustesGomos`
-  fica no próprio ponto focal, sem rodar.
-- `ajustes.gomos` (novo, ao lado de `ajustes.delays`/`ajustes.dsm` — ver
-  `CHAVE_AJUSTES` em `js/projeto.js`) guarda isto por projeto/aparelho, tal
-  e qual os delays já faziam. `ajustesDeGomosGarantidos(n)` (`js/app.js`)
-  garante que há pelo menos N entradas, semeando as novas com
-  `{ dx:0, dz: i*2, rot:0 }` — só para não nascerem todas empilhadas em
-  cima umas das outras (o que parecia um gomo só, escondendo que havia mais
-  para arrastar); a pessoa arruma a seguir.
-- `desenharGomos()` (`js/app.js`, ao lado de `desenharAjustes()`) desenha
-  uma linha por gomo em `#listaGomos`, com os mesmos campos ↔/profundidade/
-  rodar (e a mesma calculadora popup) que os delays já tinham.
-- **Arrastar**: bloco novo em `js/app.js`, "arrastar gomos/delays/DSM" —
-  reaproveita a ideia do arrastar do orador (raio + plano horizontal), mas
-  generalizado a qualquer objeto nomeado na cena com um ajuste próprio:
-  `"gomo-N"` (só com "Circular" ligado), `"zona NOME"` (só se tiver entrada
-  em `ajustes.delays` — uma zona LED não se arrasta, a posição dela vem do
-  conjunto lá dos Calculadores) e `"dsm N"`. Arrasta-se qualquer um destes
-  agora, não só os gomos — foi pedido no mesmo fôlego ("também com os
-  ecrãs delays e DSM"). O ajuste muda ao vivo durante o arrasto (o mesmo
-  objeto que os campos leem/escrevem), por isso os campos acompanham
-  sozinhos.
+Ao longo das três voltas, o mecanismo de **arrastar** (bloco em
+`js/app.js`, "arrastar gomos/delays/DSM" — a mesma ideia do arrastar do
+orador, raio + plano horizontal, generalizada a qualquer objeto nomeado na
+cena: `"gomo-N"` só com "Circular" ligado, `"zona NOME"` só zonas delay
+— uma LED não se arrasta, a posição dela vem do conjunto lá dos
+Calculadores — e `"dsm N"`) e o `ajustes.gomos` (`js/projeto.js`, ao lado
+de `delays`/`dsm`, mesma persistência) não mudaram — só mudou o QUE fica
+guardado em cada entrada (agora com `largura` também).
 
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
-  função devolve são os de UM gomo — como agora todos os gomos são
-  estruturalmente idênticos (a sala inteira, só deslocada), isto já não é
-  uma aproximação: é exato para qualquer um deles. Só os "lugares" totais
-  são mesmo uma soma dos N.
+  função devolve são os de UM gomo, não uma conta agregada dos N — para os
+  "lugares" totais (o número que mais se vê) soma-se certo.
 - "Olhos da plateia" usa o gomo com `rot` mais perto de 0° — não foi
   testado com N par (não há gomo exatamente ao centro nesse caso, fica o
   mais próximo).
-- Arrastar só muda dx/dz (posição); rodar continua só pelo campo numérico
-  — arrastar para rodar pediria um manípulo à parte, não feito.
+- Arrastar só muda dx/dz (posição); largura e rodar continuam só pelos
+  campos numéricos — arrastar para rodar/redimensionar pediria um
+  manípulo à parte, não feito.
+- Um gomo com `largura` a menos do que cabe um lugar (duas margens de
+  corredor mais um lugar) fica sempre vazio, sem aviso — ao contrário do
+  antigo leque automático, que avisava quando isso acontecia sozinho, isto
+  agora é uma escolha manual da pessoa (pôr uma largura fora do que faz
+  sentido), por isso trata-se como qualquer outro campo — vê-se vazio, sem
+  mensagem a explicar porquê.
 
 **Por fazer: o palco central/circular a sério.** Isto ainda roda a plateia à
 volta do PONTO onde o palco reto de hoje já fica — não existe um palco que
