@@ -495,6 +495,29 @@ exatamente para a normal mundial da face do DSM (não uma vista
 aproximada) — antes saía com os quadrantes trocados na diagonal e a
 seta ao contrário; depois, tudo direito.
 
+**v2.58: a marca em toda a exportação de imagem.** Início do branding
+pedido a sério — "em todos os export de imagens, texto, marca com o logo
+discreto no canto inferior direito sem tapar informações" (mais passos a
+vir, ainda por dizer). `logoExportacao()` (`js/app.js`) carrega
+`icons/mike-logo.png` uma vez só (promessa em cache, reaproveitada em
+todas as exportações seguintes) e nunca parte a exportação se a imagem
+falhar (`onerror` resolve `null`, a imagem sai na mesma, só sem marca).
+Sítio diferente consoante o que já existe em cada exportação:
+- **"PNG com medidas"** (`guardarImagem()`) já tem uma tira sólida por
+  baixo do desenho (as contas) — a marca entra aí, à direita, sem fundo
+  próprio (a tira já é sólida) e sem risco nenhum de tapar o texto (que
+  começa à esquerda).
+- **"PNG da vista"** (`guardarVista()`) não tinha tira nenhuma — era o
+  canvas em bruto, direto para `toBlob()`. Passou a copiar-se primeiro
+  para uma tela à parte (só assim dá para desenhar a marca por cima),
+  com um fundo escuro semitransparente atrás do logo — o canto onde ela
+  cai varia entre escuro (fundo da sala) e claro (gente/ecrã), sem fundo
+  próprio ficava ilegível consoante o enquadramento.
+Ambas as funções passaram a `async` (esperam a promessa da marca antes
+do `toBlob`) — chamadas sem `await` no `onclick`, como já era. Testado
+com Playwright: as duas exportações saem com o logo pequeno, legível, no
+canto inferior direito, sem tapar etiquetas nem a tira de contas.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
