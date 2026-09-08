@@ -2776,7 +2776,26 @@ function devolverDaqui(ms = 700) {
 // ninguem. Por isso o desenho e recomposto: a cena, as etiquetas por cima, e
 // uma tira em baixo com as contas.
 
-function guardarImagem() {
+// A marca em toda a exportação de imagem (PNG da vista / PNG com medidas) --
+// pedido direto: "branding, em todos os export de imagens ... marca com o
+// logo discreto no canto inferior direito sem tapar informações". Carregada
+// uma vez só e reaproveitada -- exportar não devia esperar pela rede outra
+// vez a cada clique, e sem marca (offline, ou o ficheiro não existir) a
+// exportação continua a funcionar, só sem ela.
+let logoExportacaoPromise = null;
+function logoExportacao() {
+  if (!logoExportacaoPromise) {
+    logoExportacaoPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = "icons/mike-logo.png";
+    });
+  }
+  return logoExportacaoPromise;
+}
+
+async function guardarImagem() {
   renderizador.render(cena, camara);            // garantir que o que se copia e o que se ve
 
   const folha = document.createElement("canvas");
@@ -2823,7 +2842,20 @@ function guardarImagem() {
   p.fillStyle = "#8A97A6";
   p.textAlign = "left";
   p.font = `${Math.round(13 * escala)}px "Segoe UI", system-ui, sans-serif`;
-  p.fillText(linha, 16 * escala, tela.height + (folha.height - tela.height) / 2);
+  const alturaTira = folha.height - tela.height;
+  p.fillText(linha, 16 * escala, tela.height + alturaTira / 2);
+
+  // A marca no canto inferior direito da própria tira -- já é uma faixa
+  // sólida, sem nada por baixo (o texto das contas começa à esquerda), por
+  // isso não precisa de fundo próprio nem risco de tapar coisa nenhuma.
+  const logo = await logoExportacao();
+  if (logo) {
+    const alturaLogo = alturaTira * 0.5;
+    const larguraLogo = alturaLogo * (logo.width / logo.height);
+    const margem = 16 * escala;
+    p.drawImage(logo, folha.width - larguraLogo - margem,
+                tela.height + (alturaTira - alturaLogo) / 2, larguraLogo, alturaLogo);
+  }
 
   const agora = new Date();
   const nome = "preview-" +
@@ -2847,11 +2879,38 @@ function guardarImagem() {
  *
  * Ao contrário de um printscreen, sai na resolução do canvas e sem o painel.
  */
-function guardarVista() {
+async function guardarVista() {
   // Sem isto o browser pode ter limpo o buffer antes de o copiarmos e a
   // imagem sai preta -- o preserveDrawingBuffer sozinho não chega.
   renderizador.render(cena, camara);
-  tela.toBlob((blob) => {
+
+  // Esta imagem não tem tira nenhuma por baixo (é só o desenho, para entrar
+  // direto num slide) -- a marca tem de ir POR CIMA da própria cena. Por
+  // isso copia-se para uma tela à parte só para o canto poder levar um
+  // fundo semitransparente atrás do logo, e nunca depende do que calhar de
+  // estar desenhado ali (às vezes escuro, às vezes gente clara).
+  const logo = await logoExportacao();
+  const folha = document.createElement("canvas");
+  folha.width = tela.width; folha.height = tela.height;
+  const p = folha.getContext("2d");
+  p.drawImage(tela, 0, 0);
+
+  if (logo) {
+    const escala = tela.width / tela.clientWidth;
+    const margem = 14 * escala;
+    const alturaLogo = Math.min(28 * escala, tela.height * 0.06);
+    const larguraLogo = alturaLogo * (logo.width / logo.height);
+    const padding = 8 * escala;
+    p.fillStyle = "rgba(14,20,24,0.55)";
+    p.fillRect(
+      tela.width - larguraLogo - margem - padding * 2,
+      tela.height - alturaLogo - margem - padding * 2,
+      larguraLogo + padding * 2, alturaLogo + padding * 2);
+    p.drawImage(logo, tela.width - larguraLogo - margem - padding,
+                tela.height - alturaLogo - margem - padding, larguraLogo, alturaLogo);
+  }
+
+  folha.toBlob((blob) => {
     if (!blob) { $("notaExportar").textContent = "Não consegui copiar a vista."; return; }
     descarregar(blob, nomeDoFicheiro("png"));
     $("notaExportar").innerHTML =
