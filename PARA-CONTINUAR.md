@@ -28,7 +28,11 @@ quatro vistas, e a vista de quem está sentado num lugar a sério.
   Projeto;
 - o **projetor** vem de lá (`mikeapps-projetor-v1` e `#proj=`), com rácio,
   distância e **os limites de shift da lente**;
-- o tamanho do ecrã ajustado aqui volta para lá (`mikeapps-ecra-v1`);
+- o tamanho do ecrã (e as zonas/sala/palco) ajustados aqui voltam para lá
+  (`mikeapps-ecra-v1`) — **automaticamente desde a v2.48** quando a
+  sincronização automática está ligada (antes só ia com o clique manual em
+  "📤 Devolver", que era fácil esquecer depois de mais um ajuste — ver
+  "Bug corrigido (v2.48)" mais abaixo);
 - todas as pontes abrem na **mesma janela** (nome `mikeapps-preview`).
 
 **Plantas.** DXF e DWG entram à escala (o DWG converte-se a DXF dentro da app,
@@ -264,6 +268,28 @@ ponto por gomo, com a mesma transformação dx/dz/rot que já se aplica a
 zonas/DSM — que ainda REESCREVEM `etiquetas` do zero (não só acrescentam),
 por isso entrar antes fazia as etiquetas dos gomos desaparecerem sempre
 que houvesse um projeto com ecrãs.
+
+**Bug corrigido (v2.48): "Devolver aos Calculadores" só ia com um clique
+manual, nunca sozinho.** Reportado: "se estão em sync, a calculadora devia
+ter o tamanho do ecrã e os delays do preview, e vice-versa" — na prática,
+a ponte Calculadores→Preview (zonas, projetor) já era automática com a
+sincronização ligada (evento `storage` + `syncAutoLigada()`), mas a ponte
+contrária, Preview→Calculadores (tamanho do ecrã ajustado aqui, zonas,
+sala/palco — `mikeapps-ecra-v1`), só escrevia com um clique manual no "📤
+Devolver", em `js/app.js`. Fácil de esquecer esse clique depois de mais um
+ajuste, ficando os Calculadores a mostrar um tamanho antigo mesmo com
+"Auto" ligado dos dois lados — os Calculadores já tinham o lado de
+LER isto ao vivo (`window.addEventListener("storage", ...)` em
+`index.html`, gated por `syncAutoLigada()`), só faltava alguém escrever
+sozinho.
+
+A lógica do clique (agora `devolverAosCalculadores(comAviso)`, reaproveitada
+pelo botão) passou a correr também sozinha, no fim de `montar()`, sempre
+que há projeto carregado e a sincronização automática está ligada —
+`devolverDaqui()`, com uma pausa de 700ms depois da última alteração (não
+a cada tecla), em silêncio (sem escrever em `#notaEcra`, ao contrário do
+clique manual, que continua a confirmar por ali). O botão continua a
+existir para um envio imediato e explícito.
 
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
