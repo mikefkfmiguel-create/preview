@@ -162,7 +162,7 @@ export function fazerRegie(sala, regie) {
  * é assim que ela se monta de verdade, e é a única forma de a curva se ver de
  * cima em vez de ser um desenho na textura.
  */
-function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
+function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0, texturaZona = null) {
   const grupo = new THREE.Group();
   const cor = new THREE.Color(zona.cor || "#2E7BFF");
   const tras = new THREE.MeshStandardMaterial({ color: 0x11181E, roughness: 1 });
@@ -202,6 +202,25 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
   // isso fica sem emissivo nenhum, só a cor clara do próprio pano.
   const INTENSIDADE_EMISSIVA = zona.tipo === "tv" ? 0.5 : 0.85;
   function frenteDoGomo(i) {
+    // Imagem PRÓPRIA deste ecrã (por nome da zona): sobrepõe-se a tudo o
+    // resto, geral ou por delay — a imagem toda aqui, fatiada só pelos
+    // gomos DESTE ecrã (não pela posição no conjunto, que é o que
+    // "espalhada" faz para a imagem comum a todos).
+    if (texturaZona) {
+      const imagem = texturaZona.clone();
+      imagem.needsUpdate = true;
+      imagem.repeat.set(1 / gomos, 1);
+      imagem.offset.set(i / gomos, 0);
+      return new THREE.MeshStandardMaterial({
+        color: zona.tipo === "projecao" ? 0xEDEDED : 0xFFFFFF,
+        map: imagem,
+        emissiveMap: zona.tipo === "projecao" ? null : imagem,
+        emissive: zona.tipo === "projecao" ? 0x000000 : 0xFFFFFF,
+        emissiveIntensity: zona.tipo === "projecao" ? 0 : INTENSIDADE_EMISSIVA,
+        roughness: zona.tipo === "projecao" ? 0.92 : 0.45,
+        metalness: 0
+      });
+    }
     // Um delay é um monitor independente: recebe a imagem inteira, como um
     // DSM. O recorte espalhado pelo conjunto só faz sentido para as zonas LED
     // que formam uma parede; num delay, esse recorte podia deixar a imagem
@@ -483,11 +502,17 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
  * `ajustesDelays` é o que o preview guarda LOCALMENTE (não vem dos
  * Calculadores) para afinar onde um delay ou uma TV ficam de verdade na
  * sala — uma coluna, uma parede lateral — sem mexer nas contas de lá.
+ *
+ * `texturasPorZona` (opcional, por nome da zona) é uma imagem PRÓPRIA
+ * desse ecrã — sobrepõe-se à "textura" geral só nele, tal como um DSM ou
+ * um delay: a imagem toda nesse ecrã, sem o recorte "espalhada"/"cada" (só
+ * faz sentido para a imagem geral, comum a todos).
  */
-export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo, ajustesDelays) {
+export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo, ajustesDelays, texturasPorZona) {
   const grupo = new THREE.Group();
   const etiquetas = [];
   const ajustes = ajustesDelays || {};
+  const texturasZona = texturasPorZona || {};
 
   const esquerda = Math.min(...projeto.zonas.map(z => z.x));
   const fundo = Math.max(...projeto.zonas.map(z => z.y + z.h));
@@ -520,7 +545,7 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo,
       alturaBase += Number(aj.dy) || 0;
       zPeca += Number(aj.dz) || 0;
     }
-    const peca = fazerZona(zona, alturaBase, zPeca, conteudo, aj ? aj.rot : 0, aj ? aj.tilt : 0);
+    const peca = fazerZona(zona, alturaBase, zPeca, conteudo, aj ? aj.rot : 0, aj ? aj.tilt : 0, texturasZona[zona.nome]);
     // O nome viaja para o Cinema 4D: e por ele que, do outro lado, se escolhe
     // a zona a que se vai por a textura de verdade.
     peca.name = "zona " + zona.nome;
