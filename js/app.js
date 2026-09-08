@@ -679,20 +679,33 @@ function avisarSeNaoCabe(medidas, sala, palco) {
 // plateia; o "rot" de um delay roda esse referencial à volta do eixo
 // vertical. Horizontal e vertical são os ângulos entre um espectador
 // e o eixo central desse referencial.
-const LIMITE_HORIZONTAL = 30;
+// Ângulo horizontal: a mesma regra SMPTE EG-18-1994 que os Calculadores já
+// citam na aba "Distância de Visualização" (com fonte ligada lá) -- até 30°
+// é o recomendado, entre 30° e 35° "ainda aceitável, mas no limite", acima
+// de 35° a maioria já sente desconforto. Antes disto o Preview tinha os
+// seus próprios números (20°/30°) para o mesmo efeito -- pedido direto para
+// as duas apps usarem a MESMA regra, não duas parecidas.
+const LIMITE_HORIZONTAL = 35;
+const CONFORTAVEL_HORIZONTAL = 30;
+// Vertical não tem norma equivalente nos Calculadores (que não modelam a
+// sala em 3D) -- fica só do Preview, a mesma proporção 2/3 de sempre, para
+// apanhar um ecrã montado alto/baixo de mais que o ângulo horizontal sozinho
+// não via.
 const LIMITE_VERTICAL = 15;
-// "Confortável" é dois terços do limite -- não vem de nenhuma
-// norma, é só o que separa "ainda aceitável" de "bem colocado",
-// para dar três cores em vez de um sim/não.
-const CONFORTAVEL_HORIZONTAL = 20;
 const CONFORTAVEL_VERTICAL = 10;
 // A distância também entra na regra, não só o ângulo: um lugar pode estar
 // exactamente em frente do ecrã e ainda assim longe de mais para ler o que
-// lá está. A régua comum é "distância ≤ 8 a 10 vezes a altura da imagem" --
-// 8 para quem tem de ler detalhe (texto, dados), 10 é o limite antes de já
-// não se distinguir nada.
-const CONFORTAVEL_DISTANCIA_ALTURA = 8;
-const LIMITE_DISTANCIA_ALTURA = 10;
+// lá está. Antes eram 8/10 alturas de imagem, sem norma nenhuma por trás --
+// agora são os dois primeiros níveis do "AVIXA 4-6-8" que os Calculadores já
+// usam (mesma aba): 6 é o limite para "detalhe normal, a maioria das
+// apresentações" (o nível "basic", o que este Preview mostra por omissão),
+// 8 é o limite mais largo para "pouco detalhe, vídeo" (o nível "passive") --
+// além disso já nem esse conteúdo mais permissivo se lê. Fica de fora o
+// mínimo do AVIXA (altura × 2, para não ficar perto de mais): a esse a
+// pergunta certa é vertical, não distância -- um lugar mesmo à frente de um
+// ecrã alto já fica marcado pelo ângulo vertical, que mede exactamente isso.
+const CONFORTAVEL_DISTANCIA_ALTURA = 6;
+const LIMITE_DISTANCIA_ALTURA = 8;
 
 function contextoDeZonas(projetoAtual, medidas, sala, palco) {
   return {

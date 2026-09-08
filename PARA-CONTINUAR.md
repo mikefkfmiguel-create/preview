@@ -697,6 +697,39 @@ largura). Testado com Playwright: "Exemplo" sozinho já não mostra
 aviso nenhum, e a lotação sobe de 317 para 352 pessoas (as 10 filas
 completas, não 9).
 
+**v2.64: a cobertura passa a usar a mesma régua AVIXA/SMPTE dos
+Calculadores.** Pedido depois de se perguntar pelo conforto
+visual/distância de visualização do exemplo: "seguindo a regra [...]
+sempre dá calculadora" → "um merge das duas [regras/apps], acho" → "e
+era avixa e smpte". Os limites de `calcularCobertura()` (`js/app.js`)
+eram só do Preview — o próprio comentário dizia "não vem de nenhuma
+norma" — enquanto os Calculadores, na aba "Distância de Visualização",
+já citam e usam a norma a sério (com fonte ligada): SMPTE EG-18-1994
+para o ângulo, AVIXA 4-6-8 para a distância/altura da imagem. Trocados
+os quatro números:
+- **Ângulo horizontal**: 20°/30° (confortável/limite) → **30°/35°** —
+  os valores exatos do SMPTE EG-18-1994 que os Calculadores já citam
+  ("até 30° recomendado, 30-35° aceitável mas no limite, acima de 35°
+  desconforto para a maioria").
+- **Distância** (em alturas de imagem): 8/10 → **6/8** — os dois
+  primeiros níveis do "AVIXA 4-6-8": 6 é "detalhe normal, a maioria das
+  apresentações" (o nível "basic", o que este Preview já assume por
+  omissão), 8 é "pouco detalhe, vídeo" (o nível "passive", mais
+  permissivo). Fica de fora o mínimo do AVIXA (altura × 2) — a esse a
+  pergunta certa é o ângulo VERTICAL (que o Preview já verifica, e os
+  Calculadores nem modelam), não a distância.
+- O ângulo **vertical** (10°/15°) fica como estava — não tem norma
+  equivalente nos Calculadores (que não modelam a sala em 3D), é
+  só do Preview.
+Resultado no exemplo (mesma sala corrigida do v2.63): **306
+confortáveis · 46 marginais · 0 sem cobertura** (de 352 lugares) — uma
+melhoria em relação aos números antigos (286/66/0): o ângulo ficou mais
+permissivo (30° em vez de 20° para "confortável"), mesmo com a
+distância mais apertada (6 em vez de 8). 46 lugares marginais não é um
+defeito a corrigir — nenhuma sala real tem 100% dos lugares no ponto
+ideal, e o que importa a sério (0 sem cobertura nenhuma) já estava e
+continua a zero.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
