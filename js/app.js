@@ -2919,6 +2919,28 @@ async function guardarImagem() {
   p.fillRect(0, 0, folha.width, folha.height);
   p.drawImage(tela, 0, 0);
 
+  // A marca vai no canto inferior direito da PRÓPRIA IMAGEM 3D, não na tira
+  // de contas por baixo -- pedido direto ("põe na imagem mesmo, não na
+  // barra de informação"), depois de a barra ter mostrado que uma linha
+  // comprida (a sala, v2.58) ou um export estreito (telemóvel) faziam o
+  // texto ir dar ao logo. Mesma receita que guardarVista() já usa: fundo
+  // semitransparente atrás, porque o canto tanto pode cair em cena escura
+  // como em gente clara.
+  const logo = await logoExportacao();
+  if (logo) {
+    const margem = 14 * escala;
+    const alturaLogo = Math.min(28 * escala, tela.height * 0.06);
+    const larguraLogo = alturaLogo * (logo.width / logo.height);
+    const padding = 8 * escala;
+    p.fillStyle = "rgba(14,20,24,0.55)";
+    p.fillRect(
+      tela.width - larguraLogo - margem - padding * 2,
+      tela.height - alturaLogo - margem - padding * 2,
+      larguraLogo + padding * 2, alturaLogo + padding * 2);
+    p.drawImage(logo, tela.width - larguraLogo - margem - padding,
+                tela.height - alturaLogo - margem - padding, larguraLogo, alturaLogo);
+  }
+
   // as etiquetas, onde elas estao agora
   p.font = `${Math.round(12 * escala)}px "Segoe UI", system-ui, sans-serif`;
   p.textBaseline = "middle";
@@ -2954,18 +2976,6 @@ async function guardarImagem() {
   p.font = `${Math.round(13 * escala)}px "Segoe UI", system-ui, sans-serif`;
   const alturaTira = folha.height - tela.height;
   p.fillText(linha, 16 * escala, tela.height + alturaTira / 2);
-
-  // A marca no canto inferior direito da própria tira -- já é uma faixa
-  // sólida, sem nada por baixo (o texto das contas começa à esquerda), por
-  // isso não precisa de fundo próprio nem risco de tapar coisa nenhuma.
-  const logo = await logoExportacao();
-  if (logo) {
-    const alturaLogo = alturaTira * 0.5;
-    const larguraLogo = alturaLogo * (logo.width / logo.height);
-    const margem = 16 * escala;
-    p.drawImage(logo, folha.width - larguraLogo - margem,
-                tela.height + (alturaTira - alturaLogo) / 2, larguraLogo, alturaLogo);
-  }
 
   const agora = new Date();
   const nome = "preview-" +
