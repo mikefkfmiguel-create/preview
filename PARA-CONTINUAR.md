@@ -153,13 +153,64 @@ de screenshot; as duas primeiras ideias já não estão no código:**
      dividir.
 
 Ao longo das três voltas, o mecanismo de **arrastar** (bloco em
-`js/app.js`, "arrastar gomos/delays/DSM" — a mesma ideia do arrastar do
-orador, raio + plano horizontal, generalizada a qualquer objeto nomeado na
-cena: `"gomo-N"` só com "Circular" ligado, `"zona NOME"` só zonas delay
+`js/app.js`, "arrastar gomos/delays/DSM/régie" — a mesma ideia do arrastar
+do orador, raio + plano horizontal, generalizada a qualquer objeto nomeado
+na cena: `"gomo-N"` só com "Circular" ligado, `"zona NOME"` só zonas delay
 — uma LED não se arrasta, a posição dela vem do conjunto lá dos
-Calculadores — e `"dsm N"`) e o `ajustes.gomos` (`js/projeto.js`, ao lado
-de `delays`/`dsm`, mesma persistência) não mudaram — só mudou o QUE fica
-guardado em cada entrada (agora com `largura` também).
+Calculadores —, `"dsm N"` e `"regie"`, pedida a seguir, v2.45) e o
+`ajustes.gomos` (`js/projeto.js`, ao lado de `delays`/`dsm`, mesma
+persistência) não mudaram — só mudou o QUE fica guardado em cada entrada
+(agora com `largura` também).
+
+**v2.45: a régie também se arrasta, e um cadeado para não mexer nada por
+engano.** Dois pedidos no mesmo fôlego:
+
+- **Régie arrastável.** A régie não guarda posição num `ajuste` como os
+  delays/DSM/gomos — é um campo de formulário direto (`regieX`/`regieZ`,
+  lido em `lerRegie()`), como o palco. O bloco de arrastar generalizou-se
+  com uma interface comum (`getXZ()`/`setXZ(x,z)`) atrás de dois adaptadores
+  — `alvoDeAjuste()` (o que já havia, para gomos/delays/DSM) e
+  `alvoDeCampos(idX, idZ)`, novo, que escreve direto nos `<input>` e dispara
+  `"input"` (o mesmo evento que já faz o resto da app reagir a um campo
+  escrito à mão — nenhum código novo precisou de saber que a régie é
+  "diferente"). `objetosArrastaveis()` passou a incluir `"regie"`
+  (`grupo.name` em `fazerRegie()`, `js/cena.js`) sempre que a régie estiver
+  visível.
+- **Cadeado de edição livre.** Pedido direto: rodar a vista às vezes passa
+  o rato mesmo por cima de um gomo/delay/DSM/régie/orador, e um clique para
+  rodar a câmara arrastava isso sem querer. Botão novo, sempre visível
+  sobre a cena (`#btEdicaoLivre`, canto superior direito, ao contrário do
+  `#btAbrir` que só aparece com o painel escondido) — 🔒 por omissão
+  (arrastar na cena só mexe a câmara) / 🔓 quando ligado (arrastar move o
+  que estiver por baixo do rato). Preferência por aparelho
+  (`preview-edicao-livre` no localStorage, não partilhada com os
+  Calculadores — é só sobre o que este aparelho deixa acontecer na tela).
+  Os dois blocos de arrastar (orador, e gomos/delays/DSM/régie) ganharam a
+  mesma guarda no `pointerdown`; os campos numéricos nunca dependeram disto
+  — esses continuam sempre a funcionar, cadeado aberto ou fechado.
+
+**Bug corrigido (v2.45): a sincronização automática não se entendia entre
+as duas apps.** A preferência (`mikeapps-sincronizacao-v1`) é partilhada
+por localStorage, mas cada app gravava-a num formato diferente: os
+Calculadores sempre gravaram com `JSON.stringify` (o valor real em
+localStorage ficava `"desligada"`, ASPAS INCLUÍDAS); o Preview gravava a
+string em bruto (`desligada`, sem aspas). O Preview lia comparando direto
+contra a string em bruto — nunca batia com o que os Calculadores tinham
+escrito, por isso desligar a sincronização automática NOS CALCULADORES não
+se refletia aqui: o Preview continuava a pensar que estava ligada e
+continuava a aplicar o que chegasse sozinho. `sincronizacaoAutomaticaLigada()`
+(`js/app.js`) passou a tentar `JSON.parse` primeiro (o formato dos
+Calculadores) e só usar o valor em bruto se isso falhar (o que o Preview
+grava) — a mesma robustez que o `syncAutoLigada()` dos Calculadores já
+tinha (`js/utils.js`). O Preview também passou a GRAVAR no mesmo formato
+(`JSON.stringify`) a partir de agora, para os dois lados ficarem
+simétricos daqui para a frente.
+
+De caminho, o botão `#btSincronizacao` no Preview passou a mudar de ÍCONE
+a sério (🔗 ligada / ⛔ desligada, os mesmos que os Calculadores já usam no
+deles) em vez de só mudar de cor — reportado como "difícil de entender
+entre os dois quando está ligado e não", ao lado do "🔄 Sincronizar" (que é
+uma ação, não um interruptor, e não muda nunca de ícone).
 
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
