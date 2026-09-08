@@ -301,54 +301,42 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0) {
 
 /**
  * A plateia em gomos: N blocos iguais (o mesmo que fazerPublico() já faz),
- * cada um rodado à volta do palco -- como fatias de laranja apontadas para
- * o centro, em vez de uma única fileira de blocos direita ao palco.
+ * cada um deslocado/rodado à volta do palco por quem usa a app -- não há
+ * "leque automático" nenhum: cada gomo é um bloco igual ao de "Reto" (sala
+ * toda de largura, mesmas filas/corredores/inclinação), e é a pessoa que o
+ * arruma, arrastando-o na cena ou pelos campos ↔ / profundidade / rodar.
  *
- * Reaproveita fazerPublico() sem lhe mexer: cada gomo é uma chamada normal
- * a essa função (mesmas filas/corredores/inclinação), só que o grupo 3D
- * resultante entra dentro de um "pivot" que o roda e desloca para o seu
- * lugar no leque. O que fazerPublico() desenha sozinha continua exatamente
- * igual a zero risco para quem usa "Reto" (o caso de sempre).
+ * Reaproveita fazerPublico() sem lhe mexer -- cada gomo é uma chamada normal
+ * a essa função, com a SALA por inteiro (não uma fatia estreita: uma fatia
+ * fica com filas de dois ou três lugares, porque a margem de corredor da
+ * sala como um todo comia sozinha quase toda a largura de uma fatia
+ * pequena) -- e o grupo 3D resultante entra dentro de um "pivot" que o roda
+ * e desloca para onde lhe disseram. O que fazerPublico() desenha sozinha
+ * continua exatamente igual a zero risco para quem usa "Reto".
+ *
+ * `ajustesGomos[i] = { dx, dz, rot }` -- dx/dz em metros a partir do ponto
+ * focal (a boca do palco), rot em graus. Falta uma entrada, o gomo fica no
+ * próprio ponto focal, sem rodar (empilhado com os outros até se arrumar).
  *
  * O "corpos" (as posições da plateia, em números simples, usadas pela
  * cobertura/sombra) NÃO viaja com a transformação do Three.js -- essa
  * transformação só pinta a cena, não mexe nos números -- por isso cada
- * ponto recalcula-se aqui à mão com a mesma rotação, à volta do mesmo
- * ponto focal (o palco), para a cobertura continuar a apontar ao sítio
- * certo mesmo com a plateia em leque.
+ * ponto recalcula-se aqui à mão com a mesma rotação/deslocação, para a
+ * cobertura continuar a apontar ao sítio certo.
  *
  * Falta ainda (ver PARA-CONTINUAR.md): um palco central/circular a sério
  * -- isto roda a plateia à volta do PONTO onde o palco reto de hoje fica,
  * não à volta de um palco que também mude de forma ou de posição.
  */
-export function fazerPublicoGomos(sala, palco, publico, regie) {
+export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
   const grupo = new THREE.Group();
   grupo.name = "publico-gomos";
   const n = Math.max(1, Math.round(publico.gomos || 3));
-  const anguloTotal = Math.max(10, Math.min(360, publico.anguloGomos || 180));
+  const ajustes = ajustesGomos || [];
   // O ponto focal: onde já fica a primeira fila do modo "Reto", menos a
   // distância a que ela está -- ou seja, a boca do palco. É à volta deste
-  // ponto que cada gomo roda, não do centro da sala.
+  // ponto que cada gomo roda e a partir dele que dx/dz se medem.
   const focoZ = -sala.profundidade / 2 + palco.profundidade;
-  // A largura de cada gomo começa por ser a da sala a dividir por N -- um
-  // gomo sozinho (n=1) fica com a sala toda, e comporta-se exactamente como
-  // "Reto" se alguém ligar "Circular" com um gomo só. MAS muitos gomos num
-  // ângulo apertado (6 gomos em 50°, por exemplo) pedem uma largura que não
-  // cabe nesse ângulo à distância a que a plateia fica do palco -- os gomos
-  // ficavam a espetar-se uns nos outros, empilhados. A largura fica presa ao
-  // que o ângulo de facto permite (a corda do arco de cada gomo, com 8% de
-  // folga para não os deixar encostados), nunca à custa de os deixar
-  // sobrepor-se.
-  const anguloPorGomoRad = (anguloTotal / n) * Math.PI / 180;
-  const raioMedio = publico.primeiraFila + (publico.filas * publico.entreFilas) / 2;
-  const larguraPeloAngulo = n > 1 ? 2 * raioMedio * Math.tan(anguloPorGomoRad / 2) * 0.92 : Infinity;
-  // Nunca abaixo do que cabe pelo menos UM lugar (as duas margens laterais
-  // mais um lugar) -- um gomo mais estreito do que isto ficava sem ninguém
-  // dentro, sem aviso nenhum a dizer porquê. app.js avisa quando se cai
-  // aqui (largura pedida pelo ângulo menor do que este mínimo).
-  const larguraMinima = 2 * (publico.larguraCorredor || 1.2) + publico.entreLugares;
-  const larguraGomo = Math.max(larguraMinima, Math.min(sala.largura / n, larguraPeloAngulo));
-  const salaGomo = Object.assign({}, sala, { largura: larguraGomo });
 
   let lugares = 0, blocos = 0;
   let filas = 0, porFila = 0, largura = 0.46, fundura = 0.34;
@@ -358,66 +346,70 @@ export function fazerPublicoGomos(sala, palco, publico, regie) {
   let olhos = null, melhorAngulo = Infinity;
 
   for (let i = 0; i < n; i++) {
-    const anguloDeg = n > 1 ? (-anguloTotal / 2 + anguloTotal * (i + 0.5) / n) : 0;
+    const aj = ajustes[i] || {};
+    const dx = Number(aj.dx) || 0;
+    const dz = Number(aj.dz) || 0;
+    const anguloDeg = Number(aj.rot) || 0;
     const ang = anguloDeg * Math.PI / 180;
+    const cosA = Math.cos(ang), sinA = Math.sin(ang);
+
     // A régie é UMA mesa física, no mesmo sítio para toda a gente -- não
-    // roda com o gomo. Mas fazerPublico() só sabe testar "cai dentro da
-    // régie?" no seu próprio referencial (direito, como o de "Reto"). Por
-    // isso a régie entra aqui já na rotação CONTRÁRIA à do gomo (a inversa
-    // do que se faz ao "corpos" mais abaixo): do ponto de vista de dentro
-    // do gomo rodado, é onde a mesa real parece estar. Sem isto, o vão que
-    // a régie devia abrir na plateia aparecia no sítio errado (ou nenhum) em
-    // todos os gomos menos no que por acaso ficasse a direito.
+    // roda nem desloca com o gomo. Mas fazerPublico() só sabe testar "cai
+    // dentro da régie?" no seu próprio referencial (direito, como o de
+    // "Reto"). Por isso a régie entra aqui já na transformação CONTRÁRIA à
+    // do gomo (a inversa do que se faz ao "corpos" mais abaixo): do ponto
+    // de vista de dentro do gomo deslocado/rodado, é onde a mesa real
+    // parece estar. Sem isto, o vão que a régie devia abrir na plateia
+    // aparecia no sítio errado (ou nenhum) em qualquer gomo deslocado.
     let regieDoGomo = regie;
-    if (regie && n > 1) {
-      const cosA = Math.cos(ang), sinA = Math.sin(ang);
-      const zRelMundo = regie.z - focoZ;
-      const zRelLocal = regie.x * sinA + zRelMundo * cosA;
+    if (regie && (dx || dz || anguloDeg)) {
+      const relX = regie.x - dx;
+      const relZ = regie.z - (focoZ + dz);
       regieDoGomo = Object.assign({}, regie, {
-        x: regie.x * cosA - zRelMundo * sinA,
-        z: zRelLocal + focoZ,
+        x: cosA * relX - sinA * relZ,
+        z: sinA * relX + cosA * relZ + focoZ,
         rodar: (regie.rodar || 0) - anguloDeg
       });
     }
-    const sub = fazerPublico(salaGomo, palco, publico, regieDoGomo);
+    const sub = fazerPublico(sala, palco, publico, regieDoGomo);
 
     // O grupo 3D: desloca-se para a origem ficar no ponto focal, e um
-    // "pivot" por cima roda-o e volta a pô-lo no sítio -- a mesma conta,
-    // feita pelo motor em vez de à mão, para o desenho ficar sempre certo.
+    // "pivot" por cima roda-o e desloca-o (dx, dz) -- a mesma conta, feita
+    // pelo motor em vez de à mão, para o desenho ficar sempre certo.
     sub.grupo.position.z = -focoZ;
     const pivot = new THREE.Group();
     pivot.name = "gomo-" + i;
-    pivot.position.set(0, 0, focoZ);
+    pivot.position.set(dx, 0, focoZ + dz);
     pivot.rotation.y = ang;
     pivot.add(sub.grupo);
     grupo.add(pivot);
 
     // O "corpos": os mesmos números que fazerPublico() devolveria sozinha,
-    // rodados à mão com a MESMA rotação do pivot (seno/cosseno de "ang"),
-    // porque a cobertura lê estes números directamente, sem passar pela
-    // cena 3D nem pelas suas transformações.
-    const cosA = Math.cos(ang), sinA = Math.sin(ang);
+    // deslocados/rodados à mão com a MESMA transformação do pivot, porque a
+    // cobertura lê estes números directamente, sem passar pela cena 3D nem
+    // pelas suas transformações.
     for (let p = 0; p < sub.corpos.length; p += 4) {
       const x = sub.corpos[p], y1 = sub.corpos[p + 1];
       const zRel = sub.corpos[p + 2] - focoZ, y2 = sub.corpos[p + 3];
-      corpos.push(x * cosA + zRel * sinA, y1, focoZ + (-x * sinA + zRel * cosA), y2);
+      corpos.push(dx + (x * cosA + zRel * sinA), y1, focoZ + dz + (-x * sinA + zRel * cosA), y2);
     }
     for (let b = 0; b < sub.blocoPorLugar.length; b++) blocoPorLugar.push(sub.blocoPorLugar[b] + i * 1000);
 
     lugares += sub.lugares;
     blocos += sub.blocos;
     // Os restantes números (filas, tamanho de uma pessoa, distâncias ao
-    // palco) são iguais em todos os gomos -- é o mesmo bloco repetido,
-    // só rodado -- por isso bastam os do último.
+    // palco) são iguais em todos os gomos -- cada um é o mesmo bloco de
+    // "Reto" repetido, só deslocado/rodado -- por isso bastam os do último.
     filas = sub.filas; porFila = sub.porFila; largura = sub.largura; fundura = sub.fundura;
     zPrimeira = sub.zPrimeira; zUltima = sub.zUltima; larguraSentada = sub.larguraSentada;
 
-    // Os "olhos da plateia" ficam no gomo mais ao centro (ângulo mais perto
-    // de 0°) -- é o ponto de vista mais parecido ao que "Reto" já dava.
+    // Os "olhos da plateia" ficam no gomo mais próximo de estar direito
+    // (rot mais perto de 0°) -- é o ponto de vista mais parecido ao que
+    // "Reto" já dava.
     if (sub.olhos && Math.abs(anguloDeg) < melhorAngulo) {
       melhorAngulo = Math.abs(anguloDeg);
       const ox = sub.olhos.x, oz = sub.olhos.z - focoZ;
-      olhos = new THREE.Vector3(ox * cosA + oz * sinA, sub.olhos.y, focoZ + (-ox * sinA + oz * cosA));
+      olhos = new THREE.Vector3(dx + (ox * cosA + oz * sinA), sub.olhos.y, focoZ + dz + (-ox * sinA + oz * cosA));
     }
   }
 
@@ -425,12 +417,7 @@ export function fazerPublicoGomos(sala, palco, publico, regie) {
     grupo, olhos, lugares, filas, porFila, blocos,
     corpos: new Float32Array(corpos), largura, fundura,
     blocoPorLugar: new Int16Array(blocoPorLugar),
-    zPrimeira, zUltima, larguraSentada,
-    // O ângulo pedia gomos mais estreitos do que o mínimo para um lugar --
-    // a largura ficou presa nesse mínimo (para não desaparecer gente), à
-    // custa de os gomos vizinhos ficarem mais perto uns dos outros do que
-    // o ângulo, sozinho, deixaria. app.js avisa quando isto acontece.
-    apertado: larguraPeloAngulo < larguraMinima
+    zPrimeira, zUltima, larguraSentada
   };
 }
 

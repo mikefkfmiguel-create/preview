@@ -157,17 +157,17 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
   display: flex; align-items: center; justify-content: center;
 }
 
-#listaAjustes .ajuste-linha {
+#listaAjustes .ajuste-linha, #listaGomos .ajuste-linha {
   padding: 10px 0; border-bottom: 1px solid #1A222A;
   display: flex; flex-direction: column; gap: 6px;
 }
-#listaAjustes .ajuste-linha:last-child { border-bottom: 0; }
-#listaAjustes .ajuste-linha strong { font-size: 13px; }
-#listaAjustes .ajuste-linha .ajuste-campo {
+#listaAjustes .ajuste-linha:last-child, #listaGomos .ajuste-linha:last-child { border-bottom: 0; }
+#listaAjustes .ajuste-linha strong, #listaGomos .ajuste-linha strong { font-size: 13px; }
+#listaAjustes .ajuste-linha .ajuste-campo, #listaGomos .ajuste-linha .ajuste-campo {
   display: grid; grid-template-columns: 90px 30px 1fr 30px 26px 22px; align-items: center; gap: 6px;
   font-size: 12px; color: var(--apagado);
 }
-#listaAjustes .ajuste-campo i { font-style: normal; font-size: 12px; color: var(--apagado); }
+#listaAjustes .ajuste-campo i, #listaGomos .ajuste-campo i { font-style: normal; font-size: 12px; color: var(--apagado); }
 /* As setas nativas do "number" não se veem (ou não se tocam bem) em
    telemóvel -- isto é o substituto, sempre visível, do tamanho de um dedo. */
 .ajuste-passo {

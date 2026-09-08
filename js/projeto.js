@@ -271,10 +271,11 @@ export function ajustesGuardados() {
     const dados = bruto ? JSON.parse(bruto) : null;
     return {
       delays: (dados && typeof dados.delays === "object" && dados.delays) || {},
-      dsm: (dados && Array.isArray(dados.dsm)) ? dados.dsm : []
+      dsm: (dados && Array.isArray(dados.dsm)) ? dados.dsm : [],
+      gomos: (dados && Array.isArray(dados.gomos)) ? dados.gomos : []
     };
   } catch (e) {
-    return { delays: {}, dsm: [] };
+    return { delays: {}, dsm: [], gomos: [] };
   }
 }
 
