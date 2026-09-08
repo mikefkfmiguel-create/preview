@@ -1522,17 +1522,28 @@ function ajustesDeGomosGarantidos(publico) {
   const n = publico.gomos;
   const sala = lerSala();
   const larguraGomo = sala.largura / n;
+  // O corredor de cada gomo conta para os DOIS lados dele (ver
+  // fazerPublicoGomos em cena.js) — com N gomos lado a lado, o total
+  // perdido para corredores cresce como 2×N×corredor. Herdar o valor
+  // global tal e qual (pensado para UMA sala inteira, só 2 margens) fazia
+  // esse total disparar com N e a lotação desabar só por mudar para
+  // "Circular" (reportado: caía para menos de metade, sem mexer em mais
+  // nada). Reparte-se o mesmo total que "Reto" perderia (2 margens +
+  // "Corredores" internos, todos à largura global) pelos 2×N lados dos
+  // gomos, para a lotação ficar parecida ao trocar de modo — cada gomo
+  // continua ajustável à mão a partir daqui.
+  const corredorGomo = publico.larguraCorredor * (2 + publico.corredores) / (2 * n);
   for (let i = 0; i < n; i++) {
     if (!ajustes.gomos[i]) {
       const dx = -sala.largura / 2 + larguraGomo * (i + 0.5);
-      // "corredor" e "filas" nascem iguais aos campos globais de "Público"
+      // "corredor" e "filas" nascem à volta dos campos globais de "Público"
       // (o que já se via antes disto existir) mas passam a viver à parte —
       // a pessoa pode depois pôr um gomo sem corredor lateral nenhum
       // (encostado ao vizinho) ou com menos filas do que os outros (uma
       // ala mais curta do que o centro), sem mexer no resto.
       ajustes.gomos[i] = {
         largura: larguraGomo, dx, dz: 0, rot: 0,
-        corredor: publico.larguraCorredor, filas: publico.filas
+        corredor: corredorGomo, filas: publico.filas
       };
     } else {
       // Um gomo criado ANTES de "corredor"/"filas" existirem (guardado em
@@ -1543,7 +1554,7 @@ function ajustesDeGomosGarantidos(publico) {
       // válido): o campo dizia uma coisa, a sala mostrava outra, até a
       // pessoa escrever no campo e os dois passarem a concordar. Preenche-se
       // aqui, uma vez, para os dois começarem sempre iguais.
-      if (ajustes.gomos[i].corredor == null) ajustes.gomos[i].corredor = publico.larguraCorredor;
+      if (ajustes.gomos[i].corredor == null) ajustes.gomos[i].corredor = corredorGomo;
       if (ajustes.gomos[i].filas == null) ajustes.gomos[i].filas = publico.filas;
     }
   }

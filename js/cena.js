@@ -363,7 +363,15 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
     // manda sempre que existir -- é o que os torna independentes por gomo.
     const corredorGomo = Number.isFinite(Number(aj.corredor)) ? Math.max(0, Number(aj.corredor)) : (publico.larguraCorredor || 1.2);
     const filasGomo = Number.isFinite(Number(aj.filas)) && aj.filas !== "" ? Math.max(0, Math.round(Number(aj.filas))) : publico.filas;
-    const publicoGomo = Object.assign({}, publico, { larguraCorredor: corredorGomo, filas: filasGomo });
+    // "corredores" (nº de corredores DENTRO da plateia inteira, campo global
+    // de "Reto") não faz sentido herdado tal e qual aqui: um gomo já É um
+    // pedaço separado dos vizinhos por "corredor" (a var acima) — manter o
+    // valor global fazia cada gomo abrir MAIS um corredor lá dentro, a
+    // multiplicar a largura perdida por N gomos (reportado: a lotação caía
+    // para menos de metade só por mudar para "Circular", sem mexer em mais
+    // nada). Cada gomo nasce sem corredor interno — quem quiser um, mete-o à
+    // mão a dividir esse gomo em dois (ainda não há campo próprio para isso).
+    const publicoGomo = Object.assign({}, publico, { larguraCorredor: corredorGomo, filas: filasGomo, corredores: 0 });
     // Nunca abaixo do que cabe pelo menos UM lugar (as duas margens
     // laterais, que aqui já servem de corredor entre gomos -- ou não,
     // se "corredor" for 0 -- mais um lugar) -- um gomo mais estreito do
