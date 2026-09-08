@@ -162,6 +162,16 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
   display: flex; flex-direction: column; gap: 6px;
 }
 #listaAjustes .ajuste-linha:last-child, #listaGomos .ajuste-linha:last-child { border-bottom: 0; }
+/* Uma imagem por ecrã: cada linha é só um nome + botões, não uma grelha de
+   campos numéricos como as duas de cima -- regras próprias, mais simples. */
+#listaConteudoZonas .ajuste-linha {
+  padding: 8px 0; border-bottom: 1px solid #1A222A;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+#listaConteudoZonas .ajuste-linha:last-child { border-bottom: 0; }
+#listaConteudoZonas .ajuste-linha strong { font-size: 13px; flex: 1 1 auto; min-width: 80px; }
+#listaConteudoZonas .ajuste-linha button { flex: none; width: auto; padding: 5px 10px; font-size: 12px; }
+#listaConteudoZonas .ajuste-linha i { font-style: normal; font-size: 11px; color: var(--apagado); }
 #listaAjustes .ajuste-linha strong, #listaGomos .ajuste-linha strong { font-size: 13px; }
 #listaAjustes .ajuste-linha .ajuste-campo, #listaGomos .ajuste-linha .ajuste-campo {
   display: grid; grid-template-columns: 90px 30px 1fr 30px 26px 22px; align-items: center; gap: 6px;
@@ -255,6 +265,22 @@ body.fechado #btAbrir { display: block; }
   position: absolute; right: 58px; top: 12px; z-index: 4; width: 38px; height: 38px;
   padding: 0; font-size: 16px;
   background: rgba(20, 27, 33, .9);
+}
+
+/* Nome do projeto sempre visível na cena — pedido direto: com o painel
+   fechado ou uma secção qualquer aberta, não havia forma de saber, só de
+   olhar para a cena, em qual projeto se estava a trabalhar. Centrado no
+   topo para não disputar canto nenhum com os botões (cadeado/repor vista
+   à direita, "mostrar painel" à esquerda). Escondido (via [hidden], não
+   display:none à parte) sempre que não há projeto — não há nome nenhum
+   para mostrar. */
+#nomeProjetoViewport {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 4;
+  max-width: min(70vw, 480px); padding: 7px 16px; border-radius: 8px;
+  background: rgba(20, 27, 33, .9); border: 1px solid var(--linha);
+  color: var(--texto); font-size: 13px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 #cauda { padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 10px; }

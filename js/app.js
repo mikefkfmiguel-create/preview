@@ -41,6 +41,12 @@ let olhosDaPlateia = null;
 let desenhado = null;      // o que está na cena agora, para se poder deitar fora
 let textura = null;        // o conteúdo a mostrar nos ecrãs, se houver
 let modoConteudo = "espalhado";   // espalhado pelo conjunto, ou um em cada zona
+// Imagem PRÓPRIA de um ecrã, por nome da zona -- sobrepõe-se a "textura" só
+// nesse ecrã. Pedido direto: "poder por uma imagem em cada ecrã" (diferente
+// entre eles, não a mesma repetida -- isso já era "Uma em cada" acima). Não
+// viaja no "Guardar projeto" (nem "textura" viaja hoje) -- é conteúdo de
+// sessão, como o padrão de teste.
+let texturasPorZona = {};
 let planta = null;         // a planta em imagem, se alguem a tiver aberto
 let plantaCad = null;      // a planta em DXF, que ja vem a escala
 const camadasEscondidas = new Set();   // camadas da planta que nao se veem
@@ -191,6 +197,17 @@ function montar(recentrarCamara) {
   etiquetas = [];
   olhosDaPlateia = null;
 
+  // Nome do projeto sempre à vista na cena, painel aberto ou não — pedido
+  // direto (ver #nomeProjetoViewport, css/estilo.css). "hidden" (não só
+  // texto vazio) para não deixar uma caixa às riscas por cima da cena
+  // quando não há projeto nenhum.
+  const nomeViewport = $("nomeProjetoViewport");
+  if (nomeViewport) {
+    const nome = projeto && projeto.nome ? String(projeto.nome) : "";
+    nomeViewport.textContent = nome;
+    nomeViewport.hidden = !nome;
+  }
+
   const sala = lerSala();
   const palco = lerPalco();
   const publico = lerPublico();
@@ -249,12 +266,13 @@ function montar(recentrarCamara) {
     medidas = totais(projeto);
     // Os ecrãs também se desligam: para olhar para a sala sem eles, ou para os
     // tirar da frente da planta que se está a acertar por baixo.
-    const zonas = fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo, ajustes.delays);
+    const zonas = fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo, ajustes.delays, texturasPorZona);
     if ($("verEcras").checked) desenhado.add(zonas.grupo);
     etiquetas = ($("verMedidas").checked && $("verEcras").checked) ? zonas.etiquetas : [];
 
     avisarSeNaoCabe(medidas, sala, palco);
   }
+  desenharListaConteudoZonas(projeto);
   // O DSM não depende de haver zonas — um projeto pode nascer aqui mesmo só
   // com o monitor de confiança, antes de se acrescentar nenhum ecrã.
   if (projeto && projeto.dsm && $("verEcras").checked) {
@@ -1609,6 +1627,77 @@ function desenharGomos(publico) {
   }
 }
 
+/**
+ * Imagem PRÓPRIA por ecrã (pedido direto: "poder por uma imagem em cada
+ * ecrã" -- diferente entre eles, não a mesma repetida, que já é "Uma em
+ * cada" acima). Uma linha por zona do projeto, com um botão para escolher
+ * uma imagem só para essa e, se já tiver uma, um botão para a tirar (volta
+ * a mostrar o que estiver acima -- padrão de teste/imagem geral/só cor).
+ */
+function desenharListaConteudoZonas(projetoAtual) {
+  const titulo = $("tituloConteudoZonas"), nota = $("notaConteudoZonas"), lista = $("listaConteudoZonas");
+  const zonas = (projetoAtual && projetoAtual.zonas) || [];
+  if (!zonas.length) {
+    titulo.style.display = "none"; nota.style.display = "none"; lista.style.display = "none";
+    return;
+  }
+  titulo.style.display = ""; nota.style.display = ""; lista.style.display = "";
+
+  // Zonas que já não existem (projeto trocado/reduzido) não ficam presas em
+  // memória para sempre -- só as que aparecem agora é que interessam.
+  const nomesAtuais = new Set(zonas.map(z => z.nome));
+  Object.keys(texturasPorZona).forEach(nome => { if (!nomesAtuais.has(nome)) delete texturasPorZona[nome]; });
+
+  lista.innerHTML = "";
+  zonas.forEach(zona => {
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = zona.nome;
+    linha.append(nome);
+
+    const temImagem = !!texturasPorZona[zona.nome];
+    if (temImagem) {
+      const marca = document.createElement("i");
+      marca.textContent = "imagem própria";
+      linha.append(marca);
+    }
+
+    const ficheiro = document.createElement("input");
+    ficheiro.type = "file"; ficheiro.accept = "image/*"; ficheiro.hidden = true;
+    ficheiro.dataset.zona = zona.nome;
+    linha.append(ficheiro);
+
+    const btEscolher = document.createElement("button");
+    btEscolher.type = "button";
+    btEscolher.textContent = temImagem ? "Trocar…" : "Escolher imagem…";
+    btEscolher.onclick = () => ficheiro.click();
+    linha.append(btEscolher);
+
+    if (temImagem) {
+      const btRemover = document.createElement("button");
+      btRemover.type = "button";
+      btRemover.textContent = "Remover";
+      btRemover.onclick = () => { delete texturasPorZona[zona.nome]; montar(false); };
+      linha.append(btRemover);
+    }
+
+    ficheiro.onchange = async () => {
+      const f = ficheiro.files[0];
+      if (!f) return;
+      try {
+        texturasPorZona[zona.nome] = await texturaDeFicheiro(f);
+        montar(false);
+      } catch (e) {
+        $("aviso").textContent = e.message;
+        $("aviso").classList.add("mostra");
+      }
+    };
+
+    lista.append(linha);
+  });
+}
+
 // -------------------------------------------------------------------- vistas
 
 function vista(qual) {
@@ -2072,6 +2161,7 @@ function limparTudo() {
   camadasEscondidas.clear();
   camadasLevantadas.clear();
   textura = null;
+  texturasPorZona = {};
   ondeEsta = null;
   limitesDoShift = null;
   projecaoAtual = null;
@@ -3007,7 +3097,7 @@ async function exportar(formato) {
   if (temZonasOuDsm && !$("verEcras").checked) {
     const salaAtual = lerSala(), palcoAtual = lerPalco();
     if (projeto.zonas.length) {
-      extra.push(fazerZonas(projeto, totais(projeto), salaAtual, palcoAtual, textura, modoConteudo, ajustes.delays).grupo);
+      extra.push(fazerZonas(projeto, totais(projeto), salaAtual, palcoAtual, textura, modoConteudo, ajustes.delays, texturasPorZona).grupo);
     }
     if (projeto.dsm) {
       extra.push(fazerDSM(projeto.dsm, salaAtual, palcoAtual, ajustes.dsm, textura).grupo);

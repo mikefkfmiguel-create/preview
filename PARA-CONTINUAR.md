@@ -429,6 +429,35 @@ campo): sala/palco/regie afinal voltavam bem — o problema real era só o
   à mão, abrir numa aba nova — já abre em Circular, com o gomo do tamanho
   certo, sem erros, mesmo a trocar Reto→Circular outra vez a seguir.
 
+**v2.55: nome do projeto sempre visível na cena, e uma imagem à parte por
+ecrã.** Dois pedidos diretos no mesmo fôlego:
+
+- **Nome do projeto no viewport.** `#nomeProjetoViewport`, centrado no
+  topo da cena (entre o cadeado/repor vista à direita e o "mostrar
+  painel" à esquerda, sem disputar canto com nenhum), atualizado em
+  `montar()` a partir de `projeto.nome`. `[hidden]` (não só texto vazio)
+  quando não há projeto — sem caixa às riscas por cima da cena à toa.
+- **Imagem própria por ecrã.** Até aqui só havia UMA imagem para a app
+  toda (`textura`), em dois modos — "Espalhada" (recortada pela posição
+  no conjunto) ou "Uma em cada" (a mesma imagem inteira, repetida em
+  todas). Nenhum dos dois deixava um ecrã DIFERENTE dos outros, que foi o
+  pedido: "poder por uma imagem em cada ecrã". Nova secção "Imagem à
+  parte por ecrã" em Conteúdo nos ecrãs — uma linha por zona do projeto
+  (`desenharListaConteudoZonas()`, `js/app.js`, chamada de dentro de
+  `montar()` como `desenharGomos()`/etiquetas já faziam), com "Escolher
+  imagem…"/"Trocar…" e, só quando já tem uma, "Remover". Guardadas em
+  `texturasPorZona` (nome da zona → `THREE.Texture`, `js/app.js`) — NÃO
+  viaja no "Guardar projeto" (nem `textura`, a geral, viaja hoje; ver
+  também a limitação de `planta`/`plantaCad`, mesma família).
+  `fazerZonas()`/`fazerZona()` (`js/cena.js`) ganharam um parâmetro a
+  mais (`texturasPorZona`/`texturaZona`) — quando a zona tem imagem
+  própria, essa imagem entra ANTES de tudo o resto (a geral, "espalhada"
+  ou "cada"; ou o comportamento por-delay que já havia), fatiada só pelos
+  gomos DESSE ecrã, do mesmo jeito que já se fazia para uma TV/projeção
+  de delay. Testado com Playwright: imagem própria só na "Ala esquerda"
+  do exemplo — só essa zona muda de cor na cena, as outras duas continuam
+  na cor normal; "Remover" devolve-a ao normal.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
