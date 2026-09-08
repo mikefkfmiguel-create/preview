@@ -675,6 +675,28 @@ mostra a marca certa (Playwright confirma "MIKE APPS" ao centro, símbolo
 nas pontas, sem tocar em mais nada); com as imagens próprias das 3 zonas
 removidas, "Padrão de teste" mostra grelha/barras/cruz, sem logo nenhum.
 
+**v2.63: a sala do exemplo passa a caber as 10 filas por omissão.**
+Reportado com uma captura da vista de cima: "isto é do exemplo e o
+exemplo devia ser o que cobre tudo sem perdas... ajusta para que o
+exemplo esteja totalmente correto e sirva de ponto de partida" — o
+aviso "Só cabem 9 das 10 filas: a sala acaba antes" aparecia logo ao
+abrir "Exemplo", o pior cartão de visita possível para quem está a
+conhecer a app. `EXEMPLO.sala.profundidade` (`js/projeto.js`) já tinha
+sido "corrigido" uma vez (de "12 filas em 14 m" para 18 m), mas ficou
+por baixo do que os valores por omissão do HTML pedem HOJE — 10 filas,
+não 12. Contas feitas com o que fazerPublico() usa de verdade
+(`js/cena.js`): `zPrimeira = -profundidade/2 + palco.profundidade +
+primeiraFila`, e a última fila pedida cabe se `zPrimeira +
+(filas-1)×entreFilas ≤ profundidade/2 - margemLateral`. Com os valores
+por omissão (palco 6 m, primeira fila a 3 m, entre filas 0,9 m,
+corredores 1,2 m) isso dá uma profundidade mínima de 18,3 m — os 18 m
+de antes ficavam mesmo por baixo, faltava menos de um metro. Subida
+para 20 m (folga a sério, não só o mínimo). Nada mais no exemplo
+dependia da profundidade (as zonas só se posicionam em X, contra a
+largura). Testado com Playwright: "Exemplo" sozinho já não mostra
+aviso nenhum, e a lotação sobe de 317 para 352 pessoas (as 10 filas
+completas, não 9).
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
