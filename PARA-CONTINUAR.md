@@ -362,6 +362,23 @@ Corrigido nos dois sítios:
   entre 317 e 354 lugares (antes: 120 a 218, a colapsar com N mais alto).
   Continua tudo ajustável à mão a partir daí, como já era.
 
+**Botão "repor vista" sempre visível (v2.52).** Reportado a seguir à
+correção da lotação em "Circular", com um screenshot da cena toda preta:
+"e onde está tudo". Reproduzido — não é um bug de desenho nenhum: a
+câmara (`OrbitControls`) só volta à posição inicial quando `montar()` é
+chamado com `recentrarCamara=true`, o que só acontece a abrir/carregar um
+projeto; qualquer alteração depois disso (trocar "Reto"/"Circular",
+mudar a sala, etc.) chama `montar(false)` — nunca mexe na câmara. Rodar
+ou afastar de mais na cena (roda do rato, arrastar) e nunca mais se via
+nada, sem forma óbvia de voltar atrás a não ser abrir o painel e ir
+procurar "Vista → Frente" (secção que pode nem estar desdobrada). Já
+existia essa função (`vista("frente")`, repõe posição e alvo da câmara
+por inteiro, não é relativo a nada) — só faltava um atalho imediato.
+`#btRecentrarVista` (🔄), sempre visível junto ao cadeado da edição
+livre, chama exactamente essa função. Confirmado por Playwright: forçar a
+câmara para longe (posição (500,500,500)) reproduz um ecrã totalmente
+preto idêntico ao do screenshot, e o botão novo recupera a vista.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
