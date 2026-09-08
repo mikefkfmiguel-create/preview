@@ -7,7 +7,7 @@
 
 // O nome do cache segue a versao que aparece no painel: subindo uma, sobe a
 // outra, e quem estiver com a app aberta recebe a nova sem fazer nada.
-const CACHE = "preview-v2.58";
+const CACHE = "preview-v2.59";
 
 const TUDO = [
   "./",
@@ -27,6 +27,8 @@ const TUDO = [
   "./vendor/GLTFExporter.js",
   "./vendor/OBJExporter.js",
   "./icons/mike-logo.png",
+  "./icons/mike-marca-branco.png",
+  "./icons/mike-simbolo.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"
