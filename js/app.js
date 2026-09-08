@@ -1717,7 +1717,15 @@ document.querySelectorAll("#painel input").forEach(campo => {
 document.querySelectorAll(".vistas button[data-vista]").forEach(b => {
   b.onclick = () => vista(b.dataset.vista);
 });
-$("btRecentrarVista").onclick = () => vista("frente");
+// index.html fica em cache (só atualiza em segundo plano, para a navegação
+// seguinte) mas js/app.js é sempre buscado à rede primeiro (ver sw.js) — um
+// botão novo ligado sem esta guarda parte a meio de quem abrir a app nesse
+// intervalo (HTML antigo sem o botão + JS novo à espera dele): "$(id)" dá
+// null, ".onclick =" rebenta, e tudo o que vem a seguir no ficheiro nunca
+// chega a correr (reportado: "nem abrir o exemplo abre", muito depois deste
+// ponto no ficheiro). Nunca ligar um evento a um elemento novo sem checar
+// primeiro que ele existe.
+if ($("btRecentrarVista")) $("btRecentrarVista").onclick = () => vista("frente");
 
 // Pavilhão ou auditório. São dois mundos: num, o chão é plano e quem está atrás
 // vê a nuca de quem está à frente; no outro, o chão sobe e por isso é que se
@@ -3291,7 +3299,9 @@ function atualizarBotaoEdicaoLivre() {
     ? "Edição livre ligada — arrastar na cena move o orador, um gomo, um delay ou um DSM. Clica para desligar."
     : "Edição livre desligada — arrastar na cena só muda a vista, nada se mexe sem querer. Clica para ligar.";
 }
-$("btEdicaoLivre").onclick = () => {
+// Mesma guarda de "existe mesmo?" que #btRecentrarVista, pela mesma razão
+// (HTML em cache vs. JS sempre fresco — ver comentário lá).
+if ($("btEdicaoLivre")) $("btEdicaoLivre").onclick = () => {
   try { localStorage.setItem(CHAVE_EDICAO_LIVRE, edicaoLivreLigada() ? "desligada" : "ligada"); } catch (_) {}
   atualizarBotaoEdicaoLivre();
 };

@@ -379,6 +379,29 @@ livre, chama exactamente essa função. Confirmado por Playwright: forçar a
 câmara para longe (posição (500,500,500)) reproduz um ecrã totalmente
 preto idêntico ao do screenshot, e o botão novo recupera a vista.
 
+**Susto corrigido no mesmo dia (v2.53): a v2.52 partia o script todo para
+quem apanhasse o momento errado da cache.** Reportado a seguir a
+publicar a v2.52: nem a lista de gomos aparecia, nem "Exemplo" carregava
+— "foi depois dos ajustes que antes estava bem". Causa: `index.html`
+fica em cache (só atualiza em segundo plano, para a navegação seguinte)
+mas `js/app.js` é sempre buscado à rede primeiro (ver `sw.js`). Quem
+abrisse a app nesse intervalo apanhava o HTML ANTIGO (sem o
+`#btRecentrarVista` que a v2.52 acabou de acrescentar) já com o JS NOVO —
+e a v2.52 ligava `onclick` a esse botão sem verificar que ele existia:
+`$("btRecentrarVista")` dava `null`, `.onclick =` num `null` rebenta, e
+por ser código de topo (fora de qualquer função), tudo o que vinha a
+seguir no ficheiro — incluindo o handler do "Exemplo" e dezenas de outras
+ligações — nunca chegava a correr. `#btEdicaoLivre` (v2.45) tinha
+exactamente o mesmo risco, nunca manifestado por sorte de tempo; corrigido
+também. Reproduzido a valer desta vez: servi uma cópia do site com o
+botão a menos no HTML (simulando a cache antiga) mas com o `app.js` novo
+— confirmei o erro, apliquei a guarda (`if ($(id)) ...`), confirmei que
+desaparece. **Lição para a próxima vez que se acrescentar um elemento
+novo ao HTML e se ligar um evento a ele no mesmo commit:** ligar sempre
+com guarda (`if ($(id)) $(id).onclick = ...`), nunca `$(id).onclick =
+...` direto — o desfasamento entre HTML em cache e JS sempre fresco é
+estrutural desta app, não um acaso de uma vez.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
