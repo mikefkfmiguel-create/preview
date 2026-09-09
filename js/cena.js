@@ -1123,6 +1123,29 @@ function temTransparenciaAsSerio(ctx, largura, altura) {
  * tamanhos diferentes (e a textura ao vivo ficar sempre igual ao que se
  * guarda, nunca maior).
  */
+// 1600px/qualidade 0,75 -- mais apertado do que a primeira versão
+// (2000px/0,85), pedido direto depois de um projeto real com 11 ecrãs, cada
+// um com a sua foto, continuar a passar do limite do Worker mesmo já em
+// JPEG. Um ecrã na cena não perde nitidez visível com isto (vê-se a alguma
+// distância, não em detalhe de perto).
+function reduzirImagem(img) {
+  const LADO_MAXIMO = 1600;
+  const maior = Math.max(img.width, img.height);
+  const fator = maior > LADO_MAXIMO ? LADO_MAXIMO / maior : 1;
+  const tela = document.createElement("canvas");
+  tela.width = Math.round(img.width * fator);
+  tela.height = Math.round(img.height * fator);
+  const ctx = tela.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, tela.width, tela.height);
+
+  const dataURL = temTransparenciaAsSerio(ctx, tela.width, tela.height)
+    ? tela.toDataURL("image/png")
+    : tela.toDataURL("image/jpeg", 0.75);
+  const textura = new THREE.CanvasTexture(tela);
+  textura.colorSpace = THREE.SRGBColorSpace;
+  return { textura, dataURL };
+}
+
 export function conteudoDeFicheiro(ficheiro) {
   return new Promise((ok, mal) => {
     const leitor = new FileReader();
@@ -1130,41 +1153,33 @@ export function conteudoDeFicheiro(ficheiro) {
     leitor.onload = () => {
       const img = new Image();
       img.onerror = () => mal(new Error("Isso não é uma imagem que eu saiba abrir."));
-      img.onload = () => {
-        // 1600px/qualidade 0,75 -- mais apertado do que a primeira versão
-        // (2000px/0,85), pedido direto depois de um projeto real com 11
-        // ecrãs, cada um com a sua foto, continuar a passar do limite do
-        // Worker mesmo já em JPEG. Um ecrã na cena não perde nitidez visível
-        // com isto (vê-se a alguma distância, não em detalhe de perto).
-        const LADO_MAXIMO = 1600;
-        const maior = Math.max(img.width, img.height);
-        const fator = maior > LADO_MAXIMO ? LADO_MAXIMO / maior : 1;
-        const tela = document.createElement("canvas");
-        tela.width = Math.round(img.width * fator);
-        tela.height = Math.round(img.height * fator);
-        const ctx = tela.getContext("2d", { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, tela.width, tela.height);
-
-        const dataURL = temTransparenciaAsSerio(ctx, tela.width, tela.height)
-          ? tela.toDataURL("image/png")
-          : tela.toDataURL("image/jpeg", 0.75);
-        const textura = new THREE.CanvasTexture(tela);
-        textura.colorSpace = THREE.SRGBColorSpace;
-        ok({ textura, dataURL });
-      };
+      img.onload = () => ok(reduzirImagem(img));
       img.src = leitor.result;
     };
     leitor.readAsDataURL(ficheiro);
   });
 }
 
-/** O inverso: de um data URL (vindo de um projeto guardado) para textura. */
-export function texturaDeDataURL(url) {
+/**
+ * O mesmo, mas a partir de um data URL já guardado (ao abrir um projeto ou
+ * um link partilhado) -- não só reconstrói a textura, RECOMPRIME outra vez.
+ * Pedido direto depois de um projeto antigo (guardado antes desta redução
+ * existir, ou com imagens escolhidas num Preview mais antigo) continuar a
+ * dar "demasiado grande" ao tentar partilhar-se: a compressão só corria ao
+ * ESCOLHER uma imagem nova, nunca ao abrir uma já guardada -- um ficheiro
+ * antigo ficava preso no tamanho de quando foi gravado, por mais vezes que
+ * se reabrisse. Agora reabrir já poupa sozinho, sem se ter de escolher as
+ * imagens todas outra vez à mão.
+ *
+ * Nunca rejeita -- uma imagem corrompida/em falta no ficheiro não deve
+ * travar o resto do projeto, fica só sem conteúdo nessa zona.
+ */
+export function conteudoDeDataURL(url) {
   return new Promise((ok) => {
-    new THREE.TextureLoader().load(url, (t) => {
-      t.colorSpace = THREE.SRGBColorSpace;
-      ok(t);
-    }, undefined, () => ok(null));   // uma imagem corrompida no ficheiro não deve travar o resto do projeto
+    const img = new Image();
+    img.onerror = () => ok({ textura: null, dataURL: null });
+    img.onload = () => ok(reduzirImagem(img));
+    img.src = url;
   });
 }
 

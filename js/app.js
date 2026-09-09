@@ -9,7 +9,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
-         padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, texturaDeDataURL, fazerProjecao, pontosDaImagem,
+         padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
@@ -2382,19 +2382,34 @@ async function abrirProjetoTodo(estado) {
 
   // As imagens (ver estadoCompleto()) -- carregam-se de volta antes do
   // montar() final, para a cena já nascer com elas em vez de aparecerem um
-  // instante depois. Uma imagem corrompida/em falta no ficheiro não deve
-  // travar o resto do projeto: texturaDeDataURL() nunca rejeita, só devolve
-  // null nesse caso, e fica sem conteúdo nessa zona (como se nunca tivesse
-  // tido imagem).
+  // instante depois. conteudoDeDataURL() RECOMPRIME outra vez ao carregar --
+  // pedido direto: um projeto guardado antes desta redução existir (ou com
+  // imagens escolhidas num Preview mais antigo) continuava "demasiado
+  // grande para partilhar" mesmo depois da compressão ter sido reforçada,
+  // porque essa compressão só corria ao ESCOLHER uma imagem nova, nunca ao
+  // reabrir uma já gravada. Guarda-se logo o data URL recomprimido de volta
+  // em texturaDataURL/texturasPorZonaDataURL -- um "Guardar projeto" ou
+  // "Link para ver" a seguir a abrir já sai mais leve, sem se ter de
+  // escolher as imagens todas outra vez à mão. Nunca rejeita: uma imagem
+  // corrompida/em falta no ficheiro não deve travar o resto do projeto,
+  // fica só sem conteúdo nessa zona (como se nunca tivesse tido imagem).
   const conteudo = (estado.conteudo && typeof estado.conteudo === "object") ? estado.conteudo : {};
-  texturaDataURL = typeof conteudo.textura === "string" ? conteudo.textura : null;
-  textura = texturaDataURL ? await texturaDeDataURL(texturaDataURL) : null;
+  const textoGeral = typeof conteudo.textura === "string" ? conteudo.textura : null;
+  const geralCarregado = textoGeral ? await conteudoDeDataURL(textoGeral) : null;
+  textura = geralCarregado ? geralCarregado.textura : null;
+  texturaDataURL = geralCarregado ? geralCarregado.dataURL : null;
 
-  texturasPorZonaDataURL = (conteudo.porZona && typeof conteudo.porZona === "object") ? conteudo.porZona : {};
+  const porZonaGuardado = (conteudo.porZona && typeof conteudo.porZona === "object") ? conteudo.porZona : {};
+  const nomes = Object.keys(porZonaGuardado);
+  const carregadas = await Promise.all(nomes.map((n) => conteudoDeDataURL(porZonaGuardado[n])));
   texturasPorZona = {};
-  const nomes = Object.keys(texturasPorZonaDataURL);
-  const carregadas = await Promise.all(nomes.map((n) => texturaDeDataURL(texturasPorZonaDataURL[n])));
-  nomes.forEach((n, i) => { if (carregadas[i]) texturasPorZona[n] = carregadas[i]; });
+  texturasPorZonaDataURL = {};
+  nomes.forEach((n, i) => {
+    if (carregadas[i] && carregadas[i].textura) {
+      texturasPorZona[n] = carregadas[i].textura;
+      texturasPorZonaDataURL[n] = carregadas[i].dataURL;
+    }
+  });
 
   montar(true);
 }
