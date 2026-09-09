@@ -8,7 +8,7 @@
 
 import { enderecoDoWorker } from "./assistente.js";
 
-export const VALIDADE_PARTILHA = "7 dias";
+export const VALIDADE_PARTILHA = "1 dia";
 
 /** Grava o estado (o mesmo formato de "Guardar projeto") e devolve o link. */
 export async function criarLinkPartilha(estado) {
