@@ -962,6 +962,16 @@ fingir vir dos Calculadores (`origem: "calculadores", origemVersao:
 "v3.17"`) mostra "Calculadores v3.17" no tooltip; um projeto criado aqui
 mesmo (+ DSM, sem nada vindo de fora) mostra "Preview v2.7x".
 
+**v2.74: AV Planner — o logótipo passa a link.** Mesmo pedido do lado dos
+Calculadores (ver `PARA-CONTINUAR.md` de lá para o contexto completo):
+"rename radical nestes dois meninos... ter apenas uma unificada, já que
+elas abrem uma a outra". Decisão: sem fundir código -- só uma marca
+comum por cima, "AV Planner", num repositório novo
+(`mikefkfmiguel-create.github.io/AvPlanner/`). O logótipo aqui
+(`#marca`, `cabecalho-linha1`) passa a link para essa página. Sem versão
+em inglês para traduzir -- este app não tem esse motor (só os
+Calculadores têm PT/EN).
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
