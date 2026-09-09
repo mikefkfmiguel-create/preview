@@ -920,6 +920,29 @@ Confirmado também visualmente, de cima: o corredor central corta as
 primeiras filas em dois blocos e a última fila (já depois do fim da
 passarela) volta a ficar inteira.
 
+**v2.72: o orador já vai à passarela.** Reportado logo a seguir ao v2.71:
+"o prop não vai à passarela, coitado". Causa: arrastar o orador na cena
+(`js/app.js`, "arrastar o orador") já tinha sempre existido, mas o limite
+da frente ficava preso à borda do palco (`frenteZ = ...palco.profundidade
+- 0.3`) -- um limite fixo, de antes de a passarela existir, que não sabia
+que ela lá estava. Por mais que se arrastasse para a frente, o orador
+batia nessa borda invisível e não passava.
+Corrigido para esticar esse limite até ao FIM da passarela (`zonaDaPassarela()`,
+a mesma função que já abre o vão na plateia), mas só quando o rato já está
+alinhado com a largura dela -- senão continua preso à borda do palco como
+sempre, que é o comportamento certo para quem não está a tentar ir para lá.
+E ao contrário: uma vez para lá da borda do palco (JÁ em cima da
+passarela), a largura livre para os lados passa a ser só a dela, não a do
+palco inteiro -- para não ser possível "flutuar" ao lado dela, por cima da
+plateia, um sítio que não existe fisicamente.
+Testado com Playwright, simulando um arrasto a sério (pointerdown/move/up,
+com a câmara de cima para o mapeamento ecrã↔mundo ser previsível): sem
+passarela continua preso à borda do palco (referência); com ela e alinhado,
+chega até perto do fim dela mas não passa; fora da largura dela continua
+preso à borda; nunca fica ao mesmo tempo para lá da borda do palco E fora
+da largura da passarela (a tal "flutuação"); e um passo pequeno para o
+lado, ainda dentro da largura dela, não o manda de volta para trás.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
