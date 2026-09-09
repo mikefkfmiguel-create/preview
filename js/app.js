@@ -9,7 +9,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
-         padraoDeTeste, texturaDaMarca, texturaDeFicheiro, dataURLDeFicheiro, texturaDeDataURL, fazerProjecao, pontosDaImagem,
+         padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, texturaDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
@@ -1739,7 +1739,7 @@ function desenharListaConteudoZonas(projetoAtual) {
       const f = ficheiro.files[0];
       if (!f) return;
       try {
-        const [t, url] = await Promise.all([texturaDeFicheiro(f), dataURLDeFicheiro(f)]);
+        const { textura: t, dataURL: url } = await conteudoDeFicheiro(f);
         texturasPorZona[zona.nome] = t;
         texturasPorZonaDataURL[zona.nome] = url;
         montar(false);
@@ -2184,7 +2184,7 @@ $("ficheiroImagem").onchange = async () => {
   $("ficheiroImagem").value = "";
   if (!ficheiro) return;
   try {
-    const [t, url] = await Promise.all([texturaDeFicheiro(ficheiro), dataURLDeFicheiro(ficheiro)]);
+    const { textura: t, dataURL: url } = await conteudoDeFicheiro(ficheiro);
     textura = t;
     texturaDataURL = url;
     montar(false);
