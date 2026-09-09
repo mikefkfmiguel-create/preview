@@ -2749,8 +2749,18 @@ $("btAnalisar").onclick = async () => {
   $("aviso").classList.add("mostra");
 
   try {
+    // Um campo que já foi mexido à mão não se escreve por cima -- nem se
+    // manda para a IA como se fosse facto assente. O `defaultValue` é o que
+    // está no HTML: se o campo ainda é isso, ninguém lá mexeu, é só o valor
+    // de arranque da página. Mandar esse valor à IA como "sala já definida
+    // no desenho" fazia-a ignorar uma sala escrita no próprio texto (ex:
+    // "sala com 25 por 25") a favor do valor de arranque -- reportado
+    // direto: "não leu o tamanho da sala, aplicou o base".
+    const porOMike = (id) => $(id).value !== $(id).defaultValue;
     const salaAgora = {
-      largura: num("salaL"), profundidade: num("salaP"), altura: num("salaA")
+      largura: porOMike("salaL") ? num("salaL") : null,
+      profundidade: porOMike("salaP") ? num("salaP") : null,
+      altura: porOMike("salaA") ? num("salaA") : null
     };
     const imagem = ficheiroImagem
       ? { base64: await ficheiroParaBase64(ficheiroImagem), mediaType: ficheiroImagem.type }
@@ -2761,11 +2771,8 @@ $("btAnalisar").onclick = async () => {
     let comVariosTamanhos = false;
 
     if (veio.sala) {
-      // Um campo que já foi mexido à mão não se escreve por cima. O
-      // `defaultValue` é o que está no HTML: se o campo já não é isso, foi
-      // alguém que lá mexeu, e o que essa pessoa escreveu vale mais do que uma
-      // estimativa feita a partir de um parágrafo.
-      const porOMike = (id) => $(id).value !== $(id).defaultValue;
+      // O mesmo `porOMike` de cima: quem já escreveu um valor à mão ganha à
+      // estimativa da IA.
       const aplicar = (id, valor, comoSeDiz) => {
         if (!valor) return;
         if (porOMike(id)) { mantidas.push(comoSeDiz); return; }
@@ -2775,6 +2782,18 @@ $("btAnalisar").onclick = async () => {
       aplicar("salaL", veio.sala.largura, "sala com {} m de largura");
       aplicar("salaP", veio.sala.profundidade, "{} m de fundo");
       aplicar("salaA", veio.sala.altura, "{} m de pé-direito");
+    }
+
+    // "de pé" (standing) — só se o texto o disser explicitamente (nunca se
+    // inventa o contrário). Auditório com plateia a subir é o padrão da
+    // página (ver `#inclinacao`, valor de arranque 0.12); um público de pé
+    // não tem lugares a subir em fila -- chão plano, como o botão "Pavilhão
+    // · plano" já faz à mão. Reportado direto: "disse-lhe que era de pé e
+    // desenhou um auditório a subir".
+    if (veio.emPe && !porOMike("inclinacao")) {
+      $("inclinacao").value = "0";
+      marcarTipoDePlateia();
+      feitas.push("chão plano (público de pé)");
     }
 
     const quantos = Math.max(1, veio.quantos || quantosEcras(texto) || 1);

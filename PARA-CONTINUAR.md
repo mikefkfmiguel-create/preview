@@ -1015,6 +1015,34 @@ Playwright: só imagem (sem texto) chega ao Worker com `imageBase64`
 preenchido e `text` vazio (a sala por omissão ainda entra, como sempre);
 nem texto nem imagem continua a mostrar o aviso a pedir um dos dois.
 
+**v2.77: a sala do texto deixou de perder para o valor de arranque, e "de
+pé" já não desenha auditório.** Dois reportes seguidos do mesmo teste real
+(escreveu "sala com 25 por 25... 300 pessoas de pé numa entrega de
+prémios"). Primeiro: "não leu o tamanho da sala, aplicou o base" — a causa
+era `btAnalisar.onclick` mandar SEMPRE os valores actuais de
+`salaL`/`salaP`/`salaA` para a IA como "(Sala já definida no desenho:
+...)", mesmo quando esses campos ainda estavam no `defaultValue` do HTML
+(24×20×8, nunca tocados) — a IA lia isso como facto assente e ignorava a
+sala escrita no próprio texto. Corrigido: só entra no que se manda à IA um
+campo que o `porOMike()` (o mesmo já usado para decidir se se aplica a
+resposta da IA de volta ao campo — hoisted para o topo da função e
+reusado nos dois sentidos) diz que foi mesmo mexido à mão; um campo por
+tocar manda `null`, e `analisar()` (`js/assistente.js`) já sabia não
+inventar sala nenhuma quando não recebe uma.
+Segundo: "repara que lhe disse que era de pé e desenhou um auditório a
+subir" — o padrão da página é sempre auditório com plateia a subir
+(`#inclinacao`, valor de arranque 0.12); nada no pedido de texto mudava
+isso. Novo campo no Worker, `local.publicoEmPe` (true só se o texto o
+disser explicitamente — nunca inferido do tipo de evento), exposto por
+`doQueVeioParaCa()` como `veio.emPe`; quando `true` e `#inclinacao` ainda
+não foi mexido à mão, `btAnalisar.onclick` põe-no a 0 (o mesmo que o botão
+"Pavilhão · plano" já faz) e avisa "chão plano (público de pé)".
+Testado com Playwright: sala "25 por 25" no texto, com os campos ainda no
+default, aplica-se a sério (antes ficava presa em 24×20); um campo já
+mexido à mão continua a ganhar à IA, campo a campo (não é tudo-ou-nada);
+"de pé" põe a inclinação a 0 e avisa; uma inclinação já mexida à mão não é
+tocada mesmo com "de pé" no texto.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
