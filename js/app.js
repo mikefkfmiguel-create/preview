@@ -2718,10 +2718,25 @@ function ordenarPeloCentro(pecas) {
  * e de lentes continuam todas do lado de lá. O que atravessa é um texto e umas
  * medidas.
  */
+function ficheiroParaBase64(ficheiro) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      const resultado = leitor.result || "";
+      const virgula = resultado.indexOf(",");
+      resolve(virgula >= 0 ? resultado.slice(virgula + 1) : resultado);
+    };
+    leitor.onerror = () => reject(leitor.error);
+    leitor.readAsDataURL(ficheiro);
+  });
+}
+
 $("btAnalisar").onclick = async () => {
   const texto = $("colagem").value.trim();
-  if (!texto) {
-    $("aviso").textContent = "Escreve ou cola primeiro o texto do pedido.";
+  const campoImagem = $("imagemPedido");
+  const ficheiroImagem = campoImagem && campoImagem.files && campoImagem.files[0];
+  if (!texto && !ficheiroImagem) {
+    $("aviso").textContent = "Escreve ou cola o texto do pedido, ou carrega uma foto/render do evento.";
     $("aviso").classList.add("mostra");
     return;
   }
@@ -2737,7 +2752,10 @@ $("btAnalisar").onclick = async () => {
     const salaAgora = {
       largura: num("salaL"), profundidade: num("salaP"), altura: num("salaA")
     };
-    const veio = doQueVeioParaCa(await analisar(texto, salaAgora));
+    const imagem = ficheiroImagem
+      ? { base64: await ficheiroParaBase64(ficheiroImagem), mediaType: ficheiroImagem.type }
+      : null;
+    const veio = doQueVeioParaCa(await analisar(texto, salaAgora, imagem));
     const feitas = [];
     const mantidas = [];
     let comVariosTamanhos = false;

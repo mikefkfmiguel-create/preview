@@ -996,6 +996,25 @@ em código: os dois ficheiros guardam coisas fundamentalmente diferentes
 isso já têm o `origem`/`origemVersao` da v2.73 a identificar de onde vêm,
 mas não um formato único.
 
+**v2.76: uma foto/render também pode ir com o pedido, daqui mesmo.**
+Pedido direto: "pode ser um campo no 3d onde inserir uma imagem que esteja
+ligado ao campo dos cálculos" — depois de reparar que o Assistente dos
+Calculadores já aceita foto/render (PNG/JPEG) mas o "Analisar com a IA"
+aqui do Preview (`js/assistente.js`, `analisar()`) só mandava texto. O
+Worker já aceitava `imageBase64`/`imageMediaType` — só faltava o Preview
+os mandar. Novo campo `#imagemPedido` na secção Projeto, logo antes do
+botão "Analisar com a IA": ao clicar, se houver ficheiro escolhido,
+`app.js` lê-o para base64 (`ficheiroParaBase64()`, o mesmo padrão do
+`fileToBase64()` dos Calculadores) e passa-o a `analisar(texto, sala,
+imagem)` — terceiro argumento novo, opcional. O aviso "escreve o texto"
+passa a só disparar se não houver TEXTO NEM IMAGEM (antes exigia sempre
+texto) — dá para mandar só uma foto, sem escrever nada. Mesma regra de
+sempre: a IA só identifica visualmente o que a foto mostra, nunca mede
+nada a partir dela — o aviso ao lado do campo diz isso mesmo. Testado com
+Playwright: só imagem (sem texto) chega ao Worker com `imageBase64`
+preenchido e `text` vazio (a sala por omissão ainda entra, como sempre);
+nem texto nem imagem continua a mostrar o aviso a pedir um dos dois.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
