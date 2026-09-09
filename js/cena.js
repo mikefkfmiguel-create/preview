@@ -1088,6 +1088,14 @@ export function dataURLDeFicheiro(ficheiro) {
   });
 }
 
+function temTransparenciaAsSerio(ctx, largura, altura) {
+  const dados = ctx.getImageData(0, 0, largura, altura).data;
+  for (let i = 3; i < dados.length; i += 4) {
+    if (dados[i] < 255) return true;
+  }
+  return false;
+}
+
 /**
  * A imagem escolhida pelo mike PARA CONTEÚDO (ecrã geral ou por zona),
  * reduzida antes de virar textura -- pedido a sério depois de um "projeto
@@ -1098,10 +1106,16 @@ export function dataURLDeFicheiro(ficheiro) {
  * de 8MB do Worker (link partilhado) ou faz o "Guardar projeto" pesar sem
  * necessidade.
  *
- * Mantém-se o formato original (PNG continua PNG) para não estragar uma
- * transparência a sério -- um logo posto sobre a cor do ecrã, por exemplo --
- * que um JPEG (sem canal alfa) trocaria por um fundo preto sólido. Só quem
- * já veio sem alfa (JPEG) é que se comprime a sério.
+ * Só fica no formato original (PNG) quem tem mesmo transparência a usar --
+ * um logo posto sobre a cor do ecrã, por exemplo, que um JPEG (sem canal
+ * alfa) trocaria por um fundo preto sólido. A primeira versão decidia pelo
+ * NOME do ficheiro (".png" fica PNG"), e isso mordeu com um projeto de 11
+ * ecrãs, cada um com a sua foto em PNG: nenhuma tinha transparência
+ * nenhuma, mas todas ficavam sem perdas (um PNG de uma fotografia pode
+ * pesar 5-10x mais do que a mesma foto em JPEG) -- "projeto demasiado
+ * grande para partilhar" outra vez, com 11 imagens a somar. Agora olha-se
+ * aos pixels a sério (`temTransparenciaAsSerio()`): só quando há alfa
+ * abaixo de 255 nalgum sítio é que vale a pena pagar o preço do PNG.
  *
  * Devolve os dois -- textura pronta a usar e o data URL a guardar -- feitos
  * do MESMO canvas reduzido, para não se ler o ficheiro duas vezes a
@@ -1122,10 +1136,12 @@ export function conteudoDeFicheiro(ficheiro) {
         const tela = document.createElement("canvas");
         tela.width = Math.round(img.width * fator);
         tela.height = Math.round(img.height * fator);
-        tela.getContext("2d").drawImage(img, 0, 0, tela.width, tela.height);
+        const ctx = tela.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, tela.width, tela.height);
 
-        const eJpeg = /jpe?g$/i.test(ficheiro.type) || /\.jpe?g$/i.test(ficheiro.name || "");
-        const dataURL = eJpeg ? tela.toDataURL("image/jpeg", 0.85) : tela.toDataURL("image/png");
+        const dataURL = temTransparenciaAsSerio(ctx, tela.width, tela.height)
+          ? tela.toDataURL("image/png")
+          : tela.toDataURL("image/jpeg", 0.85);
         const textura = new THREE.CanvasTexture(tela);
         textura.colorSpace = THREE.SRGBColorSpace;
         ok({ textura, dataURL });
