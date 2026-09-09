@@ -827,6 +827,38 @@ apertados, sai com metade do tamanho de antes (2166,6 KB → 878,8 KB) --
 e continua corretamente em JPEG, sem tocar no caso da transparência a
 sério (continua em PNG).
 
+**v2.69: reabrir um projeto antigo também recomprime as imagens.**
+Depois do v2.68 (compressão mais apertada + Worker a 16MB), o mesmo
+projeto real de 11 ecrãs continuava "demasiado grande para partilhar"
+-- confirmado com o Worker já a aceitar 16MB, a versão da app já em
+v2.69 no ecrã, o problema não desapareceu. Causa: a compressão só
+corria ao ESCOLHER uma imagem nova (`conteudoDeFicheiro()`, ligado ao
+campo de ficheiro) -- nunca ao REABRIR um projeto já gravado, que
+apenas reconstruía a textura do data URL tal e qual estava guardado
+(`texturaDeDataURL()`, sem tocar no tamanho). Um projeto gravado antes
+de hoje, ou com imagens escolhidas num Preview mais antigo, ficava
+preso no tamanho de quando foi gravado, por mais vezes que se abrisse
+-- e o mike teria de escolher as 11 imagens outra vez à mão para
+beneficiar da compressão nova.
+`conteudoDeDataURL()`, novo em `js/cena.js` (a par de
+`conteudoDeFicheiro()`, agora os dois a partilhar a mesma
+`reduzirImagem()`), faz o mesmo que já fazia ao escolher um ficheiro,
+mas a partir de um data URL guardado -- nunca rejeita (uma imagem
+corrompida fica só sem conteúdo nessa zona, como já era). `abrirProjetoTodo()`
+(`js/app.js`) passa a usar isto em vez de `texturaDeDataURL()` (que
+saiu, ficou sem uso), e grava de volta o data URL RECOMPRIMIDO em
+`texturaDataURL`/`texturasPorZonaDataURL` -- um "Guardar projeto" ou
+"Link para ver" logo a seguir a abrir já sai leve, sem se tocar em
+imagem nenhuma à mão. Como um link partilhado também passa por
+`abrirProjetoTodo()`, abrir um link antigo (de antes desta correção)
+também beneficia.
+Testado com Playwright: um projeto sintético de 40,15MB (uma foto
+"realista" -- gradiente + ruído fino tipo sensor, nada da imagem de
+ruído aleatório adversarial dos testes anteriores -- repetida 12 vezes,
+imagem geral + 11 zonas, o cenário exato do relatado) reaberto e
+guardado de novo sai em 0,62MB -- as 11 zonas e a imagem geral todas
+corretamente recomprimidas para JPEG.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
