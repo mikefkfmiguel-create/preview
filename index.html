@@ -18,7 +18,7 @@
       <img src="icons/mike-logo.png" alt="Mike Apps" id="marca">
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v2.69</i></span>
+        <span>o projeto no terreno       <i id="versao">v2.70</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -225,16 +225,21 @@
 
   <section id="sConteudo">
     <h2>Conteúdo nos ecrãs</h2>
-    <div class="vistas">
+    <div class="vistas" style="grid-template-columns: 1fr 1fr 1fr">
       <button id="btPadrao">Padrão de teste</button>
+      <button id="btLogoProprio" title="O logotipo da AVK como conteúdo geral dos ecrãs">Meu logo</button>
       <button id="btImagem">Imagem…</button>
     </div>
     <button id="btSemConteudo" style="margin-top:8px; width:100%">Só cor</button>
+    <div id="logoProprioExtra" style="display:none; margin-top:8px">
+      <button id="btLogoCliente" style="width:100%">Trocar pelo logo do cliente…</button>
+    </div>
     <div class="vistas" style="margin-top:8px">
       <button data-conteudo="espalhado" class="destaque">Espalhada</button>
       <button data-conteudo="cada">Uma em cada</button>
     </div>
     <input type="file" id="ficheiroImagem" accept="image/*" hidden>
+    <input type="file" id="ficheiroLogoCliente" accept="image/*" hidden>
     <p class="vazio" style="margin:10px 0 0" id="notaConteudo">Espalhada: uma imagem só
        pelo conjunto todo, cada zona mostra o seu bocado — como o media server faz.</p>
 

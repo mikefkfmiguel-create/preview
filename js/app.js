@@ -2176,12 +2176,64 @@ $("ficheiroPlanta").onchange = async () => {
   }
 };
 
-$("btPadrao").onclick = async () => { textura = await padraoDeTeste(); texturaDataURL = null; montar(false); };
-$("btSemConteudo").onclick = () => { textura = null; texturaDataURL = null; montar(false); };
+function mostrarLogoProprioExtra(mostrar) {
+  $("logoProprioExtra").style.display = mostrar ? "" : "none";
+}
+
+$("btPadrao").onclick = async () => {
+  textura = await padraoDeTeste(); texturaDataURL = null;
+  mostrarLogoProprioExtra(false); montar(false);
+};
+$("btSemConteudo").onclick = () => {
+  textura = null; texturaDataURL = null;
+  mostrarLogoProprioExtra(false); montar(false);
+};
 $("btImagem").onclick = () => $("ficheiroImagem").click();
 $("ficheiroImagem").onchange = async () => {
   const ficheiro = $("ficheiroImagem").files[0];
   $("ficheiroImagem").value = "";
+  if (!ficheiro) return;
+  try {
+    const { textura: t, dataURL: url } = await conteudoDeFicheiro(ficheiro);
+    textura = t;
+    texturaDataURL = url;
+    mostrarLogoProprioExtra(false);
+    montar(false);
+  } catch (e) {
+    $("aviso").textContent = e.message;
+    $("aviso").classList.add("mostra");
+  }
+};
+
+/**
+ * "Meu logo": pedido direto -- ter o logotipo da AVK pronto como conteúdo
+ * geral dos ecrãs, com um "procurar" à parte para o trocar pelo logo de um
+ * cliente, mas voltando sempre à base (o logo próprio) sempre que se activa
+ * de novo -- clicar aqui outra vez larga o que estiver lá (mesmo já trocado
+ * por um logo de cliente) e volta ao logo da AVK.
+ *
+ * Ao contrário da marca do "Exemplo" (aplicarConteudoDeExemplo, que fica de
+ * fora do "Guardar projeto" de propósito -- é só demonstração, regenera-se
+ * sozinha ao clicar "Exemplo"), este converte-se logo num data URL a sério,
+ * tal como uma imagem escolhida à mão: viaja no "Guardar projeto" e no link
+ * como qualquer outra. É o único conteúdo que chega ao DSM e aos delays sem
+ * imagem própria por ecrã -- sem um data URL a sério, ficavam sem nada ao
+ * reabrir o projeto ou ao abrir o link (o mesmo problema que já tinha sido
+ * corrigido para as imagens escolhidas à mão).
+ */
+async function aplicarLogoProprio() {
+  const t = await texturaDaMarca(true);
+  textura = t;
+  texturaDataURL = t.image.toDataURL("image/png");
+  mostrarLogoProprioExtra(true);
+  montar(false);
+}
+$("btLogoProprio").onclick = aplicarLogoProprio;
+
+$("btLogoCliente").onclick = () => $("ficheiroLogoCliente").click();
+$("ficheiroLogoCliente").onchange = async () => {
+  const ficheiro = $("ficheiroLogoCliente").files[0];
+  $("ficheiroLogoCliente").value = "";
   if (!ficheiro) return;
   try {
     const { textura: t, dataURL: url } = await conteudoDeFicheiro(ficheiro);
@@ -2221,6 +2273,7 @@ function limparTudo() {
   texturaDataURL = null;
   texturasPorZona = {};
   texturasPorZonaDataURL = {};
+  mostrarLogoProprioExtra(false);
   ondeEsta = null;
   limitesDoShift = null;
   projecaoAtual = null;
@@ -2379,6 +2432,7 @@ async function abrirProjetoTodo(estado) {
       }
     : { delays: {}, dsm: [], gomos: [] };
   guardarAjustes(ajustes);
+  mostrarLogoProprioExtra(false);
 
   // As imagens (ver estadoCompleto()) -- carregam-se de volta antes do
   // montar() final, para a cena já nascer com elas em vez de aparecerem um
