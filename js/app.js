@@ -7,7 +7,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
          CHAVE_SINCRONIZACAO, idPartilhaDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
-import { fazerCena, fazerSala, fazerPalco, fazerZonas, fazerFigura, fazerPublico,
+import { fazerCena, fazerSala, fazerPalco, fazerPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
@@ -170,6 +170,15 @@ function lerRegie() {
   };
 }
 
+function lerPassarela() {
+  return {
+    ligada: $("passLigada").checked,
+    largura: Math.max(0.5, num("passL") || 1.5),
+    comprimento: Math.max(0, num("passC") || 0),
+    dx: num("passX")
+  };
+}
+
 // Em que degrau do auditório cai a régie, dada a profundidade a que ela está.
 // É a mesma conta que fazerPublico faz fila a fila (zPrimeira + f*entreFilas),
 // só que ao contrário: dada uma profundidade, que fila é essa. Sem isto a
@@ -230,6 +239,7 @@ function montar(recentrarCamara) {
   const sala = lerSala();
   const palco = lerPalco();
   const publico = lerPublico();
+  const passarela = lerPassarela();
 
   desenhado.add(fazerSala(sala, $("verMedidas").checked, $("verParedes").checked));
   const verPlanta = $("verPlanta").checked;
@@ -253,7 +263,10 @@ function montar(recentrarCamara) {
   // O palco desliga-se como o resto: numa sala onde o ecrã assenta no chão, o
   // palco por omissão é uma caixa a mentir sobre a altura de tudo o que está
   // em cima dela.
-  if ($("verPalco").checked) desenhado.add(fazerPalco(sala, palco));
+  if ($("verPalco").checked) {
+    desenhado.add(fazerPalco(sala, palco));
+    if (passarela.ligada) desenhado.add(fazerPassarela(sala, palco, passarela));
+  }
 
   // A régie entra ANTES do público, porque é o público que precisa de saber
   // onde ela está para lhe deixar o vão. Isto ia ficar reservado mesmo com a
@@ -274,7 +287,7 @@ function montar(recentrarCamara) {
   const gente = $("verPublico").checked
     ? (publico.formato === "circular"
         ? fazerPublicoGomos(sala, palco, publico, regie, ajustesDeGomosGarantidos(publico))
-        : fazerPublico(sala, palco, publico, regie))
+        : fazerPublico(sala, palco, publico, regie, passarela.ligada ? passarela : null))
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
   olhosDaPlateia = gente.olhos;
@@ -2332,6 +2345,7 @@ function estadoCompleto() {
     quando: new Date().toISOString(),
     sala: lerSala(),
     palco: lerPalco(),
+    passarela: lerPassarela(),
     publico: lerPublico(),
     regie: lerRegie(),
     projecao: lerProjecao(),
@@ -2384,10 +2398,12 @@ async function abrirProjetoTodo(estado) {
     throw new Error("Este ficheiro não é um projeto do Preview.");
   }
   const s = estado.sala || {}, p = estado.palco || {}, pu = estado.publico || {},
-        r = estado.regie || {}, pj = estado.projecao || {};
+        r = estado.regie || {}, pj = estado.projecao || {}, pa = estado.passarela || {};
   preencherCampo("salaL", s.largura); preencherCampo("salaP", s.profundidade); preencherCampo("salaA", s.altura);
   preencherCampo("palcoL", p.largura); preencherCampo("palcoA", p.altura);
   preencherCampo("palcoP", p.profundidade); preencherCampo("ecraOffset", p.acimaDoPalco);
+  preencherCheckbox("passLigada", pa.ligada); preencherCampo("passL", pa.largura);
+  preencherCampo("passC", pa.comprimento); preencherCampo("passX", pa.dx);
   preencherCampo("filas", pu.filas); preencherCampo("primeiraFila", pu.primeiraFila);
   preencherCampo("entreFilas", pu.entreFilas); preencherCampo("entreLugares", pu.entreLugares);
   preencherCampo("corredores", pu.corredores); preencherCampo("inclinacao", pu.inclinacao);

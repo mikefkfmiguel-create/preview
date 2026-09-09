@@ -890,6 +890,36 @@ imediato; o ficheiro guardado (`estado.conteudo.textura`) sai como
 `data:image/png` a sério; reabrir esse ficheiro mantém o logo no DSM;
 trocar pelo logo do cliente e voltar a clicar em "Meu logo" repõe a base.
 
+**v2.71: passarela a sair do palco.** Pedido direto: "tenho que desenhar um
+palco com uma passarela". Nova secção dentro de "Palco" (`index.html`):
+checkbox "Passarela" + Largura/Comprimento/Deslocar ↔ -- reta, sem rodar
+nem em T (só isso foi pedido), mas com posição e largura ajustáveis à mão
+(não presa ao centro). Sai do meio da frente do palco para dentro da sala,
+à MESMA altura do tampo do palco (um degrau só, não dois -- ver
+`fazerPassarela()`, novo em `js/cena.js`).
+A plateia abre-se sozinha nos dois lados onde a passarela passa: a mesma
+técnica que já existia para a régie (um rectângulo que "salta" os lugares
+que caem lá dentro, com meia folga de lugar/fila à volta), agora também em
+`fazerPublico()` (`js/cena.js`, novo parâmetro `passarela` a par de
+`regie`) -- ver `zonaDaPassarela()`, a função que devolve esse rectângulo
+para os dois sítios (o desenho e o vão) nunca poderem discordar um do
+outro. Como o vão só existe entre o palco e o FIM da passarela
+(`comprimento`), as filas que ficarem depois dela voltam a ficar inteiras
+sozinhas -- é o que faz isto parecer uma passarela a sério (forma de "T"),
+sem ser preciso desenhar duas plateias à parte.
+Só na plateia "Reto" -- em "Circular (gomos)" a passarela continua a
+desenhar-se, mas sem abrir vão nenhum (os gomos são um formato à parte,
+por explorar noutra altura se vier a ser pedido).
+Sem posição por arrastar na cena (como a régie já tem) -- só pelos campos
+"Deslocar ↔" por agora; fica para depois se fizer falta.
+Testado com Playwright: activar a passarela reduz o número de lugares (o
+vão abriu-se); nenhum lugar cai dentro do rectângulo dela; as filas depois
+do fim dela voltam a ter gente ao centro (a forma de T); Guardar → Reabrir
+(o mesmo caminho do link de partilha) mantém a passarela e os campos.
+Confirmado também visualmente, de cima: o corredor central corta as
+primeiras filas em dois blocos e a última fila (já depois do fim da
+passarela) volta a ficar inteira.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

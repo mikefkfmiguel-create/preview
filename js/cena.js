@@ -97,6 +97,48 @@ export function fazerPalco({ largura, profundidade }, palco) {
 }
 
 /**
+ * A passarela: um prolongamento do palco para dentro da plateia — pedido
+ * direto ("tenho que desenhar um palco com uma passarela"). Sai do meio da
+ * frente do palco, à mesma altura do tampo (por isso um degrau só, não dois
+ * — quem sobe ao palco sobe à passarela ao mesmo tempo). "dx" desloca-a
+ * lateralmente sem ficar presa ao centro, para quando o palco não é
+ * simétrico ou a passarela tem de sair enviesada para um corredor.
+ *
+ * Só reta — sem rodar nem em T — porque foi o que se pediu; a divisão da
+ * plateia nos dois lados não é feita aqui, é o vão que zonaDaPassarela()
+ * (mais abaixo) e fazerPublico() abrem sozinhos onde ela passa.
+ */
+export function fazerPassarela(sala, palco, passarela) {
+  const grupo = new THREE.Group();
+  grupo.name = "passarela";
+  if (!passarela || !passarela.ligada || !palco.altura || !passarela.comprimento) return grupo;
+  const largura = Math.max(0.5, passarela.largura || 1.5);
+  const comprimento = Math.max(0.5, passarela.comprimento || 1);
+  const zFrente = -sala.profundidade / 2 + palco.profundidade;
+  const caixa = new THREE.Mesh(
+    new THREE.BoxGeometry(largura, palco.altura, comprimento),
+    new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
+  caixa.name = "passarela";
+  caixa.position.set(passarela.dx || 0, palco.altura / 2, zFrente + comprimento / 2);
+  grupo.add(caixa);
+  return grupo;
+}
+
+/**
+ * O rectângulo (em X/Z do mundo) que a passarela ocupa -- usado por
+ * fazerPublico() para lhe abrir o vão, exactamente como já se fazia para a
+ * régie. Função à parte (em vez de repetir a conta nos dois sítios) porque
+ * fazerPassarela() e este vão têm de concordar sempre no mesmo rectângulo.
+ */
+export function zonaDaPassarela(sala, palco, passarela) {
+  if (!passarela || !passarela.ligada || !passarela.comprimento) return null;
+  const largura = Math.max(0.5, passarela.largura || 1.5);
+  const comprimento = Math.max(0.5, passarela.comprimento || 1);
+  const zFrente = -sala.profundidade / 2 + palco.profundidade;
+  return { dx: passarela.dx || 0, largura, zMin: zFrente, zMax: zFrente + comprimento };
+}
+
+/**
  * A régie: o lugar reservado a quem opera som, luz e vídeo — e não se senta
  * na plateia. Marca-se um rectângulo no chão (para se ver logo que ali não há
  * lugares) com uma mesa por cima, virada para o palco.
@@ -701,7 +743,7 @@ export function fazerFigura(altura = 1.75, cores) {
  * malhas separadas põem qualquer portátil de joelhos, e o número de pessoas é
  * precisamente o que se quer poder mexer à vontade.
  */
-export function fazerPublico(sala, palco, publico, regie) {
+export function fazerPublico(sala, palco, publico, regie, passarela) {
   const grupo = new THREE.Group();
   grupo.name = "publico";
   if (!publico.filas) {
@@ -802,6 +844,11 @@ export function fazerPublico(sala, palco, publico, regie) {
   const zPrimeira = -sala.profundidade / 2 + palco.profundidade + publico.primeiraFila;
   let n = 0;
   let zUltima = zPrimeira;
+  // O vão da passarela -- ver zonaDaPassarela() e fazerPassarela() mais
+  // acima. Só existe onde ela realmente chega (zMin..zMax); as filas depois
+  // do fim dela voltam a ficar inteiras, o que é o que faz isto parecer uma
+  // passarela (um "T") e não um corredor central a direito até ao fundo.
+  const zonaPass = zonaDaPassarela(sala, palco, passarela);
 
   for (let f = 0; f < publico.filas; f++) {
     const z = zPrimeira + f * publico.entreFilas;
@@ -853,6 +900,12 @@ export function fazerPublico(sala, palco, publico, regie) {
         if (Math.abs(localX) < regie.largura / 2 + folgaX
           && Math.abs(localZ) < regie.profundidade / 2 + folgaZ) continue;
       }
+
+      // A mesma ideia da régie, mas em vez de um rectângulo fixo é a faixa
+      // da passarela (zMin..zMax) -- meio lugar de folga de cada lado dela,
+      // que é o que separa "aberto" de "gente sentada em cima do tampo".
+      if (zonaPass && z <= zonaPass.zMax + publico.entreFilas / 2
+        && Math.abs(x - zonaPass.dx) < zonaPass.largura / 2 + publico.entreLugares / 2) continue;
 
       // Ninguém tem a altura exacta do vizinho, e uma plateia de clones vê-se
       // logo. Uma semente feita da posição chega, e é sempre igual entre
