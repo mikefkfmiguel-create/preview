@@ -1100,10 +1100,11 @@ function temTransparenciaAsSerio(ctx, largura, altura) {
  * A imagem escolhida pelo mike PARA CONTEÚDO (ecrã geral ou por zona),
  * reduzida antes de virar textura -- pedido a sério depois de um "projeto
  * demasiado grande para partilhar" real: uma foto de telemóvel facilmente
- * passa dos 3-5MB, e um ecrã na cena nunca precisa de mais do que ~2000px no
+ * passa dos 3-5MB, e um ecrã na cena nunca precisa de mais do que ~1600px no
  * lado maior para ficar nítido -- o resto é só peso morto que soma depressa
- * quando há uma imagem geral MAIS uma por zona, e que se aproxima do limite
- * de 8MB do Worker (link partilhado) ou faz o "Guardar projeto" pesar sem
+ * quando há uma imagem geral MAIS uma por zona (ou várias zonas, cada uma
+ * com a sua), e que se aproxima do limite do Worker (link partilhado) ou faz
+ * o "Guardar projeto" pesar sem
  * necessidade.
  *
  * Só fica no formato original (PNG) quem tem mesmo transparência a usar --
@@ -1130,7 +1131,12 @@ export function conteudoDeFicheiro(ficheiro) {
       const img = new Image();
       img.onerror = () => mal(new Error("Isso não é uma imagem que eu saiba abrir."));
       img.onload = () => {
-        const LADO_MAXIMO = 2000;
+        // 1600px/qualidade 0,75 -- mais apertado do que a primeira versão
+        // (2000px/0,85), pedido direto depois de um projeto real com 11
+        // ecrãs, cada um com a sua foto, continuar a passar do limite do
+        // Worker mesmo já em JPEG. Um ecrã na cena não perde nitidez visível
+        // com isto (vê-se a alguma distância, não em detalhe de perto).
+        const LADO_MAXIMO = 1600;
         const maior = Math.max(img.width, img.height);
         const fator = maior > LADO_MAXIMO ? LADO_MAXIMO / maior : 1;
         const tela = document.createElement("canvas");
@@ -1141,7 +1147,7 @@ export function conteudoDeFicheiro(ficheiro) {
 
         const dataURL = temTransparenciaAsSerio(ctx, tela.width, tela.height)
           ? tela.toDataURL("image/png")
-          : tela.toDataURL("image/jpeg", 0.85);
+          : tela.toDataURL("image/jpeg", 0.75);
         const textura = new THREE.CanvasTexture(tela);
         textura.colorSpace = THREE.SRGBColorSpace;
         ok({ textura, dataURL });

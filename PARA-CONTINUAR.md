@@ -805,6 +805,28 @@ Testado com Playwright: um PNG opaco (sem alfa nenhum) sai como
 `data:image/jpeg`; um PNG com uma zona a sério transparente continua a
 sair como `data:image/png` -- os dois casos que interessava distinguir.
 
+**v2.68: compressão mais forte, e o link passa a durar 1 dia.** Ainda a
+mesma história do "projeto demasiado grande para partilhar" -- desta
+vez um projeto real com 11 ecrãs, cada um com a sua foto, continuava a
+passar do limite mesmo já em JPEG (v2.67). Pedido direto: "comprime as
+imagens para jpeg para baixar ou aumenta o tamanho do contentor e
+reduz o tempo de disponibilidade para um dia para não encher" -- as
+três coisas, feitas as três:
+- `conteudoDeFicheiro()` (`js/cena.js`) aperta de 2000px/qualidade 0,85
+  para **1600px/qualidade 0,75** -- um ecrã na cena não perde nitidez
+  visível com isto (vê-se a alguma distância, não em detalhe de perto).
+- O limite do Worker (`calculadores/worker/src/index.js`) sobe de 8MB
+  para **16MB** -- bem abaixo do limite de valor do KV (25MB).
+- A validade desce de 7 dias para **1 dia** -- menos partilhas antigas
+  por apagar no KV, com payloads agora maiores.
+`VALIDADE_PARTILHA` (`js/partilha.js`) e os textos no botão/nota
+(`index.html`) seguem o novo número, para a app nunca prometer um
+prazo que já não é o que o Worker cumpre.
+Testado: o mesmo PNG opaco sintético do v2.67, agora com os números
+apertados, sai com metade do tamanho de antes (2166,6 KB → 878,8 KB) --
+e continua corretamente em JPEG, sem tocar no caso da transparência a
+sério (continua em PNG).
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
