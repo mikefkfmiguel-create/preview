@@ -967,7 +967,7 @@ Calculadores (ver `PARA-CONTINUAR.md` de lá para o contexto completo):
 "rename radical nestes dois meninos... ter apenas uma unificada, já que
 elas abrem uma a outra". Decisão: sem fundir código -- só uma marca
 comum por cima, "AV Planner", num repositório novo
-(`mikefkfmiguel-create.github.io/avplanner/`). O logótipo aqui
+(`mikefkfmiguel-create.github.io/AvPlanner/`). O logótipo aqui
 (`#marca`, `cabecalho-linha1`) passa a link para essa página. Sem versão
 em inglês para traduzir -- este app não tem esse motor (só os
 Calculadores têm PT/EN).
