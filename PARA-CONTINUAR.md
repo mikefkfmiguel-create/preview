@@ -972,6 +972,30 @@ comum por cima, "AV Planner", num repositório novo
 em inglês para traduzir -- este app não tem esse motor (só os
 Calculadores têm PT/EN).
 
+**v2.75: um sítio para pôr o nome do projeto, aqui mesmo.** Pergunta directa
+do mike: "o JSON quando gravo não pode ser o mesmo para os dois? E quando
+gravo no 3D não fica o nome que lhe dei no ficheiro ou tenho dentro dele
+onde por?". A segunda parte era uma lacuna real: `estadoCompleto()` já
+gravava `projeto.nome` certinho no ficheiro (e usava-o no nome do
+download), mas não havia onde o escrever ou editar dentro do Preview --
+só vinha de fora (Calculadores, ou um link recebido). Secção "Projeto"
+ganha um campo `#nomeProjeto`, logo a seguir ao título: escrever nele
+chama `garantirProjeto()` (cria um projeto vazio se ainda não houver
+nenhum -- dá para começar pelo nome, antes de trazer zonas) e actualiza
+`projeto.nome` e o texto no viewport ao vivo, sem passar pelo `montar()`
+inteiro. Em `montar()`, o campo é preenchido a partir de `projeto.nome`
+sempre que há um remontar -- mas só quando o campo não está com o foco,
+para não fugir o cursor a quem estiver a escrever. Testado com
+Playwright: escrever no campo sem projeto nenhum carregado cria um e
+mostra-o no viewport; escrever com o foco no campo não perde o cursor
+nem o valor a meio; "Guardar projeto" produz um ficheiro com
+`projeto.nome` correcto, com o nome de ficheiro derivado dele.
+A primeira parte da pergunta -- unificar o formato -- fica por responder
+em código: os dois ficheiros guardam coisas fundamentalmente diferentes
+(zonas/fichas técnicas nos Calculadores, uma cena 3D inteira aqui), por
+isso já têm o `origem`/`origemVersao` da v2.73 a identificar de onde vêm,
+mas não um formato único.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
