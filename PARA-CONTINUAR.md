@@ -943,6 +943,25 @@ preso à borda; nunca fica ao mesmo tempo para lá da borda do palco E fora
 da largura da passarela (a tal "flutuação"); e um passo pequeno para o
 lado, ainda dentro da largura dela, não o manda de volta para trás.
 
+**v2.73: de onde veio um projeto, e com que versão.** Sugestão directa do
+mike a seguir a uma tarde inteira a diagnosticar o nome do projeto que não
+chegava aqui (detalhe do lado de lá no `PARA-CONTINUAR.md` dos
+Calculadores): "deviamos ter forma de identificar se são da calculadores
+ou do preview". `lerProjeto()` (`js/projeto.js`) passa a guardar
+`origemVersao` (a versão de quem escreveu o payload -- ex: "v3.18" dos
+Calculadores) a par do `origem` que já existia; um projeto criado
+directamente aqui (`garantirProjeto()`, `js/app.js`) estampa-se a si
+próprio como `origem: "preview"` com a versão local (`#versao`). O ficheiro
+de "Guardar projeto"/"Link para ver" (`estadoCompleto()`) ganha também
+`versaoPreview`, a versão de quem gravou esse ficheiro -- útil ao abrir um
+ficheiro estranho meses depois. No viewport (`#nomeProjetoViewport`), isto
+aparece no `title` ao pairar o rato -- "Calculadores v3.18" ou
+"Preview v2.7x" -- sem sujar a cena com mais texto.
+Testado com Playwright: um payload posto directamente no `localStorage` a
+fingir vir dos Calculadores (`origem: "calculadores", origemVersao:
+"v3.17"`) mostra "Calculadores v3.17" no tooltip; um projeto criado aqui
+mesmo (+ DSM, sem nada vindo de fora) mostra "Preview v2.7x".
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a

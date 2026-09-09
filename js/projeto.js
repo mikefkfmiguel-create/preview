@@ -128,6 +128,11 @@ export function lerProjeto(bruto) {
     v: numero(dados.v, FORMATO),
     nome: dados.nome || dados.name || "Projeto",
     origem: dados.origem || "colado",
+    // A versão de quem escreveu isto (ex: "v3.17" dos Calculadores) -- só
+    // para dizer, ao olhar para um projeto estranho, se veio de uma versão
+    // antiga. Não existe para "colado"/ficheiros mais velhos, por isso pode
+    // vir null -- ver #nomeProjetoViewport em app.js, onde aparece.
+    origemVersao: typeof dados.origemVersao === "string" ? dados.origemVersao : null,
     sala: dados.sala || null,
     zonas,
     dsm,

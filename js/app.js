@@ -234,6 +234,17 @@ function montar(recentrarCamara) {
     const texto = modoVisualizacao ? (nome ? nome + " · só visualização" : "Só visualização") : nome;
     nomeViewport.textContent = texto;
     nomeViewport.hidden = !texto;
+    // De onde veio isto e com que versão -- só ao passar o rato, para não
+    // sujar a cena com mais texto. Pedido direto: dar para perceber, ao
+    // olhar para um projeto estranho, se veio de uma versão antiga dos
+    // Calculadores ou do Preview, sem ter de abrir o ficheiro à mão.
+    if (projeto && projeto.origem) {
+      const app = projeto.origem === "calculadores" ? "Calculadores"
+        : projeto.origem === "preview" ? "Preview" : "colado";
+      nomeViewport.title = app + (projeto.origemVersao ? " " + projeto.origemVersao : "");
+    } else {
+      nomeViewport.removeAttribute("title");
+    }
   }
 
   const sala = lerSala();
@@ -1098,7 +1109,9 @@ const CORES_ZONA = ["#2E7BFF", "#22D3EE", "#F59E0B", "#A855F7", "#34D399", "#F47
  *  sem isto, "+ Ecrã" com o painel vazio não tinha onde pôr nada. */
 function garantirProjeto() {
   if (!projeto) {
-    projeto = { v: FORMATO, nome: "Projeto (criado no Preview)", origem: "preview", zonas: [], dsm: null };
+    projeto = { v: FORMATO, nome: "Projeto (criado no Preview)", origem: "preview",
+                origemVersao: $("versao") ? $("versao").textContent.trim() : null,
+                zonas: [], dsm: null };
   }
   if (!Array.isArray(projeto.zonas)) projeto.zonas = [];
   return projeto;
@@ -2343,6 +2356,12 @@ function estadoCompleto() {
     v: 1,
     tipo: "preview-projeto",
     quando: new Date().toISOString(),
+    // A versão de quem gravou este ficheiro/link -- mesma ideia do
+    // origemVersao do projeto (ver projeto.js), mas aqui é sempre a versão
+    // do Preview, porque quem grava um "preview-projeto" é sempre o
+    // Preview. Ajuda a perceber, ao abrir um ficheiro antigo, se ele é de
+    // antes de uma correção.
+    versaoPreview: $("versao") ? $("versao").textContent.trim() : null,
     sala: lerSala(),
     palco: lerPalco(),
     passarela: lerPassarela(),
@@ -2957,6 +2976,7 @@ function devolverAosCalculadores(comAviso) {
       // antiga, e acrescenta o desenho inteiro para o caminho inverso.
       projeto: {
         v: projeto.v, nome: projeto.nome, origem: "preview",
+        origemVersao: $("versao") ? $("versao").textContent.trim() : null,
         zonas, dsm: projeto.dsm || null
       },
       sala: lerSala(),
