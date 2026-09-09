@@ -41,7 +41,7 @@ body { display: flex; }
   position: sticky; top: 0; background: var(--painel); z-index: 3;
 }
 .cabecalho-linha1 { display: flex; align-items: center; gap: 12px; }
-#marca { height: 30px; width: auto; }
+#marca { height: 42px; width: auto; }
 #painel header b { display: block; font-size: 15px; letter-spacing: .04em; }
 #painel header span { display: block; font-size: 12px; color: var(--apagado); }
 /* A versao anda a vista: sem ela, ninguem sabe se o que esta no ecra ja e o
