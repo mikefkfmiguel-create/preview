@@ -27,14 +27,19 @@ export function enderecoDoWorker() {
 }
 
 /**
- * Manda o texto do pedido e devolve os requisitos que a IA extraiu.
+ * Manda o texto do pedido (e, opcionalmente, uma foto/render) e devolve os
+ * requisitos que a IA extraiu.
  *
  * A resposta é a mesma que o assistente dos Calculadores recebe — mesmo Worker,
  * mesmo formato — e aqui só se aproveita o que este desenho sabe mostrar: as
  * medidas do ecrã e as da sala. O resto (orçamento, tipo de ecrã, pontos por
  * confirmar) fica para quem tem as tabelas.
+ *
+ * `imagem`, quando vem, é `{ base64, mediaType }` — a mesma forma que o Worker
+ * já espera do lado dos Calculadores (`imageBase64`/`imageMediaType`), por
+ * isso não há nada de novo a ensinar ao Worker.
  */
-export async function analisar(texto, sala) {
+export async function analisar(texto, sala, imagem) {
   // A sala que já está no desenho vai com o pedido. Sem isto, a IA lia só o
   // texto e devolvia estimativas suas por cima de medidas que alguém já tinha
   // escrito à mão -- e quem as escreveu ficava a olhar para números que não
@@ -45,10 +50,16 @@ export async function analisar(texto, sala) {
       (sala.altura ? ` × ${sala.altura} m de pé-direito` : "") + ".)"
     : texto;
 
+  const body = { text: comSala };
+  if (imagem && imagem.base64 && imagem.mediaType) {
+    body.imageBase64 = imagem.base64;
+    body.imageMediaType = imagem.mediaType;
+  }
+
   const resposta = await fetch(enderecoDoWorker(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: comSala })
+    body: JSON.stringify(body)
   });
 
   let dados = null;
