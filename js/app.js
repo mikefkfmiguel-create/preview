@@ -247,6 +247,17 @@ function montar(recentrarCamara) {
     }
   }
 
+  // O campo "Nome do projeto" no painel -- pedido direto: "quando gravo no
+  // 3D não fica o nome que lhe dei no ficheiro, ou tenho dentro dele onde
+  // por?". Não havia onde -- o nome só vinha de fora (Calculadores/link),
+  // sem forma de o pôr ou mudar aqui mesmo. Não mexe no campo enquanto a
+  // pessoa está a escrever nele (haveria de lhe fugir o cursor a cada
+  // remontar).
+  const campoNome = $("nomeProjeto");
+  if (campoNome && document.activeElement !== campoNome) {
+    campoNome.value = projeto && projeto.nome ? projeto.nome : "";
+  }
+
   const sala = lerSala();
   const palco = lerPalco();
   const publico = lerPublico();
@@ -2502,6 +2513,22 @@ async function abrirProjetoTodo(estado) {
 
   montar(true);
 }
+
+// Escrever aqui não passa pelo montar() inteiro (reconstruiria a cena toda
+// só por causa de uma letra) -- só actualiza o nome guardado e o texto no
+// viewport, ao vivo. garantirProjeto() cria um projeto vazio se ainda não
+// houver nenhum -- dá para começar pelo nome, antes de trazer zonas.
+if ($("nomeProjeto")) $("nomeProjeto").addEventListener("input", () => {
+  const p = garantirProjeto();
+  p.nome = $("nomeProjeto").value;
+  const nomeViewport = $("nomeProjetoViewport");
+  if (nomeViewport) {
+    const nome = p.nome || "";
+    const texto = modoVisualizacao ? (nome ? nome + " · só visualização" : "Só visualização") : nome;
+    nomeViewport.textContent = texto;
+    nomeViewport.hidden = !texto;
+  }
+});
 
 $("btGuardarProjeto").onclick = guardarProjetoTodo;
 $("btAbrirProjeto").onclick = () => $("ficheiroProjeto").click();
