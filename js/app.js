@@ -7,7 +7,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
          CHAVE_SINCRONIZACAO, idPartilhaDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
-import { fazerCena, fazerSala, fazerPalco, fazerPassarela, fazerZonas, fazerFigura, fazerPublico,
+import { fazerCena, fazerSala, fazerPalco, fazerPassarela, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
@@ -3237,12 +3237,30 @@ tela.addEventListener("pointermove", (e) => {
   const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
   const limiteX = (noPalco ? larguraPalco : sala.largura) / 2 - 0.4;
   const fundoZ = -sala.profundidade / 2 + 0.5;
-  const frenteZ = noPalco
+  const frenteZPalco = noPalco
     ? -sala.profundidade / 2 + palco.profundidade - 0.3
     : sala.profundidade / 2 - 0.5;
 
-  figura.position.x = Math.max(-limiteX, Math.min(limiteX, ondeCaiu.x));
-  figura.position.z = Math.max(fundoZ, Math.min(frenteZ, ondeCaiu.z));
+  // A passarela prolonga o palco -- sem isto o orador ficava sempre preso à
+  // boca de cena, sem conseguir andar por cima dela ("o prop não vai à
+  // passarela"). Só se estica o limite se o rato já está alinhado com a
+  // largura dela; senão continua-se preso à borda do palco como sempre.
+  const passarela = lerPassarela();
+  const zonaPass = noPalco && passarela.ligada ? zonaDaPassarela(sala, palco, passarela) : null;
+  const frenteZ = (zonaPass && Math.abs(ondeCaiu.x - zonaPass.dx) < zonaPass.largura / 2 - 0.2)
+    ? Math.max(frenteZPalco, zonaPass.zMax - 0.3)
+    : frenteZPalco;
+  const z = Math.max(fundoZ, Math.min(frenteZ, ondeCaiu.z));
+
+  // E já em cima dela (para lá da borda do palco), a largura livre passa a
+  // ser só a da passarela -- não dá para "flutuar" ao lado dela, por cima da
+  // plateia.
+  const emCimaDaPassarela = zonaPass && z > frenteZPalco;
+  const limiteXEsq = emCimaDaPassarela ? zonaPass.dx - (zonaPass.largura / 2 - 0.2) : -limiteX;
+  const limiteXDir = emCimaDaPassarela ? zonaPass.dx + (zonaPass.largura / 2 - 0.2) : limiteX;
+
+  figura.position.x = Math.max(limiteXEsq, Math.min(limiteXDir, ondeCaiu.x));
+  figura.position.z = z;
   figura.updateMatrixWorld(true);
   ondeEsta = { x: figura.position.x, z: figura.position.z };
   medirSombra();
