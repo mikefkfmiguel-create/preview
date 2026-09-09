@@ -1088,6 +1088,54 @@ export function dataURLDeFicheiro(ficheiro) {
   });
 }
 
+/**
+ * A imagem escolhida pelo mike PARA CONTEÚDO (ecrã geral ou por zona),
+ * reduzida antes de virar textura -- pedido a sério depois de um "projeto
+ * demasiado grande para partilhar" real: uma foto de telemóvel facilmente
+ * passa dos 3-5MB, e um ecrã na cena nunca precisa de mais do que ~2000px no
+ * lado maior para ficar nítido -- o resto é só peso morto que soma depressa
+ * quando há uma imagem geral MAIS uma por zona, e que se aproxima do limite
+ * de 8MB do Worker (link partilhado) ou faz o "Guardar projeto" pesar sem
+ * necessidade.
+ *
+ * Mantém-se o formato original (PNG continua PNG) para não estragar uma
+ * transparência a sério -- um logo posto sobre a cor do ecrã, por exemplo --
+ * que um JPEG (sem canal alfa) trocaria por um fundo preto sólido. Só quem
+ * já veio sem alfa (JPEG) é que se comprime a sério.
+ *
+ * Devolve os dois -- textura pronta a usar e o data URL a guardar -- feitos
+ * do MESMO canvas reduzido, para não se ler o ficheiro duas vezes a
+ * tamanhos diferentes (e a textura ao vivo ficar sempre igual ao que se
+ * guarda, nunca maior).
+ */
+export function conteudoDeFicheiro(ficheiro) {
+  return new Promise((ok, mal) => {
+    const leitor = new FileReader();
+    leitor.onerror = () => mal(new Error("Não consegui ler essa imagem."));
+    leitor.onload = () => {
+      const img = new Image();
+      img.onerror = () => mal(new Error("Isso não é uma imagem que eu saiba abrir."));
+      img.onload = () => {
+        const LADO_MAXIMO = 2000;
+        const maior = Math.max(img.width, img.height);
+        const fator = maior > LADO_MAXIMO ? LADO_MAXIMO / maior : 1;
+        const tela = document.createElement("canvas");
+        tela.width = Math.round(img.width * fator);
+        tela.height = Math.round(img.height * fator);
+        tela.getContext("2d").drawImage(img, 0, 0, tela.width, tela.height);
+
+        const eJpeg = /jpe?g$/i.test(ficheiro.type) || /\.jpe?g$/i.test(ficheiro.name || "");
+        const dataURL = eJpeg ? tela.toDataURL("image/jpeg", 0.85) : tela.toDataURL("image/png");
+        const textura = new THREE.CanvasTexture(tela);
+        textura.colorSpace = THREE.SRGBColorSpace;
+        ok({ textura, dataURL });
+      };
+      img.src = leitor.result;
+    };
+    leitor.readAsDataURL(ficheiro);
+  });
+}
+
 /** O inverso: de um data URL (vindo de um projeto guardado) para textura. */
 export function texturaDeDataURL(url) {
   return new Promise((ok) => {

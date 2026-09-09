@@ -762,6 +762,32 @@ cobertura nenhuma a mostrar (não há zonas para calcular); a carregar
 ●46 ●0" com as cores certas (verde `rgb(61,220,132)`, confirmado por
 `getComputedStyle`).
 
+**v2.66: as imagens de conteúdo (ecrã geral/por zona) reduzem-se antes de
+virarem textura.** Reportado a testar o link partilhado a sério: "projeto
+demasiado grande para partilhar". Uma foto de telemóvel facilmente passa
+dos 3-5MB, e com uma imagem geral MAIS uma por zona isso soma-se depressa
+acima dos 8MB do Worker (v2.60/v2.64). Subir o limite outra vez não
+resolvia a raiz -- um ecrã na cena nunca precisa da resolução toda de
+uma fotografia. `conteudoDeFicheiro()`, novo em `js/cena.js` (substitui,
+só para conteúdo de ecrã, o par `texturaDeFicheiro()`+`dataURLDeFicheiro()`
+que os dois pontos em `js/app.js` usavam): lê o ficheiro UMA vez, desenha
+num `<canvas>` reduzido (máximo 2000px no lado maior -- de sobra para
+nitidez a qualquer distância de visualização normal) e tira dali os dois,
+textura ao vivo e data URL a guardar, do MESMO canvas -- nunca a
+guardar maior do que o que já está na cena. Mantém-se o formato original
+(PNG continua PNG) para não trocar uma transparência a sério -- um logo
+sobre a cor do ecrã, por exemplo -- por um fundo preto sólido, que um
+JPEG sem canal alfa faria; só quem já veio sem alfa (JPEG) é que se
+comprime a sério (qualidade 0,85). `texturaDeFicheiro()` sozinho manteve-se
+tal e qual para a planta (import de imagem/PDF) -- essa pode ter texto
+fino a precisar da resolução toda, não é o mesmo caso.
+Testado com Playwright: uma foto sintética de 4032×3024px com ruído
+aleatório (pior caso para compressão -- 7,91MB) posta como imagem geral
+E como imagem de uma zona (o cenário exato do relatado -- as duas juntas
+é que estouravam o limite); o projeto guardado resultante ficou nos
+4,74MB, bem abaixo dos 8MB do Worker, e a imagem continua a aparecer
+certa na cena (só mais leve).
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
