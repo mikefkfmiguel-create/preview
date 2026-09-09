@@ -87,6 +87,25 @@ Não repetir nenhuma destas:
 - **A sombra do público não se soma caixa a caixa.** Numa sala cheia elas
   sobrepõem-se quase todas e a soma dava 300%. Rasteriza-se numa grelha de
   128 × 72.
+- **Nunca mandar um valor de campo por omissão para a IA como se fosse facto
+  assente.** `js/app.js`, `btAnalisar.onclick` mandava sempre `salaL`/`salaP`/
+  `salaA` (mesmo intocados, ainda no `defaultValue` do HTML) como "Sala já
+  definida no desenho" — isso fazia a IA ignorar uma sala escrita no próprio
+  texto ("sala com 25 por 25") a favor do valor de arranque da página.
+  Reportado direto: "não leu o tamanho da sala, aplicou o base". Corrigido
+  (v2.77) mandando `null` para qualquer campo que ainda seja o
+  `defaultValue` — o mesmo `porOMike()` já usado para decidir se se
+  aplica ou não a estimativa da IA de volta ao campo, agora hoisted e
+  reusado nos dois sentidos.
+- **`local.publicoEmPe` (Worker, v3.21) — "de pé" tem de forçar chão plano.**
+  O padrão da página é auditório com plateia a subir (`#inclinacao`, valor
+  de arranque 0.12) — um texto a dizer "300 pessoas de pé" não muda isso
+  sozinho, e o resultado era um auditório a subir para gente de pé.
+  Reportado direto: "disse-lhe que era de pé e desenhou um auditório a
+  subir". `doQueVeioParaCa()` (`js/assistente.js`) expõe `veio.emPe`; só
+  quando `true` (nunca inferido) e só se `#inclinacao` ainda não tiver sido
+  mexido à mão, `btAnalisar.onclick` põe-no a 0 (o mesmo que o botão
+  "Pavilhão · plano" faz).
 - **`--painel` é a COR do painel.** A largura chama-se `--larguraPainel`. Um
   `width: #141B21` é inválido, o painel ficava com a largura do conteúdo, e nada
   no ecrã dizia porquê.

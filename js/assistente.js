@@ -238,6 +238,10 @@ export function doQueVeioParaCa(r) {
     // uma curva moderada, de propósito, para se ver a diferença sem fingir
     // uma precisão que não existe.
     curvo: !!(r && r.local && r.local.curvo === true),
+    // Idem para "de pé" (local.publicoEmPe) — só true quando o texto o diz
+    // explicitamente; null ou false não mexe em nada (nunca se assume
+    // auditório nem pavilhão só porque o texto não falou nisso).
+    emPe: !!(r && r.local && r.local.publicoEmPe === true),
     quantos: 0
   };
   saida.quantos = quantosEcras(saida.resumo);
