@@ -788,6 +788,23 @@ E como imagem de uma zona (o cenário exato do relatado -- as duas juntas
 4,74MB, bem abaixo dos 8MB do Worker, e a imagem continua a aparecer
 certa na cena (só mais leve).
 
+**v2.67: PNG só fica em PNG com transparência a sério.** O v2.66 mordeu
+com um projeto de 11 ecrãs, cada um com a sua foto -- todas em PNG, e
+"projeto demasiado grande para partilhar" outra vez, apesar do limite
+já reduzir para 2000px. Causa: `conteudoDeFicheiro()` decidia o formato
+pelo NOME do ficheiro (".png" ficava PNG, sem perdas) -- e uma
+fotografia normal em PNG (formato sem perdas) pode pesar 5-10x mais do
+que a mesma foto em JPEG, mesmo depois de reduzida. Com 11 delas,
+qualquer redução de resolução não chegava. `temTransparenciaAsSerio()`,
+nova em `js/cena.js`, olha aos pixels a sério (`getImageData`, procura
+um alfa abaixo de 255 nalgum sítio) em vez de confiar no nome -- só
+fica em PNG quem tem mesmo transparência a preservar (um logo posto
+sobre a cor do ecrã, por exemplo); uma foto em PNG sem transparência
+nenhuma passa a JPEG (qualidade 0,85) como qualquer outra foto.
+Testado com Playwright: um PNG opaco (sem alfa nenhum) sai como
+`data:image/jpeg`; um PNG com uma zona a sério transparente continua a
+sair como `data:image/png` -- os dois casos que interessava distinguir.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
