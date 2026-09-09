@@ -859,6 +859,37 @@ imagem geral + 11 zonas, o cenário exato do relatado) reaberto e
 guardado de novo sai em 0,62MB -- as 11 zonas e a imagem geral todas
 corretamente recomprimidas para JPEG.
 
+**v2.70: botão "Meu logo" no conteúdo dos ecrãs.** Pedido direto: "adiciona
+no conteudo dos ecrans o meu logo botao para poder escolher um logo de
+cliente e usar, tenho o meu logotipo como base e depois o browse/procurar
+para alterar mas tendo sempre a base quando ativado". Novo botão "Meu logo"
+em `#sConteudo` (`index.html`), ao lado de "Padrão de teste"/"Imagem…":
+aplica o logotipo da AVK (`texturaDaMarca(true)`, já existente para o
+"Exemplo") como conteúdo GERAL dos ecrãs, e revela um botão "Trocar pelo
+logo do cliente…" para escolher uma imagem à parte sem sair deste modo.
+Clicar em "Meu logo" outra vez (mesmo já trocado por um logo de cliente)
+larga o que estiver lá e volta sempre à base -- é a "base" pedida, não um
+interruptor liga/desliga.
+Ao contrário da marca do "Exemplo" (que fica de propósito fora do "Guardar
+projeto" -- é só demonstração, regenera-se sozinha ao clicar "Exemplo"),
+"Meu logo" converte-se logo num data URL a sério (`t.image.toDataURL(...)`,
+o canvas por trás da `CanvasTexture`) -- viaja no "Guardar projeto" e no
+link tal como uma imagem escolhida à mão. Isto importa em particular para o
+**DSM e os delays sem imagem própria**, que só mostram o conteúdo geral: sem
+um data URL a sério, ficavam sem nada ao reabrir o projeto ou ao abrir o
+link de partilha (reportado a seguir ao v2.69: "o link não está a levar a
+média dos dsm, provavelmente o mesmo passará com os delays"). Testado
+directamente esse caminho -- projeto com DSM, conteúdo geral escolhido à
+mão, Guardar → Reabrir (o mesmo código que o link usa) -- e o DSM já
+mostrava a imagem antes desta versão; o problema real é não haver nenhum
+conteúdo geral definido de origem. "Meu logo" resolve isso ao dar sempre um
+conteúdo geral pronto a um clique, sem se ter de escolher uma imagem à mão
+só para o DSM ter alguma coisa.
+Testado com Playwright: activar "Meu logo" desenha o DSM com o logotipo de
+imediato; o ficheiro guardado (`estado.conteudo.textura`) sai como
+`data:image/png` a sério; reabrir esse ficheiro mantém o logo no DSM;
+trocar pelo logo do cliente e voltar a clicar em "Meu logo" repõe a base.
+
 **Simplificações conhecidas do modo gomos, ainda por afinar se vier a ser
 preciso:**
 - `filas`/`porFila`/`blocos`/`zPrimeira`/`zUltima`/`larguraSentada` que a
