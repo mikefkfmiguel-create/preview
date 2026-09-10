@@ -422,7 +422,8 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0, textu
  * -- isto roda a plateia à volta do PONTO onde o palco reto de hoje fica,
  * não à volta de um palco que também mude de forma ou de posição.
  */
-export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
+export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos) {
+  const listaRegies = Array.isArray(regies) ? regies : (regies ? [regies] : []);
   const grupo = new THREE.Group();
   grupo.name = "publico-gomos";
   const n = Math.max(1, Math.round(publico.gomos || 3));
@@ -470,25 +471,26 @@ export function fazerPublicoGomos(sala, palco, publico, regie, ajustesGomos) {
     const ang = anguloDeg * Math.PI / 180;
     const cosA = Math.cos(ang), sinA = Math.sin(ang);
 
-    // A régie é UMA mesa física, no mesmo sítio para toda a gente -- não
-    // roda nem desloca com o gomo. Mas fazerPublico() só sabe testar "cai
-    // dentro da régie?" no seu próprio referencial (direito, como o de
-    // "Reto"). Por isso a régie entra aqui já na transformação CONTRÁRIA à
-    // do gomo (a inversa do que se faz ao "corpos" mais abaixo): do ponto
-    // de vista de dentro do gomo deslocado/rodado, é onde a mesa real
-    // parece estar. Sem isto, o vão que a régie devia abrir na plateia
-    // aparecia no sítio errado (ou nenhum) em qualquer gomo deslocado.
-    let regieDoGomo = regie;
-    if (regie && (dx || dz || anguloDeg)) {
+    // As régies (principal + extra) são mesas físicas, no mesmo sítio para
+    // toda a gente -- não rodam nem deslocam com o gomo. Mas fazerPublico()
+    // só sabe testar "cai dentro da régie?" no seu próprio referencial
+    // (direito, como o de "Reto"). Por isso cada régie entra aqui já na
+    // transformação CONTRÁRIA à do gomo (a inversa do que se faz ao
+    // "corpos" mais abaixo): do ponto de vista de dentro do gomo deslocado/
+    // rodado, é onde a mesa real parece estar. Sem isto, o vão que a régie
+    // devia abrir na plateia aparecia no sítio errado (ou nenhum) em
+    // qualquer gomo deslocado.
+    const regiesDoGomo = listaRegies.map((regie) => {
+      if (!(dx || dz || anguloDeg)) return regie;
       const relX = regie.x - dx;
       const relZ = regie.z - (focoZ + dz);
-      regieDoGomo = Object.assign({}, regie, {
+      return Object.assign({}, regie, {
         x: cosA * relX - sinA * relZ,
         z: sinA * relX + cosA * relZ + focoZ,
         rodar: (regie.rodar || 0) - anguloDeg
       });
-    }
-    const sub = fazerPublico(salaGomo, palco, publicoGomo, regieDoGomo);
+    });
+    const sub = fazerPublico(salaGomo, palco, publicoGomo, regiesDoGomo);
 
     // O grupo 3D: desloca-se para a origem ficar no ponto focal, e um
     // "pivot" por cima roda-o e desloca-o (dx, dz) -- a mesma conta, feita
@@ -767,7 +769,11 @@ export function fazerFigura(altura = 1.75, cores) {
  * malhas separadas põem qualquer portátil de joelhos, e o número de pessoas é
  * precisamente o que se quer poder mexer à vontade.
  */
-export function fazerPublico(sala, palco, publico, regie, passarela) {
+export function fazerPublico(sala, palco, publico, regies, passarela) {
+  // Aceita tanto uma régie só (chamadas antigas) como a lista -- pedido
+  // direto ("preciso ter como criar mais do que um... régie"). A régie
+  // principal e as extra abrem vão do mesmo jeito, testadas todas aqui.
+  const listaRegies = Array.isArray(regies) ? regies : (regies ? [regies] : []);
   const grupo = new THREE.Group();
   grupo.name = "publico";
   if (!publico.filas) {
@@ -907,7 +913,12 @@ export function fazerPublico(sala, palco, publico, regie, passarela) {
       // primeiro traz-se para o referencial da régie -- rodado ao contrário
       // do que ela está -- e só depois se pergunta se cai dentro da caixa,
       // que aí volta a ser só largura/2 e profundidade/2.
-      if (regie) {
+      // Testa-se contra TODAS as régies (principal + extra) -- basta UMA
+      // bater certo para o lugar saltar, por isso sai-se do "for" logo que
+      // a primeira apanhar o lugar, sem deixar de testar as outras quando a
+      // primeira não apanha.
+      let dentroDeAlgumaRegie = false;
+      for (const regie of listaRegies) {
         const rodarRad = (regie.rodar || 0) * Math.PI / 180;
         const dx = x - regie.x;
         const dz = z - regie.z;
@@ -922,8 +933,9 @@ export function fazerPublico(sala, palco, publico, regie, passarela) {
         const folgaX = publico.entreLugares;
         const folgaZ = publico.entreFilas;
         if (Math.abs(localX) < regie.largura / 2 + folgaX
-          && Math.abs(localZ) < regie.profundidade / 2 + folgaZ) continue;
+          && Math.abs(localZ) < regie.profundidade / 2 + folgaZ) { dentroDeAlgumaRegie = true; break; }
       }
+      if (dentroDeAlgumaRegie) continue;
 
       // A mesma ideia da régie, mas em vez de um rectângulo fixo é a faixa
       // da passarela (zMin..zMax) -- meio lugar de folga de cada lado dela,
