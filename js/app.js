@@ -5,7 +5,7 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
-         CHAVE_SINCRONIZACAO, idPartilhaDoEndereco,
+         CHAVE_SINCRONIZACAO, CHAVE_AJUSTES, idPartilhaDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerPassarela, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
@@ -2316,6 +2316,11 @@ function limparTudo() {
   projecaoAtual = null;
   modoConteudo = "espalhado";
   formatoImagem = 1.777;
+  // Os arrastos (gomos/DSM/delays) ficavam de fora daqui -- "Limpar tudo"
+  // repunha os campos mas um projeto novo herdava arrastos do anterior.
+  // Reportado como a plateia a sair "errada" depois de limpar (a causa real
+  // não era a conta da primeira fila, era isto).
+  ajustes = { delays: {}, dsm: [], gomos: [] };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -2328,7 +2333,7 @@ function limparTudo() {
   // A memória partilhada com os Calculadores vai também: senão o projeto
   // voltava sozinho no arranque seguinte, e "limpar" passava a durar até ao
   // próximo F5.
-  for (const chave of [CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_DEVOLUCAO]) {
+  for (const chave of [CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_DEVOLUCAO, CHAVE_AJUSTES]) {
     try { localStorage.removeItem(chave); } catch (_) {}
   }
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);

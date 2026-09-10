@@ -1081,6 +1081,19 @@ v2.43, acima. O que falta a sério é o palco em si mudar de forma/posição,
 que obriga a rever a posição por omissão dos ecrãs e os cálculos que
 dependem dela.
 
+**v2.78: "Limpar tudo" não limpava os arrastos.** Reportado como "a
+plateia está bem, só não faz reset dos ajustes mesmo limpando o
+projeto" — a seguir a uma confusão inicial ("primeira fila em circular a
+contar mal") que afinal tinha a mesma causa. `limparTudo()` repunha os
+campos todos mas nunca tocava em `ajustes` (`{delays, dsm, gomos}` — os
+desvios de arrastar) nem apagava `mikeapps-preview-ajustes-v1` do
+localStorage — um projeto "limpo" continuava a herdar arrastos do
+projeto anterior (um gomo rodado, um DSM deslocado). Corrigido: `ajustes`
+volta ao estado vazio e a chave é removida, tal como já acontecia com
+`CHAVE_PROJETO`/`CHAVE_PROJETOR`/`CHAVE_DEVOLUCAO`. Testado com
+Playwright: um ajuste falso posto directamente no localStorage sobrevive
+a um recarregar (confirma o bug), mas desaparece depois de "Limpar tudo".
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
