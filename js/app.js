@@ -1191,8 +1191,31 @@ $("btAplicarDistribuicao").onclick = aplicarDistribuicaoSugerida;
 
 // ------------------------------------------------------------------- painel
 
+/**
+ * Uma peça nova nasce no depósito, não na sala -- pedido direto: "se existir
+ * algo no 3d pode ser removido ou adicionado, mas o melhor seria fazer a
+ * partir do depósito". O depósito é a porta por onde o material entra e sai;
+ * a sala só tem o que foi montado, venha de onde vier.
+ */
+function guardarNoDeposito(chave) {
+  if (!chave) return;
+  if (!Array.isArray(ajustes.noDeposito)) ajustes.noDeposito = [];
+  if (!ajustes.noDeposito.includes(chave)) ajustes.noDeposito.push(chave);
+  guardarAjustes(ajustes);
+}
+
 /** Uma peça sai do depósito e entra na sala. */
 function montarDoDeposito(chave) {
+  ajustes.noDeposito = (ajustes.noDeposito || []).filter(c => c !== chave);
+  guardarAjustes(ajustes);
+  montar(false);
+}
+
+/** Deita fora de vez: sai do depósito E do projeto. */
+function removerDoDeposito(chave) {
+  if (!projeto) return;
+  if (chave === CHAVE_DEPOSITO_DSM) projeto.dsm = null;
+  else projeto.zonas = projeto.zonas.filter(z => chaveDeDeposito(z) !== chave);
   ajustes.noDeposito = (ajustes.noDeposito || []).filter(c => c !== chave);
   guardarAjustes(ajustes);
   montar(false);
@@ -1248,7 +1271,17 @@ function escreverListaDeposito() {
     bt.textContent = "Montar";
     bt.title = "Põe esta peça na sala, na posição que traz dos Calculadores";
     bt.onclick = () => montarDoDeposito(peca.chave);
-    linha.append(nome, det, bt);
+
+    // Deitar fora a partir daqui -- se o depósito é a porta do material, é
+    // por aqui que ele também sai do projeto, sem ter de o montar primeiro
+    // só para o poder apagar.
+    const del = document.createElement("button");
+    del.className = "zona-remover";
+    del.textContent = "🗑";
+    del.title = "Tirar esta peça do projeto";
+    del.onclick = () => removerDoDeposito(peca.chave);
+
+    linha.append(nome, det, bt, del);
     lista.append(linha);
   }
 }
@@ -1420,16 +1453,18 @@ $("btNovaZona").onclick = () => {
   // Cada ecrã novo nasce ao lado do último, para não empilhar tudo em cima do
   // mesmo sítio e obrigar a arrastar números antes de se ver alguma coisa.
   const anterior = p.zonas[n - 1];
+  const idNovo = novoIdZona();
+  guardarNoDeposito(idNovo);
   p.zonas.push({
     nome: `Ecrã ${n + 1}`,
-    id: novoIdZona(),
+    id: idNovo,
     x: anterior ? anterior.x + anterior.w + 0.5 : 0,
     y: 0, w: 2, h: 1.2,
     cor: CORES_ZONA[n % CORES_ZONA.length],
     tipo: "led"
   });
   projetoMudou();
-  mostrarZonas();
+  irParaSeccao("deposito", "listaDeposito");
 };
 
 $("btNovoDelay").onclick = () => {
@@ -1437,21 +1472,24 @@ $("btNovoDelay").onclick = () => {
   const delays = p.zonas.filter(z => z.tipo === "tv" || z.tipo === "projecao");
   const n = delays.length;
   const anterior = delays[n - 1];
+  const idNovoDelay = novoIdZona();
+  guardarNoDeposito(idNovoDelay);
   p.zonas.push({
     nome: `Delay ${n + 1}`,
-    id: novoIdZona(),
+    id: idNovoDelay,
     x: anterior ? anterior.x + anterior.w + 0.5 : 0,
     y: 0, w: 0.8, h: 0.45,
     cor: "#F59E0B",
     tipo: "tv"
   });
   projetoMudou();
-  mostrarZonas();
+  irParaSeccao("deposito", "listaDeposito");
 };
 
 $("btNovoDsm").onclick = () => {
   const p = garantirProjeto();
   if (p.dsm) return;
+  guardarNoDeposito(CHAVE_DEPOSITO_DSM);
   p.dsm = { n: 2, w: 0.6, h: 0.4 };
   projetoMudou();
 };
