@@ -3355,6 +3355,16 @@ $("btExemplo").onclick = () => {
 $("btTrazerProjeto").onclick = () => {
   const guardado = projetoGuardado();
   if (!guardado) {
+    // Uma projeção (aba Distância de Projeção) não cria zonas nenhumas -- viaja
+    // pela OUTRA ponte, a do projetor. Dizer "ainda não há nada guardado" a
+    // quem acabou de marcar lá "Adicionar ao projeto" era mentira -- há, só
+    // não é uma zona -- e mandava a pessoa procurar um botão diferente sem
+    // dizer qual. Reportado direto, com uma captura de ecrã deste aviso.
+    if (aplicarProjetores(projetorGuardado())) {
+      $("aviso").innerHTML = "Não havia zonas guardadas, mas veio a <b>projeção</b> dos Calculadores.";
+      $("aviso").classList.add("mostra");
+      return;
+    }
     $("aviso").innerHTML = "Ainda não há nada guardado. Nos Calculadores, monta as zonas " +
       "(aba <b>Ecrã Complexo</b>, ou qualquer outra com \"Adicionar ao projeto\") — ficam " +
       "gravadas sozinhas, e depois carregas aqui neste botão.";

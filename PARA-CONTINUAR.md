@@ -1394,6 +1394,30 @@ ecrã inteiro passou a ser corretamente avaliada contra a fatia mais
 próxima. Um ecrã normal (4×2,25 m, 16:9 exato) deu exatamente os mesmos
 números de antes (217/67/68) — confirma zero regressão para o caso comum.
 
+**v2.89: "Trazer projeto dos Calculadores" deixa de dizer que não há nada
+quando o que há é uma projeção.** Reportado com captura de ecrã: com
+"Adicionar ao projeto" marcado na aba Distância de Projeção dos
+Calculadores, este botão respondia *"Ainda não há nada guardado"*.
+
+Há duas pontes: as zonas (Ecrã Complexo, TVs) em `mikeapps-projeto-v1`, e
+a projeção em `mikeapps-projetor-v1`. Este botão só lia a primeira — e uma
+projeção nunca cria zonas. O próprio aviso prometia "ou qualquer outra com
+Adicionar ao projeto", o que tornava a resposta ainda mais enganadora: a
+pessoa tinha feito exatamente o que o aviso mandava.
+
+Sem zonas, o botão passa a tentar a ponte do projetor
+(`aplicarProjetores(projetorGuardado())`) antes de desistir, e diz *"Não
+havia zonas guardadas, mas veio a projeção dos Calculadores"*. O caminho
+com zonas fica intocado. Do lado dos Calculadores (v3.31), a projeção
+passou também a escrever-se sozinha nessa ponte quando "Adicionar ao
+projeto" está marcado e a sincronização automática ligada — antes só o
+botão "Ver no Preview 3D" a escrevia.
+
+Testado com Playwright com as duas apps na MESMA origem (sem isso o
+`localStorage` não é partilhado e o teste não diria nada): marcar a caixa
+nos Calculadores e carregar aqui aplica a projeção — `projDist` fica a
+17.00, com a mensagem nova.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
