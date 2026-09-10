@@ -1505,6 +1505,23 @@ depósito o Ecrã Complexo do outro lado continua com tudo; recolher uma zona
 tira-a da Cobertura (223→219 confortáveis) e "Montar tudo" devolve o número
 exato. Sem erros de consola.
 
+**v2.93: o depósito passa a ser a porta por onde o material entra e sai.**
+Pedido direto a seguir a ver a v2.92: *"se existir algo no 3d pode ser
+removido ou adicionado, mas o melhor seria fazer a partir do depósito"*.
+
+O "+ Ecrã", "+ Delay" e "+ DSM" mudaram-se da secção Zonas para o
+Depósito, e a peça que criam **nasce lá**, não na sala — a sala passa a ter
+só o que foi montado, venha de onde vier (dos Calculadores ou da mão). Cada
+linha do depósito ganhou um 🗑, para deitar material fora sem ter de o
+montar primeiro só para o poder apagar. O 🗑 de cada zona montada
+mantém-se: tirar da sala continua a poder fazer-se lá, é só deixar de ser o
+único sítio.
+
+Testado com Playwright, do zero: criar ecrã + delay + DSM deixa a sala a 0
+e os três no depósito; "Montar" põe um na sala; o 🗑 do depósito tira outro
+do projeto sem passar pela sala; "Montar tudo" fecha a lista. Sem erros de
+consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
