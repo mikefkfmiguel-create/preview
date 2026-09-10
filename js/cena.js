@@ -1339,7 +1339,7 @@ export function conteudoDeDataURL(url) {
  * se aquilo cabe na parede. O cone desenha-se dos quatro cantos da imagem até
  * à lente, e é ele que mostra quem é que passa à frente.
  */
-export function fazerProjecao(projetor, imagem, textura) {
+export function fazerProjecao(projetor, imagem, textura, nome = "projetor-0") {
   const grupo = new THREE.Group();
   grupo.name = "projecao";
 
@@ -1364,11 +1364,11 @@ export function fazerProjecao(projetor, imagem, textura) {
   const caixa = new THREE.Mesh(
     new THREE.BoxGeometry(0.42, 0.18, 0.52),
     new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
-  // "-0" para condizer com o nome que instâncias extra (Fase 6, blending)
-  // vão usar -- "projetor-1", "projetor-2", ... -- e caberem no mesmo
+  // "projetor-0" por omissão (instância principal); instâncias extra
+  // (Fase 6, blending) passam "projetor-1", "projetor-2", ... -- mesmo
   // despacho por prefixo que objetosArrastaveis() já usa para os outros
   // tipos (gomo-, zona , dsm ).
-  caixa.name = "projetor-0";
+  caixa.name = nome;
   caixa.position.set(projetor.x, projetor.y, projetor.z);
   grupo.add(caixa);
 

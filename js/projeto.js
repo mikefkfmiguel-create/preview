@@ -260,11 +260,11 @@ export function idPartilhaDoEndereco() {
 /** E o projetor, quando vem do botão "Ver no Preview 3D" da aba da projeção. */
 export function projetorDoEndereco() {
   const bruto = doEndereco("proj");
-  if (!bruto) return null;
+  if (!bruto) return [];
   try {
-    return lerProjetor(JSON.parse(desempacotar(bruto)));
+    return lerProjetores(JSON.parse(desempacotar(bruto)));
   } catch (e) {
-    return null;
+    return [];
   }
 }
 
@@ -348,13 +348,13 @@ export function guardarSala(sala) {
 export function projetorGuardado() {
   try {
     const bruto = localStorage.getItem(CHAVE_PROJETOR);
-    return bruto ? lerProjetor(JSON.parse(bruto)) : null;
+    return bruto ? lerProjetores(JSON.parse(bruto)) : [];
   } catch (e) {
-    return null;
+    return [];
   }
 }
 
-function lerProjetor(d) {
+function lerProjetorItem(d) {
   try {
     const racio = numero(d.racio, 0);
     const distancia = numero(d.distancia, 0);
@@ -373,9 +373,33 @@ function lerProjetor(d) {
         hMin: numero(d.shift.hMin, 0), hMax: numero(d.shift.hMax, 0),
         nota: typeof d.shift.nota === "string" ? d.shift.nota : ""
       } : null,
+      // Só as instâncias extra (Fase 6, blending) trazem isto -- a
+      // instância #0 nunca traz posição, essa fica sempre a cargo de quem
+      // está a olhar para a sala (ver aplicarProjetor()/aplicarProjetores()
+      // em app.js: "a altura da lente é daqui, os Calculadores não a sabem").
+      lateral: Number.isFinite(numero(d.lateral, NaN)) ? numero(d.lateral, 0) : null,
+      alturaOffset: Number.isFinite(numero(d.alturaOffset, NaN)) ? numero(d.alturaOffset, 0) : null,
       quando: d.quando || null
     };
   } catch (e) {
     return null;
   }
+}
+
+/**
+ * Um ou vários projetores -- pedido direto ("o 3D não está a trazer os
+ * projetores do projeto... Blending Multi-Projetor nunca manda nada").
+ * Aceita as duas formas que mikeapps-projetor-v1 já teve: {v:1, racio,
+ * ...} (um só, como sempre) e {v:2, projetores:[...]} (a grelha toda do
+ * Blending). Devolve sempre um array -- nunca null, [] quando não há nada
+ * de aproveitável -- para quem o lê não ter de tratar os dois casos à
+ * parte.
+ */
+export function lerProjetores(d) {
+  if (!d || typeof d !== "object") return [];
+  if (Array.isArray(d.projetores)) {
+    return d.projetores.map(lerProjetorItem).filter(Boolean);
+  }
+  const um = lerProjetorItem(d);
+  return um ? [um] : [];
 }
