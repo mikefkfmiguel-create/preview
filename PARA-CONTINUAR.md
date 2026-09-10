@@ -1262,6 +1262,29 @@ por omissão), criou um projetor extra com lateral absoluto 2.63 (0 +
 arrasto de 50px) e removível; um payload `{v:1}` antigo continuou a
 aplicar-se à instância #0 e limpou o extra que lá estava.
 
+**v2.85: avisos de "não cabe" ganham botão para saltar à secção
+certa.** Pedido direto: *"os avisos no 3D de não cabe podiam ter onde
+clicar para saltar para a aba de ajuste respetivo"*. Os três avisos
+que descrevem algo que não cabe fisicamente na sala (filas da plateia
+que não cabem, gomos apertados no modo Circular, e o conjunto de
+ecrãs/pé-direito que não cabe na sala) passam a incluir um botão
+embutido no próprio texto do aviso — clicar nele abre o painel lateral
+(se estiver escondido), desdobra a secção certa (Público, Sala ou
+Palco, conforme o problema) e leva a vista até lá com scroll suave.
+
+Nova `irParaSeccao(id, idParaFoco)` em `js/app.js`, generalizada a
+partir do que `mostrarZonas()` já fazia manualmente (essa função ficou
+reduzida a uma chamada a esta). Um só listener delegado em `#aviso`
+(`[data-secao]`) — necessário porque o texto do aviso é reconstruído
+do zero a cada `montar()`, o que apagaria um listener posto
+directamente num botão. Nova classe CSS `.aviso-link`.
+
+Testado com Playwright: com o painel fechado, provocar "só cabem 11
+das 200 filas" mostrou o botão "Ajustar Público" — clicar nele reabriu
+o painel E a secção Público, mesmo com os dois fechados antes; o
+mesmo confirmado para "Ajustar Sala" (sala mais estreita do que o
+conjunto de ecrãs do exemplo). Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

@@ -434,17 +434,19 @@ function montar(recentrarCamara) {
   if ($("verPublico").checked && publico.formato === "circular") {
     if (gente.gomosApertados && gente.gomosApertados.length) {
       const aviso = $("aviso");
-      const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
+      const jaTem = aviso.classList.contains("mostra") ? aviso.innerHTML + " " : "";
       const lista = gente.gomosApertados
         .map((g) => `Gomo ${g.gomo}: ${g.filas} de ${g.pedidas}`).join("; ");
-      aviso.textContent = jaTem + `Nem todas as filas pedidas cabem — ${lista} (a sala acaba antes).`;
+      aviso.innerHTML = jaTem + `Nem todas as filas pedidas cabem — ${lista} (a sala acaba antes). ` +
+        `<button type="button" class="aviso-link" data-secao="sPublico">Ajustar Público</button>`;
       aviso.classList.add("mostra");
     }
   } else if ($("verPublico").checked && publico.filas && gente.filas < publico.filas) {
     const aviso = $("aviso");
-    const jaTem = aviso.classList.contains("mostra") ? aviso.textContent + " " : "";
-    aviso.textContent = jaTem + `Só cabem ${gente.filas} das ${publico.filas} filas: ` +
-      `a sala acaba antes.`;
+    const jaTem = aviso.classList.contains("mostra") ? aviso.innerHTML + " " : "";
+    aviso.innerHTML = jaTem + `Só cabem ${gente.filas} das ${publico.filas} filas: ` +
+      `a sala acaba antes. ` +
+      `<button type="button" class="aviso-link" data-secao="sPublico">Ajustar Público</button>`;
     aviso.classList.add("mostra");
   }
   // A cobertura substitui o aviso de ângulo da v2.26: aquele só dizia "há um
@@ -749,14 +751,16 @@ function avisarSeNaoCabe(medidas, sala, palco) {
   const altoDemais = palco.altura + palco.acimaDoPalco + medidas.altura;
   const problemas = [];
   if (medidas.largura > sala.largura) {
-    problemas.push(`o conjunto tem ${medidas.largura.toFixed(2)} m e a sala ${sala.largura} m de largura`);
+    problemas.push(`o conjunto tem ${medidas.largura.toFixed(2)} m e a sala ${sala.largura} m de largura ` +
+      `<button type="button" class="aviso-link" data-secao="sSala">Ajustar Sala</button>`);
   }
   if (altoDemais > sala.altura) {
-    problemas.push(`o topo fica a ${altoDemais.toFixed(2)} m e o pé-direito é ${sala.altura} m`);
+    problemas.push(`o topo fica a ${altoDemais.toFixed(2)} m e o pé-direito é ${sala.altura} m ` +
+      `<button type="button" class="aviso-link" data-secao="sPalco">Ajustar Palco</button>`);
   }
   const aviso = $("aviso");
   if (problemas.length) {
-    aviso.textContent = "Não cabe: " + problemas.join("; ") + ".";
+    aviso.innerHTML = "Não cabe: " + problemas.join("; ") + ".";
     aviso.classList.add("mostra");
   }
 }
@@ -1185,16 +1189,38 @@ function garantirProjeto() {
   return projeto;
 }
 
-function mostrarZonas() {
-  const secao = $("zonas");
+/**
+ * Abre o painel (se estiver escondido) e desdobra uma secção, levando a
+ * vista até ela — pedido direto: os avisos de "não cabe" ganharem onde
+ * clicar para saltar logo para a secção certa, em vez de a pessoa andar
+ * à procura de qual campo mexer.
+ */
+function irParaSeccao(id, idParaFoco) {
+  painel(false);
+  const secao = $(id);
+  if (!secao) return;
   secao.classList.remove("fechada");
   try {
     localStorage.setItem("preview-dobras",
       JSON.stringify([...document.querySelectorAll("#painel section.fechada")]
-        .filter(x => x.id !== "zonas").map(x => x.id)));
+        .filter(x => x.id !== id).map(x => x.id)));
   } catch (_) {}
-  $("listaZonas").scrollIntoView({ block: "nearest" });
+  (idParaFoco ? $(idParaFoco) : secao).scrollIntoView({ block: "start", behavior: "smooth" });
 }
+
+function mostrarZonas() {
+  irParaSeccao("zonas", "listaZonas");
+}
+
+// Um aviso "não cabe" pode trazer um botão embutido a dizer onde ir
+// ajustar — delegado num só listener porque o texto do aviso é
+// reconstruído a cada montar(), o que apagaria um listener posto
+// directamente no botão.
+$("aviso").addEventListener("click", (e) => {
+  const alvo = e.target.closest("[data-secao]");
+  if (!alvo) return;
+  irParaSeccao(alvo.dataset.secao);
+});
 
 /** Depois de mexer no projeto à mão, é a mesma rotina de sempre: voltar a
  *  montar a cena — o resto (posições dos delays/DSM, painel) já vem a
