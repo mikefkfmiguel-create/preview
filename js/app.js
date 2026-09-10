@@ -7,7 +7,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
          CHAVE_SINCRONIZACAO, CHAVE_AJUSTES, idPartilhaDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
-import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
+import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, fazerPassarelaLivre, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
@@ -297,6 +297,17 @@ function montar(recentrarCamara) {
     });
   }
 
+  // Passarelas soltas (2ª, 3ª, ...) -- ao contrário da que sai do palco,
+  // não estão presas a nada nem dependem de "Ver palco": têm posição e
+  // rotação próprias, decisão já tomada com o mike ("preciso ter como
+  // criar mais do que um... passarela"). Existem sempre que estiverem na
+  // lista, sem interruptor à parte.
+  ajustes.passarelasExtra.forEach((pl, i) => {
+    const grupoExtra = fazerPassarelaLivre(pl);
+    grupoExtra.name = "passarela-" + (i + 1);
+    desenhado.add(grupoExtra);
+  });
+
   // A régie entra ANTES do público, porque é o público que precisa de saber
   // onde ela está para lhe deixar o vão. Isto ia ficar reservado mesmo com a
   // régie escondida — parecia mais correcto, "o espaço existe sempre" — mas
@@ -332,8 +343,8 @@ function montar(recentrarCamara) {
   // ninguém no palco mede-se o ecrã sem nada a tapá-lo.
   const gente = $("verPublico").checked
     ? (publico.formato === "circular"
-        ? fazerPublicoGomos(sala, palco, publico, regies, ajustesDeGomosGarantidos(publico))
-        : fazerPublico(sala, palco, publico, regies, passarela.ligada ? passarela : null))
+        ? fazerPublicoGomos(sala, palco, publico, regies, ajustesDeGomosGarantidos(publico), ajustes.passarelasExtra)
+        : fazerPublico(sala, palco, publico, regies, passarela.ligada ? passarela : null, ajustes.passarelasExtra))
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
   olhosDaPlateia = gente.olhos;
@@ -455,6 +466,7 @@ function montar(recentrarCamara) {
   desenharGomos(publico);
   desenharPalcosExtra();
   desenharRegiesExtra();
+  desenharPassarelasExtra();
   devolverDaqui();
   if (recentrarCamara) vista("frente");
 }
@@ -1228,6 +1240,26 @@ if ($("btAddPalco")) $("btAddPalco").onclick = () => {
   remontarDaqui();
 };
 
+if ($("btAddPassarela")) $("btAddPassarela").onclick = () => {
+  const sala = lerSala(), palco = lerPalco();
+  const n = ajustes.passarelasExtra.length;
+  // Sem palco a que se agarrar, nasce a meio da plateia -- um pouco à
+  // frente da primeira fila. A primeira nasce centrada (o sítio mais comum
+  // para uma passarela), as seguintes alternam para um lado e para o outro
+  // -- perto do centro da sala, e não encostadas à parede, que é onde a
+  // vista "Frente" por omissão as deixava fora do enquadramento.
+  const lado = n % 2 === 0 ? 1 : -1;
+  const dx = n === 0 ? 0 : lado * Math.ceil(n / 2) * 2.5;
+  ajustes.passarelasExtra.push({
+    largura: 1.5, comprimento: 3, altura: 0.4,
+    dx,
+    dz: -sala.profundidade / 2 + palco.profundidade + 3,
+    rot: 0
+  });
+  guardarAjustes(ajustes);
+  remontarDaqui();
+};
+
 if ($("btAddRegie")) $("btAddRegie").onclick = () => {
   const r = lerRegie();
   const n = ajustes.regiesExtra.length;
@@ -1836,6 +1868,43 @@ function desenharRegiesExtra() {
     remover.setAttribute("aria-label", "Remover Régie " + (i + 2));
     remover.addEventListener("click", () => {
       ajustes.regiesExtra.splice(i, 1);
+      guardarAjustes(ajustes);
+      remontarDaqui();
+    });
+    linha.append(remover);
+    lista.append(linha);
+  });
+}
+
+/**
+ * Lista de passarelas soltas (2ª, 3ª, ...) -- mesma mecânica das listas
+ * acima, mas sem interruptor: existem sempre que estiverem na lista (não
+ * dependem de "Ver palco" nem de nenhuma outra secção).
+ */
+function desenharPassarelasExtra() {
+  const lista = $("listaPassarelasExtra");
+  if (!lista) return;
+  lista.innerHTML = "";
+  ajustes.passarelasExtra.forEach((pl, i) => {
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = "Passarela " + (i + 1);
+    linha.append(nome);
+    linha.append(campoAjuste("largura", pl, "largura", "m", "0.1", `passarelaExtra-${i}-largura`, 0.5, 20));
+    linha.append(campoAjuste("comprimento", pl, "comprimento", "m", "0.5", `passarelaExtra-${i}-comprimento`, 0.5, 60));
+    linha.append(campoAjuste("altura", pl, "altura", "m", "0.1", `passarelaExtra-${i}-altura`, 0, 10));
+    linha.append(campoAjuste("↔", pl, "dx", "m", "0.25", `passarelaExtra-${i}-dx`));
+    linha.append(campoAjuste("↕", pl, "dz", "m", "0.25", `passarelaExtra-${i}-dz`));
+    linha.append(campoAjuste("rodar", pl, "rot", "°", "15", `passarelaExtra-${i}-rot`, -180, 180));
+    const remover = document.createElement("button");
+    remover.type = "button";
+    remover.className = "ajuste-passo ajuste-remover";
+    remover.textContent = "✕";
+    remover.title = "Remover esta passarela";
+    remover.setAttribute("aria-label", "Remover Passarela " + (i + 1));
+    remover.addEventListener("click", () => {
+      ajustes.passarelasExtra.splice(i, 1);
       guardarAjustes(ajustes);
       remontarDaqui();
     });
@@ -3591,6 +3660,9 @@ function objetosArrastaveis() {
     } else if (o.name.indexOf("regie-") === 0) {
       const i = parseInt(o.name.slice(6), 10) - 1;
       if (ajustes.regiesExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.regiesExtra[i]) });
+    } else if (o.name.indexOf("passarela-") === 0) {
+      const i = parseInt(o.name.slice(10), 10) - 1;
+      if (ajustes.passarelasExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.passarelasExtra[i]) });
     }
   });
   return alvos;

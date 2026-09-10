@@ -163,6 +163,29 @@ export function zonaDaPassarela(sala, palco, passarela) {
 }
 
 /**
+ * Uma passarela SOLTA (2ª, 3ª, ...) — pedido direto ("preciso ter como
+ * criar mais do que um... passarela"). Ao contrário da de cima, que sai
+ * sempre do meio da frente do palco e nunca roda, esta é livre: posição e
+ * rotação próprias, sem estar presa a nenhum palco -- decisão já tomada
+ * com o mike. Por isso tem também a sua própria altura (não herda a do
+ * palco, que pode nem ser a mais próxima).
+ */
+export function fazerPassarelaLivre(pl) {
+  const grupo = new THREE.Group();
+  const largura = Math.max(0.5, pl.largura || 1.5);
+  const comprimento = Math.max(0.5, pl.comprimento || 3);
+  const altura = Math.max(0, pl.altura != null ? pl.altura : 1);
+  const caixa = new THREE.Mesh(
+    new THREE.BoxGeometry(largura, Math.max(0.05, altura), comprimento),
+    new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
+  caixa.position.set(0, altura / 2, 0);
+  grupo.add(caixa);
+  grupo.rotation.y = -(pl.rot || 0) * Math.PI / 180;
+  grupo.position.set(pl.dx || 0, 0, pl.dz || 0);
+  return grupo;
+}
+
+/**
  * A régie: o lugar reservado a quem opera som, luz e vídeo — e não se senta
  * na plateia. Marca-se um rectângulo no chão (para se ver logo que ali não há
  * lugares) com uma mesa por cima, virada para o palco.
@@ -422,8 +445,9 @@ function fazerZona(zona, alturaBase, z0, conteudo, rotacao = 0, tombo = 0, textu
  * -- isto roda a plateia à volta do PONTO onde o palco reto de hoje fica,
  * não à volta de um palco que também mude de forma ou de posição.
  */
-export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos) {
+export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos, passarelasLivres) {
   const listaRegies = Array.isArray(regies) ? regies : (regies ? [regies] : []);
+  const listaPassarelasLivres = Array.isArray(passarelasLivres) ? passarelasLivres : [];
   const grupo = new THREE.Group();
   grupo.name = "publico-gomos";
   const n = Math.max(1, Math.round(publico.gomos || 3));
@@ -490,7 +514,19 @@ export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos) {
         rodar: (regie.rodar || 0) - anguloDeg
       });
     });
-    const sub = fazerPublico(salaGomo, palco, publicoGomo, regiesDoGomo);
+    // Mesma ideia para as passarelas soltas -- também não rodam nem
+    // deslocam com o gomo.
+    const passarelasLivresDoGomo = listaPassarelasLivres.map((pl) => {
+      if (!(dx || dz || anguloDeg)) return pl;
+      const relX = (pl.dx || 0) - dx;
+      const relZ = (pl.dz || 0) - (focoZ + dz);
+      return Object.assign({}, pl, {
+        dx: cosA * relX - sinA * relZ,
+        dz: sinA * relX + cosA * relZ + focoZ,
+        rot: (pl.rot || 0) - anguloDeg
+      });
+    });
+    const sub = fazerPublico(salaGomo, palco, publicoGomo, regiesDoGomo, null, passarelasLivresDoGomo);
 
     // O grupo 3D: desloca-se para a origem ficar no ponto focal, e um
     // "pivot" por cima roda-o e desloca-o (dx, dz) -- a mesma conta, feita
@@ -769,11 +805,16 @@ export function fazerFigura(altura = 1.75, cores) {
  * malhas separadas põem qualquer portátil de joelhos, e o número de pessoas é
  * precisamente o que se quer poder mexer à vontade.
  */
-export function fazerPublico(sala, palco, publico, regies, passarela) {
+export function fazerPublico(sala, palco, publico, regies, passarela, passarelasLivres) {
   // Aceita tanto uma régie só (chamadas antigas) como a lista -- pedido
   // direto ("preciso ter como criar mais do que um... régie"). A régie
   // principal e as extra abrem vão do mesmo jeito, testadas todas aqui.
   const listaRegies = Array.isArray(regies) ? regies : (regies ? [regies] : []);
+  // As passarelas soltas (2ª, 3ª, ...) -- ao contrário da presa ao palco
+  // (testada mais abaixo por zonaDaPassarela, sempre reta), estas têm
+  // rotação própria, por isso o teste é o mesmo referencial local já usado
+  // para a régie.
+  const listaPassarelasLivres = Array.isArray(passarelasLivres) ? passarelasLivres : [];
   const grupo = new THREE.Group();
   grupo.name = "publico";
   if (!publico.filas) {
@@ -942,6 +983,23 @@ export function fazerPublico(sala, palco, publico, regies, passarela) {
       // que é o que separa "aberto" de "gente sentada em cima do tampo".
       if (zonaPass && z <= zonaPass.zMax + publico.entreFilas / 2
         && Math.abs(x - zonaPass.dx) < zonaPass.largura / 2 + publico.entreLugares / 2) continue;
+
+      // Passarelas soltas: mesmo referencial local rodado já usado para a
+      // régie, porque estas (ao contrário da presa ao palco) podem estar em
+      // qualquer ângulo.
+      let dentroDeAlgumaPassarelaLivre = false;
+      for (const pl of listaPassarelasLivres) {
+        const rodarRad = (pl.rot || 0) * Math.PI / 180;
+        const dx2 = x - (pl.dx || 0);
+        const dz2 = z - (pl.dz || 0);
+        const localX = dx2 * Math.cos(rodarRad) + dz2 * Math.sin(rodarRad);
+        const localZ = -dx2 * Math.sin(rodarRad) + dz2 * Math.cos(rodarRad);
+        const folgaX = publico.entreLugares;
+        const folgaZ = publico.entreFilas;
+        if (Math.abs(localX) < (pl.largura || 1.5) / 2 + folgaX
+          && Math.abs(localZ) < (pl.comprimento || 3) / 2 + folgaZ) { dentroDeAlgumaPassarelaLivre = true; break; }
+      }
+      if (dentroDeAlgumaPassarelaLivre) continue;
 
       // Ninguém tem a altura exacta do vizinho, e uma plateia de clones vê-se
       // logo. Uma semente feita da posição chega, e é sempre igual entre

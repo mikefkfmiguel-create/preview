@@ -1187,6 +1187,39 @@ Fases seguintes (ainda por fazer): várias passarelas soltas (rotação
 nova), Blending a mandar todos os projetores para o Preview, e "Trazer
 projeto" a trazer também as TVs.
 
+**v2.83: passarelas soltas (fase 5 do mesmo plano).** Diferente da
+passarela de sempre (que sai sempre do meio da frente do palco e nunca
+roda), uma passarela solta é livre — posição e rotação próprias, sem
+estar presa a nenhum palco, decisão já tomada com o mike. Nova
+`fazerPassarelaLivre(pl)` em `js/cena.js` (mesmo molde do palco/régie
+extra), e o teste de vão na plateia ganhou o mesmo referencial local
+rodado já usado para a régie — necessário aqui porque, ao contrário da
+presa ao palco (sempre reta), esta pode estar em qualquer ângulo.
+`fazerPublicoGomos()` também transforma cada passarela solta para o
+referencial de cada gomo, tal como já fazia com as régies. Guardado em
+`ajustes.passarelasExtra[]`; existem sempre que estiverem na lista, sem
+depender de "Ver palco" nem de nenhum interruptor — não têm de onde
+"desligar-se", ao contrário da presa ao palco. Botão "+ Passarela
+solta" e lista compacta (largura/comprimento/altura própria — não herda
+a de nenhum palco/deslocar/rodar) na secção Palco.
+
+Apanhado a testar: a primeira passarela nascia encostada à parede
+lateral (a mesma posição "perto da borda" que o botão "+ Palco" já usa
+para o palco extra), e nesse sítio ficava fora do enquadramento da
+vista "Frente" por omissão — dava para arrastar na mesma depois de
+rodar a câmara, mas era fácil pensar que nada tinha sido criado.
+Corrigido antes de publicar: a primeira nasce centrada, as seguintes
+alternam para um lado e para o outro, perto do centro da sala.
+
+Testado com Playwright: acrescentar uma passarela solta a meio da
+plateia reduziu a lotação (352 → 345), rodar 90° mudou-a outra vez (→
+341), arrastar mudou o campo "deslocar ↔", remover devolveu os 352
+originais, e o modo "Circular" continuou sem erros com a passarela
+solta lá dentro.
+
+Fases seguintes (ainda por fazer): Blending a mandar todos os
+projetores para o Preview, e "Trazer projeto" a trazer também as TVs.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
