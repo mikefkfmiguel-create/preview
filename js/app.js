@@ -3417,6 +3417,23 @@ function alvoDeCampos(idX, idZ) {
   };
 }
 
+// O projetor não guarda x/z directamente -- a posição sai de "lateral" e
+// "distância" somada a z0 (a mesma conta que desenharProjecao() já faz).
+// z0 recalcula-se aqui outra vez, tal como publicoAtual já é recalculado
+// em objetosArrastaveis() a cada arrastar -- não vale a pena guardá-lo.
+function alvoDeCamposProjetor(sala) {
+  const z0 = -sala.profundidade / 2 + 0.35;
+  return {
+    getXZ: () => ({ x: parseFloat($("projLateral").value) || 0, z: z0 + (parseFloat($("projDist").value) || 0) }),
+    setXZ: (x, z) => {
+      $("projLateral").value = String(Math.round(x * 1e6) / 1e6);
+      $("projDist").value = String(Math.round(Math.max(0.1, z - z0) * 1e6) / 1e6);
+      $("projLateral").dispatchEvent(new Event("input", { bubbles: true }));
+      $("projDist").dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
+}
+
 function objetosArrastaveis() {
   if (!desenhado) return [];
   const publicoAtual = lerPublico();
@@ -3434,6 +3451,8 @@ function objetosArrastaveis() {
       if (aj) alvos.push({ obj: o, ...alvoDeAjuste(aj) });
     } else if (o.name === "regie") {
       alvos.push({ obj: o, ...alvoDeCampos("regieX", "regieZ") });
+    } else if (o.name === "projetor-0") {
+      alvos.push({ obj: o, ...alvoDeCamposProjetor(lerSala()) });
     }
   });
   return alvos;
