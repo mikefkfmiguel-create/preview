@@ -351,21 +351,27 @@ function montar(recentrarCamara) {
   corposDoPublico = gente;
 
   let medidas = null;
-  if (projeto && projeto.zonas.length) {
-    medidas = totais(projeto);
+  // Daqui para baixo é o projeto MONTADO que manda -- ver o depósito. As
+  // medidas saem só das peças que estão mesmo na sala: se as do depósito
+  // contassem para a caixa envolvente, uma peça invisível deslocava as
+  // visíveis (o contextoDeZonas usa daqui o esquerda/fundo/largura÷2), e como
+  // as peças novas nascem à direita seria logo à primeira.
+  const montado = projetoMontado(projeto);
+  if (montado && montado.zonas.length) {
+    medidas = totais(montado);
     // Os ecrãs também se desligam: para olhar para a sala sem eles, ou para os
     // tirar da frente da planta que se está a acertar por baixo.
-    const zonas = fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo, ajustes.delays, texturasPorZona);
+    const zonas = fazerZonas(montado, medidas, sala, palco, textura, modoConteudo, ajustes.delays, texturasPorZona);
     if ($("verEcras").checked) desenhado.add(zonas.grupo);
     etiquetas = ($("verMedidas").checked && $("verEcras").checked) ? zonas.etiquetas : [];
 
     avisarSeNaoCabe(medidas, sala, palco);
   }
-  desenharListaConteudoZonas(projeto);
+  desenharListaConteudoZonas(montado);
   // O DSM não depende de haver zonas — um projeto pode nascer aqui mesmo só
   // com o monitor de confiança, antes de se acrescentar nenhum ecrã.
-  if (projeto && projeto.dsm && $("verEcras").checked) {
-    const dsm = fazerDSM(projeto.dsm, sala, palco, ajustes.dsm, textura);
+  if (montado && montado.dsm && $("verEcras").checked) {
+    const dsm = fazerDSM(montado.dsm, sala, palco, ajustes.dsm, textura);
     desenhado.add(dsm.grupo);
     if ($("verMedidas").checked) etiquetas = etiquetas.concat(dsm.etiquetas);
   }
@@ -454,10 +460,10 @@ function montar(recentrarCamara) {
   // desenha-o na cena se for pedido -- o aviso genérico não respondia a
   // nenhuma dessas perguntas.
   let cobertura = null;
-  if (projeto && projeto.zonas.length) {
-    cobertura = calcularCobertura(projeto, medidas, sala, palco, gente);
+  if (montado && montado.zonas.length) {
+    cobertura = calcularCobertura(montado, medidas, sala, palco, gente);
     if (cobertura && $("verCobertura").checked) {
-      desenhado.add(desenharConesCobertura(projeto, medidas, sala, palco, gente));
+      desenhado.add(desenharConesCobertura(montado, medidas, sala, palco, gente));
     }
   }
   escreverPainelCobertura(cobertura);
@@ -1077,14 +1083,17 @@ let ultimaSugestaoDistribuicao = null;
  * está a montar a sala.
  */
 function sugerirDistribuicao() {
-  if (!projeto || !projeto.zonas.length) return null;
+  // Distribuir o que ainda está no depósito não faz sentido nenhum -- não
+  // está na sala, não tem lugares a ver para ele.
+  const projetoNaSala = projetoMontado(projeto);
+  if (!projetoNaSala || !projetoNaSala.zonas.length) return null;
   if (!corposDoPublico || !corposDoPublico.corpos || !corposDoPublico.corpos.length) return null;
 
   const sala = lerSala(), palco = lerPalco();
-  const medidas = totais(projeto);
+  const medidas = totais(projetoNaSala);
   const gente = corposDoPublico;
-  const ctx = contextoDeZonas(projeto, medidas, sala, palco);
-  const zonasInfo = projeto.zonas.map(zona => ({
+  const ctx = contextoDeZonas(projetoNaSala, medidas, sala, palco);
+  const zonasInfo = projetoNaSala.zonas.map(zona => ({
     zona, centro: centroDeZona(zona, ajustes.delays[zona.nome], ctx), somaX: 0, n: 0
   }));
 
@@ -1182,7 +1191,76 @@ $("btAplicarDistribuicao").onclick = aplicarDistribuicaoSugerida;
 
 // ------------------------------------------------------------------- painel
 
+/** Uma peça sai do depósito e entra na sala. */
+function montarDoDeposito(chave) {
+  ajustes.noDeposito = (ajustes.noDeposito || []).filter(c => c !== chave);
+  guardarAjustes(ajustes);
+  montar(false);
+}
+
+/** E o contrário: sai da sala mas fica no projeto, à espera. */
+function enviarParaDeposito(chave) {
+  if (!chave) return;
+  if (!Array.isArray(ajustes.noDeposito)) ajustes.noDeposito = [];
+  if (!ajustes.noDeposito.includes(chave)) ajustes.noDeposito.push(chave);
+  guardarAjustes(ajustes);
+  montar(false);
+}
+
+/** O que está no depósito, já com o nome e a medida para mostrar na lista. */
+function pecasNoDeposito() {
+  const pecas = [];
+  if (!projeto) return pecas;
+  for (const zona of projeto.zonas) {
+    const chave = chaveDeDeposito(zona);
+    if (!estaNoDeposito(chave)) continue;
+    pecas.push({ chave, nome: zona.nome, detalhe: `${zona.w.toFixed(2)} × ${zona.h.toFixed(2)} m` });
+  }
+  if (projeto.dsm && estaNoDeposito(CHAVE_DEPOSITO_DSM)) {
+    pecas.push({
+      chave: CHAVE_DEPOSITO_DSM, nome: "DSM",
+      detalhe: `${projeto.dsm.n} unidade${projeto.dsm.n === 1 ? "" : "s"}`
+    });
+  }
+  return pecas;
+}
+
+function escreverListaDeposito() {
+  const lista = $("listaDeposito");
+  const pecas = pecasNoDeposito();
+  $("btMontarTudo").disabled = !pecas.length;
+  if (!pecas.length) {
+    lista.className = "vazio";
+    lista.textContent = projeto ? "Tudo montado." : "—";
+    return;
+  }
+  lista.className = "";
+  lista.innerHTML = "";
+  for (const peca of pecas) {
+    const linha = document.createElement("div");
+    linha.className = "zona";
+    const nome = document.createElement("span");
+    nome.textContent = peca.nome;
+    const det = document.createElement("span");
+    det.className = "med";
+    det.textContent = peca.detalhe;
+    const bt = document.createElement("button");
+    bt.textContent = "Montar";
+    bt.title = "Põe esta peça na sala, na posição que traz dos Calculadores";
+    bt.onclick = () => montarDoDeposito(peca.chave);
+    linha.append(nome, det, bt);
+    lista.append(linha);
+  }
+}
+
+$("btMontarTudo").onclick = () => {
+  ajustes.noDeposito = [];
+  guardarAjustes(ajustes);
+  montar(false);
+};
+
 function escreverPainel(medidas, lugares, gentePosta, cobertura) {
+  escreverListaDeposito();
   const resumo = $("resumo");
   const lista = $("listaZonas");
   // Um projeto criado aqui pode nascer só com um DSM, sem ecrã nenhum ainda
@@ -1214,20 +1292,30 @@ function escreverPainel(medidas, lugares, gentePosta, cobertura) {
     lista.textContent = "—";
   } else {
     const res = projeto.zonas.reduce((t, z) => t + ((z.res && z.res.x * z.res.y) || 0), 0);
+    // O contador do depósito anda sempre com o resumo: material que chega e
+    // não aparece na sala, sem nada a dizer porquê, é a maneira mais rápida
+    // de isto parecer avariado.
+    const porMontar = pecasNoDeposito().length;
+    const notaDeposito = porMontar
+      ? `<br><small>${porMontar} peça${porMontar === 1 ? "" : "s"} no depósito, por montar.</small>`
+      : "";
     resumo.className = "";
-    resumo.innerHTML = medidas
+    resumo.innerHTML = (medidas
       ? `<b>${medidas.largura.toFixed(2)} × ${medidas.altura.toFixed(2)} m</b> · ` +
         `${medidas.zonas} zona${medidas.zonas === 1 ? "" : "s"}` +
         (medidas.peso ? ` · <b>${Math.round(medidas.peso)}</b> kg` : "") +
         (medidas.amp ? ` · <b>${medidas.amp.toFixed(1)}</b> A` : "") +
         (res ? ` · <b>${(res / 1e6).toFixed(1)}</b> Mpx` : "")
-      : "Só o DSM, sem ecrãs ainda.";
+      : (porMontar ? "Sala vazia — está tudo no depósito." : "Só o DSM, sem ecrãs ainda.")) + notaDeposito;
 
     lista.className = "";
     lista.innerHTML = "";
-    projeto.zonas.forEach((z, i) => lista.append(linhaDeZona(z, i)));
+    // Só o que está na sala -- o resto tem lista própria, a do depósito.
+    projeto.zonas.forEach((z, i) => {
+      if (!estaNoDeposito(chaveDeDeposito(z))) lista.append(linhaDeZona(z, i));
+    });
 
-    if (projeto.dsm) lista.append(linhaDeDsm());
+    if (projeto.dsm && !estaNoDeposito(CHAVE_DEPOSITO_DSM)) lista.append(linhaDeDsm());
 
     if (focoGuardado) {
       const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
@@ -1690,9 +1778,17 @@ function linhaDeZona(zona, indice) {
     projetoMudou();
   };
 
+  // Tirar da sala sem apagar do projeto -- o contrário do "Montar" que está
+  // na lista do depósito. Distinto do remover, que apaga mesmo.
+  const guardar = document.createElement("button");
+  guardar.className = "ajuste-passo ajuste-remover";
+  guardar.textContent = "↓";
+  guardar.title = "Recolher ao depósito (sai da sala, fica no projeto)";
+  guardar.onclick = () => enviarParaDeposito(chaveDeDeposito(zona));
+
   linha.append(cor, nome, tipo, med, pos, prof, rodar, tilt, leituraCampo);
   if (duplicar) linha.append(duplicar);
-  linha.append(remover);
+  linha.append(guardar, remover);
   return linha;
 }
 let proximoIdZona = 0;
@@ -2200,7 +2296,7 @@ function vista(qual) {
   const palco = lerPalco();
   const alvo = new THREE.Vector3(
     0,
-    palco.altura + palco.acimaDoPalco + (projeto ? totais(projeto).altura / 2 : 2),
+    palco.altura + palco.acimaDoPalco + (alturaDoQueEstaNaSala() / 2),
     -sala.profundidade / 2 + 0.5);
 
   if (qual === "frente") {
@@ -2373,6 +2469,90 @@ function novoIdZona() {
   return "z" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+// ------------------------------------------------------------- o depósito
+//
+// Pedido direto: "ter um depósito onde tudo o que vem do projeto da
+// calculadora fique, e vou retirando para montar o 3d" -- para não amontoar
+// peças na sala. Uma peça que chega dos Calculadores fica aqui à espera, e só
+// entra na cena quando for o mike a mandá-la entrar.
+//
+// A regra que daqui sai, e que o resto do ficheiro respeita: o 3D trabalha
+// sobre o projeto MONTADO; o projeto inteiro só existe para a lista do
+// depósito e para o retorno aos Calculadores (que tem de continuar a mandar
+// tudo, senão o depósito apagava material do outro lado).
+const CHAVE_DEPOSITO_DSM = "dsm";
+
+function chaveDeDeposito(zona) {
+  // Sem id (projeto colado à mão, ou gravado antes da identidade estável) fica
+  // o nome -- é o que havia antes e continua a servir.
+  return zona.id || zona.nome || null;
+}
+
+function estaNoDeposito(chave) {
+  return !!chave && Array.isArray(ajustes.noDeposito) && ajustes.noDeposito.includes(chave);
+}
+
+/** As zonas que estão mesmo na sala. */
+function zonasMontadas(projetoAtual) {
+  if (!projetoAtual || !Array.isArray(projetoAtual.zonas)) return [];
+  return projetoAtual.zonas.filter(z => !estaNoDeposito(chaveDeDeposito(z)));
+}
+
+/**
+ * O projeto tal como o 3D o vê: só o que foi montado. Devolve o mesmo objeto
+ * quando não há nada no depósito, para não andar a criar cópias à toa no
+ * caminho quente (montar() corre a cada tecla mexida).
+ */
+/** A altura do que está mesmo na sala, para a câmara enquadrar o que se vê. */
+function alturaDoQueEstaNaSala() {
+  const naSala = projetoMontado(projeto);
+  return (naSala && naSala.zonas.length) ? totais(naSala).altura : 4;
+}
+
+function projetoMontado(projetoAtual) {
+  if (!projetoAtual) return null;
+  const zonas = zonasMontadas(projetoAtual);
+  const dsmNoDeposito = estaNoDeposito(CHAVE_DEPOSITO_DSM);
+  if (zonas.length === projetoAtual.zonas.length && !dsmNoDeposito) return projetoAtual;
+  return { ...projetoAtual, zonas, dsm: dsmNoDeposito ? null : projetoAtual.dsm };
+}
+
+/**
+ * Uma peça só vai para o depósito se for NOVA -- e "nova" quer dizer um id que
+ * nunca passou por aqui, lido do ajustes.nomePorId que a identidade estável já
+ * mantém. Tem de correr ANTES de reconciliarAjustesPorId(), que é quem escreve
+ * nesse mapa; daí as duas viverem dentro de receberProjeto().
+ *
+ * Na primeira vez que a app corre com esta versão, um projeto já existente
+ * ficaria todo por montar e a sala aparecia vazia -- um susto que parece um
+ * bug. Por isso a primeira passagem marca tudo o que lá está como montado e
+ * liga a bandeira; o depósito só começa a receber a partir daí.
+ */
+function receberProjeto(projetoAtual) {
+  if (!projetoAtual || !Array.isArray(projetoAtual.zonas)) return;
+  if (!Array.isArray(ajustes.noDeposito)) ajustes.noDeposito = [];
+  const conhecidos = (ajustes.nomePorId && typeof ajustes.nomePorId === "object") ? ajustes.nomePorId : {};
+  const primeiraVez = !ajustes.depositoIniciado;
+  let mudou = false;
+
+  if (primeiraVez) {
+    ajustes.depositoIniciado = true;
+    mudou = true;
+  } else {
+    for (const zona of projetoAtual.zonas) {
+      const chave = chaveDeDeposito(zona);
+      // Só entra no depósito quem nunca cá esteve. Uma zona já conhecida que
+      // volte a chegar (outro sync, outro nome) fica onde estava.
+      if (!chave || !zona.id || conhecidos[zona.id] || estaNoDeposito(chave)) continue;
+      ajustes.noDeposito.push(chave);
+      mudou = true;
+    }
+  }
+
+  if (mudou) guardarAjustes(ajustes);
+  reconciliarAjustesPorId(projetoAtual);
+}
+
 function reconciliarAjustesPorId(projetoAtual) {
   if (!projetoAtual || !Array.isArray(projetoAtual.zonas)) return;
   if (!ajustes.nomePorId || typeof ajustes.nomePorId !== "object") ajustes.nomePorId = {};
@@ -2402,7 +2582,7 @@ function reconciliarAjustesPorId(projetoAtual) {
 function carregar(bruto, recentrar = true) {
   try {
     projeto = lerProjeto(bruto);
-    reconciliarAjustesPorId(projeto);
+    receberProjeto(projeto);
     $("aviso").classList.remove("mostra");
     if (projeto.sala) {
       if (projeto.sala.largura) $("salaL").value = projeto.sala.largura;
@@ -2770,7 +2950,7 @@ function limparTudo() {
   // repunha os campos mas um projeto novo herdava arrastos do anterior.
   // Reportado como a plateia a sair "errada" depois de limpar (a causa real
   // não era a conta da primeira fila, era isto).
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {} };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -2939,9 +3119,13 @@ async function abrirProjetoTodo(estado) {
         passarelasExtra: Array.isArray(estado.ajustes.passarelasExtra) ? estado.ajustes.passarelasExtra : [],
         projetoresExtra: Array.isArray(estado.ajustes.projetoresExtra) ? estado.ajustes.projetoresExtra : [],
         zonasSemLeitura: Array.isArray(estado.ajustes.zonasSemLeitura) ? estado.ajustes.zonasSemLeitura : [],
-        nomePorId: (estado.ajustes.nomePorId && typeof estado.ajustes.nomePorId === "object") ? estado.ajustes.nomePorId : {}
+        nomePorId: (estado.ajustes.nomePorId && typeof estado.ajustes.nomePorId === "object") ? estado.ajustes.nomePorId : {},
+        noDeposito: Array.isArray(estado.ajustes.noDeposito) ? estado.ajustes.noDeposito : [],
+        // Um ficheiro gravado antes do depósito abre com tudo montado, que é
+        // como foi gravado -- nunca com a sala vazia à espera de descarga.
+        depositoIniciado: true
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {} };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
@@ -3506,6 +3690,7 @@ function devolverAosCalculadores(comAviso) {
         // Calculadores reconhecerem "a mesma zona" e a este Preview manter a
         // arrumação quando ela regressar com outro nome.
         id: zona.id || null,
+        origem: zona.origem || null,
         x: zona.x, y: zona.y, w: zona.w, h: zona.h,
         cor: zona.cor, tipo: zona.tipo,
         curva: zona.curva, tiles: zona.tiles, res: zona.res,
@@ -4044,11 +4229,12 @@ async function exportar(formato) {
   const extra = [];
   if (temZonasOuDsm && !$("verEcras").checked) {
     const salaAtual = lerSala(), palcoAtual = lerPalco();
-    if (projeto.zonas.length) {
-      extra.push(fazerZonas(projeto, totais(projeto), salaAtual, palcoAtual, textura, modoConteudo, ajustes.delays, texturasPorZona).grupo);
+    const paraExportar = projetoMontado(projeto);
+    if (paraExportar.zonas.length) {
+      extra.push(fazerZonas(paraExportar, totais(paraExportar), salaAtual, palcoAtual, textura, modoConteudo, ajustes.delays, texturasPorZona).grupo);
     }
-    if (projeto.dsm) {
-      extra.push(fazerDSM(projeto.dsm, salaAtual, palcoAtual, ajustes.dsm, textura).grupo);
+    if (paraExportar.dsm) {
+      extra.push(fazerDSM(paraExportar.dsm, salaAtual, palcoAtual, ajustes.dsm, textura).grupo);
     }
     paraExportar = { traverse(cb) { desenhado.traverse(cb); extra.forEach((g) => g.traverse(cb)); } };
   }
@@ -4494,7 +4680,7 @@ if (idPartilha) {
     // depois o último que os Calculadores deixaram guardado — assim abrir o
     // preview sozinho já mostra o projeto em que se andava a trabalhar.
     projeto = projetoDoEndereco() || (sincronizacaoAutomaticaLigada() ? projetoGuardado() : null);
-    reconciliarAjustesPorId(projeto);
+    receberProjeto(projeto);
     if (projeto) marcarRecebidoDeFora();
     // E a sala que vier com ele manda: quem carrega no botão do assistente já lá
     // escreveu as medidas do sítio, e chegar cá a uma sala de 20 × 14 por
@@ -4562,7 +4748,7 @@ addEventListener("storage", (e) => {
   if (e.key !== CHAVE_PROJETO || !e.newValue) return;
   try {
     projeto = lerProjeto(e.newValue);
-    reconciliarAjustesPorId(projeto);
+    receberProjeto(projeto);
     marcarRecebidoDeFora();
     montar(false);
     const aviso = $("aviso");
