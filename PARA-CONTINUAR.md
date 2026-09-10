@@ -1357,6 +1357,43 @@ mudar a conta, não só a etiqueta. Um projeto sem standard nenhum
 manteve os números de sempre, confirmando que ficheiros/links antigos
 não mudam de comportamento.
 
+**v2.88: ecrã muito mais largo que 16:9 passa a dividir-se em fatias para
+a Cobertura, em vez de um único centro.** Pedido direto: *"se tiver um
+ecrã que ultrapassa o 16/9 ele continua a marcar o centro em vez de
+dividir quando cabem dois ou mais 16/9 para o cálculo de conforto de
+visualização"*.
+
+Um LED wall grande ou um blend de vários projetores, bem mais largo que a
+sua altura, era sempre avaliado a partir de UM ponto central único
+(`centroDeZona()`). Para quem está sentado de lado, isso mede o ângulo até
+ao centro do ecrã inteiro — em vez de até à fatia do ecrã que essa pessoa
+está mesmo a ver — e marcava-a erradamente como "sem cobertura" mesmo bem
+posicionada em relação à parte mais próxima do ecrã.
+
+Nova `segmentosDeZona()` (`js/app.js`): quando cabem 2 ou mais "larguras de
+16:9" (a proporção de conteúdo mais comum) ao longo da largura real do
+ecrã, divide-o em N fatias iguais — mesma altura, larguras e posições
+próprias — e cada fatia passa a ter o seu próprio centro/ponto de vista na
+Cobertura. Um ecrã até ~2 larguras de 16:9 (a esmagadora maioria) continua
+com um único centro, exatamente como antes — zero mudança de comportamento
+para o caso normal. `calcularCobertura()` usa isto para o teste de
+ângulo/distância por lugar (a largura usada no standard largura-base
+também passa a ser a da fatia, não do ecrã inteiro — um ecrã gigante não
+deve parecer aceitar gente muito mais longe só por ser fisicamente maior);
+`desenharConesCobertura()` usa o mesmo para o cone na cena não prometer
+mais alcance do que o cálculo está mesmo a usar. A lista "sem ninguém a
+ver" (`zonasSemCobertura`) continua por ecrã REAL, não por fatia — um ecrã
+largo só entra nessa lista se NENHUMA das fatias tiver gente a vê-la.
+
+Testado com Playwright: um ecrã de 12×2,25 m (5,3:1 — cabem 3 larguras de
+16:9 de 4 m cada) foi de 101 confortáveis / 158 marginais / 93 sem
+cobertura (código antigo, um só centro) para 185 / 164 / 3 (código novo,
+3 fatias) na mesma sala e a mesma plateia — a esmagadora maioria de quem
+antes ficava "sem cobertura" só por estar de lado em relação ao centro do
+ecrã inteiro passou a ser corretamente avaliada contra a fatia mais
+próxima. Um ecrã normal (4×2,25 m, 16:9 exato) deu exatamente os mesmos
+números de antes (217/67/68) — confirma zero regressão para o caso comum.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

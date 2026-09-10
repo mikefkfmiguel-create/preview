@@ -846,6 +846,32 @@ function centroDeZona(zona, ajusteZona, ctx) {
   };
 }
 
+// Um ecrã muito mais largo que 16:9 (um LED wall grande, um blend de vários
+// projetores) avaliado a partir de um único ponto central subestima o
+// conforto de quem está de lado -- essa pessoa está, na prática, a olhar
+// para a fatia mais próxima do ecrã, não para o centro do ecrã inteiro.
+// Pedido direto: "continua a marcar o centro em vez de dividir quando cabem
+// dois ou mais 16/9". Quando cabem 2+ larguras de 16:9 (a proporção mais
+// comum de conteúdo) ao longo da largura real do ecrã, a Cobertura passa a
+// tratar cada fatia como o seu próprio ponto de vista -- cada uma com a
+// mesma altura do ecrã original (a divisão é só horizontal), a sua própria
+// posição, e a sua própria largura (usada quando o standard escolhido é
+// largura-base, ex. THX). Um ecrã normal (até ~2 larguras de 16:9) continua
+// com um único centro, exatamente como antes.
+const RACIO_SEGMENTO_COBERTURA = 16 / 9;
+function segmentosDeZona(zona) {
+  if (!zona.h) return [zona];
+  const larguraSegmento = zona.h * RACIO_SEGMENTO_COBERTURA;
+  const n = Math.floor(zona.w / larguraSegmento);
+  if (n < 2) return [zona];
+  const wSeg = zona.w / n;
+  const segmentos = [];
+  for (let k = 0; k < n; k++) {
+    segmentos.push({ ...zona, x: zona.x + k * wSeg, w: wSeg });
+  }
+  return segmentos;
+}
+
 // O ângulo com que UM espectador vê UMA zona, no referencial dessa
 // zona, e a distância a que está dela. Devolve null quando está atrás
 // do ecrã (localZ <= 0): daí ninguém vê nada.
@@ -887,9 +913,17 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
   const semLeitura = new Set(ajustes.zonasSemLeitura || []);
   const zonasParaCobertura = projetoAtual.zonas.filter(z => !semLeitura.has(z.nome));
   const zonasBase = zonasParaCobertura.length ? zonasParaCobertura : projetoAtual.zonas;
-  const zonasInfo = zonasBase.map(zona => ({
-    zona, centro: centroDeZona(zona, ajustes.delays[zona.nome], ctx), comLugares: 0
-  }));
+  // Um ecrã muito largo vira vários "zi" aqui (um por segmento de 16:9) --
+  // todos apontam para a MESMA zona original (zi.zona), só o ponto de vista
+  // (zi.centro) e a largura usada na conta de distância (zi.segmento.w)
+  // mudam por fatia. Ver segmentosDeZona().
+  const zonasInfo = [];
+  zonasBase.forEach(zona => {
+    const ajusteZona = ajustes.delays[zona.nome];
+    segmentosDeZona(zona).forEach(segmento => {
+      zonasInfo.push({ zona, segmento, centro: centroDeZona(segmento, ajusteZona, ctx), comLugares: 0 });
+    });
+  });
   const regraDistancia = regraDeDistancia(projetoAtual);
 
   const n = gente.corpos.length / 4;
@@ -905,8 +939,11 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
       if (!ang || ang.horizontal > LIMITE_HORIZONTAL || ang.vertical > LIMITE_VERTICAL) continue;
       // A distância mede-se em "alturas de imagem" (ou larguras, para um
       // standard largura-base como o THX): um ecrã de 4 m aceita gente até
-      // 40 m (10×), um delay de 0,9 m já não aceita passar dos 9 m.
-      const baseZona = regraDistancia.basis === "width" ? zi.zona.w : zi.zona.h;
+      // 40 m (10×), um delay de 0,9 m já não aceita passar dos 9 m. Em
+      // largura usa-se a largura do SEGMENTO (não do ecrã inteiro), para um
+      // ecrã muito largo não parecer aceitar gente muito mais longe só por
+      // ser fisicamente maior -- a altura não muda com a divisão.
+      const baseZona = regraDistancia.basis === "width" ? zi.segmento.w : zi.zona.h;
       const distanciaEmAlturas = ang.distancia / baseZona;
       if (distanciaEmAlturas > regraDistancia.limite) continue;
       zi.comLugares++;
@@ -931,9 +968,20 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
     .sort((a, b) => a.bloco - b.bloco);
   const piorBloco = blocos.reduce((pior, b) => (!pior || b.sem > pior.sem) ? b : pior, null);
 
+  // "Sem ninguém a ver" é por ecrã REAL, não por segmento -- um ecrã largo
+  // dividido em 3 fatias só entra nesta lista se NENHUMA das três tiver
+  // lugares, senão "zi.comLugares === 0" de uma fatia isolada acusava
+  // erradamente um ecrã que, no total, tem gente a vê-lo perfeitamente.
+  const comLugaresPorZona = new Map();
+  const ordemZonas = [];
+  zonasInfo.forEach(zi => {
+    if (!comLugaresPorZona.has(zi.zona)) { comLugaresPorZona.set(zi.zona, 0); ordemZonas.push(zi.zona); }
+    comLugaresPorZona.set(zi.zona, comLugaresPorZona.get(zi.zona) + zi.comLugares);
+  });
+
   return {
     totalLugares: n, confortaveis, marginais, semCobertura, corPorLugar,
-    zonasSemCobertura: zonasInfo.filter(zi => zi.comLugares === 0).map(zi => zi.zona.nome),
+    zonasSemCobertura: ordemZonas.filter(z => !comLugaresPorZona.get(z)).map(z => z.nome),
     blocos, piorBloco: (piorBloco && piorBloco.sem > 0) ? piorBloco : null,
     regraLabel: regraDistancia.label
   };
@@ -958,12 +1006,18 @@ function desenharConesCobertura(projetoAtual, medidas, sala, palco, gente) {
   const fundoDaPlateia = (gente && gente.zUltima != null) ? gente.zUltima : sala.profundidade / 2;
   const regraDistancia = regraDeDistancia(projetoAtual);
   for (const zona of projetoAtual.zonas) {
-    const centro = centroDeZona(zona, ajustes.delays[zona.nome], ctx);
-    const alcancePlateia = fundoDaPlateia - centro.centroZ;
-    const baseZona = regraDistancia.basis === "width" ? zona.w : zona.h;
-    const alcanceDistancia = baseZona * regraDistancia.limite;
-    const alcance = Math.max(3, Math.min(alcancePlateia, alcanceDistancia));
-    grupo.add(fazerConeCobertura(centro, alcance, LIMITE_HORIZONTAL, LIMITE_VERTICAL));
+    const ajusteZona = ajustes.delays[zona.nome];
+    // Ecrã muito largo (ver segmentosDeZona()) desenha um cone por fatia --
+    // senão o mapa mostrava um alcance maior do que a Cobertura está mesmo a
+    // usar por baixo, e o desenho deixava de bater certo com o cálculo.
+    for (const segmento of segmentosDeZona(zona)) {
+      const centro = centroDeZona(segmento, ajusteZona, ctx);
+      const alcancePlateia = fundoDaPlateia - centro.centroZ;
+      const baseZona = regraDistancia.basis === "width" ? segmento.w : zona.h;
+      const alcanceDistancia = baseZona * regraDistancia.limite;
+      const alcance = Math.max(3, Math.min(alcancePlateia, alcanceDistancia));
+      grupo.add(fazerConeCobertura(centro, alcance, LIMITE_HORIZONTAL, LIMITE_VERTICAL));
+    }
   }
   return grupo;
 }
