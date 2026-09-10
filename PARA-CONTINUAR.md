@@ -1134,6 +1134,30 @@ cadeado de "edição livre" aberto (🔓). Testado com Playwright: arrastar o
 projetor 80px na horizontal moveu `#projLateral` de `0` para `1.445322`
 mantendo `#projDist` em `10`, como esperado de um arrasto lateral.
 
+**v2.81: vários palcos (fase 3 do mesmo plano).** Até aqui só havia UM
+palco possível. Um palco extra (2º, 3º, ...) é só visual/estrutural —
+decisão já tomada com o mike: ecrãs, ângulos SMPTE e cobertura continuam
+sempre agarrados só ao palco principal. Nova função `fazerPalcoExtra(pe)`
+em `js/cena.js`, que desenha uma caixa independente com posição (dx/dz),
+rotação (rot) e dimensões próprias — ao contrário do palco principal, que
+nasce sempre centrado e encostado ao fundo da sala. Guarda-se em
+`ajustes.palcosExtra[]` (o array-base já preparado na v2.79). Botão
+"+ Palco" na secção Palco cria um novo, ao lado do anterior para não
+nascer sobreposto; cada um aparece numa lista compacta com os campos
+(largura/altura/profundidade/deslocar/rodar) e um botão para remover —
+mesma mecânica já usada para os gomos da plateia circular, que já editava
+um array de instâncias assim tanto por campo como por arrastar. Arrastar
+na cena (cadeado de edição livre aberto) também funciona, ligado a
+`objetosArrastaveis()` pelos nomes `"palco-1"`, `"palco-2"`, etc.
+Testado com Playwright: dois palcos extra criados, lista com os rótulos
+certos, editar "largura" muda o tamanho na cena, arrastar 60px muda o
+campo "deslocar ↔", remover deixa só o que sobra — sem erros de consola.
+
+Fases seguintes (ainda por fazer): várias régies (com talha de vão na
+plateia em array), várias passarelas soltas (rotação nova), Blending a
+mandar todos os projetores para o Preview, e "Trazer projeto" a trazer
+também as TVs.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

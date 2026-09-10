@@ -7,7 +7,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
          CHAVE_SINCRONIZACAO, CHAVE_AJUSTES, idPartilhaDoEndereco,
          ajustesGuardados, guardarAjustes } from "./projeto.js";
-import { fazerCena, fazerSala, fazerPalco, fazerPassarela, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
+import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
@@ -288,6 +288,13 @@ function montar(recentrarCamara) {
   if ($("verPalco").checked) {
     desenhado.add(fazerPalco(sala, palco));
     if (passarela.ligada) desenhado.add(fazerPassarela(sala, palco, passarela));
+    // Palcos extra (2º, 3º, ...) são só visuais -- nenhum ecrã nem conta de
+    // ângulo/cobertura se agarra a eles, ver fazerPalcoExtra() em cena.js.
+    ajustes.palcosExtra.forEach((pe, i) => {
+      const grupoExtra = fazerPalcoExtra(pe);
+      grupoExtra.name = "palco-" + (i + 1);
+      desenhado.add(grupoExtra);
+    });
   }
 
   // A régie entra ANTES do público, porque é o público que precisa de saber
@@ -429,6 +436,7 @@ function montar(recentrarCamara) {
   escreverPainel(medidas, gente.lugares, gente, cobertura);
   desenharAjustes();
   desenharGomos(publico);
+  desenharPalcosExtra();
   devolverDaqui();
   if (recentrarCamara) vista("frente");
 }
@@ -1186,6 +1194,22 @@ $("btNovoDsm").onclick = () => {
   projetoMudou();
 };
 
+if ($("btAddPalco")) $("btAddPalco").onclick = () => {
+  const p = lerPalco();
+  const n = ajustes.palcosExtra.length;
+  // Cada palco extra nasce ao lado do anterior (deste ou do principal), para
+  // não nascer sobreposto -- a mesma ideia do "Ecrã" novo acima. Fica
+  // sempre arrastável depois, por cima ou por baixo disto.
+  ajustes.palcosExtra.push({
+    largura: p.largura || 6, altura: p.altura || 1, profundidade: p.profundidade || 4,
+    dx: (p.largura || 6) / 2 + ((p.largura || 6) + 2) * n + 2,
+    dz: -lerSala().profundidade / 2 + (p.profundidade || 4) / 2,
+    rot: 0
+  });
+  guardarAjustes(ajustes);
+  remontarDaqui();
+};
+
 function campoDeZona(zona, campo, tipo, passo) {
   const input = document.createElement("input");
   input.type = tipo;
@@ -1710,6 +1734,45 @@ function desenharGomos(publico) {
       try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* idem */ }
     }
   }
+}
+
+/**
+ * Lista de palcos extra (2º, 3º, ...) -- pedido direto ("preciso ter como
+ * criar mais do que um... palco"). Cada linha tem os mesmos campos que o
+ * palco principal (largura/altura/profundidade) mais posição/rotação
+ * próprias, e um botão para remover -- mesma mecânica dos gomos (arrasta-se
+ * na cena OU escreve-se aqui, os dois caminhos escrevem no mesmo objecto).
+ */
+function desenharPalcosExtra() {
+  const lista = $("listaPalcosExtra");
+  if (!lista) return;
+  lista.innerHTML = "";
+  ajustes.palcosExtra.forEach((pe, i) => {
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = "Palco " + (i + 2);
+    linha.append(nome);
+    linha.append(campoAjuste("largura", pe, "largura", "m", "0.5", `palcoExtra-${i}-largura`, 1, 200));
+    linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `palcoExtra-${i}-altura`, 0, 10));
+    linha.append(campoAjuste("profundidade", pe, "profundidade", "m", "0.5", `palcoExtra-${i}-profundidade`, 0.5, 60));
+    linha.append(campoAjuste("↔", pe, "dx", "m", "0.25", `palcoExtra-${i}-dx`));
+    linha.append(campoAjuste("↕", pe, "dz", "m", "0.25", `palcoExtra-${i}-dz`));
+    linha.append(campoAjuste("rodar", pe, "rot", "°", "15", `palcoExtra-${i}-rot`, -180, 180));
+    const remover = document.createElement("button");
+    remover.type = "button";
+    remover.className = "ajuste-passo";
+    remover.textContent = "✕";
+    remover.title = "Remover este palco";
+    remover.setAttribute("aria-label", "Remover Palco " + (i + 2));
+    remover.addEventListener("click", () => {
+      ajustes.palcosExtra.splice(i, 1);
+      guardarAjustes(ajustes);
+      remontarDaqui();
+    });
+    linha.append(remover);
+    lista.append(linha);
+  });
 }
 
 /**
@@ -3453,6 +3516,9 @@ function objetosArrastaveis() {
       alvos.push({ obj: o, ...alvoDeCampos("regieX", "regieZ") });
     } else if (o.name === "projetor-0") {
       alvos.push({ obj: o, ...alvoDeCamposProjetor(lerSala()) });
+    } else if (o.name.indexOf("palco-") === 0) {
+      const i = parseInt(o.name.slice(6), 10) - 1;
+      if (ajustes.palcosExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.palcosExtra[i]) });
     }
   });
   return alvos;
