@@ -1460,6 +1460,51 @@ quiseres o equipamento certo"*. Confirmado por teste que os três botões
 funcionam com o armazenamento das duas pontes vazio, sem um erro de
 consola.
 
+**v2.92: o depósito — o material fica à espera e monta-se peça a peça.**
+Pedido direto: *"ter um depósito onde tudo o que vem do projeto da
+calculadora fique, e vou retirando para montar o 3d"*, para não amontoar
+peças na sala.
+
+A regra que daqui sai, e que o resto do ficheiro respeita: **o 3D trabalha
+sobre o projeto MONTADO; o projeto inteiro só existe para a lista do
+depósito e para o retorno aos Calculadores** — que continua a mandar tudo,
+senão o depósito apagava material do outro lado.
+
+- `ajustes.noDeposito` guarda as chaves por montar (o `id` da zona, ou
+  `"dsm"`). `receberProjeto()` decide o que é peça nova — id que nunca
+  passou por aqui, lido do `ajustes.nomePorId` da fase 2 **antes** de o
+  reconciliar — e só depois chama a reconciliação de nomes.
+- **A migração é o que impede o susto:** `ajustes.depositoIniciado`. Na
+  primeira vez que corre com um projeto já existente, marca tudo como
+  montado. Um ficheiro gravado antes disto também abre com tudo montado.
+- `montar()` e a Cobertura passam a usar `projetoMontado(projeto)`. As
+  medidas saem só do que está na sala: se as peças do depósito contassem
+  para a caixa envolvente, **uma peça invisível deslocava as visíveis** (o
+  `contextoDeZonas` usa daí o esquerda/fundo/largura÷2) — e como as peças
+  novas nascem à direita, seria logo à primeira.
+- Secção **Depósito** com "Montar" por peça e "Montar tudo"; botão "↓"
+  (recolher) em cada zona montada; e um contador junto ao resumo do
+  projeto, porque material que chega e não aparece, sem nada a dizer
+  porquê, é a maneira mais rápida de isto parecer avariado.
+
+**Ficam de fora:** os projetores (um blend de 6 é uma grelha calculada, não
+peças que se colocam uma a uma, e já têm interruptor próprio) e os
+palcos/régies/passarelas extra (nascem aqui, não são material entregue).
+
+**Nota honesta sobre o referencial:** montar uma peça nova continua a
+re-centrar o conjunto, porque a caixa envolvente muda — é exatamente o que
+já acontecia sempre que uma zona nova chegava dos Calculadores, não é novo.
+A alternativa (contar também o que está no depósito) seria pior: peças
+invisíveis a mexer nas visíveis. Recolher e voltar a montar é reversível e
+determinístico — testado, a Cobertura volta ao número exato.
+
+Testado com Playwright: projeto existente abre igual, com o depósito vazio
+("Tudo montado"); subir de 2 para 4 TVs manda só as duas novas para o
+depósito; montar uma põe-na na sala na posição que trazia; com peças no
+depósito o Ecrã Complexo do outro lado continua com tudo; recolher uma zona
+tira-a da Cobertura (223→219 confortáveis) e "Montar tudo" devolve o número
+exato. Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

@@ -98,6 +98,10 @@ export function lerProjeto(bruto) {
       // gravado antes disto, ou colado à mão, não tem id nenhum, e nesse caso
       // volta-se a usar o nome, como sempre se fez.
       id: (typeof z.id === "string" && z.id) ? z.id : null,
+      // De que aba dos Calculadores veio a zona ("tv", "led"). Aqui não se usa
+      // para nada -- viaja só para poder voltar intacta no retorno, porque do
+      // outro lado é essa marca que impede a fila de TVs de duplicar.
+      origem: (typeof z.origem === "string" && z.origem) ? z.origem : null,
       x: numero(z.x, numero(z.posX, 0)),
       y: numero(z.y, numero(z.posY, 0)),
       w: largura,
@@ -337,10 +341,16 @@ export function ajustesGuardados() {
       // renomeada nos Calculadores levar consigo a arrumação feita aqui, sem
       // ter de mudar de chave tudo o que hoje trabalha por nome (o nome do
       // objecto 3D, o arrasto, o fazerZonas).
-      nomePorId: (dados && typeof dados.nomePorId === "object" && dados.nomePorId) || {}
+      nomePorId: (dados && typeof dados.nomePorId === "object" && dados.nomePorId) || {},
+      // As peças que vieram dos Calculadores e ainda não foram montadas na
+      // sala -- ver o depósito em app.js. A bandeira separa "depósito vazio
+      // porque está tudo montado" de "ainda nunca corri com depósito", que é
+      // o que impede um projeto antigo de aparecer todo por montar.
+      noDeposito: (dados && Array.isArray(dados.noDeposito)) ? dados.noDeposito : [],
+      depositoIniciado: !!(dados && dados.depositoIniciado)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {} };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false };
   }
 }
 
