@@ -1446,6 +1446,20 @@ Testado com Playwright: zona "Delay esquerda" arrumada com dx 2,5, renomeada
 nos Calculadores para "Delay lateral A", novo sync — o ajuste segue o nome
 novo. Um projeto colado à mão, sem ids, carrega as 3 zonas sem erros.
 
+**v2.91 (fase 4): os textos passam a dizer a regra verdadeira.** Agora que
+a regra é uma só — marcado numa aba dos Calculadores **e** sincronização
+ligada = está no projeto = chega aqui — os avisos passam a dizê-la inteira.
+O texto antigo do "Trazer projeto" prometia "ou qualquer outra com
+Adicionar ao projeto" sem mencionar o sync, e era precisamente isso que
+faltava a quem reportou este aviso com tudo marcado do outro lado.
+
+O texto do painel vazio passa também a assumir o 3D em solo como caminho
+legítimo, e não como um estado à espera dos Calculadores: *"podes montar
+tudo aqui mesmo (+ Ecrã, + Delay, + DSM) e só ligar a sincronização quando
+quiseres o equipamento certo"*. Confirmado por teste que os três botões
+funcionam com o armazenamento das duas pontes vazio, sem um erro de
+consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
