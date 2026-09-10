@@ -305,9 +305,26 @@ function montar(recentrarCamara) {
   // desta lista, e não uma opção que só esconde o desenho.
   const verRegie = $("verRegie").checked;
   const regie = verRegie ? lerRegie() : null;
+  // Régies extra (2ª, 3ª, ...) seguem o mesmo interruptor -- sem a régie
+  // principal ligada não faz sentido nenhuma delas existir sozinha. Cada
+  // uma abre o seu próprio vão na plateia, tal como a principal (ver o loop
+  // novo em fazerPublico(), cena.js).
+  const regies = [];
   if (regie) {
     regie.elevacao = elevacaoDaRegie(sala, palco, publico, regie.z);
     desenhado.add(fazerRegie(sala, regie));
+    regies.push(regie);
+    ajustes.regiesExtra.forEach((re, i) => {
+      const r = {
+        largura: Math.max(2, re.largura || 2), profundidade: Math.max(2, re.profundidade || 2),
+        x: re.dx || 0, z: re.dz || 0, rodar: re.rot || 0
+      };
+      r.elevacao = elevacaoDaRegie(sala, palco, publico, r.z);
+      const grupoExtra = fazerRegie(sala, r);
+      grupoExtra.name = "regie-" + (i + 1);
+      desenhado.add(grupoExtra);
+      regies.push(r);
+    });
   }
 
   // Os interruptores existem porque cada vista serve uma pergunta diferente:
@@ -315,8 +332,8 @@ function montar(recentrarCamara) {
   // ninguém no palco mede-se o ecrã sem nada a tapá-lo.
   const gente = $("verPublico").checked
     ? (publico.formato === "circular"
-        ? fazerPublicoGomos(sala, palco, publico, regie, ajustesDeGomosGarantidos(publico))
-        : fazerPublico(sala, palco, publico, regie, passarela.ligada ? passarela : null))
+        ? fazerPublicoGomos(sala, palco, publico, regies, ajustesDeGomosGarantidos(publico))
+        : fazerPublico(sala, palco, publico, regies, passarela.ligada ? passarela : null))
     : { grupo: new THREE.Group(), olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1 };
   desenhado.add(gente.grupo);
   olhosDaPlateia = gente.olhos;
@@ -437,6 +454,7 @@ function montar(recentrarCamara) {
   desenharAjustes();
   desenharGomos(publico);
   desenharPalcosExtra();
+  desenharRegiesExtra();
   devolverDaqui();
   if (recentrarCamara) vista("frente");
 }
@@ -1210,6 +1228,21 @@ if ($("btAddPalco")) $("btAddPalco").onclick = () => {
   remontarDaqui();
 };
 
+if ($("btAddRegie")) $("btAddRegie").onclick = () => {
+  const r = lerRegie();
+  const n = ajustes.regiesExtra.length;
+  // Nasce ao lado da régie anterior (principal ou extra), com a mesma
+  // largura/profundidade dela -- mesma ideia do "+ Palco" acima.
+  ajustes.regiesExtra.push({
+    largura: r.largura || 2, profundidade: r.profundidade || 2,
+    dx: (r.x || 0) + (r.largura || 2) + 2 + ((r.largura || 2) + 2) * n,
+    dz: r.z || 0,
+    rot: 0
+  });
+  guardarAjustes(ajustes);
+  remontarDaqui();
+};
+
 function campoDeZona(zona, campo, tipo, passo) {
   const input = document.createElement("input");
   input.type = tipo;
@@ -1761,12 +1794,48 @@ function desenharPalcosExtra() {
     linha.append(campoAjuste("rodar", pe, "rot", "°", "15", `palcoExtra-${i}-rot`, -180, 180));
     const remover = document.createElement("button");
     remover.type = "button";
-    remover.className = "ajuste-passo";
+    remover.className = "ajuste-passo ajuste-remover";
     remover.textContent = "✕";
     remover.title = "Remover este palco";
     remover.setAttribute("aria-label", "Remover Palco " + (i + 2));
     remover.addEventListener("click", () => {
       ajustes.palcosExtra.splice(i, 1);
+      guardarAjustes(ajustes);
+      remontarDaqui();
+    });
+    linha.append(remover);
+    lista.append(linha);
+  });
+}
+
+/**
+ * Lista de régies extra (2ª, 3ª, ...) -- mesma mecânica dos palcos extra
+ * acima. Cada uma abre o seu próprio vão na plateia (ver fazerPublico() em
+ * cena.js) e só existe enquanto a régie principal estiver ligada.
+ */
+function desenharRegiesExtra() {
+  const lista = $("listaRegiesExtra");
+  if (!lista) return;
+  lista.innerHTML = "";
+  ajustes.regiesExtra.forEach((re, i) => {
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = "Régie " + (i + 2);
+    linha.append(nome);
+    linha.append(campoAjuste("largura", re, "largura", "m", "0.5", `regieExtra-${i}-largura`, 2, 12));
+    linha.append(campoAjuste("profundidade", re, "profundidade", "m", "0.5", `regieExtra-${i}-profundidade`, 2, 12));
+    linha.append(campoAjuste("↔", re, "dx", "m", "0.25", `regieExtra-${i}-dx`));
+    linha.append(campoAjuste("↕", re, "dz", "m", "0.25", `regieExtra-${i}-dz`));
+    linha.append(campoAjuste("rodar", re, "rot", "°", "15", `regieExtra-${i}-rot`, -180, 180));
+    const remover = document.createElement("button");
+    remover.type = "button";
+    remover.className = "ajuste-passo ajuste-remover";
+    remover.textContent = "✕";
+    remover.title = "Remover esta régie";
+    remover.setAttribute("aria-label", "Remover Régie " + (i + 2));
+    remover.addEventListener("click", () => {
+      ajustes.regiesExtra.splice(i, 1);
       guardarAjustes(ajustes);
       remontarDaqui();
     });
@@ -3519,6 +3588,9 @@ function objetosArrastaveis() {
     } else if (o.name.indexOf("palco-") === 0) {
       const i = parseInt(o.name.slice(6), 10) - 1;
       if (ajustes.palcosExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.palcosExtra[i]) });
+    } else if (o.name.indexOf("regie-") === 0) {
+      const i = parseInt(o.name.slice(6), 10) - 1;
+      if (ajustes.regiesExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.regiesExtra[i]) });
     }
   });
   return alvos;

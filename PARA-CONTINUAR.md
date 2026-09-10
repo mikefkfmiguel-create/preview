@@ -1158,6 +1158,35 @@ plateia em array), várias passarelas soltas (rotação nova), Blending a
 mandar todos os projetores para o Preview, e "Trazer projeto" a trazer
 também as TVs.
 
+**v2.82: várias régies (fase 4 do mesmo plano — a mais arriscada, por
+mexer nas contas da plateia).** `fazerPublico()` (`js/cena.js`) passou a
+receber `regies` (lista, não uma só) — o teste "este lugar cai dentro da
+régie?" agora corre em loop por todas, e salta o lugar assim que a
+primeira bater certo, sem deixar de testar as outras quando a primeira
+falha. `fazerPublicoGomos()` transforma CADA régie da lista para o
+referencial local de cada gomo (antes só fazia isto para uma) — a régie
+continua a ser uma mesa física fixa, que não roda nem desloca com o
+gomo. Guardado em `ajustes.regiesExtra[]`. Botão "+ Régie", lista
+compacta por instância e arrastar na cena (nomes `"regie-1"`,
+`"regie-2"`, ...) — mesma mecânica da fase 3. Régies extra só existem
+enquanto a régie principal estiver ligada (mesmo interruptor).
+Testado com Playwright: acrescentar uma régie extra a meio da plateia fez
+a lotação cair de 352 para 336 lugares (a régie extra a abrir o seu
+próprio vão), arrastar mudou o campo "deslocar ↔", remover devolveu a
+lotação aos 352 originais — e o modo "Circular" (gomos) continuou a
+funcionar sem erros com duas régies extra.
+
+De passagem: o botão "remover" das listas de palco/régie extra (fases 3
+e 4) partilhava a classe CSS `ajuste-passo` com os botões "−"/"+" dos
+campos numéricos — visualmente sem problema (o texto "✕" distingue-o),
+mas uma seleção por classe (como um teste automatizado, ou uma extensão
+futura) apanhava o botão errado. Ganhou uma segunda classe,
+`ajuste-remover`, só para isso.
+
+Fases seguintes (ainda por fazer): várias passarelas soltas (rotação
+nova), Blending a mandar todos os projetores para o Preview, e "Trazer
+projeto" a trazer também as TVs.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
