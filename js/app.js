@@ -803,6 +803,29 @@ const CONFORTAVEL_VERTICAL = 10;
 const CONFORTAVEL_DISTANCIA_ALTURA = 6;
 const LIMITE_DISTANCIA_ALTURA = 8;
 
+// A partir da v2.87, quem escolhe a regra de distância deixou de ser só este
+// ficheiro: a aba "Distância de Visualização" dos Calculadores manda o
+// standard que o mike escolheu lá (largura×THX, largura×sweet spot ou
+// AVIXA/altura, conforme o nível de detalhe) dentro do payload do projeto --
+// pedido direto para as duas apps usarem sempre a MESMA regra, em vez de o
+// Preview ter uma fixa por conta própria. Quando não há standard nenhum
+// (projeto antigo, ou vindo doutra origem sem essa aba), cai nos valores por
+// omissão de sempre. Mantém-se a MESMA proporção 6/8 (0,75) que os valores
+// por omissão já usavam, só aplicada ao limite do standard escolhido -- não
+// inventa nenhuma proporção nova, reaproveita a que já existia.
+function regraDeDistancia(projetoAtual) {
+  const std = projetoAtual && projetoAtual.standard;
+  if (!std || !std.max) {
+    return { basis: "height", confortavel: CONFORTAVEL_DISTANCIA_ALTURA, limite: LIMITE_DISTANCIA_ALTURA, label: null };
+  }
+  return {
+    basis: std.basis,
+    confortavel: std.max * (CONFORTAVEL_DISTANCIA_ALTURA / LIMITE_DISTANCIA_ALTURA),
+    limite: std.max,
+    label: std.label || null
+  };
+}
+
 function contextoDeZonas(projetoAtual, medidas, sala, palco) {
   return {
     esquerda: Math.min(...projetoAtual.zonas.map(z => z.x)),
@@ -867,6 +890,7 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
   const zonasInfo = zonasBase.map(zona => ({
     zona, centro: centroDeZona(zona, ajustes.delays[zona.nome], ctx), comLugares: 0
   }));
+  const regraDistancia = regraDeDistancia(projetoAtual);
 
   const n = gente.corpos.length / 4;
   const corPorLugar = new Uint8Array(n);
@@ -879,13 +903,15 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
     for (const zi of zonasInfo) {
       const ang = anguloDePessoa(zi.centro, gente.corpos, i);
       if (!ang || ang.horizontal > LIMITE_HORIZONTAL || ang.vertical > LIMITE_VERTICAL) continue;
-      // A distância mede-se em "alturas de imagem": um ecrã de 4 m aceita
-      // gente até 40 m (10×), um delay de 0,9 m já não aceita passar dos 9 m.
-      const distanciaEmAlturas = ang.distancia / zi.zona.h;
-      if (distanciaEmAlturas > LIMITE_DISTANCIA_ALTURA) continue;
+      // A distância mede-se em "alturas de imagem" (ou larguras, para um
+      // standard largura-base como o THX): um ecrã de 4 m aceita gente até
+      // 40 m (10×), um delay de 0,9 m já não aceita passar dos 9 m.
+      const baseZona = regraDistancia.basis === "width" ? zi.zona.w : zi.zona.h;
+      const distanciaEmAlturas = ang.distancia / baseZona;
+      if (distanciaEmAlturas > regraDistancia.limite) continue;
       zi.comLugares++;
       const confortavel = ang.horizontal <= CONFORTAVEL_HORIZONTAL && ang.vertical <= CONFORTAVEL_VERTICAL
-        && distanciaEmAlturas <= CONFORTAVEL_DISTANCIA_ALTURA;
+        && distanciaEmAlturas <= regraDistancia.confortavel;
       melhor = Math.max(melhor, confortavel ? 2 : 1);
     }
     corPorLugar[idx] = melhor;
@@ -908,7 +934,8 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
   return {
     totalLugares: n, confortaveis, marginais, semCobertura, corPorLugar,
     zonasSemCobertura: zonasInfo.filter(zi => zi.comLugares === 0).map(zi => zi.zona.nome),
-    blocos, piorBloco: (piorBloco && piorBloco.sem > 0) ? piorBloco : null
+    blocos, piorBloco: (piorBloco && piorBloco.sem > 0) ? piorBloco : null,
+    regraLabel: regraDistancia.label
   };
 }
 
@@ -929,10 +956,12 @@ function desenharConesCobertura(projetoAtual, medidas, sala, palco, gente) {
   // mostrar um cone curto, senão o desenho promete alcance que a regra
   // de leitura já reprovou.
   const fundoDaPlateia = (gente && gente.zUltima != null) ? gente.zUltima : sala.profundidade / 2;
+  const regraDistancia = regraDeDistancia(projetoAtual);
   for (const zona of projetoAtual.zonas) {
     const centro = centroDeZona(zona, ajustes.delays[zona.nome], ctx);
     const alcancePlateia = fundoDaPlateia - centro.centroZ;
-    const alcanceDistancia = zona.h * LIMITE_DISTANCIA_ALTURA;
+    const baseZona = regraDistancia.basis === "width" ? zona.w : zona.h;
+    const alcanceDistancia = baseZona * regraDistancia.limite;
     const alcance = Math.max(3, Math.min(alcancePlateia, alcanceDistancia));
     grupo.add(fazerConeCobertura(centro, alcance, LIMITE_HORIZONTAL, LIMITE_VERTICAL));
   }
@@ -949,13 +978,14 @@ function escreverPainelCobertura(cobertura) {
     lista.textContent = "-";
     return;
   }
-  const { totalLugares, confortaveis, marginais, semCobertura, zonasSemCobertura, blocos, piorBloco } = cobertura;
+  const { totalLugares, confortaveis, marginais, semCobertura, zonasSemCobertura, blocos, piorBloco, regraLabel } = cobertura;
   resumo.className = "";
   resumo.innerHTML =
     `<b class="cobertura-verde">${confortaveis}</b> confortáveis · ` +
     `<b class="cobertura-amarela">${marginais}</b> marginais · ` +
     `<b class="cobertura-vermelha">${semCobertura}</b> sem cobertura ` +
     `(de ${totalLugares} lugares).` +
+    (regraLabel ? `<br><small>Regra: ${regraLabel}</small>` : "") +
     (zonasSemCobertura.length
       ? `<br>Sem ninguém a ver: ${zonasSemCobertura.join(", ")}.`
       : "") +
