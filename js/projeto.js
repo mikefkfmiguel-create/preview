@@ -286,7 +286,14 @@ export const CHAVE_SINCRONIZACAO = "mikeapps-sincronizacao-v1";
 // projeto que vem de lá, e não viaja de volta.
 export const CHAVE_AJUSTES = "mikeapps-preview-ajustes-v1";
 
-/** Os ajustes de posição (delays e DSM) que ficaram guardados neste aparelho. */
+/**
+ * Os ajustes de posição (delays, DSM, gomos, e agora também as instâncias
+ * "Extra" de palco/régie/passarela/projetor -- ver PARA-CONTINUAR.md) que
+ * ficaram guardados neste aparelho. Os quatro campos "Extra" são tolerantes
+ * a ausência (ficheiros/estados antigos, de antes desta versão, não os
+ * têm) -- nascem sempre `[]`, nunca `undefined`, para quem os usa não ter
+ * de verificar sempre se existem.
+ */
 export function ajustesGuardados() {
   try {
     const bruto = localStorage.getItem(CHAVE_AJUSTES);
@@ -294,10 +301,14 @@ export function ajustesGuardados() {
     return {
       delays: (dados && typeof dados.delays === "object" && dados.delays) || {},
       dsm: (dados && Array.isArray(dados.dsm)) ? dados.dsm : [],
-      gomos: (dados && Array.isArray(dados.gomos)) ? dados.gomos : []
+      gomos: (dados && Array.isArray(dados.gomos)) ? dados.gomos : [],
+      palcosExtra: (dados && Array.isArray(dados.palcosExtra)) ? dados.palcosExtra : [],
+      regiesExtra: (dados && Array.isArray(dados.regiesExtra)) ? dados.regiesExtra : [],
+      passarelasExtra: (dados && Array.isArray(dados.passarelasExtra)) ? dados.passarelasExtra : [],
+      projetoresExtra: (dados && Array.isArray(dados.projetoresExtra)) ? dados.projetoresExtra : []
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [] };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [] };
   }
 }
 

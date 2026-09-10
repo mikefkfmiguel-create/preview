@@ -1094,6 +1094,28 @@ volta ao estado vazio e a chave é removida, tal como já acontecia com
 Playwright: um ajuste falso posto directamente no localStorage sobrevive
 a um recarregar (confirma o bug), mas desaparece depois de "Limpar tudo".
 
+**v2.79: base do formato para vários palcos/régies/passarelas/projetores
+(fase 1 de um plano maior).** Pedido combinado numa sessão só: *"o 3D não
+está a trazer os projetores do projeto"*, *"preciso ter como criar mais
+do que um... régie, palco, passarela"*, *"e preciso deslocar os
+projetores"*. Plano completo em `.claude` (sessão Claude Code) — resumo
+aqui: cada tipo ganha um array `Extra` em `ajustes`
+(`palcosExtra/regiesExtra/passarelasExtra/projetoresExtra`), ao lado dos
+já existentes `delays/dsm/gomos` — a instância "0" de cada tipo continua
+exactamente como está hoje (campos fixos), só as instâncias 1+ vivem
+nesses arrays. Esta primeira fase é só a base tolerante de leitura/
+gravação (`ajustesGuardados()` em `js/projeto.js`, e o bloco defensivo em
+`abrirProjetoTodo()` que já tratava `delays/dsm/gomos` da mesma forma) —
+sem nenhuma mudança visível ainda. Testado com Playwright: um
+`.preview.json` gravado ANTES desta versão (sem os quatro campos `Extra`)
+continua a abrir sem erro nenhum; gravar agora já inclui os quatro
+arrays vazios; reabrir esse ficheiro novo também não dá erro.
+
+Fases seguintes (ainda por fazer): projetor arrastável (instância única),
+vários palcos (só visual), várias régies (com talha de vão na plateia em
+array), várias passarelas soltas (rotação nova), Blending a mandar todos
+os projetores para o Preview, e "Trazer projeto" a trazer também as TVs.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
