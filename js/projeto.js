@@ -124,6 +124,19 @@ export function lerProjeto(bruto) {
     ? { n: Math.round(numero(dsmBruto.n, 0)), w: numero(dsmBruto.w, 0.6), h: numero(dsmBruto.h, 0.4) }
     : null;
 
+  // O standard de distância de visualização escolhido na aba "Distância de
+  // Visualização" dos Calculadores -- pedido direto para a Cobertura deste
+  // Preview usar a MESMA regra, em vez de uma fixa própria (ver
+  // regraDeDistancia() em app.js). Sem "basis"/"max" válidos não há regra
+  // nenhuma para aplicar -- fica null, e a Cobertura cai nos valores por
+  // omissão de sempre (mesmo comportamento de um projeto antigo ou colado).
+  const standardBruto = dados.standard;
+  const standard = (standardBruto && (standardBruto.basis === "width" || standardBruto.basis === "height")
+      && numero(standardBruto.max, 0) > 0)
+    ? { basis: standardBruto.basis, min: numero(standardBruto.min, 0), max: numero(standardBruto.max, 0),
+        label: typeof standardBruto.label === "string" ? standardBruto.label : null }
+    : null;
+
   return {
     v: numero(dados.v, FORMATO),
     nome: dados.nome || dados.name || "Projeto",
@@ -136,6 +149,7 @@ export function lerProjeto(bruto) {
     sala: dados.sala || null,
     zonas,
     dsm,
+    standard,
     recusadas
   };
 }

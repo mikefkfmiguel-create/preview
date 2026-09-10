@@ -1314,6 +1314,49 @@ para 258/62/32 (lugares que só viam bem essa zona passaram a "sem
 cobertura", como esperado); voltar a ligar devolveu exactamente os
 números originais. Sem erros de consola.
 
+**v2.87: a Cobertura passa a usar o standard de distância de
+visualização escolhido nos Calculadores.** Pedido direto: *"dá para
+escolher o Standard de cálculo da distância de visualização de forma
+a ser o usado em todos os cálculos"* — confirmado por
+`AskUserQuestion` que era a Cobertura do Preview 3D o alvo. Até aqui
+o limite de distância (a parte "quantas alturas de imagem" da conta
+verde/amarelo/vermelho) era sempre a mesma regra fixa — AVIXA
+"básico", 6/8 alturas de imagem — por muito que se mudasse a regra na
+aba "Distância de Visualização" dos Calculadores.
+
+Os Calculadores passam agora a mandar, dentro do projeto (`js/zonas.js`,
+`lzPayloadPreview()`), um campo `standard: {basis, min, max, label}`
+com o standard escolhido lá, já resolvido em número (largura×1,5-6 do
+THX, largura×1,5-2,5 do "sweet spot", ou altura×4/6/8 do AVIXA
+consoante o nível de detalhe escolhido). `lerProjeto()` (`js/projeto.js`)
+passou a trazer esse campo (antes ficava ignorado — o mesmo problema
+que o DSM já teve, resolvido aqui à cabeça). Nova `regraDeDistancia()`
+(`js/app.js`) decide o limite: com standard, usa `max` como limite e
+`w` ou `h` da zona como base (conforme `basis`); sem standard (projeto
+antigo, ou vindo de fora dos Calculadores), cai nos 6/8 de sempre.
+Mantém-se a MESMA proporção 6/8 (0,75) entre "confortável" e "limite"
+que já existia — só aplicada ao limite do standard escolhido, não uma
+proporção nova inventada. `calcularCobertura()` e
+`desenharConesCobertura()` (o cone na cena) passam ambas a usar esta
+função em vez das constantes fixas. O ângulo horizontal/vertical
+(regra SMPTE, 30°/35°) não muda — o pedido foi especificamente sobre
+distância, e não há standard equivalente para ângulo nos Calculadores.
+
+O painel da Cobertura passa a mostrar a regra em uso (`Regra: …`,
+por baixo dos números), para o mike poder confirmar de imediato que
+standard está a ser aplicado — o oposto do bug que motivou este
+pedido (a aba TVs dos Calculadores a mostrar a regra errada em
+silêncio; corrigido lá na v3.28).
+
+Testado com Playwright: um mesmo projeto de teste (ecrã de 4×2,25 m,
+352 lugares) deu 101 confortáveis / 158 marginais / 93 sem cobertura
+sem standard (6/8 por omissão, base altura de 2,25 m); com
+`standard:{basis:"width",max:6}` deu 217/67/68 (base largura de 4 m,
+maior, logo alcance maior) — confirma que a base w/h está mesmo a
+mudar a conta, não só a etiqueta. Um projeto sem standard nenhum
+manteve os números de sempre, confirmando que ficheiros/links antigos
+não mudam de comportamento.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
