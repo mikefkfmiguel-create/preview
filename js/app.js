@@ -405,6 +405,24 @@ function montar(recentrarCamara) {
   }
 
   desenharProjecao(sala, palco);
+  // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
+  // Projetor nunca manda nada" para o Preview). Cada um guarda o SEU
+  // racio/distancia/lateral/altura/shift, tal como a instância #0 --
+  // simplesmente não vêm de campos no ecrã, vêm do array. Só visuais: sem
+  // sombra nem cobertura calculadas para eles (ver PARA-CONTINUAR.md).
+  const z0Proj = -sala.profundidade / 2 + 0.35;
+  ajustes.projetoresExtra.forEach((pe, i) => {
+    if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
+    const larguraExtra = pe.distancia / pe.racio;
+    const alturaExtra = larguraExtra / formatoImagem;
+    const projetorExtra = { x: pe.lateral || 0, y: pe.altura || 0, z: z0Proj + pe.distancia };
+    const imagemExtra = {
+      x: projetorExtra.x + (pe.shiftH || 0) * larguraExtra,
+      y: projetorExtra.y + (pe.shiftV || 0) * alturaExtra,
+      z: z0Proj, largura: larguraExtra, altura: alturaExtra
+    };
+    desenhado.add(fazerProjecao(projetorExtra, imagemExtra, textura, "projetor-" + (i + 1)));
+  });
 
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
   // levar um número errado para uma reunião. Mas com o público DESLIGADO não
@@ -467,6 +485,7 @@ function montar(recentrarCamara) {
   desenharPalcosExtra();
   desenharRegiesExtra();
   desenharPassarelasExtra();
+  desenharProjetoresExtra();
   devolverDaqui();
   if (recentrarCamara) vista("frente");
 }
@@ -1905,6 +1924,43 @@ function desenharPassarelasExtra() {
     remover.setAttribute("aria-label", "Remover Passarela " + (i + 1));
     remover.addEventListener("click", () => {
       ajustes.passarelasExtra.splice(i, 1);
+      guardarAjustes(ajustes);
+      remontarDaqui();
+    });
+    linha.append(remover);
+    lista.append(linha);
+  });
+}
+
+/**
+ * Lista de projetores extra (2º, 3º, ...) -- mesma mecânica das listas
+ * acima. Chegam sobretudo do Blending Multi-Projetor (Fase 6) mas também
+ * dão para editar/remover aqui, tal como os outros tipos. Ao contrário da
+ * instância #0 (campos #projLateral/#projAltura/#projDist), cada extra
+ * guarda os seus próprios valores directamente no ajuste.
+ */
+function desenharProjetoresExtra() {
+  const lista = $("listaProjetoresExtra");
+  if (!lista) return;
+  lista.innerHTML = "";
+  ajustes.projetoresExtra.forEach((pe, i) => {
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    nome.textContent = "Projetor " + (i + 2) + (pe.modelo ? " · " + pe.modelo : "");
+    linha.append(nome);
+    linha.append(campoAjuste("rácio", pe, "racio", "", "0.05", `projetorExtra-${i}-racio`, 0.1, 10));
+    linha.append(campoAjuste("distância", pe, "distancia", "m", "0.1", `projetorExtra-${i}-distancia`, 0.1, 100));
+    linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `projetorExtra-${i}-altura`, -5, 20));
+    linha.append(campoAjuste("↔", pe, "lateral", "m", "0.25", `projetorExtra-${i}-lateral`));
+    const remover = document.createElement("button");
+    remover.type = "button";
+    remover.className = "ajuste-passo ajuste-remover";
+    remover.textContent = "✕";
+    remover.title = "Remover este projetor";
+    remover.setAttribute("aria-label", "Remover Projetor " + (i + 2));
+    remover.addEventListener("click", () => {
+      ajustes.projetoresExtra.splice(i, 1);
       guardarAjustes(ajustes);
       remontarDaqui();
     });
@@ -3635,6 +3691,20 @@ function alvoDeCamposProjetor(sala) {
   };
 }
 
+// A mesma ideia, mas para um projetor extra (Fase 6, blending) -- guarda
+// lateral/distancia directamente no ajuste, em vez de nos campos
+// #projLateral/#projDist (que só existem para a instância #0).
+function alvoDeProjetorExtra(sala, ajuste) {
+  const z0 = -sala.profundidade / 2 + 0.35;
+  return {
+    getXZ: () => ({ x: Number(ajuste.lateral) || 0, z: z0 + (Number(ajuste.distancia) || 0) }),
+    setXZ: (x, z) => {
+      ajuste.lateral = x;
+      ajuste.distancia = Math.max(0.1, z - z0);
+    }
+  };
+}
+
 function objetosArrastaveis() {
   if (!desenhado) return [];
   const publicoAtual = lerPublico();
@@ -3663,6 +3733,9 @@ function objetosArrastaveis() {
     } else if (o.name.indexOf("passarela-") === 0) {
       const i = parseInt(o.name.slice(10), 10) - 1;
       if (ajustes.passarelasExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.passarelasExtra[i]) });
+    } else if (o.name.indexOf("projetor-") === 0) {
+      const i = parseInt(o.name.slice(9), 10) - 1;
+      if (ajustes.projetoresExtra[i]) alvos.push({ obj: o, ...alvoDeProjetorExtra(lerSala(), ajustes.projetoresExtra[i]) });
     }
   });
   return alvos;
@@ -3877,6 +3950,38 @@ function aplicarProjetor(p) {
   return true;
 }
 
+/**
+ * Um ou vários projetores de uma vez -- pedido direto ("o 3D não está a
+ * trazer os projetores do projeto... Blending Multi-Projetor nunca manda
+ * nada"). O primeiro aplica-se à instância #0 tal como sempre
+ * (aplicarProjetor(), acima, sem mudar nada nela); os restantes ficam em
+ * ajustes.projetoresExtra.
+ *
+ * Os Calculadores só sabem a geometria RELATIVA da grelha do blend (onde
+ * cada projetor fica em relação aos outros) -- nunca a posição absoluta na
+ * sala, essa continua "daqui" (ver aplicarProjetor()). Por isso lateral/
+ * alturaOffset de cada extra somam-se ao que já estava na instância #0, em
+ * vez de o substituírem.
+ */
+function aplicarProjetores(lista) {
+  if (!lista || !lista.length) return false;
+  const primeiro = lista[0], resto = lista.slice(1);
+  const anchorLateral = num("projLateral"), anchorAltura = num("projAltura");
+  ajustes.projetoresExtra = resto.map((p) => ({
+    racio: p.racio, distancia: p.distancia,
+    lateral: anchorLateral + (p.lateral || 0),
+    altura: anchorAltura + (p.alturaOffset || 0),
+    shiftV: 0, shiftH: 0,
+    modelo: p.modelo, lente: p.lente
+  }));
+  guardarAjustes(ajustes);
+  const aplicou = aplicarProjetor(primeiro);   // este já chama montar() no fim
+  if (aplicou && resto.length) {
+    $("notaProj").innerHTML += ` + ${resto.length} do blend.`;
+  }
+  return aplicou;
+}
+
 /** "±58 %" quando é simétrico, "+45 % a +68 %" quando não é. */
 function intervalo(min, max) {
   if (min === -max) return "±" + max + " %";
@@ -3907,7 +4012,7 @@ function shiftForaDaLente() {
 }
 
 $("btTrazerProjetor").onclick = () => {
-  if (!aplicarProjetor(projetorGuardado())) {
+  if (!aplicarProjetores(projetorGuardado())) {
     $("notaProj").innerHTML = "Ainda não veio nenhum projetor. Nos Calculadores, na aba " +
       "<b>Distância de Projeção</b>, carrega em <b>Ver no Preview 3D</b>.";
   }
@@ -3926,7 +4031,7 @@ $("btTrazerProjetor").onclick = () => {
 $("btSincronizar").onclick = () => {
   const projetoTrazido = projetoGuardado();
   if (projetoTrazido) { marcarRecebidoDeFora(); carregar(projetoTrazido, false); }
-  const projetorTrazido = aplicarProjetor(projetorGuardado());
+  const projetorTrazido = aplicarProjetores(projetorGuardado());
 
   const aviso = $("aviso");
   if (projetoTrazido || projetorTrazido) {
@@ -4203,7 +4308,7 @@ addEventListener("hashchange", () => {
     $("aviso").classList.add("mostra");
   }
   const projetor = projetorDoEndereco();
-  if (projetor && aplicarProjetor(projetor)) {
+  if (aplicarProjetores(projetor)) {
     document.getElementById("sProjecao").classList.remove("fechada");
     algo = true;
   }
@@ -4230,7 +4335,7 @@ addEventListener("storage", (e) => {
   // O projetor tambem atravessa por aqui, e esse aplica-se logo: do outro lado
   // foi preciso carregar num botao para ele vir, o que ja e a decisao tomada.
   if (e.key === CHAVE_PROJETOR && e.newValue) {
-    if (aplicarProjetor(projetorGuardado())) {
+    if (aplicarProjetores(projetorGuardado())) {
       const aviso = $("aviso");
       aviso.textContent = "Chegou um projetor dos Calculadores.";
       aviso.classList.add("mostra");
@@ -4252,7 +4357,7 @@ addEventListener("storage", (e) => {
 
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
-window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
+window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor, aplicarProjetores,
                   get projeto() { return projeto; },
                   get desenhado() { return desenhado; },
                   get plantaCad() { return plantaCad; } };
@@ -4263,17 +4368,21 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
 // pedirem. Nesse caso diz-se que ele esta ali, a espera de um botao.
 (function projetorAEspera() {
   const doEndereco = projetorDoEndereco();
-  if (doEndereco) {
-    aplicarProjetor(doEndereco);
+  if (doEndereco.length) {
+    aplicarProjetores(doEndereco);
     document.getElementById("sProjecao").classList.remove("fechada");
     return;
   }
-  const p = sincronizacaoAutomaticaLigada() ? projetorGuardado() : null;
-  if (!p) return;
-  $("btTrazerProjetor").textContent = "Trazer: " + (p.modelo || "projetor dos Calculadores");
+  const lista = sincronizacaoAutomaticaLigada() ? projetorGuardado() : [];
+  if (!lista.length) return;
+  const p = lista[0];
+  const maisBlend = lista.length > 1 ? ` + ${lista.length - 1} do blend` : "";
+  $("btTrazerProjetor").textContent = "Trazer: " + (p.modelo || "projetor dos Calculadores") + maisBlend;
   $("notaProj").innerHTML = `Está guardado um projetor` +
     (p.modelo ? ` (<b>${p.modelo}</b>)` : "") +
-    `: rácio ${p.racio.toFixed(2)}:1 a ${p.distancia.toFixed(2)} m. Carrega no botão para o trazer.`;
+    `: rácio ${p.racio.toFixed(2)}:1 a ${p.distancia.toFixed(2)} m` +
+    (lista.length > 1 ? ` — e mais ${lista.length - 1} do blend` : "") +
+    `. Carrega no botão para o trazer.`;
 })();
 
 montar(true);

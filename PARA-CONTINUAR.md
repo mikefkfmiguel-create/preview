@@ -1220,6 +1220,48 @@ solta lá dentro.
 Fases seguintes (ainda por fazer): Blending a mandar todos os
 projetores para o Preview, e "Trazer projeto" a trazer também as TVs.
 
+**v2.84: recebe os vários projetores do Blending (fase 6 do mesmo
+plano).** `mikeapps-projetor-v1` ganhou uma segunda forma —
+`{v:2, projetores:[...]}`, ao lado da antiga `{v:1, racio, ...}` (que
+continua a funcionar tal e qual). Nova `lerProjetores(d)` em
+`js/projeto.js` aceita as duas; `projetorGuardado()`/
+`projetorDoEndereco()` passam a devolver sempre um array (nunca `null`,
+`[]` quando vazio). `fazerProjecao()` (`js/cena.js`) ganhou um 4º
+parâmetro opcional para o nome da malha (`"projetor-0"` por omissão,
+`"projetor-N"` para as extra — sem isto, chamar a função mais do que
+uma vez criava várias malhas todas com o mesmo nome, e só a primeira
+seria alguma vez encontrada ou arrastável).
+
+Nova `aplicarProjetores(lista)` em `js/app.js`: o primeiro projetor
+aplica-se à instância #0 exactamente como sempre (`aplicarProjetor()`,
+intocada); os restantes ficam em `ajustes.projetoresExtra[]`. Os
+Calculadores só sabem a geometria RELATIVA da grelha do blend (onde
+cada projetor fica em relação ao primeiro) — nunca a posição absoluta
+na sala, essa continua "daqui" (a instância #0 nunca recebe posição
+pronta, só rácio/distância/shift, como já era). Por isso o `lateral`/
+`alturaOffset` de cada extra somam-se ao que já estava na instância #0
+em vez de o substituírem. `aplicarProjetores()` passou a ser chamada
+nos 5 sítios que antes chamavam `aplicarProjetor()` directamente (botão
+manual, botão de sincronizar, `hashchange`, evento `storage`,
+`projetorAEspera()` ao carregar).
+
+Projetores extra desenham-se em `montar()` (visuais e sem sombra/
+cobertura calculadas, como os outros tipos "Extra"), arrastam-se na
+cena (nomes `"projetor-1"`, `"projetor-2"`, ...) com um adaptador novo
+(`alvoDeProjetorExtra`, grava lateral/distância directamente no
+ajuste em vez de nos campos `#projLateral`/`#projDist`, que só existem
+para a instância #0), e têm lista compacta própria (rácio/distância/
+altura/deslocar + remover) em `js/app.js`.
+
+Testado com Playwright, ponta a ponta: um payload `{v:2}` com dois
+projetores (rácio 0.785, distância 6 m, `lateral` ±2.63 m) aplicado via
+"Trazer projetor dos Calculadores" pôs a instância #0 com rácio/
+distância certos (lateral/altura ficaram como já estavam — 0 e 4.5,
+por omissão), criou um projetor extra com lateral absoluto 2.63 (0 +
+2.63, a âncora mais o offset), arrastável (mudou de 2.63 para 3.73 num
+arrasto de 50px) e removível; um payload `{v:1}` antigo continuou a
+aplicar-se à instância #0 e limpou o extra que lá estava.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
