@@ -2320,7 +2320,7 @@ function limparTudo() {
   // repunha os campos mas um projeto novo herdava arrastos do anterior.
   // Reportado como a plateia a sair "errada" depois de limpar (a causa real
   // não era a conta da primeira fila, era isto).
-  ajustes = { delays: {}, dsm: [], gomos: [] };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [] };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -2475,13 +2475,21 @@ async function abrirProjetoTodo(estado) {
   // "ajustes.gomos[i] = ...") rebentavam ao trocar para "Circular" depois
   // de abrir um projeto guardado — reportado como "tudo desaparece" só
   // nessa vista. Mesma forma que ajustesGuardados() já usa (js/projeto.js).
+  // Os quatro "Extra" (palco/régie/passarela/projetor) seguem a mesma
+  // regra: um ficheiro gravado ANTES desta versão não os tem, e isso tem
+  // de dar `[]`, nunca `undefined` -- ver ajustesGuardados() em
+  // projeto.js, que usa exactamente a mesma forma.
   ajustes = (estado.ajustes && typeof estado.ajustes === "object")
     ? {
         delays: (estado.ajustes.delays && typeof estado.ajustes.delays === "object") ? estado.ajustes.delays : {},
         dsm: Array.isArray(estado.ajustes.dsm) ? estado.ajustes.dsm : [],
-        gomos: Array.isArray(estado.ajustes.gomos) ? estado.ajustes.gomos : []
+        gomos: Array.isArray(estado.ajustes.gomos) ? estado.ajustes.gomos : [],
+        palcosExtra: Array.isArray(estado.ajustes.palcosExtra) ? estado.ajustes.palcosExtra : [],
+        regiesExtra: Array.isArray(estado.ajustes.regiesExtra) ? estado.ajustes.regiesExtra : [],
+        passarelasExtra: Array.isArray(estado.ajustes.passarelasExtra) ? estado.ajustes.passarelasExtra : [],
+        projetoresExtra: Array.isArray(estado.ajustes.projetoresExtra) ? estado.ajustes.projetoresExtra : []
       }
-    : { delays: {}, dsm: [], gomos: [] };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [] };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
