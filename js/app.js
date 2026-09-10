@@ -1207,8 +1207,9 @@ function escreverPainel(medidas, lugares, gentePosta, cobertura) {
   if (!temAlgo) {
     resumo.className = "vazio";
     resumo.textContent = projeto
-      ? "Projeto sem ecrãs ainda. Usa o \"+ Ecrã\" ou o \"+ DSM\" aqui em baixo."
-      : "Sem projeto. Cola aqui o que vem dos Calculadores, ou cria um ecrã aqui em baixo.";
+      ? "Projeto sem ecrãs ainda. Usa o \"+ Ecrã\", o \"+ Delay\" ou o \"+ DSM\" aqui em baixo."
+      : "Sem projeto. Podes montar tudo aqui mesmo (\"+ Ecrã\", \"+ Delay\", \"+ DSM\") e só ligar " +
+        "a sincronização quando quiseres o equipamento certo dos Calculadores — ou trazer já o que lá está.";
     lista.className = "vazio";
     lista.textContent = "—";
   } else {
@@ -3415,9 +3416,15 @@ $("btTrazerProjeto").onclick = () => {
       $("aviso").classList.add("mostra");
       return;
     }
-    $("aviso").innerHTML = "Ainda não há nada guardado. Nos Calculadores, monta as zonas " +
-      "(aba <b>Ecrã Complexo</b>, ou qualquer outra com \"Adicionar ao projeto\") — ficam " +
-      "gravadas sozinhas, e depois carregas aqui neste botão.";
+    // A regra passou a ser uma só (ver fase 1 do plano): marcado numa aba +
+    // sincronização ligada = está no projeto = chega aqui. O texto antigo
+    // prometia "qualquer outra com Adicionar ao projeto" sem dizer que era
+    // preciso o sync ligado -- e era exatamente isso que faltava a quem
+    // reportou este aviso com tudo marcado do outro lado.
+    $("aviso").innerHTML = "Ainda não há nada guardado. Nos Calculadores, marca " +
+      "<b>\"Adicionar ao projeto\"</b> na aba que interessa (Ecrã LED, TVs, Distância de " +
+      "Projeção, Blending) ou monta as zonas no <b>Ecrã Complexo</b> — com a " +
+      "<b>sincronização ligada</b>, fica tudo gravado sozinho e depois carregas aqui.";
     $("aviso").classList.add("mostra");
     return;
   }
