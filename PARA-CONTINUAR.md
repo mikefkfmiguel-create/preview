@@ -1418,6 +1418,34 @@ Testado com Playwright com as duas apps na MESMA origem (sem isso o
 nos Calculadores e carregar aqui aplica a projeção — `projDist` fica a
 17.00, com a mensagem nova.
 
+**v2.90 (fase 2 do plano "o projeto é a unidade"): a arrumação deixa de se
+perder quando a zona muda de nome.** Os ajustes de posição/rotação guardam-se
+pelo NOME da zona — por isso renomeá-la nos Calculadores, ou trocar lá o
+modelo da TV (que muda o nome-base de toda a fila), deitava fora tudo o que
+tinha sido arrumado aqui.
+
+As zonas passam a trazer um `id` persistente, posto por quem as cria (os
+Calculadores, ou este Preview no "+ Ecrã"/"+ Delay"), e devolvido intacto no
+retorno automático. Nova `reconciliarAjustesPorId()` (`js/app.js`), chamada
+sempre que um projeto entra (arranque, `carregar()`, evento `storage`): guarda
+o último nome conhecido por id (`ajustes.nomePorId`) e, quando a zona
+reaparece com outro nome, muda `ajustes.delays[...]` e `zonasSemLeitura` de
+nome com ela.
+
+**Porque não se passou tudo a ser indexado por id:** o nome não é só a chave
+dos ajustes — é o nome do objecto na cena (`delay-<nome>`), a chave do arrasto
+e o que o `fazerZonas` procura. Mudar tudo isso era um refactor grande e com
+muito por onde partir; o id a perseguir o nome dá o mesmo resultado numa
+função só. Só se move para um nome livre: se já existir ajuste com o nome
+novo, é de outra zona e não se lhe toca.
+
+Sem id (projeto gravado antes disto, ou colado à mão) não corre nada — fica
+tudo como sempre esteve.
+
+Testado com Playwright: zona "Delay esquerda" arrumada com dx 2,5, renomeada
+nos Calculadores para "Delay lateral A", novo sync — o ajuste segue o nome
+novo. Um projeto colado à mão, sem ids, carrega as 3 zonas sem erros.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
