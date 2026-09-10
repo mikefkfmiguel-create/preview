@@ -91,6 +91,13 @@ export function lerProjeto(bruto) {
     }
     zonas.push({
       nome: String(z.nome || z.name || `Zona ${i + 1}`),
+      // A identidade da zona, posta por quem a criou (Calculadores ou este
+      // Preview) e preservada por todos daí em diante. É por aqui que os
+      // ajustes de posição/rotação se agarram à zona certa mesmo que ela mude
+      // de nome -- ver ajusteDaZona() em app.js. Pode vir null: um projeto
+      // gravado antes disto, ou colado à mão, não tem id nenhum, e nesse caso
+      // volta-se a usar o nome, como sempre se fez.
+      id: (typeof z.id === "string" && z.id) ? z.id : null,
       x: numero(z.x, numero(z.posX, 0)),
       y: numero(z.y, numero(z.posY, 0)),
       w: largura,
@@ -324,10 +331,16 @@ export function ajustesGuardados() {
       // entra na Cobertura) -- guardado por NOME, tal como ajustes.delays,
       // para sobreviver a um "Trazer projeto" novo dos Calculadores (que
       // substitui o array de zonas inteiro, mas não os nomes).
-      zonasSemLeitura: (dados && Array.isArray(dados.zonasSemLeitura)) ? dados.zonasSemLeitura : []
+      zonasSemLeitura: (dados && Array.isArray(dados.zonasSemLeitura)) ? dados.zonasSemLeitura : [],
+      // O último nome conhecido de cada zona, por id -- ver
+      // reconciliarAjustesPorId() em app.js. É o que permite a uma zona
+      // renomeada nos Calculadores levar consigo a arrumação feita aqui, sem
+      // ter de mudar de chave tudo o que hoje trabalha por nome (o nome do
+      // objecto 3D, o arrasto, o fazerZonas).
+      nomePorId: (dados && typeof dados.nomePorId === "object" && dados.nomePorId) || {}
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [] };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {} };
   }
 }
 

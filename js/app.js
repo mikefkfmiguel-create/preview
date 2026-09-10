@@ -1333,6 +1333,7 @@ $("btNovaZona").onclick = () => {
   const anterior = p.zonas[n - 1];
   p.zonas.push({
     nome: `Ecrã ${n + 1}`,
+    id: novoIdZona(),
     x: anterior ? anterior.x + anterior.w + 0.5 : 0,
     y: 0, w: 2, h: 1.2,
     cor: CORES_ZONA[n % CORES_ZONA.length],
@@ -1349,6 +1350,7 @@ $("btNovoDelay").onclick = () => {
   const anterior = delays[n - 1];
   p.zonas.push({
     nome: `Delay ${n + 1}`,
+    id: novoIdZona(),
     x: anterior ? anterior.x + anterior.w + 0.5 : 0,
     y: 0, w: 0.8, h: 0.45,
     cor: "#F59E0B",
@@ -2350,9 +2352,56 @@ document.querySelectorAll("#formatoPlateia button").forEach(b => {
 });
 marcarFormatoPlateia();
 
+/**
+ * Uma zona pode voltar dos Calculadores com o MESMO id e outro nome — foi
+ * renomeada lá, ou trocou-se o modelo da TV (que muda o nome-base de toda a
+ * fila). Os ajustes de posição/rotação continuam guardados por nome, e há boa
+ * razão para isso: o nome é também a chave do objecto na cena (`delay-<nome>`),
+ * do arrasto e do fazerZonas. Em vez de mudar tudo isso de chave, usa-se o id
+ * para PERSEGUIR o nome — sempre que a zona reaparece com outro nome, o ajuste
+ * (e a marca "sem leitura") mudam de nome com ela.
+ *
+ * Sem id — projeto gravado antes disto, ou colado à mão — não corre nada e
+ * fica tudo exatamente como sempre esteve.
+ */
+// Uma zona criada aqui ("+ Ecrã", "+ Delay") também precisa de identidade:
+// ela vai voltar aos Calculadores pelo retorno automático e há-de regressar
+// no sync seguinte -- sem id, regressava como "outra zona qualquer". Mesmo
+// feitio do id que os Calculadores geram (lzNovoZid em js/zonas.js).
+function novoIdZona() {
+  return "z" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function reconciliarAjustesPorId(projetoAtual) {
+  if (!projetoAtual || !Array.isArray(projetoAtual.zonas)) return;
+  if (!ajustes.nomePorId || typeof ajustes.nomePorId !== "object") ajustes.nomePorId = {};
+  let mudou = false;
+  for (const zona of projetoAtual.zonas) {
+    if (!zona.id || !zona.nome) continue;
+    const anterior = ajustes.nomePorId[zona.id];
+    if (anterior && anterior !== zona.nome) {
+      // Só se move para um nome livre: se já existe ajuste com o nome novo,
+      // é de outra zona qualquer e não se lhe toca.
+      if (ajustes.delays[anterior] && !ajustes.delays[zona.nome]) {
+        ajustes.delays[zona.nome] = ajustes.delays[anterior];
+        delete ajustes.delays[anterior];
+        mudou = true;
+      }
+      const i = ajustes.zonasSemLeitura.indexOf(anterior);
+      if (i !== -1 && !ajustes.zonasSemLeitura.includes(zona.nome)) {
+        ajustes.zonasSemLeitura[i] = zona.nome;
+        mudou = true;
+      }
+    }
+    if (anterior !== zona.nome) { ajustes.nomePorId[zona.id] = zona.nome; mudou = true; }
+  }
+  if (mudou) guardarAjustes(ajustes);
+}
+
 function carregar(bruto, recentrar = true) {
   try {
     projeto = lerProjeto(bruto);
+    reconciliarAjustesPorId(projeto);
     $("aviso").classList.remove("mostra");
     if (projeto.sala) {
       if (projeto.sala.largura) $("salaL").value = projeto.sala.largura;
@@ -2720,7 +2769,7 @@ function limparTudo() {
   // repunha os campos mas um projeto novo herdava arrastos do anterior.
   // Reportado como a plateia a sair "errada" depois de limpar (a causa real
   // não era a conta da primeira fila, era isto).
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [] };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {} };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -2888,9 +2937,10 @@ async function abrirProjetoTodo(estado) {
         regiesExtra: Array.isArray(estado.ajustes.regiesExtra) ? estado.ajustes.regiesExtra : [],
         passarelasExtra: Array.isArray(estado.ajustes.passarelasExtra) ? estado.ajustes.passarelasExtra : [],
         projetoresExtra: Array.isArray(estado.ajustes.projetoresExtra) ? estado.ajustes.projetoresExtra : [],
-        zonasSemLeitura: Array.isArray(estado.ajustes.zonasSemLeitura) ? estado.ajustes.zonasSemLeitura : []
+        zonasSemLeitura: Array.isArray(estado.ajustes.zonasSemLeitura) ? estado.ajustes.zonasSemLeitura : [],
+        nomePorId: (estado.ajustes.nomePorId && typeof estado.ajustes.nomePorId === "object") ? estado.ajustes.nomePorId : {}
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [] };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {} };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
@@ -3445,6 +3495,10 @@ function devolverAosCalculadores(comAviso) {
       const ajuste = ajustes.delays[zona.nome];
       return {
         nome: zona.nome,
+        // A identidade da zona volta intacta -- é o que permite aos
+        // Calculadores reconhecerem "a mesma zona" e a este Preview manter a
+        // arrumação quando ela regressar com outro nome.
+        id: zona.id || null,
         x: zona.x, y: zona.y, w: zona.w, h: zona.h,
         cor: zona.cor, tipo: zona.tipo,
         curva: zona.curva, tiles: zona.tiles, res: zona.res,
@@ -4433,6 +4487,7 @@ if (idPartilha) {
     // depois o último que os Calculadores deixaram guardado — assim abrir o
     // preview sozinho já mostra o projeto em que se andava a trabalhar.
     projeto = projetoDoEndereco() || (sincronizacaoAutomaticaLigada() ? projetoGuardado() : null);
+    reconciliarAjustesPorId(projeto);
     if (projeto) marcarRecebidoDeFora();
     // E a sala que vier com ele manda: quem carrega no botão do assistente já lá
     // escreveu as medidas do sítio, e chegar cá a uma sala de 20 × 14 por
@@ -4500,6 +4555,7 @@ addEventListener("storage", (e) => {
   if (e.key !== CHAVE_PROJETO || !e.newValue) return;
   try {
     projeto = lerProjeto(e.newValue);
+    reconciliarAjustesPorId(projeto);
     marcarRecebidoDeFora();
     montar(false);
     const aviso = $("aviso");
