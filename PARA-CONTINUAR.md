@@ -1285,6 +1285,35 @@ o painel E a secção Público, mesmo com os dois fechados antes; o
 mesmo confirmado para "Ajustar Sala" (sala mais estreita do que o
 conjunto de ecrãs do exemplo). Sem erros de consola.
 
+**v2.86: a Cobertura passa a poder ignorar ecrãs sem leitura.** Pedido
+direto: *"o conforto visual deveria poder escolher que ecrãs deve usar
+pois por vezes nem todos são para slides mas sim para complemento
+visual sem necessidade de leitura"*. A Cobertura (verde/amarelo/
+vermelho por lugar) testava sempre TODOS os ecrãs do projeto contra a
+mesma regra SMPTE/AVIXA de legibilidade — um ecrã lateral só de
+imagem/ambiente entrava na conta ao mesmo nível que o ecrã principal
+com texto, e podia até "salvar" um lugar mal posicionado para o ecrã
+que interessa só por ter boa vista do decorativo.
+
+Cada ecrã na lista da secção "zonas" ganhou um checkbox "leitura"
+(ligado por omissão — comportamento de sempre). Desligar tira esse
+ecrã da conta da Cobertura, sem o tirar do projeto nem do desenho —
+continua a aparecer na cena, só deixa de contar para "confortável/
+marginal/sem cobertura". Guardado por NOME em
+`ajustes.zonasSemLeitura[]` (mesmo padrão de `ajustes.delays`), para
+sobreviver a um novo "Trazer projeto" dos Calculadores — esse substitui
+o array de zonas inteiro, mas os nomes mantêm-se. Se TODOS os ecrãs
+ficarem marcados "sem leitura" (caso raro), a Cobertura usa a lista
+toda na mesma, para não mostrar "sem cobertura" em todo o lado só por
+não haver nenhum ecrã elegível.
+
+Testado com Playwright, no projeto de exemplo (3 zonas: Ala esquerda/
+Principal/Ala direita): cobertura inicial 306 confortáveis / 46
+marginais / 0 sem cobertura; desligar "leitura" na Ala esquerda mudou
+para 258/62/32 (lugares que só viam bem essa zona passaram a "sem
+cobertura", como esperado); voltar a ligar devolveu exactamente os
+números originais. Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

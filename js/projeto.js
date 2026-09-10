@@ -305,10 +305,15 @@ export function ajustesGuardados() {
       palcosExtra: (dados && Array.isArray(dados.palcosExtra)) ? dados.palcosExtra : [],
       regiesExtra: (dados && Array.isArray(dados.regiesExtra)) ? dados.regiesExtra : [],
       passarelasExtra: (dados && Array.isArray(dados.passarelasExtra)) ? dados.passarelasExtra : [],
-      projetoresExtra: (dados && Array.isArray(dados.projetoresExtra)) ? dados.projetoresExtra : []
+      projetoresExtra: (dados && Array.isArray(dados.projetoresExtra)) ? dados.projetoresExtra : [],
+      // Nomes de zonas marcadas "sem leitura" (ecrã só visual/ambiente, não
+      // entra na Cobertura) -- guardado por NOME, tal como ajustes.delays,
+      // para sobreviver a um "Trazer projeto" novo dos Calculadores (que
+      // substitui o array de zonas inteiro, mas não os nomes).
+      zonasSemLeitura: (dados && Array.isArray(dados.zonasSemLeitura)) ? dados.zonasSemLeitura : []
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [] };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [] };
   }
 }
 

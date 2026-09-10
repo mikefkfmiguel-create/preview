@@ -852,7 +852,19 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
     || !gente || !gente.corpos || !gente.corpos.length) return null;
 
   const ctx = contextoDeZonas(projetoAtual, medidas, sala, palco);
-  const zonasInfo = projetoAtual.zonas.map(zona => ({
+  // Um ecrã marcado "sem leitura" (complemento visual, sem texto para ler)
+  // fica fora da Cobertura -- pedido direto: "nem todos são para slides mas
+  // sim para complemento visual sem necessidade de leitura". Sem isto, um
+  // lugar mal posicionado para o ecrã principal podia aparecer "confortável"
+  // só por ter boa vista de um ecrã ambiente ao lado — o "melhor de todas as
+  // zonas" abaixo estaria a comparar coisas que não pedem a mesma coisa. Se
+  // TODos os ecrãs estiverem marcados assim (caso raro), usa-se a lista toda
+  // na mesma — mostrar "sem cobertura" em todo o lado seria mais enganador
+  // do que útil.
+  const semLeitura = new Set(ajustes.zonasSemLeitura || []);
+  const zonasParaCobertura = projetoAtual.zonas.filter(z => !semLeitura.has(z.nome));
+  const zonasBase = zonasParaCobertura.length ? zonasParaCobertura : projetoAtual.zonas;
+  const zonasInfo = zonasBase.map(zona => ({
     zona, centro: centroDeZona(zona, ajustes.delays[zona.nome], ctx), comLugares: 0
   }));
 
@@ -1539,6 +1551,27 @@ function linhaDeZona(zona, indice) {
   tilt.className = "med";
   tilt.append(document.createTextNode("tilt "), campoTiltDeZona(zona), document.createTextNode(" °"));
 
+  // "Precisa de leitura" -- pedido direto: nem todos os ecrãs são para
+  // slides/texto, alguns são só complemento visual (ambiente, sem letras) e
+  // não devem entrar na conta da Cobertura. Ligado por omissão (mesmo
+  // comportamento de sempre); desligar tira este ecrã da Cobertura sem o
+  // tirar do projeto. Guardado por NOME em ajustes.zonasSemLeitura (como
+  // ajustes.delays), para sobreviver a um novo "Trazer projeto".
+  const leituraCampo = document.createElement("label");
+  leituraCampo.className = "med zona-leitura";
+  leituraCampo.title = "Este ecrã tem texto/dados para ler, e entra na Cobertura. Desliga para um ecrã só visual/ambiente (sem necessidade de leitura) — fica fora da conta de Cobertura, mas continua no projeto.";
+  const leitura = document.createElement("input");
+  leitura.type = "checkbox";
+  leitura.checked = !ajustes.zonasSemLeitura.includes(zona.nome);
+  leitura.addEventListener("change", () => {
+    const semLeitura = new Set(ajustes.zonasSemLeitura);
+    if (leitura.checked) semLeitura.delete(zona.nome); else semLeitura.add(zona.nome);
+    ajustes.zonasSemLeitura = [...semLeitura];
+    guardarAjustes(ajustes);
+    remontarDaqui();
+  });
+  leituraCampo.append(leitura, document.createTextNode(" leitura"));
+
   let duplicar = null;
   if (zona.tipo === "tv" || zona.tipo === "projecao") {
     duplicar = document.createElement("button");
@@ -1570,7 +1603,7 @@ function linhaDeZona(zona, indice) {
     projetoMudou();
   };
 
-  linha.append(cor, nome, tipo, med, pos, prof, rodar, tilt);
+  linha.append(cor, nome, tipo, med, pos, prof, rodar, tilt, leituraCampo);
   if (duplicar) linha.append(duplicar);
   linha.append(remover);
   return linha;
@@ -2603,7 +2636,7 @@ function limparTudo() {
   // repunha os campos mas um projeto novo herdava arrastos do anterior.
   // Reportado como a plateia a sair "errada" depois de limpar (a causa real
   // não era a conta da primeira fila, era isto).
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [] };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [] };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -2770,9 +2803,10 @@ async function abrirProjetoTodo(estado) {
         palcosExtra: Array.isArray(estado.ajustes.palcosExtra) ? estado.ajustes.palcosExtra : [],
         regiesExtra: Array.isArray(estado.ajustes.regiesExtra) ? estado.ajustes.regiesExtra : [],
         passarelasExtra: Array.isArray(estado.ajustes.passarelasExtra) ? estado.ajustes.passarelasExtra : [],
-        projetoresExtra: Array.isArray(estado.ajustes.projetoresExtra) ? estado.ajustes.projetoresExtra : []
+        projetoresExtra: Array.isArray(estado.ajustes.projetoresExtra) ? estado.ajustes.projetoresExtra : [],
+        zonasSemLeitura: Array.isArray(estado.ajustes.zonasSemLeitura) ? estado.ajustes.zonasSemLeitura : []
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [] };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [] };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
