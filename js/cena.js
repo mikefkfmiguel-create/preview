@@ -97,6 +97,30 @@ export function fazerPalco({ largura, profundidade }, palco) {
 }
 
 /**
+ * Um palco extra (2º, 3º, ...) — pedido direto ("preciso ter como criar
+ * mais do que um... palco"). Ao contrário do principal, que fica sempre
+ * encostado ao fundo da sala e serve de referência aos ecrãs/ângulos/
+ * cobertura, este é só visual/estrutural: posição, rotação e dimensões
+ * próprias, sem nenhum ecrã nem conta agarrada a ele. Por isso a posição
+ * vem já em coordenadas do mundo (dx/dz), ao contrário do principal que
+ * nasce centrado a partir da largura da sala.
+ */
+export function fazerPalcoExtra(pe) {
+  const grupo = new THREE.Group();
+  const largura = Math.max(1, pe.largura || 6);
+  const altura = Math.max(0.1, pe.altura || 1);
+  const profundidade = Math.max(0.5, pe.profundidade || 4);
+  const caixa = new THREE.Mesh(
+    new THREE.BoxGeometry(largura, altura, profundidade),
+    new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
+  caixa.position.set(0, altura / 2, 0);
+  grupo.add(caixa);
+  grupo.rotation.y = -(pe.rot || 0) * Math.PI / 180;
+  grupo.position.set(pe.dx || 0, 0, pe.dz || 0);
+  return grupo;
+}
+
+/**
  * A passarela: um prolongamento do palco para dentro da plateia — pedido
  * direto ("tenho que desenhar um palco com uma passarela"). Sai do meio da
  * frente do palco, à mesma altura do tampo (por isso um degrau só, não dois
