@@ -1116,6 +1116,24 @@ vários palcos (só visual), várias régies (com talha de vão na plateia em
 array), várias passarelas soltas (rotação nova), Blending a mandar todos
 os projetores para o Preview, e "Trazer projeto" a trazer também as TVs.
 
+**v2.80: projetor arrastável (fase 2 do mesmo plano).** Até aqui a posição
+do projetor só se ajustava pelos campos `#projLateral`/`#projDist` — ao
+contrário da régie, do DSM e dos delays, não se podia arrastar na cena.
+A malha do projetor em `cena.js` (`fazerProjecao()`) passou a chamar-se
+`"projetor-0"` (em vez de `"projetor"`, sem mais nenhuma referência a esse
+nome no código), preparando o terreno para as instâncias extra da fase 6.
+Novo adaptador `alvoDeCamposProjetor(sala)` em `js/app.js`: lê/escreve
+`#projLateral` a partir de `x`, e `#projDist` a partir de `z` subtraindo o
+mesmo offset `z0` que `fazerProjecao()` já usa para posicionar a malha
+(borda da sala + 0.35 m), disparando `input` nos dois campos para que o
+resto da app (cálculos de shift, ficha técnica) reaja como se a pessoa
+tivesse escrito lá directamente. Entra em `objetosArrastaveis()` como mais
+um ramo, reaproveitando o sistema de arrastar já existente (raycast contra
+um plano horizontal). Como todo o arrastar nesta app, só funciona com o
+cadeado de "edição livre" aberto (🔓). Testado com Playwright: arrastar o
+projetor 80px na horizontal moveu `#projLateral` de `0` para `1.445322`
+mantendo `#projDist` em `10`, como esperado de um arrasto lateral.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

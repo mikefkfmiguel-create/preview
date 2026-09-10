@@ -1270,7 +1270,11 @@ export function fazerProjecao(projetor, imagem, textura) {
   const caixa = new THREE.Mesh(
     new THREE.BoxGeometry(0.42, 0.18, 0.52),
     new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
-  caixa.name = "projetor";
+  // "-0" para condizer com o nome que instâncias extra (Fase 6, blending)
+  // vão usar -- "projetor-1", "projetor-2", ... -- e caberem no mesmo
+  // despacho por prefixo que objetosArrastaveis() já usa para os outros
+  // tipos (gomo-, zona , dsm ).
+  caixa.name = "projetor-0";
   caixa.position.set(projetor.x, projetor.y, projetor.z);
   grupo.add(caixa);
 
