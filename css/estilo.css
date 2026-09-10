@@ -224,6 +224,11 @@ main { flex: 1; position: relative; min-width: 0; }
   max-width: 70%;
 }
 #aviso.mostra { display: block; }
+#aviso .aviso-link {
+  color: inherit; text-decoration: underline; cursor: pointer;
+  font: inherit; font-weight: 600; background: none; border: none; padding: 0;
+}
+#aviso .aviso-link:hover { color: #FFDFC7; }
 
 @media (max-width: 820px) {
   body { flex-direction: column; }
