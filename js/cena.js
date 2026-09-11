@@ -94,27 +94,44 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha, comPared
  * palco, vértice por vértice, no que é exportado para .glb/.obj.
  */
 function geometriaDeTampo(largura, altura, profundidade, raio) {
-  const r = Math.min(Math.max(raio || 0, 0), Math.min(largura, profundidade) / 2);
-  if (r <= 0.001) return new THREE.BoxGeometry(largura, altura, profundidade);
+  const pedido = Math.max(raio || 0, 0);
+  if (pedido <= 0.001) return new THREE.BoxGeometry(largura, altura, profundidade);
+
+  // O raio limita-se POR EIXO, e não pelo lado mais curto — foi a correcção
+  // pedida: *"deve fechar mais a curva… conseguir fechar em círculo"*. Com um
+  // limite único (metade do lado mais curto), um palco de 14 × 7 m parava num
+  // "estádio" — pontas em meia-lua, lados compridos a direito — e não havia
+  // número nenhum que o fechasse. Separando os dois eixos, o mesmo campo
+  // continua a dar cantos suaves em baixo e passa a fechar em cima:
+  //
+  //   14 × 7 m,  raio 3,5  ->  rx 3,5 · ry 3,5  ->  estádio (como era)
+  //   14 × 7 m,  raio 7    ->  rx 7,0 · ry 3,5  ->  elipse, fechada nos dois eixos
+  //   14 × 14 m, raio 7    ->  rx 7,0 · ry 7,0  ->  círculo
+  //
+  // Abaixo de metade do lado mais curto, rx e ry são iguais — ou seja, nada
+  // muda em relação à versão anterior.
+  const rx = Math.min(pedido, largura / 2);
+  const ry = Math.min(pedido, profundidade / 2);
 
   // Desenha-se em XY (é o plano onde o Shape do three.js vive) e extruda-se
   // em Z; no fim roda-se para o Z passar a ser a altura.
   const x = largura / 2, y = profundidade / 2;
   const forma = new THREE.Shape();
-  forma.moveTo(-x + r, -y);
-  forma.lineTo(x - r, -y);
-  forma.quadraticCurveTo(x, -y, x, -y + r);
-  forma.lineTo(x, y - r);
-  forma.quadraticCurveTo(x, y, x - r, y);
-  forma.lineTo(-x + r, y);
-  forma.quadraticCurveTo(-x, y, -x, y - r);
-  forma.lineTo(-x, -y + r);
-  forma.quadraticCurveTo(-x, -y, -x + r, -y);
+  forma.moveTo(-x + rx, -y);
+  forma.lineTo(x - rx, -y);
+  forma.quadraticCurveTo(x, -y, x, -y + ry);
+  forma.lineTo(x, y - ry);
+  forma.quadraticCurveTo(x, y, x - rx, y);
+  forma.lineTo(-x + rx, y);
+  forma.quadraticCurveTo(-x, y, -x, y - ry);
+  forma.lineTo(-x, -y + ry);
+  forma.quadraticCurveTo(-x, -y, -x + rx, -y);
 
-  // curveSegments manda no número de lados de cada canto. 12 chega para um
-  // canto arredondado e continua a dar um círculo liso no máximo do raio,
-  // sem encher a cena de triângulos num objeto que é só volume.
-  const geo = new THREE.ExtrudeGeometry(forma, { depth: altura, bevelEnabled: false, curveSegments: 12 });
+  // curveSegments manda no número de lados de cada canto. Com o raio no
+  // máximo os quatro cantos passam a ser a forma toda, e é aí que uma curva
+  // facetada se nota — daí 24 e não 12. Num objeto que é só volume, o custo
+  // disto não se sente.
+  const geo = new THREE.ExtrudeGeometry(forma, { depth: altura, bevelEnabled: false, curveSegments: 24 });
   geo.rotateX(-Math.PI / 2);
   // O ExtrudeGeometry cresce de z=0 para z=+altura; depois da rotação isso é
   // de y=0 para y=+altura. A BoxGeometry nasce CENTRADA, e quem chama põe o

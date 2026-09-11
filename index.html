@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v2.97</i></span>
+        <span>o projeto no terreno       <i id="versao">v2.98</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -151,8 +151,10 @@
       <label>Altura <input id="palcoA" type="number" value="1" min="0" max="10" step="0.1"><i>m</i></label>
       <label>Profundidade <input id="palcoP" type="number" value="6" min="0" max="60" step="0.5"><i>m</i></label>
       <label>Ecrã acima do palco <input id="ecraOffset" type="number" value="0" min="0" max="20" step="0.1"><i>m</i></label>
-      <label title="Raio dos cantos. No máximo (metade do lado mais curto) um palco quadrado fica redondo. Só afeta o desenho — as contas de ecrã, ângulos e cobertura usam a medida cheia.">Arredondar cantos <input id="palcoR" type="number" value="0" min="0" max="30" step="0.25"><i>m</i></label>
+      <label title="Raio dos cantos, em metros. Limita-se sozinho a metade de cada lado: a meio dá cantos suaves, no máximo fecha a curva de vez (um palco comprido fica em elipse, um quadrado fica redondo). Só afeta o desenho — as contas de ecrã, ângulos e cobertura usam a medida cheia.">Arredondar cantos <input id="palcoR" type="number" value="0" min="0" max="100" step="0.25"><i>m</i></label>
     </div>
+    <button type="button" id="btPalcoRedondo" style="margin-top:8px; width:100%"
+            title="Põe a profundidade igual à largura e o arredondamento no máximo — um palco redondo, com o diâmetro da largura que já lá está. Depois é só ajustar como qualquer outro palco.">⭘ Fazer um círculo</button>
     <label class="opcao" style="margin-top:10px"><input id="passLigada" type="checkbox"> Passarela</label>
     <div class="campos" style="margin-top:8px">
       <label>Largura <input id="passL" type="number" value="1.5" min="0.5" max="20" step="0.1"><i>m</i></label>

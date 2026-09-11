@@ -1670,6 +1670,44 @@ simples recarregar da página — nem a largura, nem a profundidade, nem o raio.
 É como já era para todos eles (só o ficheiro de projeto os guarda), e não se
 mexeu nisso aqui.
 
+**v2.98: a curva fecha mesmo, e há um botão para o círculo.** *"Deve fechar
+mais a curva."* Tinha razão, e a v2.97 estava incompleta: o raio limitava-se a
+metade do **lado mais curto**, o que num palco de 14 × 7 m parava num
+"estádio" — pontas em meia-lua, lados compridos a direito — e **não havia
+número nenhum que o fechasse**. Só um palco quadrado é que chegava a redondo.
+
+O limite passa a ser **por eixo** (`rx = min(raio, largura/2)`,
+`ry = min(raio, profundidade/2)`):
+
+| Palco | Raio | Fica |
+|---|---|---|
+| 14 × 7 m | 3,5 | estádio — exactamente como na v2.97 |
+| 14 × 7 m | 7 | **elipse**, fechada nos dois eixos |
+| 14 × 14 m | 7 | círculo |
+
+Abaixo de metade do lado mais curto `rx` e `ry` são iguais, ou seja **nada
+muda** para quem já tinha um palco arredondado. Os cantos passaram de 12 para
+24 segmentos: com o raio no máximo os quatro cantos são a forma toda, e é aí
+que uma curva facetada se nota.
+
+E depois: *"fazer um círculo"*. Um círculo precisa dos dois lados iguais, e
+era essa a parte chata à mão — escrever a profundidade, conferir a largura,
+calcular metade para o raio. Passa a haver **"⭘ Fazer um círculo"** na secção
+Palco, e um **⭘** em cada linha de palco extra: põem a profundidade igual à
+largura e o arredondamento no máximo.
+
+O diâmetro é a **largura** que já lá está, não a profundidade nem uma média: a
+largura é a medida com que se pensa um palco ("um palco de 16") e é a que
+manda no que se vê da plateia. Se deixar de caber, o aviso de sempre diz-o —
+não se encolhe o palco pelas costas de quem o pediu.
+
+Testado com Playwright, medindo a geometria na cena e conferindo de cima: 14 ×
+7 com raio 3,5 continua estádio; com raio 7 fecha em elipse; pedir 99 dá o
+mesmo que pedir o máximo (limita-se por eixo); o botão num palco de 12 × 5
+deixa 12 × 12 com raio 6, e o ⭘ de um palco extra de 16 × 6 deixa 16 × 16 com
+raio 8, tanto no estado guardado como nos campos da lista. A caixa envolvente
+continua a não crescer nem a deslocar o palco. Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

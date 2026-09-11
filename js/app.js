@@ -1567,6 +1567,24 @@ $("btNovoDsm").onclick = () => {
   projetoMudou();
 };
 
+// "Fazer um círculo" -- pedido directo, depois de o arredondamento sozinho
+// parar num estádio: *"conseguir fechar em círculo, e o [profundidade] do
+// palco deve poder lá ir"*. Um círculo precisa dos dois lados iguais, e era
+// essa a parte chata de fazer à mão: escrever a profundidade, escrever a
+// largura outra vez, e ainda calcular metade para o raio.
+//
+// O diâmetro é a LARGURA que já lá está, não a profundidade nem uma média: a
+// largura é a medida com que se pensa um palco ("um palco de 16"), e é a que
+// manda no que se vê da plateia. Se não couber na sala, o aviso de sempre
+// diz-o — não se encolhe o palco por trás das costas de quem o pediu.
+if ($("btPalcoRedondo")) $("btPalcoRedondo").onclick = () => {
+  const largura = num("palcoL");
+  if (!largura) return;
+  $("palcoP").value = String(largura);
+  $("palcoR").value = String(Math.round((largura / 2) * 100) / 100);
+  remontarDaqui(0);
+};
+
 if ($("btAddPalco")) $("btAddPalco").onclick = () => {
   const p = lerPalco();
   const n = ajustes.palcosExtra.length;
@@ -2200,7 +2218,22 @@ function desenharPalcosExtra() {
     linha.append(campoAjuste("largura", pe, "largura", "m", "0.5", `palcoExtra-${i}-largura`, 1, 200));
     linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `palcoExtra-${i}-altura`, 0, 10));
     linha.append(campoAjuste("profundidade", pe, "profundidade", "m", "0.5", `palcoExtra-${i}-profundidade`, 0.5, 60));
-    linha.append(campoAjuste("arredondar", pe, "raio", "m", "0.25", `palcoExtra-${i}-raio`, 0, 30));
+    linha.append(campoAjuste("arredondar", pe, "raio", "m", "0.25", `palcoExtra-${i}-raio`, 0, 100));
+    // O mesmo atalho do palco principal, por peça: iguala a profundidade à
+    // largura e põe o arredondamento no máximo.
+    const redondo = document.createElement("button");
+    redondo.type = "button";
+    redondo.className = "ajuste-passo";
+    redondo.textContent = "⭘";
+    redondo.title = "Fazer um círculo — profundidade igual à largura, arredondamento no máximo";
+    redondo.setAttribute("aria-label", "Fazer um círculo no Palco " + (i + 2));
+    redondo.addEventListener("click", () => {
+      pe.profundidade = pe.largura;
+      pe.raio = pe.largura / 2;
+      guardarAjustes(ajustes);
+      remontarDaqui(0);
+    });
+    linha.append(redondo);
     linha.append(campoAjuste("↔", pe, "dx", "m", "0.25", `palcoExtra-${i}-dx`));
     linha.append(campoAjuste("↕", pe, "dz", "m", "0.25", `palcoExtra-${i}-dz`));
     linha.append(campoAjuste("rodar", pe, "rot", "°", "15", `palcoExtra-${i}-rot`, -180, 180));
