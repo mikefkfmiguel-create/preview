@@ -79,6 +79,51 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha, comPared
   return grupo;
 }
 
+/**
+ * O tampo de um palco: um paralelepípedo, ou o mesmo com os cantos
+ * arredondados — pedido direto: *"os palcos podem arredondar, já era meio
+ * caminho para um palco redondo"*.
+ *
+ * E é mesmo o caminho todo, com um só número: o raio limita-se a metade do
+ * lado mais curto, por isso num palco de 10 × 6 m o máximo (3 m) dá as pontas
+ * em meia-lua, e num palco quadrado de 8 × 8 m o máximo (4 m) dá um círculo.
+ * Não é preciso um "tipo de palco" à parte.
+ *
+ * `raio` a 0 devolve exactamente a BoxGeometry de sempre — não é um caso
+ * especial por preguiça, é para um projeto antigo continuar a ter o mesmo
+ * palco, vértice por vértice, no que é exportado para .glb/.obj.
+ */
+function geometriaDeTampo(largura, altura, profundidade, raio) {
+  const r = Math.min(Math.max(raio || 0, 0), Math.min(largura, profundidade) / 2);
+  if (r <= 0.001) return new THREE.BoxGeometry(largura, altura, profundidade);
+
+  // Desenha-se em XY (é o plano onde o Shape do three.js vive) e extruda-se
+  // em Z; no fim roda-se para o Z passar a ser a altura.
+  const x = largura / 2, y = profundidade / 2;
+  const forma = new THREE.Shape();
+  forma.moveTo(-x + r, -y);
+  forma.lineTo(x - r, -y);
+  forma.quadraticCurveTo(x, -y, x, -y + r);
+  forma.lineTo(x, y - r);
+  forma.quadraticCurveTo(x, y, x - r, y);
+  forma.lineTo(-x + r, y);
+  forma.quadraticCurveTo(-x, y, -x, y - r);
+  forma.lineTo(-x, -y + r);
+  forma.quadraticCurveTo(-x, -y, -x + r, -y);
+
+  // curveSegments manda no número de lados de cada canto. 12 chega para um
+  // canto arredondado e continua a dar um círculo liso no máximo do raio,
+  // sem encher a cena de triângulos num objeto que é só volume.
+  const geo = new THREE.ExtrudeGeometry(forma, { depth: altura, bevelEnabled: false, curveSegments: 12 });
+  geo.rotateX(-Math.PI / 2);
+  // O ExtrudeGeometry cresce de z=0 para z=+altura; depois da rotação isso é
+  // de y=0 para y=+altura. A BoxGeometry nasce CENTRADA, e quem chama põe o
+  // mesh a altura/2 a contar com isso — por isso centra-se aqui também, para
+  // os dois caminhos serem intermutáveis sem mexer em quem os usa.
+  geo.translate(0, -altura / 2, 0);
+  return geo;
+}
+
 /** O palco, encostado ao fundo. */
 export function fazerPalco({ largura, profundidade }, palco) {
   if (!palco.altura || !palco.profundidade) return new THREE.Group();
@@ -88,7 +133,7 @@ export function fazerPalco({ largura, profundidade }, palco) {
   // não a regra. Sem valor, assume-se a sala toda.
   const larguraPalco = Math.min(palco.largura || largura, largura);
   const caixa = new THREE.Mesh(
-    new THREE.BoxGeometry(larguraPalco, palco.altura, palco.profundidade),
+    geometriaDeTampo(larguraPalco, palco.altura, palco.profundidade, palco.raio),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
   caixa.name = "palco";
   caixa.position.set(0, palco.altura / 2, -profundidade / 2 + palco.profundidade / 2);
@@ -111,7 +156,7 @@ export function fazerPalcoExtra(pe) {
   const altura = Math.max(0.1, pe.altura || 1);
   const profundidade = Math.max(0.5, pe.profundidade || 4);
   const caixa = new THREE.Mesh(
-    new THREE.BoxGeometry(largura, altura, profundidade),
+    geometriaDeTampo(largura, altura, profundidade, pe.raio),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
   caixa.position.set(0, altura / 2, 0);
   grupo.add(caixa);

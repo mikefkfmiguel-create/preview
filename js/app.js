@@ -123,7 +123,10 @@ function lerSala() {
 }
 function lerPalco() {
   return { largura: num("palcoL"), altura: num("palcoA"),
-           profundidade: num("palcoP"), acimaDoPalco: num("ecraOffset") };
+           profundidade: num("palcoP"), acimaDoPalco: num("ecraOffset"),
+           // Só o desenho: o raio não entra em conta nenhuma (ecrã, ângulos,
+           // cobertura continuam a usar a medida cheia do palco).
+           raio: num("palcoR") };
 }
 let formatoImagem = 1.777;
 
@@ -1574,7 +1577,11 @@ if ($("btAddPalco")) $("btAddPalco").onclick = () => {
     largura: p.largura || 6, altura: p.altura || 1, profundidade: p.profundidade || 4,
     dx: (p.largura || 6) / 2 + ((p.largura || 6) + 2) * n + 2,
     dz: -lerSala().profundidade / 2 + (p.profundidade || 4) / 2,
-    rot: 0
+    rot: 0,
+    // Herda o arredondamento do palco principal: quem já pôs o palco redondo
+    // quer quase sempre o segundo a condizer, e pôr a zero corrige-se numa
+    // tecla. Sem palco principal arredondado, nasce de cantos vivos.
+    raio: p.raio || 0
   });
   guardarAjustes(ajustes);
   remontarDaqui();
@@ -2193,6 +2200,7 @@ function desenharPalcosExtra() {
     linha.append(campoAjuste("largura", pe, "largura", "m", "0.5", `palcoExtra-${i}-largura`, 1, 200));
     linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `palcoExtra-${i}-altura`, 0, 10));
     linha.append(campoAjuste("profundidade", pe, "profundidade", "m", "0.5", `palcoExtra-${i}-profundidade`, 0.5, 60));
+    linha.append(campoAjuste("arredondar", pe, "raio", "m", "0.25", `palcoExtra-${i}-raio`, 0, 30));
     linha.append(campoAjuste("↔", pe, "dx", "m", "0.25", `palcoExtra-${i}-dx`));
     linha.append(campoAjuste("↕", pe, "dz", "m", "0.25", `palcoExtra-${i}-dz`));
     linha.append(campoAjuste("rodar", pe, "rot", "°", "15", `palcoExtra-${i}-rot`, -180, 180));
@@ -3188,6 +3196,7 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("salaL", s.largura); preencherCampo("salaP", s.profundidade); preencherCampo("salaA", s.altura);
   preencherCampo("palcoL", p.largura); preencherCampo("palcoA", p.altura);
   preencherCampo("palcoP", p.profundidade); preencherCampo("ecraOffset", p.acimaDoPalco);
+  preencherCampo("palcoR", p.raio);
   preencherCheckbox("passLigada", pa.ligada); preencherCampo("passL", pa.largura);
   preencherCampo("passC", pa.comprimento); preencherCampo("passX", pa.dx);
   preencherCampo("filas", pu.filas); preencherCampo("primeiraFila", pu.primeiraFila);
