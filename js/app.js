@@ -2080,7 +2080,7 @@ function desenharAjustes() {
     nome.textContent = z.nome + (z.tipo === "tv" ? " (TV)" : " (Projeção)");
     linha.append(nome);
     linha.append(campoAjuste("↔", ajustes.delays[z.nome], "dx", "m", "0.05", `d-${z.nome}-dx`));
-    linha.append(campoAjuste("profundidade", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
+    linha.append(campoAjuste("fundo", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
     linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy", "m", "0.05", `d-${z.nome}-dy`));
     linha.append(campoAjuste("rodar", ajustes.delays[z.nome], "rot", "°", "5", `d-${z.nome}-rot`, -180, 180));
     // "tilt": para um delay pendurado no alto, a apontar para baixo, para a
@@ -2098,7 +2098,7 @@ function desenharAjustes() {
     nome.textContent = "DSM " + (i + 1);
     linha.append(nome);
     linha.append(campoAjuste("↔", ajustes.dsm[i], "dx", "m", "0.05", `m${i}-dx`));
-    linha.append(campoAjuste("profundidade", ajustes.dsm[i], "dz", "m", "0.05", `m${i}-dz`));
+    linha.append(campoAjuste("fundo", ajustes.dsm[i], "dz", "m", "0.05", `m${i}-dz`));
     linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5", `m${i}-rot`, -180, 180));
     // Afinação por cima do tombo fixo (ver o comentário em fazerDSM, cena.js).
     linha.append(campoAjuste("tilt", ajustes.dsm[i], "tilt", "°", "5", `m${i}-tilt`, -45, 45));
@@ -2183,7 +2183,7 @@ function desenharGomos(publico) {
     linha.append(nome);
     linha.append(campoAjuste("largura", aj, "largura", "m", "0.5", `gomo-${i}-largura`, 0.5, 60));
     linha.append(campoAjuste("↔", aj, "dx", "m", "0.1", `gomo-${i}-dx`));
-    linha.append(campoAjuste("profundidade", aj, "dz", "m", "0.1", `gomo-${i}-dz`));
+    linha.append(campoAjuste("fundo", aj, "dz", "m", "0.1", `gomo-${i}-dz`));
     linha.append(campoAjuste("rodar", aj, "rot", "°", "5", `gomo-${i}-rot`, -180, 180));
     // "corredor" a 0 encosta este gomo ao vizinho, sem vão nenhum entre os
     // dois -- nasce igual ao "Largura dos corredores" global (secção
@@ -2235,7 +2235,7 @@ function desenharPalcosExtra() {
     });
     linha.append(redondo);
     linha.append(campoAjuste("↔", pe, "dx", "m", "0.25", `palcoExtra-${i}-dx`));
-    linha.append(campoAjuste("↕", pe, "dz", "m", "0.25", `palcoExtra-${i}-dz`));
+    linha.append(campoAjuste("fundo", pe, "dz", "m", "0.25", `palcoExtra-${i}-dz`));
     linha.append(campoAjuste("rodar", pe, "rot", "°", "15", `palcoExtra-${i}-rot`, -180, 180));
     const remover = document.createElement("button");
     remover.type = "button";
@@ -2272,7 +2272,7 @@ function desenharRegiesExtra() {
     linha.append(campoAjuste("largura", re, "largura", "m", "0.5", `regieExtra-${i}-largura`, 2, 12));
     linha.append(campoAjuste("profundidade", re, "profundidade", "m", "0.5", `regieExtra-${i}-profundidade`, 2, 12));
     linha.append(campoAjuste("↔", re, "dx", "m", "0.25", `regieExtra-${i}-dx`));
-    linha.append(campoAjuste("↕", re, "dz", "m", "0.25", `regieExtra-${i}-dz`));
+    linha.append(campoAjuste("fundo", re, "dz", "m", "0.25", `regieExtra-${i}-dz`));
     linha.append(campoAjuste("rodar", re, "rot", "°", "15", `regieExtra-${i}-rot`, -180, 180));
     const remover = document.createElement("button");
     remover.type = "button";
@@ -2310,7 +2310,7 @@ function desenharPassarelasExtra() {
     linha.append(campoAjuste("comprimento", pl, "comprimento", "m", "0.5", `passarelaExtra-${i}-comprimento`, 0.5, 60));
     linha.append(campoAjuste("altura", pl, "altura", "m", "0.1", `passarelaExtra-${i}-altura`, 0, 10));
     linha.append(campoAjuste("↔", pl, "dx", "m", "0.25", `passarelaExtra-${i}-dx`));
-    linha.append(campoAjuste("↕", pl, "dz", "m", "0.25", `passarelaExtra-${i}-dz`));
+    linha.append(campoAjuste("fundo", pl, "dz", "m", "0.25", `passarelaExtra-${i}-dz`));
     linha.append(campoAjuste("rodar", pl, "rot", "°", "15", `passarelaExtra-${i}-rot`, -180, 180));
     const remover = document.createElement("button");
     remover.type = "button";
