@@ -347,10 +347,15 @@ export function ajustesGuardados() {
       // porque está tudo montado" de "ainda nunca corri com depósito", que é
       // o que impede um projeto antigo de aparecer todo por montar.
       noDeposito: (dados && Array.isArray(dados.noDeposito)) ? dados.noDeposito : [],
-      depositoIniciado: !!(dados && dados.depositoIniciado)
+      depositoIniciado: !!(dados && dados.depositoIniciado),
+      // Com isto desligado, o material novo entra logo na sala em vez de
+      // parar no depósito — a forma como isto funcionava antes da v2.92.
+      // Ligado por omissão: só está desligado quem o desligou de propósito,
+      // e um ficheiro antigo (sem o campo) não muda de comportamento.
+      depositoLigado: !(dados && dados.depositoLigado === false)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true };
   }
 }
 

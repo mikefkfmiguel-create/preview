@@ -1555,6 +1555,40 @@ Testado com Playwright, as duas apps servidas da mesma origem: sem material
 contador continua visível com a secção dobrada; o botão do aviso abre o
 depósito; "Montar tudo" apaga os dois. Sem erros de consola.
 
+**v2.95: o depósito passa a ter interruptor.** *"PODIA LIGAR E DESLIGAR O
+DEPOSITO"*. Uma caixa na própria secção — **"Parar aqui o material novo"** —
+ligada por omissão.
+
+Desligada, o material novo entra logo na sala: o que vem dos Calculadores e o
+que nasce nos botões "+ Ecrã / + Delay / + DSM" (que nesse caso levam às
+Zonas, não a uma lista onde a peça não está). É o comportamento anterior à
+v2.92, de volta sem apagar nada do que se construiu desde então — a lista do
+depósito continua lá para tirar peças da sala e voltar a montá-las.
+
+Três decisões que vale a pena estarem escritas:
+
+- **Desligar não monta o que já estava à espera.** Montar peças que alguém
+  pôs de lado, sem as pedir, é mexer na sala pelas costas de quem as pôs lá.
+  Ficam, e o contador e o aviso continuam a dizer que estão.
+- **A bandeira é feitio de trabalhar, não conteúdo do projeto.** Sobrevive ao
+  "Limpar tudo" e **não** vem do ficheiro em "Abrir projeto": é de quem está
+  a abrir, não de quem gravou.
+- **Ligado por omissão, lido num só sítio** (`depositoLigado()`). Quem nunca
+  lhe tocou, e qualquer ficheiro gravado antes disto existir, comportam-se
+  exactamente como antes.
+
+O interruptor e a nota por baixo reescrevem-se a cada `montar()`, não só no
+arranque: o "Limpar tudo" repõe todos os checkbox do painel pelo
+`defaultChecked`, e sem isso a caixa dizia "ligado" com o depósito desligado
+por baixo.
+
+Testado com Playwright, seis passos: ligado, duas TVs novas ficam à espera e
+a sala não mexe; desligar muda a nota e deixa as duas onde estavam;
+desligado, duas TVs novas entram na sala (3 → 5) e o contador não sobe;
+sobrevive a recarregar a página; religar volta a parar o material; e os
+botões "+ Ecrã" e "+ DSM" criam no depósito com ele ligado e na sala com ele
+desligado. Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

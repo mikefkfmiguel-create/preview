@@ -1199,10 +1199,24 @@ $("btAplicarDistribuicao").onclick = aplicarDistribuicaoSugerida;
  * a sala só tem o que foi montado, venha de onde vier.
  */
 function guardarNoDeposito(chave) {
-  if (!chave) return;
+  if (!chave || !depositoLigado()) return;
   if (!Array.isArray(ajustes.noDeposito)) ajustes.noDeposito = [];
   if (!ajustes.noDeposito.includes(chave)) ajustes.noDeposito.push(chave);
   guardarAjustes(ajustes);
+}
+
+/**
+ * O depósito dá para desligar -- pedido direto: "podia ligar e desligar o
+ * depósito". Desligado, o material novo entra logo na sala, como fazia antes
+ * da v2.92; a lista do depósito continua a existir para tirar peças da sala e
+ * voltar a pô-las lá.
+ *
+ * Ligado por omissão, e é a única leitura desta bandeira em toda a app: quem
+ * nunca lhe tocou, e um ficheiro gravado antes disto existir, comportam-se
+ * como sempre se comportaram.
+ */
+function depositoLigado() {
+  return !ajustes || ajustes.depositoLigado !== false;
 }
 
 /** Uma peça sai do depósito e entra na sala. */
@@ -1249,7 +1263,31 @@ function pecasNoDeposito() {
   return pecas;
 }
 
+// O interruptor e a nota por baixo dele reescrevem-se a cada montar(), e não
+// só uma vez no arranque: o "Limpar tudo" repõe todos os checkbox do painel
+// pelo defaultChecked, e sem isto a caixa passava a dizer "ligado" com o
+// depósito desligado por baixo.
+function escreverInterruptorDeposito() {
+  const caixa = $("depositoLigado");
+  if (!caixa) return;
+  const ligado = depositoLigado();
+  caixa.checked = ligado;
+  const nota = $("depositoNota");
+  if (nota) {
+    nota.textContent = ligado
+      ? "Todo o material do projeto entra e sai por aqui — o que vem dos Calculadores e o que acrescentares à mão. Fica à espera, e a sala só tem o que tu lá montares."
+      : "Desligado: o material novo entra logo na sala, como fazia antes. O depósito continua a servir para tirar peças da sala e voltar a montá-las.";
+  }
+}
+
+$("depositoLigado").addEventListener("change", function () {
+  ajustes.depositoLigado = this.checked;
+  guardarAjustes(ajustes);
+  montar(false);
+});
+
 function escreverListaDeposito() {
+  escreverInterruptorDeposito();
   const lista = $("listaDeposito");
   const pecas = pecasNoDeposito();
   $("btMontarTudo").disabled = !pecas.length;
@@ -1501,7 +1539,10 @@ $("btNovaZona").onclick = () => {
     tipo: "led"
   });
   projetoMudou();
-  irParaSeccao("deposito", "listaDeposito");
+  // Com o depósito desligado a peça já está na sala: quem a quer ajustar
+  // vai às Zonas, não a uma lista onde ela não está.
+  if (depositoLigado()) irParaSeccao("deposito", "listaDeposito");
+  else mostrarZonas();
 };
 
 $("btNovoDelay").onclick = () => {
@@ -1520,7 +1561,10 @@ $("btNovoDelay").onclick = () => {
     tipo: "tv"
   });
   projetoMudou();
-  irParaSeccao("deposito", "listaDeposito");
+  // Com o depósito desligado a peça já está na sala: quem a quer ajustar
+  // vai às Zonas, não a uma lista onde ela não está.
+  if (depositoLigado()) irParaSeccao("deposito", "listaDeposito");
+  else mostrarZonas();
 };
 
 $("btNovoDsm").onclick = () => {
@@ -2613,6 +2657,11 @@ function receberProjeto(projetoAtual) {
   if (primeiraVez) {
     ajustes.depositoIniciado = true;
     mudou = true;
+  } else if (!depositoLigado()) {
+    // Depósito desligado: o material novo entra logo na sala. Quem já lá
+    // estava à espera fica à espera -- desligar não é o mesmo que montar, e
+    // montar peças sem ninguém pedir era mexer na sala pelas costas de quem
+    // as pôs de lado. O aviso e o contador continuam a dizer que lá estão.
   } else {
     for (const zona of projetoAtual.zonas) {
       const chave = chaveDeDeposito(zona);
@@ -3025,7 +3074,9 @@ function limparTudo() {
   // repunha os campos mas um projeto novo herdava arrastos do anterior.
   // Reportado como a plateia a sair "errada" depois de limpar (a causa real
   // não era a conta da primeira fila, era isto).
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true };
+  // O interruptor do depósito é feitio de trabalhar, não conteúdo do projeto:
+  // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado() };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -3198,9 +3249,12 @@ async function abrirProjetoTodo(estado) {
         noDeposito: Array.isArray(estado.ajustes.noDeposito) ? estado.ajustes.noDeposito : [],
         // Um ficheiro gravado antes do depósito abre com tudo montado, que é
         // como foi gravado -- nunca com a sala vazia à espera de descarga.
-        depositoIniciado: true
+        depositoIniciado: true,
+        // Não vem do ficheiro de propósito: é o feitio de trabalhar de quem
+        // está a abrir, não de quem gravou.
+        depositoLigado: depositoLigado()
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado() };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 

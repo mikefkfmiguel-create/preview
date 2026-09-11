@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v2.94</i></span>
+        <span>o projeto no terreno       <i id="versao">v2.95</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -308,14 +308,15 @@
 
   <section id="deposito">
     <h2>Depósito <span id="depositoContador" class="contador" style="display:none" title="Peças à espera de serem montadas na sala"></span></h2>
-    <p class="vazio" style="margin:0 0 10px">Todo o material do projeto entra e sai
+    <label class="opcao"><input id="depositoLigado" type="checkbox" checked> Parar aqui o material novo</label>
+    <p class="vazio" id="depositoNota" style="margin:6px 0 10px">Todo o material do projeto entra e sai
       por aqui — o que vem dos Calculadores e o que acrescentares à mão. Fica à
       espera, e a sala só tem o que tu lá montares.</p>
     <div id="listaDeposito" class="vazio">—</div>
     <div class="botoes" style="margin-top:10px">
-      <button id="btNovaZona" title="Acrescenta um ecrã novo ao depósito, para depois o montares na sala">+ Ecrã</button>
-      <button id="btNovoDelay" title="Acrescenta um ecrã de delay (TV ou Projeção) ao depósito">+ Delay</button>
-      <button id="btNovoDsm" title="Acrescenta o monitor de confiança no palco (DSM) ao depósito">+ DSM</button>
+      <button id="btNovaZona" title="Acrescenta um ecrã novo — vai para o depósito, ou direto para a sala se o depósito estiver desligado">+ Ecrã</button>
+      <button id="btNovoDelay" title="Acrescenta um ecrã de delay (TV ou Projeção) — vai para o depósito, ou direto para a sala se o depósito estiver desligado">+ Delay</button>
+      <button id="btNovoDsm" title="Acrescenta o monitor de confiança no palco (DSM) — vai para o depósito, ou direto para a sala se o depósito estiver desligado">+ DSM</button>
     </div>
     <div class="botoes" style="margin-top:8px">
       <button id="btMontarTudo" title="Traz tudo o que está no depósito para a sala de uma vez">Montar tudo</button>
