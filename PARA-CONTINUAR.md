@@ -1589,6 +1589,44 @@ sobrevive a recarregar a página; religar volta a parar o material; e os
 botões "+ Ecrã" e "+ DSM" criam no depósito com ele ligado e na sala com ele
 desligado. Sem erros de consola.
 
+**v2.96: dá para escrever nos campos de ajuste.** *"Nos campos de ajuste do
+palco extra e passarela é difícil escrever os valores."* Medido antes de
+mexer: escrever `12.5` na largura de um palco extra ficava em **`1`** — o
+foco saltava para o `body` à primeira tecla e as outras três não iam para
+lado nenhum.
+
+A causa é velha e conhecida neste ficheiro: cada tecla dispara um `input`, o
+`input` remonta a cena (120 ms de atraso), e o remontar reescreve a lista
+inteira do painel — o campo onde se estava a escrever morre a meio. As listas
+dos delays/DSM, dos gomos e das zonas tinham uma salvaguarda escrita à mão
+(guardar o foco e repô-lo); as dos **palcos, régies, passarelas e projetores
+extra** nasceram sem ela.
+
+**Mas a salvaguarda antiga também não chegava**, e isto é o que interessa
+ficar escrito: repor o texto num `<input type="number">` não aguenta um
+decimal a meio de ser escrito. O navegador rejeita `"12."` como valor, o
+ponto desaparece, e `12.5` sai `125`. Na lista das **zonas** isso era um ecrã
+de 12,5 m a virar 125 m, calado. Reproduzido tecla a tecla, não suposto.
+
+Por isso a regra passou a ser outra, e única para as seis listas: **uma lista
+onde alguém está a escrever não se reconstrói** (`aEscreverNaLista()`). A
+cena continua a atualizar-se a cada tecla — isso é outra parte do `montar()`
+— e o resumo por cima da lista também; só as linhas é que esperam que se saia
+do campo. Não havendo reconstrução, não há valor para repor, e o problema do
+decimal desaparece pela raiz.
+
+Testado com Playwright, tecla a tecla com 400 ms entre teclas (mais do que os
+120 ms do atraso, para o remontar disparar mesmo a meio):
+
+- `12.5` num palco extra: antes `1`, agora `12.5`.
+- `12.5` na largura de uma zona: antes `125`, agora `12.5`.
+- Depois de sair do campo a lista volta a reconstruir-se: remover uma zona
+  (3 → 2) e remover um palco extra (1 → 0) continuam a funcionar, e o valor
+  escrito fica guardado (`6.75` em `ajustes.palcosExtra[0].profundidade`).
+- Os botões `+`/`−` continuam a andar de passo em passo.
+
+Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
