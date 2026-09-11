@@ -1763,6 +1763,20 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## PENDENTE deste lado (noite de 11 de setembro)
+
+A lista completa do que ficou pendurado nos dois repositórios está no
+`PARA-CONTINUAR.md` do **calculadores**, secção "PENDENTE — retomar aqui".
+Do lado do Preview, o que lá está e toca a esta pasta:
+
+- **Limpeza de branches.** 69 branches locais já incorporadas em `main`, mas
+  só **2** existem no `origin` — as outras só existem nesta pasta. Ficou
+  combinado confirmar branch a branch antes de apagar, e só depois apagar.
+- **Os nomes novos da v2.99** ("Tamanho do ecrã", "Ecrãs na sala", "Onde
+  ficam os delays e o DSM", "fundo" em vez de "↕"/"profundidade" para a
+  posição). Se algum não soar bem a usar, é uma linha a mudar.
+- **Uma ideia do mike**, por contar e analisar.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
