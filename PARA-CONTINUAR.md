@@ -1522,6 +1522,39 @@ e os três no depósito; "Montar" põe um na sala; o 🗑 do depósito tira outr
 do projeto sem passar pela sala; "Montar tudo" fecha a lista. Sem erros de
 consola.
 
+**v2.94: o depósito deixa de ser silencioso.** No dia a seguir a a v2.93
+entrar, o relato foi *"deixaram de falar um com o outro agora"*. Não era
+verdade — confirmou-se com um teste de ponta a ponta sobre os ficheiros
+publicados: marcar TVs nos Calculadores escreve a ponte, o Preview lê-as, e
+o Ecrã Complexo recebe tudo de volta, nos dois sentidos. O que mudou foi
+outra coisa: com o depósito, o material **novo** deixou de entrar na sala
+sozinho e passou a ficar à espera. Isso, visto de fora, é indistinguível de
+a ponte ter partido.
+
+O plano da v2.92 já tinha marcado isto como o risco número um da
+funcionalidade — *"contador sempre visível quando o depósito não está
+vazio... material que chega e não aparece, sem nada a dizer porquê"* — e foi
+a parte que não se construiu. Constrói-se agora:
+
+1. **Um contador no título da secção** (`DEPÓSITO ②`). Vai no `<h2>` de
+   propósito: é a única parte da secção que continua à vista com ela
+   dobrada (`#painel section.fechada > *:not(h2) { display: none }`).
+2. **Um aviso no canto da sala**, com um botão que abre o depósito.
+
+O aviso tem **elemento próprio** (`#avisoDeposito`), não o `#aviso` de
+sempre. Essa foi a primeira tentativa e falhou no teste, por uma razão que
+vale a pena ficar escrita: o `#aviso` é para mensagens de passagem, e há dez
+sítios que lhe põem um `setTimeout` a apagá-lo ao fim de 2 a 7 segundos. O
+aviso do depósito, escrito no fim do `montar()`, era logo substituído pelo
+*"Os Calculadores mudaram o projeto — atualizei"* do `storage`, e
+desaparecia com ele 2,6 s depois. Material à espera não é mensagem de
+passagem: fica enquanto lá estiver.
+
+Testado com Playwright, as duas apps servidas da mesma origem: sem material
+à espera não aparece nada; com duas peças aparecem o contador e o aviso; o
+contador continua visível com a secção dobrada; o botão do aviso abre o
+depósito; "Montar tudo" apaga os dois. Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

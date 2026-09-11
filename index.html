@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v2.93</i></span>
+        <span>o projeto no terreno       <i id="versao">v2.94</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -307,7 +307,7 @@
   </section>
 
   <section id="deposito">
-    <h2>Depósito</h2>
+    <h2>Depósito <span id="depositoContador" class="contador" style="display:none" title="Peças à espera de serem montadas na sala"></span></h2>
     <p class="vazio" style="margin:0 0 10px">Todo o material do projeto entra e sai
       por aqui — o que vem dos Calculadores e o que acrescentares à mão. Fica à
       espera, e a sala só tem o que tu lá montares.</p>
@@ -376,6 +376,12 @@
   <canvas id="tela"></canvas>
   <div id="etiquetas"></div>
   <div id="aviso"></div>
+  <!-- Separado do #aviso de propósito: o #aviso é para mensagens de passagem,
+       que se apagam sozinhas ao fim de 2 a 7 segundos. O material à espera no
+       depósito não é de passagem — fica enquanto lá estiver. Partilhar o
+       mesmo sítio fazia a mensagem do depósito desaparecer com a primeira
+       mensagem passageira que viesse a seguir. -->
+  <div id="avisoDeposito"></div>
 </main>
 
 <!-- O Three.js vive dentro do repositório, e não num CDN: isto usa-se em salas e
