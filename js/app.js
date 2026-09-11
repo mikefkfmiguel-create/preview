@@ -488,6 +488,7 @@ function montar(recentrarCamara) {
     }
   });
   escreverPainel(medidas, gente.lugares, gente, cobertura);
+  avisarDoDeposito();
   desenharAjustes();
   desenharGomos(publico);
   desenharPalcosExtra();
@@ -1252,6 +1253,14 @@ function escreverListaDeposito() {
   const lista = $("listaDeposito");
   const pecas = pecasNoDeposito();
   $("btMontarTudo").disabled = !pecas.length;
+  // O contador no título é a única parte do depósito que se lê sem abrir a
+  // secção -- e a secção pode estar dobrada, ou simplesmente fora do ecrã
+  // num telemóvel.
+  const contador = $("depositoContador");
+  if (contador) {
+    contador.textContent = pecas.length ? String(pecas.length) : "";
+    contador.style.display = pecas.length ? "" : "none";
+  }
   if (!pecas.length) {
     lista.className = "vazio";
     lista.textContent = projeto ? "Tudo montado." : "—";
@@ -1285,6 +1294,34 @@ function escreverListaDeposito() {
     lista.append(linha);
   }
 }
+
+// Material que chega e não aparece, sem nada a dizer porquê, lê-se como a app
+// avariada -- e foi exactamente assim que se leu: "deixaram de falar um com o
+// outro agora", no dia a seguir a o depósito entrar. As duas apps falavam; o
+// que mudou é que o material passou a parar aqui à espera, e o único sítio
+// onde isso se via era uma secção lá em baixo no painel, que ainda por cima
+// pode estar dobrada. O aviso do topo já existe para "não cabe" -- passa a
+// dizer isto também, com o caminho lá para dentro.
+function avisarDoDeposito() {
+  const aviso = $("avisoDeposito");
+  if (!aviso) return;
+  const pecas = pecasNoDeposito();
+  if (!pecas.length) {
+    aviso.classList.remove("mostra");
+    aviso.innerHTML = "";
+    return;
+  }
+  const texto = pecas.length === 1
+    ? "1 peça à espera no depósito — só entra na sala quando a montares"
+    : `${pecas.length} peças à espera no depósito — só entram na sala quando as montares`;
+  aviso.innerHTML = `${texto} <button type="button" class="aviso-link" data-secao="deposito">Ver o depósito</button>`;
+  aviso.classList.add("mostra");
+}
+
+$("avisoDeposito").addEventListener("click", (e) => {
+  const alvo = e.target.closest("[data-secao]");
+  if (alvo) irParaSeccao(alvo.dataset.secao);
+});
 
 $("btMontarTudo").onclick = () => {
   ajustes.noDeposito = [];
