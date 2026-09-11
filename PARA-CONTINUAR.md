@@ -1627,6 +1627,49 @@ Testado com Playwright, tecla a tecla com 400 ms entre teclas (mais do que os
 
 Sem erros de consola.
 
+**v2.97: os palcos arredondam — e isso chega para um palco redondo.** *"Os
+palcos podem arredondar, já era meio caminho para um palco redondo."* É o
+caminho todo, e com um só número: **"Arredondar cantos"**, em metros, no
+palco principal e em cada palco extra.
+
+O raio limita-se sozinho a metade do lado mais curto, e é isso que faz um
+campo servir para tudo:
+
+| Palco | Raio | Fica |
+|---|---|---|
+| 16 × 6 m | 0 | cantos vivos, como sempre |
+| 16 × 6 m | 1,5 | cantos suaves |
+| 14 × 7 m | 3,5 (o máximo) | pontas em meia-lua |
+| 8 × 8 m | 4 (o máximo) | **redondo** |
+
+Não há "tipo de palco" nenhum a escolher: é o mesmo campo do princípio ao
+fim.
+
+**Raio 0 devolve a `BoxGeometry` de sempre**, não uma curva de raio zero. Não
+é preguiça: é para um projeto antigo continuar a ter exactamente o mesmo
+palco, vértice por vértice, no que sai para `.glb` e `.obj` (24 vértices, os
+mesmos de antes; com raio passa a `ExtrudeGeometry`, ~600 — verificado).
+
+**É só o desenho.** As contas de ecrã, ângulos e cobertura continuam a usar a
+medida cheia do palco — está dito no tooltip do campo, porque a diferença
+entre "parece redondo" e "conta como redondo" é o género de coisa que morde
+em obra. Se um dia a plateia tiver de contornar a curva, é outro trabalho.
+
+Um palco extra **herda o raio do principal** quando nasce: quem pôs o palco
+redondo quer quase sempre o segundo a condizer, e pôr a zero é uma tecla.
+
+Testado com Playwright, medindo a geometria real na cena: os cinco casos da
+tabela; o raio a limitar-se sozinho (pedir 30 num palco de 6 m de fundo dá o
+mesmo que pedir 3); a caixa envolvente nunca cresce nem desloca o palco
+(16 × 1 × 6 e centro em y=0 em todos); e o valor sobrevive a "Guardar
+projeto" → "Abrir projeto", tanto no principal como no extra. Sem erros de
+consola.
+
+Nota do que **não** mudou: os campos do palco continuam a não sobreviver a um
+simples recarregar da página — nem a largura, nem a profundidade, nem o raio.
+É como já era para todos eles (só o ficheiro de projeto os guarda), e não se
+mexeu nisso aqui.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de
