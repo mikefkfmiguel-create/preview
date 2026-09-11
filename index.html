@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v2.98</i></span>
+        <span>o projeto no terreno       <i id="versao">v2.99</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -34,7 +34,16 @@
 
   <section id="sProjeto">
     <h2>Projeto</h2>
-    <label for="nomeProjeto" style="display:block; font-size:13px; color:var(--apagado); margin-bottom:4px">Nome do projeto</label>
+    <details class="ajuda">
+      <summary>Como funciona esta secção</summary>
+      <div class="ajuda-corpo">
+        <p>É por aqui que um projeto <b>entra</b> e <b>sai</b>. Entra de três maneiras: <b>Trazer projeto dos Calculadores</b> (o que lá estiver marcado com “Adicionar ao projeto”), <b>Abrir projeto</b> (um ficheiro gravado antes), ou colando texto na caixa e carregando em <b>Carregar</b>.</p>
+        <p><b>Guardar projeto</b> grava tudo — sala, palco, público, régie, projeção e ecrãs — num ficheiro que reabre sem rede nenhuma. É o que se leva para a obra.</p>
+        <p><b>Link para ver</b> cria um endereço temporário (1 dia) só de visualização: quem o abrir roda a sala mas não edita nada.</p>
+        <p><b>Exemplo</b> carrega uma sala montada, para experimentar sem ter de escrever nada. <b>Limpar tudo</b> deita fora o projeto e repõe todas as medidas.</p>
+      </div>
+    </details>
+    <label for="nomeProjeto" class="rotulo-campo" style="margin-bottom:4px">Nome do projeto</label>
     <input id="nomeProjeto" type="text" placeholder="ex: Evento X — Sala Principal" style="margin-bottom:10px">
     <div id="resumo" class="vazio">Sem projeto. Cola aqui o que vem dos Calculadores.</div>
     <div class="botoes" style="margin-bottom:10px">
@@ -58,7 +67,7 @@
       <button id="btCarregar" class="primario">Carregar</button>
       <button id="btExemplo">Exemplo</button>
     </div>
-    <label for="imagemPedido" style="display:block; font-size:13px; color:var(--apagado); margin:10px 0 4px">Foto ou render do evento (PNG/JPEG, opcional)</label>
+    <label for="imagemPedido" class="rotulo-campo" style="margin:10px 0 4px">Foto ou render do evento (PNG/JPEG, opcional)</label>
     <input id="imagemPedido" type="file" accept="image/png,image/jpeg" style="width:100%; margin-bottom:4px">
     <p class="vazio" style="margin:0 0 8px">A IA só identifica o que vê (ex: "parece um videowall curvo") — o tamanho vem sempre do texto ou da sala ao lado, nunca de medir a foto.</p>
     <button id="btAnalisar" style="margin-top:8px; width:100%"
@@ -70,6 +79,14 @@
 
   <section id="sExportar">
     <h2>Exportar</h2>
+    <details class="ajuda">
+      <summary>O que sai em cada formato</summary>
+      <div class="ajuda-corpo">
+        <p><b>PNG da vista</b> é a imagem tal como está no ecrã — para um slide ou um email. <b>PNG com medidas</b> leva as cotas desenhadas por cima.</p>
+        <p><b>Cinema 4D (.glb)</b> e <b>.obj</b> levam a geometria a sério, para continuar o desenho noutro programa.</p>
+        <p>As duas caixas por baixo só aparecem quando fazem sentido: incluir o público engorda muito o ficheiro, e a planta CAD só existe se tiveres carregado uma.</p>
+      </div>
+    </details>
     <div class="vistas">
       <button data-saida="png" class="destaque">PNG da vista</button>
       <button data-saida="png-medidas">PNG com medidas</button>
@@ -84,7 +101,14 @@
   </section>
 
   <section id="sEcra">
-    <h2>Ajustar o ecrã</h2>
+    <h2>Tamanho do ecrã</h2>
+    <details class="ajuda">
+      <summary>Para que serve</summary>
+      <div class="ajuda-corpo">
+        <p>Muda o tamanho do <b>conjunto</b> de ecrãs de uma vez, para veres como fica na sala antes de decidir. Dava ao mesmo mexer em cada ecrã à parte, em “Ecrãs na sala”.</p>
+        <p>Aqui não se escolhem tiles nem modelos — isso é dos Calculadores. Depois de mexeres, usa o <b>📤</b> lá em cima para devolver o projeto e deixá-los fazer as contas com a medida nova.</p>
+      </div>
+    </details>
     <div class="campos">
       <label>Largura <input id="ecraL" type="number" min="0.5" max="200" step="0.1"><i>m</i></label>
       <label>Altura <input id="ecraA" type="number" min="0.3" max="60" step="0.1"><i>m</i></label>
@@ -96,6 +120,13 @@
 
   <section id="sSala">
     <h2>Sala</h2>
+    <details class="ajuda">
+      <summary>Para que serve</summary>
+      <div class="ajuda-corpo">
+        <p>As medidas do espaço onde isto tudo vai estar. É contra elas que a app avisa quando alguma coisa <b>não cabe</b> — o aviso no canto da sala.</p>
+        <p><b>Pé-direito</b> é a altura livre até ao tecto. Conta para saber se um ecrã pendurado ou um palco alto ainda passam.</p>
+      </div>
+    </details>
     <div class="campos">
       <label>Largura <input id="salaL" type="number" value="24" min="2" max="200" step="0.5"><i>m</i></label>
       <label>Profundidade <input id="salaP" type="number" value="20" min="2" max="300" step="0.5"><i>m</i></label>
@@ -105,6 +136,13 @@
 
   <section id="sPlanta">
     <h2>Planta da sala</h2>
+    <details class="ajuda">
+      <summary>Como pôr a planta à escala</summary>
+      <div class="ajuda-corpo">
+        <p>Serve para desenhar por cima da planta real do sítio, em vez de adivinhar. Um <b>DXF</b> ou <b>DWG</b> entra já à escala e não se calibra. Um <b>PDF</b> ou uma <b>imagem</b> não trazem escala: escreve a <b>largura real</b> de alguma coisa que conheças e a app ajusta o resto.</p>
+        <p><b>Rodar</b> e os dois <b>Deslocar</b> servem para a encaixar na sala que definiste. <b>Opacidade</b> baixa-a para não competir com o que estás a montar.</p>
+      </div>
+    </details>
     <div class="vistas">
       <button id="btPlanta">Abrir planta…</button>
       <button id="btSemPlanta" title="Remover a planta da cena">Remover planta</button>
@@ -146,6 +184,15 @@
 
   <section id="sPalco">
     <h2>Palco</h2>
+    <details class="ajuda">
+      <summary>Palco, passarela e palcos extra</summary>
+      <div class="ajuda-corpo">
+        <p>O palco principal fica sempre encostado ao fundo, e é dele que os ecrãs e os ângulos se medem. <b>Ecrã acima do palco</b> levanta os ecrãs em relação ao tampo.</p>
+        <p><b>Arredondar cantos</b> é em metros e limita-se sozinho a metade de cada lado: a meio dá cantos suaves, no máximo fecha a curva de vez — um palco comprido fica em elipse, um quadrado fica redondo. <b>⭘ Fazer um círculo</b> trata disso tudo de uma vez (põe a profundidade igual à largura e o arredondamento no máximo).</p>
+        <p><b>Passarela</b> sai do meio da frente do palco para dentro da plateia, à mesma altura do tampo. Onde ela passa, a plateia abre-se dos dois lados e volta a juntar-se depois do fim dela.</p>
+        <p><b>+ Palco</b> acrescenta um palco extra — só visual, sem ecrã nem cobertura agarrados. Arrasta-se na cena (cadeado aberto) ou escreve-se nos campos. O arredondamento não muda conta nenhuma: ecrãs, ângulos e cobertura usam sempre a medida cheia.</p>
+      </div>
+    </details>
     <div class="campos">
       <label>Largura <input id="palcoL" type="number" value="16" min="1" max="200" step="0.5"><i>m</i></label>
       <label>Altura <input id="palcoA" type="number" value="1" min="0" max="10" step="0.1"><i>m</i></label>
@@ -161,15 +208,8 @@
       <label>Comprimento <input id="passC" type="number" value="6" min="0.5" max="60" step="0.5"><i>m</i></label>
       <label>Deslocar ↔ <input id="passX" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
     </div>
-    <p class="vazio" style="margin:8px 0 0">Sai do meio da frente do palco para
-       dentro da plateia. Onde ela passa, a plateia abre-se dos dois lados —
-       sem lugares em cima dela — e volta a juntar-se nas filas que ficarem
-       depois do fim dela.</p>
     <div id="listaPalcosExtra" style="margin-top:10px"></div>
     <button type="button" id="btAddPalco" style="margin-top:8px; width:100%">+ Palco</button>
-    <p class="vazio" style="margin:8px 0 0">Um palco extra é só visual — sem
-       ecrã nem cobertura agarrados a ele. Arrasta-o na cena (cadeado aberto)
-       ou usa os campos aqui.</p>
     <div id="listaPassarelasExtra" style="margin-top:10px"></div>
     <button type="button" id="btAddPassarela" style="margin-top:8px; width:100%">+ Passarela solta</button>
     <p class="vazio" style="margin:8px 0 0">Ao contrário da de cima, não sai
@@ -179,6 +219,15 @@
 
   <section id="sPublico">
     <h2>Público</h2>
+    <details class="ajuda">
+      <summary>Como se monta a plateia</summary>
+      <div class="ajuda-corpo">
+        <p><b>Pavilhão</b> é chão plano; <b>Auditório</b> sobe de fila para fila (quanto, é o campo <b>Sobe por fila</b>).</p>
+        <p><b>Reto</b> são filas a direito. <b>Circular (gomos)</b> parte a plateia em blocos que se podem rodar para dentro — cada gomo tem largura, corredor e nº de filas próprios, e arrasta-se na cena.</p>
+        <p><b>Primeira fila a</b> conta-se do plano do ecrã. <b>Entre filas</b> e <b>Entre lugares</b> são os espaçamentos reais das cadeiras — é daqui que sai a lotação que aparece no topo.</p>
+        <p><b>Sentado</b> desligado desenha gente de pé, que ocupa menos e muda a contagem.</p>
+      </div>
+    </details>
     <div class="vistas" id="tipoPlateia">
       <button data-plateia="pavilhao">Pavilhão · plano</button>
       <button data-plateia="auditorio">Auditório · sobe</button>
@@ -208,7 +257,7 @@
       <label>Entre filas <input id="entreFilas" type="number" value="0.9" min="0.5" max="3" step="0.05"><i>m</i></label>
       <label>Entre lugares <input id="entreLugares" type="number" value="0.55" min="0.4" max="2" step="0.05"><i>m</i></label>
       <label>Corredores <input id="corredores" type="number" value="1" min="0" max="4" step="1"><i></i></label>
-      <label>Largura deles <input id="larguraCorredor" type="number" value="1.2" min="0.6" max="4" step="0.1"><i>m</i></label>
+      <label>Largura do corredor <input id="larguraCorredor" type="number" value="1.2" min="0.6" max="4" step="0.1"><i>m</i></label>
       <label>Sobe por fila <input id="inclinacao" type="number" value="0.12" min="0" max="0.6" step="0.01"><i>m</i></label>
     </div>
     <label class="opcao"><input id="sentado" type="checkbox" checked> Sentado</label>
@@ -216,6 +265,13 @@
 
   <section id="sRegie">
     <h2>Régie</h2>
+    <details class="ajuda">
+      <summary>Para que serve</summary>
+      <div class="ajuda-corpo">
+        <p>O rectângulo da régie abre um <b>vão na plateia</b>: quem ficasse ali fica sem cadeira, e a lotação desconta-o. Mínimo 2 × 2 m — cabe uma mesa de mistura e alguém atrás dela.</p>
+        <p><b>+ Régie</b> acrescenta outra, que abre o seu próprio vão. As régies extra só existem enquanto a principal estiver ligada.</p>
+      </div>
+    </details>
     <div class="campos">
       <label>Largura <input id="regieL" type="number" value="2" min="2" max="12" step="0.5"><i>m</i></label>
       <label>Profundidade <input id="regieP" type="number" value="2" min="2" max="12" step="0.5"><i>m</i></label>
@@ -223,30 +279,29 @@
       <label>Deslocar ↕ <input id="regieZ" type="number" value="7" min="-100" max="100" step="0.25"><i>m</i></label>
       <label>Rodar <input id="regieR" type="number" value="0" min="-180" max="180" step="15"><i>°</i></label>
     </div>
-    <p class="vazio" style="margin:10px 0 0">Mínimo 2 × 2 m — cabe uma mesa de
-       mistura e alguém atrás dela. Não é lugar de plateia: quem estiver
-       dentro do rectângulo fica sem cadeira.</p>
     <div id="listaRegiesExtra" style="margin-top:10px"></div>
     <button type="button" id="btAddRegie" style="margin-top:8px; width:100%">+ Régie</button>
-    <p class="vazio" style="margin:8px 0 0">Uma régie extra abre o seu
-       próprio vão na plateia, tal como a principal. Só existe enquanto a
-       régie principal estiver ligada.</p>
   </section>
 
   <section id="sProjecao">
     <h2>Projeção</h2>
+    <details class="ajuda">
+      <summary>Rácio, distância e shift</summary>
+      <div class="ajuda-corpo">
+        <p>Desenha o cone do projetor na sala, para veres onde ele tem de ficar e por onde passa. <b>Rácio (throw)</b> e <b>Distância ao ecrã</b> podem vir feitos dos Calculadores — botão <b>Trazer projetor dos Calculadores</b>, ou lá na aba Distância de Projeção.</p>
+        <p><b>Shift</b> conta-se em <b>percentagem da imagem</b>, como nas fichas das lentes: <b>+100%</b> vertical põe a imagem toda acima do eixo da lente. A base da imagem sai daí e aparece no resumo.</p>
+        <p>Projetores extra chegam sobretudo do <b>Blending Multi-Projetor</b> dos Calculadores, mas editam-se e removem-se aqui, e arrastam-se na cena tal como o principal.</p>
+      </div>
+    </details>
     <label class="opcao" style="margin:0 0 12px"><input id="projLigada" type="checkbox"> Mostrar projeção</label>
     <div class="campos">
       <label>Rácio (throw) <input id="projRacio" type="number" value="1.4" min="0.3" max="10" step="0.1"><i>:1</i></label>
-      <label>Distância à tela <input id="projDist" type="number" value="12" min="1" max="120" step="0.5"><i>m</i></label>
+      <label>Distância ao ecrã <input id="projDist" type="number" value="12" min="1" max="120" step="0.5"><i>m</i></label>
       <label>Altura da lente <input id="projAltura" type="number" value="4.5" min="0.2" max="30" step="0.1"><i>m</i></label>
-      <label>Lente ao lado do eixo <input id="projLateral" type="number" value="0" min="-30" max="30" step="0.1"><i>m</i></label>
+      <label>Lente fora do eixo ↔ <input id="projLateral" type="number" value="0" min="-30" max="30" step="0.1"><i>m</i></label>
       <label>Shift vertical <input id="projShiftV" type="number" value="-25" min="-200" max="200" step="5"><i>%</i></label>
       <label>Shift horizontal <input id="projShiftH" type="number" value="0" min="-200" max="200" step="5"><i>%</i></label>
     </div>
-    <p class="vazio" style="margin:8px 0 0">O shift conta-se em <b>percentagem da
-       imagem</b>, como nas fichas das lentes: <b>+100%</b> vertical põe a imagem toda
-       acima do eixo da lente. A base da imagem sai daí, e aparece no resumo.</p>
     <div class="vistas" style="margin-top:10px">
       <button data-formato="1.777">16:9</button>
       <button data-formato="1.6">16:10</button>
@@ -257,25 +312,30 @@
        vir feitos: nos Calculadores, na aba <b>Distância de Projeção</b>, carrega em
        <b>Ver no Preview 3D</b>.</p>
     <div id="listaProjetoresExtra" style="margin-top:10px"></div>
-    <p class="vazio" style="margin:8px 0 0">Projetores extra chegam sobretudo do
-       <b>Blending Multi-Projetor</b> dos Calculadores — mas também se editam ou
-       removem aqui, e arrastam-se na cena tal como o principal.</p>
   </section>
 
   <section id="sConteudo">
     <h2>Conteúdo nos ecrãs</h2>
+    <details class="ajuda">
+      <summary>O que aparece nos ecrãs</summary>
+      <div class="ajuda-corpo">
+        <p>Isto é só para a imagem ficar percebível — não muda medida nenhuma. <b>Padrão de teste</b>, <b>Meu logo</b> ou uma <b>Imagem…</b> tua; <b>Sem imagem</b> deixa cada ecrã só com a sua cor.</p>
+        <p><b>Uma imagem por todos</b> reparte uma imagem só pelo conjunto, cada ecrã com o seu bocado — como o media server faz. <b>A mesma em cada</b> repete a imagem inteira ecrã a ecrã.</p>
+        <p>Mais abaixo dá para pôr uma imagem <b>diferente</b> num ecrã só. Sobrepõe-se ao que estiver escolhido aqui em cima, e só nesse ecrã.</p>
+      </div>
+    </details>
     <div class="vistas" style="grid-template-columns: 1fr 1fr 1fr">
       <button id="btPadrao">Padrão de teste</button>
       <button id="btLogoProprio" title="O logotipo da AVK como conteúdo geral dos ecrãs">Meu logo</button>
       <button id="btImagem">Imagem…</button>
     </div>
-    <button id="btSemConteudo" style="margin-top:8px; width:100%">Só cor</button>
+    <button id="btSemConteudo" style="margin-top:8px; width:100%" title="Tira a imagem: cada ecrã fica só com a sua cor">Sem imagem</button>
     <div id="logoProprioExtra" style="display:none; margin-top:8px">
       <button id="btLogoCliente" style="width:100%">Trocar pelo logo do cliente…</button>
     </div>
     <div class="vistas" style="margin-top:8px">
-      <button data-conteudo="espalhado" class="destaque">Espalhada</button>
-      <button data-conteudo="cada">Uma em cada</button>
+      <button data-conteudo="espalhado" class="destaque" title="Uma imagem só, repartida pelo conjunto — cada ecrã mostra o seu bocado">Uma imagem por todos</button>
+      <button data-conteudo="cada" title="A imagem inteira repetida em cada ecrã">A mesma em cada</button>
     </div>
     <input type="file" id="ficheiroImagem" accept="image/*" hidden>
     <input type="file" id="ficheiroLogoCliente" accept="image/*" hidden>
@@ -292,6 +352,14 @@
 
   <section id="sVista">
     <h2>Vista</h2>
+    <details class="ajuda">
+      <summary>Ver de onde, e ver o quê</summary>
+      <div class="ajuda-corpo">
+        <p>Os quatro botões põem a câmara de <b>Frente</b>, de <b>Lado</b>, de <b>Cima</b> (a planta) ou nos <b>Olhos da plateia</b> — esta última é a que responde à pergunta que interessa: vê-se dali?</p>
+        <p>As caixas por baixo ligam e desligam o que está desenhado. Servem para tirar coisas da frente: esconder as paredes para ver o interior, ou esconder o público para fotografar só a estrutura.</p>
+        <p><b>Cobertura dos ecrãs</b> pinta um ponto por lugar no chão — verde vê bem, amarelo vê no limite, vermelho não vê ecrã nenhum.</p>
+      </div>
+    </details>
     <div class="vistas">
       <button data-vista="frente">Frente</button>
       <button data-vista="lado">Lado</button>
@@ -311,6 +379,14 @@
 
   <section id="deposito">
     <h2>Depósito <span id="depositoContador" class="contador" style="display:none" title="Peças à espera de serem montadas na sala"></span></h2>
+    <details class="ajuda">
+      <summary>Para que serve o depósito</summary>
+      <div class="ajuda-corpo">
+        <p>O material que vem dos Calculadores fica aqui à espera em vez de entrar logo na sala, e tu montas peça a peça — assim o 3D só tem o que tu lá puseste, em vez de aparecer tudo amontoado de uma vez.</p>
+        <p>O número ao lado do título diz quantas peças estão à espera, e há um aviso no canto da sala enquanto houver alguma. <b>Montar tudo</b> traz o resto de uma vez.</p>
+        <p>Desligando a caixa, o material novo passa a entrar directamente na sala (como era antes). O que já estiver à espera continua à espera — desligar não monta nada por ti.</p>
+      </div>
+    </details>
     <label class="opcao"><input id="depositoLigado" type="checkbox" checked> Parar aqui o material novo</label>
     <p class="vazio" id="depositoNota" style="margin:6px 0 10px">Todo o material do projeto entra e sai
       por aqui — o que vem dos Calculadores e o que acrescentares à mão. Fica à
@@ -327,21 +403,28 @@
   </section>
 
   <section id="zonas">
-    <h2>Zonas</h2>
-    <p class="vazio" style="margin:0 0 10px">Normalmente vêm dos Calculadores,
-      mas também se criam aqui — para um esboço rápido, ou para uma obra sem
-      rede onde o projeto ainda não está fechado do lado de lá.</p>
+    <h2>Ecrãs na sala</h2>
+    <details class="ajuda">
+      <summary>O que está montado, e como se mexe</summary>
+      <div class="ajuda-corpo">
+        <p>Uma linha por ecrã que está <b>na sala</b> — o que ainda estiver por montar está no Depósito, acima. Normalmente vêm dos Calculadores, mas também se criam aqui, para um esboço rápido ou para uma obra sem rede.</p>
+        <p>Cada linha tem o tipo (LED, TV, Projeção), o tamanho, e a posição: <b>↔</b> é para os lados, <b>fundo</b> é para a frente e para trás, <b>rodar</b> e <b>tilt</b> são os ângulos. Também se arrastam directamente na cena, com o cadeado aberto.</p>
+        <p><b>⧉</b> duplica, <b>↓</b> manda de volta para o depósito sem apagar, <b>🗑</b> tira do projeto. <b>leitura</b> desligada marca um ecrã como decorativo: continua desenhado, mas deixa de contar para a cobertura da plateia.</p>
+      </div>
+    </details>
     <div id="listaZonas" class="vazio">—</div>
   </section>
 
   <section id="sCobertura">
     <h2>Cobertura da plateia</h2>
-    <p class="vazio" style="margin:0 0 10px">Compara cada lugar sentado com a
-      direção de cada ecrã: dentro de ±30° na horizontal e ±15° na
-      vertical conta como visto; dentro de ±20°/±10° conta como confortável.
-      A distância também conta — até 10× a altura da imagem para se ver, até
-      8× para se ler bem. Ativa “Cobertura dos ecrãs” na secção Vista para
-      ver o cone de cada ecrã na cena.</p>
+    <details class="ajuda">
+      <summary>Como isto é calculado</summary>
+      <div class="ajuda-corpo">
+        <p>Pega em cada lugar sentado e pergunta, ecrã a ecrã: dali vê-se? Conta o <b>ângulo</b> (até ±30° na horizontal e ±15° na vertical conta como visto; dentro de ±20°/±10° conta como confortável) e a <b>distância</b> (o standard de visualização escolhido nos Calculadores viaja com o projeto).</p>
+        <p>O resultado aparece em três cores, as mesmas do topo do painel: <b>verde</b> vê bem, <b>amarelo</b> vê no limite, <b>vermelho</b> não vê ecrã nenhum. Liga <b>Cobertura dos ecrãs</b> na secção Vista para os ver desenhados no chão.</p>
+        <p><b>Distribuir ecrãs pela plateia</b> propõe um deslocamento lateral por ecrã, para o aproximar do centro dos lugares que já serve. Não toca na largura, na altura nem na rotação, e só se aplica se carregares em <b>Aplicar sugestão</b>.</p>
+      </div>
+    </details>
     <div id="resumoCobertura" class="vazio">—</div>
     <div id="listaCoberturaBlocos" class="vazio" style="margin-top:8px">—</div>
     <div class="botoes" style="margin-top:10px">
@@ -352,10 +435,15 @@
   </section>
 
   <section id="sAjustes">
-    <h2>Posições (delays e DSM)</h2>
-    <p class="vazio" style="margin:0 0 10px">O tipo e as quantidades vêm dos
-      Calculadores; onde ficam exatamente na sala é aqui — cada delay ou
-      DSM pode ser deslocado à parte, sem mexer no projeto de lá.</p>
+    <h2>Onde ficam os delays e o DSM</h2>
+    <details class="ajuda">
+      <summary>Para que serve</summary>
+      <div class="ajuda-corpo">
+        <p>O <b>tipo</b> e as <b>quantidades</b> vêm dos Calculadores; <b>onde</b> ficam na sala é aqui. Mexer nestes campos não mexe no projeto de lá.</p>
+        <p><b>↔</b> é para os lados, <b>fundo</b> é para a frente e para trás, <b>altura</b> sobe e desce, <b>rodar</b> vira, e <b>tilt</b> inclina para baixo — é o que se usa num delay pendurado no alto a apontar para a plateia.</p>
+        <p>Tudo isto também se faz arrastando na cena, com o cadeado aberto.</p>
+      </div>
+    </details>
     <div id="listaAjustes" class="vazio">—</div>
   </section>
 

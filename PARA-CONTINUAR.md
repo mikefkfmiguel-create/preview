@@ -1708,6 +1708,61 @@ deixa 12 × 12 com raio 6, e o ⭘ de um palco extra de 16 × 6 deixa 16 × 16 c
 raio 8, tanto no estado guardado como nos campos da lista. A caixa envolvente
 continua a não crescer nem a deslocar o palco. Sem erros de consola.
 
+**v2.99: um "?" em cada secção, e nomes que se percebem.** *"Está a ficar bem
+grande o 3D. Podes colocar nas abas de ajuste um help como temos nas
+calculadoras, para explicar como e o que faz cada função — até eu me perco já.
+E simplifica os nomes das funções para que sejam mais intuitivos."*
+
+**O "?"** é o mesmo padrão do "Como usar esta calculadora" dos Calculadores
+(`<details>` fechado por omissão, bolinha "?" no sumário), agora em **todas as
+15 secções** do painel.
+
+O que importa é que isto **não engordou o painel — encurtou-o**. As
+explicações que já existiam estavam soltas por baixo dos campos, sempre
+abertas; mudaram-se para dentro do "?". Medido, com todas as secções abertas e
+as ajudas fechadas: **6652 px → 6313 px**. O problema era ter de percorrer
+texto que já se sabe de cor, não falta de texto.
+
+As notas com `id` (`notaEcra`, `notaProj`, `notaConteudo`, `infoPlanta`,
+`notaGomos`, `depositoNota`, `notaExportar`…) **não se mexeram**: o JS escreve
+nelas conforme o estado, e movê-las partia isso. Só saíram as que não tinham
+id — verificado uma a uma antes de mexer.
+
+**Os nomes:**
+
+| Antes | Agora | Porquê |
+|---|---|---|
+| Ajustar o ecrã | **Tamanho do ecrã** | é o que a secção faz: dois campos, largura e altura |
+| Zonas | **Ecrãs na sala** | "zona" é palavra da calculadora, não do terreno — e distingue do Depósito |
+| Posições (delays e DSM) | **Onde ficam os delays e o DSM** | diz a função, não a categoria |
+| Distância à tela | **Distância ao ecrã** | a app diz "ecrã" em todo o lado menos aqui |
+| Lente ao lado do eixo | **Lente fora do eixo ↔** | "ao lado do eixo" lia-se como "junto ao eixo" |
+| Largura deles | **Largura do corredor** | "deles" obrigava a olhar para a linha de cima |
+| Só cor | **Sem imagem** | dizia o resultado, não a acção |
+| Espalhada / Uma em cada | **Uma imagem por todos** / **A mesma em cada** | as duas diziam "uma"; nenhuma dizia de quê |
+
+E uma incoerência que só se vê a usar: a posição no eixo do fundo chamava-se
+**"↕"** nas listas de palcos/régies/passarelas extra e **"profundidade"** na
+dos delays, dos DSM e dos gomos — duas palavras para a mesma coisa. Pior: nos
+palcos e régies, "profundidade" já era o **tamanho**, logo ao lado. Passa a ser
+**"fundo"** em todo o lado, e "profundidade" fica a querer dizer tamanho e mais
+nada. A seta `↔` mantém-se, que essa não é ambígua.
+
+**Um defeito antigo apanhado pelo caminho:** com a secção **Projeto** dobrada,
+os rótulos "Nome do projeto" e "Foto ou render do evento" ficavam à vista,
+sozinhos, sem o campo a que pertencem. Tinham `display:block` no atributo
+`style`, e um estilo inline ganha sempre à folha de estilos — a regra que
+esconde o conteúdo de uma secção dobrada não lhes chegava. Passaram a usar uma
+classe.
+
+Testado com Playwright: as 15 secções têm ajuda e **nenhuma abre por omissão**;
+a altura antes/depois; com todas as secções dobradas não sobra nada visível
+além dos títulos (zero fugas); os campos das linhas mostram `↔ | fundo |
+altura | rodar | tilt` nos delays e `… | ↔ | fundo | rodar` nos palcos extra;
+escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
+não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
+Sem erros de consola.
+
 ## Coisas que se decidiram e não se voltam a discutir
 
 - **O Preview não ganha catálogos.** Nem de LED, nem de projetores, nem de

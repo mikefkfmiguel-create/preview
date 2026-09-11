@@ -129,6 +129,50 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
 #resumo b { color: var(--ciano); font-variant-numeric: tabular-nums; }
 .vazio { color: var(--apagado); font-size: 13px; }
 
+/* Um rótulo solto por cima de um campo. O "display:block" vivia no atributo
+   style de cada um, e um estilo inline ganha sempre à folha de estilos: com a
+   secção dobrada, a regra que esconde o conteúdo (#painel section.fechada >
+   *:not(h2)) não lhes chegava, e os dois rótulos da secção Projeto ficavam à
+   vista sozinhos, sem o campo a que pertencem. */
+.rotulo-campo { display: block; font-size: 13px; color: var(--apagado); }
+
+/* O "?" de cada secção — a mesma ideia do "Como usar esta calculadora" dos
+ * Calculadores, trazida para cá: *"está a ficar bem grande o 3D… coloca nas
+ * abas de ajuste um help como temos nas calculadoras… até eu me perco já"*.
+ *
+ * E não é só acrescentar: as explicações que estavam soltas por baixo dos
+ * campos, sempre abertas, mudaram-se para dentro destes blocos. O painel
+ * fica MAIS CURTO do que estava, e a explicação continua a uma tecla de
+ * distância — que era o problema a resolver, não a falta de texto.
+ */
+.ajuda { margin: 0 0 10px; }
+.ajuda summary {
+  cursor: pointer; user-select: none; list-style: none;
+  font-size: 12px; font-weight: 600; color: var(--apagado);
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 0;
+}
+.ajuda summary::-webkit-details-marker { display: none; }
+.ajuda summary::before {
+  content: "?";
+  flex: none; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--linha); color: var(--apagado);
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.ajuda summary::after {
+  content: "▾"; margin-left: auto; color: var(--apagado); font-size: 10px;
+}
+.ajuda[open] summary::after { content: "▴"; }
+.ajuda summary:hover { color: var(--texto); }
+.ajuda-corpo {
+  font-size: 12.5px; line-height: 1.55; color: var(--apagado);
+  padding: 2px 0 4px 24px;
+}
+.ajuda-corpo p { margin: 0 0 8px; }
+.ajuda-corpo p:last-child { margin-bottom: 0; }
+.ajuda-corpo b, .ajuda-corpo strong { color: var(--texto); font-weight: 600; }
+
 #resumoCobertura, #resumoDistribuicao { font-size: 13px; line-height: 1.5; }
 #listaCoberturaBlocos { font-size: 13px; line-height: 1.5; color: var(--apagado); }
 /* As mesmas três cores do mapa de cobertura na cena -- ver CORES_COBERTURA em app.js */
