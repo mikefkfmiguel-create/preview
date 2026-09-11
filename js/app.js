@@ -1376,19 +1376,15 @@ function escreverPainel(medidas, lugares, gentePosta, cobertura) {
   const temAlgo = projeto && (projeto.zonas.length || projeto.dsm);
 
   // A lista reconstrói-se do zero sempre que se monta a cena — inclusive a
-  // meio de se escrever um nome, porque cada tecla também dispara um
-  // remontar (com atraso). Sem isto, escrever "Ecrã da esquerda" perdia o
-  // foco a cada letra, porque o campo onde se estava a escrever deixava de
-  // existir e nascia outro igual no lugar.
-  const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
-  // O valor TAL COMO ESTÁ ESCRITO, não só a posição do cursor -- um campo
-  // "number" a meio de se apagar (vazio, ou só um "-" a começar um
-  // negativo) não é um número válido, e sem isto o campo reconstruído
-  // saltava de volta para o último valor válido no instante seguinte:
-  // parecia que o telemóvel não deixava apagar o que lá estava.
-  const focoGuardado = ativo && ativo.dataset.campo
-    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd, valor: ativo.value }
-    : null;
+  // meio de se escrever um nome ou uma medida, porque cada tecla também
+  // dispara um remontar (com atraso). Enquanto alguém estiver a escrever num
+  // campo desta lista, ela não se reconstrói: ver aEscreverNaLista().
+  //
+  // Isto já foi guardar-e-repor o foco, e não chegava: repor o texto num
+  // `<input type="number">` não aguenta um decimal a meio de ser escrito (o
+  // navegador rejeita "12." como valor), e o ponto desaparecia — escrever
+  // 12.5 m de largura num ecrã dava 125 m, calado. Medido, não suposto.
+  const aEscrever = aEscreverNaLista(lista);
 
   if (!temAlgo) {
     resumo.className = "vazio";
@@ -1416,24 +1412,17 @@ function escreverPainel(medidas, lugares, gentePosta, cobertura) {
         (res ? ` · <b>${(res / 1e6).toFixed(1)}</b> Mpx` : "")
       : (porMontar ? "Sala vazia — está tudo no depósito." : "Só o DSM, sem ecrãs ainda.")) + notaDeposito;
 
-    lista.className = "";
-    lista.innerHTML = "";
-    // Só o que está na sala -- o resto tem lista própria, a do depósito.
-    projeto.zonas.forEach((z, i) => {
-      if (!estaNoDeposito(chaveDeDeposito(z))) lista.append(linhaDeZona(z, i));
-    });
+    // O resumo por cima continua a acompanhar cada tecla; só as linhas é que
+    // esperam que se saia do campo.
+    if (!aEscrever) {
+      lista.className = "";
+      lista.innerHTML = "";
+      // Só o que está na sala -- o resto tem lista própria, a do depósito.
+      projeto.zonas.forEach((z, i) => {
+        if (!estaNoDeposito(chaveDeDeposito(z))) lista.append(linhaDeZona(z, i));
+      });
 
-    if (projeto.dsm && !estaNoDeposito(CHAVE_DEPOSITO_DSM)) lista.append(linhaDeDsm());
-
-    if (focoGuardado) {
-      const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
-      if (novo) {
-        if (novo.type === "text" || novo.type === "number") novo.value = focoGuardado.valor;
-        novo.focus();
-        if (typeof novo.setSelectionRange === "function" && (novo.type === "text" || novo.type === "number")) {
-          try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* alguns "number" recusam seleção — sem problema, fica só o foco */ }
-        }
-      }
+      if (projeto.dsm && !estaNoDeposito(CHAVE_DEPOSITO_DSM)) lista.append(linhaDeDsm());
     }
   }
 
@@ -1959,6 +1948,35 @@ function linhaDeDsm() {
 }
 
 /**
+ * Todas estas listas de ajustes se reconstroem do zero a CADA TECLA: escrever
+ * num campo dispara um "input", o "input" remonta a cena, e o remontar
+ * reescreve a lista inteira. O campo onde se estava a escrever morre a meio e
+ * nasce outro igual no lugar — dá para MEXER o número com as setas e com o
+ * +/−, mas não para o ESCREVER a direito.
+ *
+ * Relatado assim: *"nos campos de ajuste do palco extra e passerele é difícil
+ * escrever os valores"*. Medido: escrever "12.5" na largura de um palco extra
+ * ficava em **"1"** — o foco saltava para o `body` à primeira tecla e as
+ * outras três não iam para lado nenhum.
+ *
+ * A regra é: **uma lista onde alguém está a escrever não se reconstrói.** A
+ * cena continua a atualizar-se a cada tecla (isso é outra parte do montar);
+ * só a lista do painel é que espera. Reconstrói-se na primeira montagem
+ * depois de sair do campo.
+ *
+ * Isto substitui o guardar-e-repor-o-foco que as listas dos delays/DSM e dos
+ * gomos tinham escrito à mão. Esse não chegava, e a razão vale a pena ficar
+ * escrita: repor o texto num `<input type="number">` não aguenta um decimal a
+ * meio de ser escrito — o navegador rejeita "12." como valor, e o ponto
+ * desaparecia. "12.5" saía "125", que num campo em metros é um palco cem
+ * vezes maior. Não reconstruir não tem esse problema nenhum.
+ */
+function aEscreverNaLista(lista) {
+  const ativo = document.activeElement;
+  return !!(ativo && ativo.dataset && ativo.dataset.campo && lista.contains(ativo));
+}
+
+/**
  * Um campo ↔/↕ para afinar a posição de um delay ou de um DSM — o valor
  * inicial vem do que já estiver guardado, e cada alteração escreve logo no
  * objeto `alvo` (a entrada de `ajustes.delays[nome]` ou `ajustes.dsm[i]`) e
@@ -2023,15 +2041,7 @@ function desenharAjustes() {
   }
   lista.className = "";
 
-  // A mesma razão da lista de zonas: isto reconstrói-se do zero a cada tecla
-  // (o remontar com atraso dispara a cada "input"), e sem guardar o foco de
-  // propósito, o campo onde se estava a escrever morria e nascia outro igual
-  // no lugar — dava para MEXER o número com as setas, mas não para o
-  // escrever a direito.
-  const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
-  const focoGuardado = ativo && ativo.dataset.campo
-    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd, valor: ativo.value }
-    : null;
+  if (aEscreverNaLista(lista)) return;
 
   lista.innerHTML = "";
 
@@ -2070,14 +2080,6 @@ function desenharAjustes() {
     lista.append(linha);
   }
 
-  if (focoGuardado) {
-    const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
-    if (novo) {
-      novo.value = focoGuardado.valor;
-      novo.focus();
-      try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* alguns "number" recusam seleção — sem problema, fica só o foco */ }
-    }
-  }
 }
 
 /**
@@ -2144,10 +2146,7 @@ function desenharGomos(publico) {
   ajustesDeGomosGarantidos(publico);
   lista.className = "";
 
-  const ativo = lista.contains(document.activeElement) ? document.activeElement : null;
-  const focoGuardado = ativo && ativo.dataset.campo
-    ? { campo: ativo.dataset.campo, inicio: ativo.selectionStart, fim: ativo.selectionEnd, valor: ativo.value }
-    : null;
+  if (aEscreverNaLista(lista)) return;
 
   lista.innerHTML = "";
   for (let i = 0; i < n; i++) {
@@ -2171,14 +2170,6 @@ function desenharGomos(publico) {
     lista.append(linha);
   }
 
-  if (focoGuardado) {
-    const novo = lista.querySelector(`[data-campo="${focoGuardado.campo}"]`);
-    if (novo) {
-      novo.value = focoGuardado.valor;
-      novo.focus();
-      try { novo.setSelectionRange(focoGuardado.inicio, focoGuardado.fim); } catch (e) { /* idem */ }
-    }
-  }
 }
 
 /**
@@ -2191,6 +2182,7 @@ function desenharGomos(publico) {
 function desenharPalcosExtra() {
   const lista = $("listaPalcosExtra");
   if (!lista) return;
+  if (aEscreverNaLista(lista)) return;
   lista.innerHTML = "";
   ajustes.palcosExtra.forEach((pe, i) => {
     const linha = document.createElement("div");
@@ -2228,6 +2220,7 @@ function desenharPalcosExtra() {
 function desenharRegiesExtra() {
   const lista = $("listaRegiesExtra");
   if (!lista) return;
+  if (aEscreverNaLista(lista)) return;
   lista.innerHTML = "";
   ajustes.regiesExtra.forEach((re, i) => {
     const linha = document.createElement("div");
@@ -2264,6 +2257,7 @@ function desenharRegiesExtra() {
 function desenharPassarelasExtra() {
   const lista = $("listaPassarelasExtra");
   if (!lista) return;
+  if (aEscreverNaLista(lista)) return;
   lista.innerHTML = "";
   ajustes.passarelasExtra.forEach((pl, i) => {
     const linha = document.createElement("div");
@@ -2303,6 +2297,7 @@ function desenharPassarelasExtra() {
 function desenharProjetoresExtra() {
   const lista = $("listaProjetoresExtra");
   if (!lista) return;
+  if (aEscreverNaLista(lista)) return;
   lista.innerHTML = "";
   ajustes.projetoresExtra.forEach((pe, i) => {
     const linha = document.createElement("div");
