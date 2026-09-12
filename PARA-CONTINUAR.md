@@ -1763,6 +1763,39 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## PENDENTE deste lado (12 de setembro)
+
+Dois pedidos a usar os palcos extra a sério, ainda por fazer:
+
+- **Meio palco (semicírculo), para encostar ao principal.** O `⭘` já faz um
+  círculo, mas *"queria arredondar e encostar ao outro como continuidade;
+  para isso deveria ser apenas meio palco, pois senão ao arrumar passa para
+  trás do outro"*. Ou seja: uma peça em meia-lua, com o lado reto para
+  encostar — um avanço arredondado à frente do palco. Mexe na
+  `geometriaDeTampo()` (`js/cena.js`), que hoje arredonda os quatro cantos
+  de um retângulo.
+- **O boneco não vai ao segundo palco.** A figura de escala fica presa ao
+  palco principal; devia poder subir a um palco extra (ou pelo menos
+  acompanhá-lo).
+
+### ~~Painel dos extras com os nomes colados~~ — FEITO (v3.00)
+
+Reportado com foto: *"os nomes aqui estão estranhos"*. E não estavam — era o
+layout. A regra de CSS da grelha dos campos numéricos estava presa a
+`#listaAjustes` e `#listaGomos`, e as listas dos **palcos, régies, passarelas
+e projetores extra** usam o mesmo `campoAjuste()` mas nasceram sem regra
+nenhuma: ficavam a `display: inline`, cada botão numa linha, e a unidade em
+itálico colava-se ao nome do campo seguinte — saía "mprofundidade",
+"marredondar", "mfundo", "mrodar".
+
+Corrigido na raiz: a regra passou para a própria classe `.ajuste-campo`, para
+nenhuma lista nova voltar a nascer sem ela. O nome de cada campo passou a um
+`<span class="ajuste-rotulo">` (um nó de texto solto é um item anónimo da
+grelha, e itens anónimos não se conseguem colocar por CSS) e vai numa linha
+própria, com `− valor + calculadora unidade` em baixo. O botão da
+calculadora também ganhou lugar: sem ele, caía numa linha implícita e
+aparecia sozinho debaixo do campo.
+
 ## PENDENTE deste lado (noite de 11 de setembro)
 
 A lista completa do que ficou pendurado nos dois repositórios está no
