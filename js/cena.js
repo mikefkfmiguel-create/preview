@@ -594,16 +594,39 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
             Math.max(0, t1 - dTheta), Math.min(thetaMax, t2 + dTheta)];
   };
 
+  // ATÉ ONDE A IMAGEM DESCE. Reportado: *"a base da imagem é definida pela
+  // altura do projetor e não está a fazer"* -- e não estava: as fatias do anel
+  // desciam sempre até ao horizonte, fosse o projetor montado a 1,5 m ou a 4.
+  //
+  // Um projetor de cove aponta para CIMA e para o lado oposto: não tem como
+  // pôr imagem abaixo do seu próprio plano horizontal na parede de lá. Logo o
+  // bordo de baixo da fatia está no y da montagem, e daí sai o theta:
+  //
+  //   y(theta) = cy + R*cos(theta),  cy = h - R
+  //   y >= alturaCove  =>  cos(theta) >= (alturaCove - h + R)/R
+  //
+  // O que sobra por baixo NÃO é imagem, e desenha-se à parte: é a faixa que
+  // fica às escuras, e quem está a decidir a montagem tem de a ver.
+  const thetaDoChaoDaImagem = Math.min(thetaMax, Math.acos(
+    Math.min(1, Math.max(-1, (alturaCove - h + R) / R))));
+
   // O zénite leva a sua quota (aoCentro/n) a contar do pólo; os anéis
   // repartem o resto, de cima para baixo e cada um pelo nº de máquinas que
   // tem. Com a colocação "centro" isto dá aoCentro/n = 1, ou seja a cúpula
   // toda -- que é o que um fisheye ao centro faz, e sai da mesma fórmula.
-  const thetaDoCentro = thetaDe(aoCentro / n);
+  //
+  // Com anel, a área a repartir é só a que fica ACIMA da altura de montagem:
+  // repartir até ao horizonte era dar aos projetores cúpula que eles não
+  // alcançam.
+  const fraccaoAlcancavel = (colocacao === "centro")
+    ? 1
+    : (1 - Math.cos(thetaDoChaoDaImagem)) / (1 - Math.cos(thetaMax));
+  const thetaDoCentro = thetaDe((aoCentro / n) * fraccaoAlcancavel);
   const faixas = new Map();
-  let acumulado = aoCentro / n;
+  let acumulado = (aoCentro / n) * fraccaoAlcancavel;
   aneis.slice().reverse().forEach((anel) => {
     const f0 = acumulado;
-    acumulado += anel.q / n;
+    acumulado += (anel.q / n) * fraccaoAlcancavel;
     faixas.set(anel, [thetaDe(f0), thetaDe(acumulado)]);
   });
 
@@ -653,6 +676,21 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
           "dome-fatia-" + k));
       }
     });
+  }
+
+  // A faixa por baixo da montagem, que não leva imagem nenhuma. Só existe
+  // quando há anel (um fisheye ao centro cobre até ao horizonte) e quando
+  // sobra mesmo faixa para mostrar.
+  if (noAnel > 0 && thetaDoChaoDaImagem < thetaMax - 0.01) {
+    const semImagem = new THREE.Mesh(
+      new THREE.SphereGeometry(R * 0.993, 48, 8, 0, Math.PI * 2,
+                               thetaDoChaoDaImagem, thetaMax - thetaDoChaoDaImagem),
+      new THREE.MeshBasicMaterial({
+        color: 0xE8544E, transparent: true, opacity: 0.13,
+        side: THREE.DoubleSide, depthWrite: false
+      }));
+    semImagem.name = "dome-sem-imagem";
+    fatias.add(semImagem);
   }
 
   return { corpos: grupo, fatias: fatias };

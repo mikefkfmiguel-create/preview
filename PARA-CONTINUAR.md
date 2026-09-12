@@ -1964,6 +1964,35 @@ sobrepor, a fatia é a cúpula toda e crescê-la não queria dizer nada.
 `dome.projetores.modelo` e `.lente`, só para este lado poder etiquetar —
 nenhuma conta daqui depende deles, que os catálogos são dos Calculadores.
 
+### ~~A base da imagem, e a faixa que fica às escuras~~ — FEITO (v3.08)
+
+Reportado: *"a base da imagem é definida pela altura do projetor e não está a
+fazer"*. E não estava: as fatias do anel desciam sempre até ao horizonte,
+fosse o projetor montado a 1,5 m ou a 4 — a altura entrava no desenho só para
+pôr as caixas mais acima.
+
+A regra é geometria: **um projetor de cove aponta para cima e para o lado
+oposto, e não tem como pôr imagem abaixo do seu próprio plano horizontal na
+parede de lá.** Daí sai o theta do bordo de baixo:
+
+```
+y(theta) = cy + R·cos(theta),   cy = h − R
+y ≥ alturaCove   ⇒   theta ≤ acos((alturaCove − h + R)/R)
+```
+
+E a área a repartir pelos projetores passou a ser só a alcançável —
+`(1−cos θchão)/(1−cos θmax)` do total. Repartir até ao horizonte era dar-lhes
+cúpula que não alcançam, e por isso as fatias mentiam.
+
+**O que sobra por baixo é uma peça própria**, `dome-sem-imagem`, a vermelho e
+translúcida: é a faixa que fica às escuras, e quem está a decidir a montagem
+tem de a ver. Só existe com anel (um fisheye ao centro cobre até ao horizonte)
+e só quando sobra faixa para mostrar.
+
+Verificado numa cúpula de 8 m com 4 projetores em anel: a 1,5 m as fatias vão
+a 73° e a faixa vermelha ocupa 68°–90°; a 3,0 m as fatias vão a 45° e a faixa
+ocupa 41°–90°. Sobe a montagem, cresce o escuro.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
