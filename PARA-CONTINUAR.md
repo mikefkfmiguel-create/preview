@@ -2140,6 +2140,68 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 12 de setembro — o conteúdo parava no chão e não na base da imagem (v3.19)
+
+Reportado a olhar para o 3D com o logo carregado: *"continua a vir até ao chão
+a imagem"*. E vinha. As fatias dos projetores já paravam no plano da montagem
+— mas a **casca com conteúdo** era desenhada do zénite até ao chão, e o logo
+aparecia numa faixa onde não há projetor nenhum a pô-lo. A altura de montagem
+estava a valer para o desenho das fatias e não para a imagem, que é
+exactamente a queixa anterior (*"a base da imagem é definida pela altura do
+projetor"*) noutro sítio.
+
+A causa a sério era **a mesma conta em três sítios**, com três condições
+ligeiramente diferentes: as fatias em `fazerProjetoresDoDome`, a faixa
+vermelha ao lado delas, e a exportação da área de projeção em
+`fazerCascaDeProjecao` (que cortava sempre que houvesse altura escrita, mesmo
+com tudo ao centro). Agora há uma só — `chaoDaImagem(proj, h, R, thetaMax)` —
+e as três leem-na. Devolve `null` quando não há nada a cortar: sem projetores,
+ou com tudo ao centro, porque um fisheye ao centro cobre até ao horizonte.
+
+O conteúdo **corta-se, não se reescala**: os UV continuam a ser os do dome
+master inteiro. É o que acontece na realidade — manda-se um master de 180° e o
+anel de fora não tem onde aterrar — e é o que faz a imagem cair no mesmo sítio
+aqui e na exportação "área de projeção". A faixa por baixo continua a ser
+desenhada (`aux:dome-casca-sem-imagem`), com o aspecto da casca sem conteúdo:
+sem ela, cortar abria um buraco na silhueta e a cúpula parecia acabar a meio.
+
+**A exportação TOTAL era copiada da cena**, e isso deixou de servir no momento
+em que a casca da cena passou a estar cortada: com um logo carregado, a
+"cúpula total" saía cortada com ela. As duas formas constroem-se agora à parte,
+pela mesma `fazerCascaDeProjecao(dome, inteira)` — e de caminho a total já não
+exige ter a cúpula ligada na secção Vista.
+
+Medido (cúpula de 8,7 m, h 4,35, anel de 4 a 1,5 m, padrão de teste
+carregado):
+
+| | casca com conteúdo | faixa sem imagem | OBJ total | OBJ projeção |
+|---|---|---|---|---|
+| y (m) | **1,50 → 4,35** | 0 → 1,50 | 0 → 4,35 | 1,50 → 4,35 |
+| raio UV máx | — | — | 0,500 | **0,388** |
+
+O 0,388 é o que confirma que os UV são do master inteiro: 70°/90° × 0,5 =
+0,3889, e 70° é onde a imagem para. Os cinco casos do banco: anel a 1,5 →
+corta a 1,5; **centro (fisheye) → não corta**; sem projetores → não corta;
+anel-zénite sem altura escrita → corta a 0,52 (a altura indicativa, como
+antes); calota de 12×4 com anel a 3 → corta a 3.
+
+O teste apanhou um erro meu no caminho: ao passar a altura para a função
+partilhada deixei uma referência a `alturaPedida` no projetor do zénite, e
+qualquer colocação com projetor ao centro deixava de desenhar a cúpula
+(`alturaPedida is not defined`). Sem os casos "centro" e "anel-zénite" no
+banco, isto saía publicado.
+
+### "Cúpula fechada" não dizia nada a ninguém
+
+Perguntado em uso: *"o que é a cúpula fechada"*. O interruptor mexe na
+**superfície**, e o nome não o dizia; a explicação existia só num `title=`,
+que num telemóvel não existe. Passou a **"Superfície opaca"** com a dica à
+vista: desligada é translúcida e deixa ver o que está dentro, ligada fica
+cheia como na realidade e tapa o que estiver do lado de lá. O `id` é o mesmo
+(`domeSolido`), por isso as vistas guardadas não notam a diferença — o que
+mudou é o `domeSolidoWrap`, que era o próprio `<label>` e agora é a `<div>`
+que embrulha o rótulo e a dica.
+
 ## 12 de setembro — os palcos extra
 
 ### ~~Meia-lua para encostar~~ — FEITO (v3.01)

@@ -273,6 +273,48 @@ export function zonaDaPassarela(sala, palco, passarela) {
   return { dx: passarela.dx || 0, largura, zMin: zFrente, zMax: zFrente + comprimento };
 }
 
+// A colocação dos projetores começou por ser um número ("arranjo"), e
+// projetos antigos ainda o trazem assim.
+const ARRANJO_ANTIGO_DOME = { 1: "centro", 2: "anel", 3: "anel-zenite", 4: "anel-duplo" };
+
+/** A altura a que os projetores da cúpula ficam montados, com o clamp de sempre. */
+function alturaDeMontagem(proj, h) {
+  const pedida = parseFloat(proj && proj.altura);
+  return (pedida > 0)
+    ? Math.min(h - 0.2, pedida)          // nunca acima do topo da cúpula
+    : Math.min(1.2, h * 0.12);           // por definir, fica baixa e indicativa
+}
+
+/**
+ * ATÉ ONDE A IMAGEM DESCE — a base da imagem, em ângulo ao zénite.
+ *
+ * Um projetor de cove aponta para CIMA e para o lado oposto: não põe imagem
+ * abaixo do seu próprio plano horizontal. Logo
+ *
+ *     y(θ) = cy + R·cos(θ),  cy = h − R
+ *     y ≥ alturaCove   ⇒   cos(θ) ≥ (alturaCove − h + R)/R
+ *
+ * Devolve `null` quando não há nada a cortar: sem projetores, com tudo ao
+ * centro (um fisheye ao centro cobre até ao horizonte), ou quando a montagem
+ * é tão rasa que a faixa não dá para ver.
+ *
+ * Esta conta vivia em três sítios com três condições ligeiramente
+ * diferentes — o desenho das fatias, a faixa vermelha e a exportação da área
+ * de projeção —, e foi por aí que o conteúdo continuou a descer até ao chão
+ * quando as fatias já paravam na altura certa. Agora é uma só.
+ */
+function chaoDaImagem(proj, h, R, thetaMax) {
+  if (!proj || !(proj.n > 0)) return null;
+  const n = Math.max(1, Math.round(proj.n));
+  const colocacao = proj.colocacao || ARRANJO_ANTIGO_DOME[Math.round(proj.arranjo || 3)] || "anel-zenite";
+  const aoCentro = (colocacao === "centro") ? n : (colocacao === "anel" ? 0 : Math.min(1, n));
+  if (n - aoCentro <= 0) return null;
+  const alturaCove = alturaDeMontagem(proj, h);
+  const theta = Math.min(thetaMax, Math.acos(
+    Math.min(1, Math.max(-1, (alturaCove - h + R) / R))));
+  return (theta < thetaMax - 0.01) ? { theta: theta, alturaCove: alturaCove } : null;
+}
+
 /**
  * A cúpula de projeção (dome), à escala, vista por dentro.
  *
@@ -340,7 +382,26 @@ export function fazerDome(dome, solido, textura) {
   // abre lá e não se lhe consegue mapear nada.
   uvAzimutalEquidistante(geo, thetaMax);
 
-  const casca = new THREE.Mesh(geo, textura
+  // O CONTEÚDO PÁRA NA BASE DA IMAGEM. Reportado: *"continua a vir até ao
+  // chão a imagem"* -- e vinha: as fatias dos projetores já paravam no plano
+  // da montagem, mas a casca com conteúdo era desenhada até ao chão, por isso
+  // o logo aparecia numa faixa onde não há projetor nenhum a pô-lo.
+  //
+  // O conteúdo CORTA-SE, não se reescala: os UV continuam a ser os do dome
+  // master inteiro (calculados contra o thetaMax da cúpula), e é isso que faz
+  // a imagem cair no mesmo sítio aqui e na exportação "área de projeção". Na
+  // realidade é o que acontece -- manda-se um master de 180° e o anel de fora
+  // não tem onde aterrar.
+  const chao = chaoDaImagem(dome.projetores, h, R, thetaMax);
+  const cortaConteudo = !!(textura && chao);
+  let geoCasca = geo;
+  if (cortaConteudo) {
+    geoCasca = new THREE.SphereGeometry(R, 64, 40, 0, Math.PI * 2, 0, chao.theta);
+    uvAzimutalEquidistante(geoCasca, thetaMax);
+    geo.dispose();
+  }
+
+  const casca = new THREE.Mesh(geoCasca, textura
     // Com conteúdo, só a face de DENTRO (BackSide) -- que é onde a imagem
     // aparece na realidade, e também o que deixa ver a cúpula por fora.
     //
@@ -361,6 +422,24 @@ export function fazerDome(dome, solido, textura) {
         })));
   casca.name = "dome-casca";
   cascaGrupo.add(casca);
+
+  // A faixa que fica por baixo da base da imagem continua a ser cúpula: sem
+  // ela, cortar o conteúdo abria um buraco na silhueta e a cúpula parecia
+  // acabar a meio. Fica com o aspecto da casca sem conteúdo -- é
+  // superfície sem imagem, e lê-se como tal. Quem quiser a faixa marcada
+  // tem a banda vermelha das fatias ("dome-sem-imagem").
+  if (cortaConteudo) {
+    const semImagem = new THREE.Mesh(
+      new THREE.SphereGeometry(R, 64, 16, 0, Math.PI * 2, chao.theta, thetaMax - chao.theta),
+      solido
+        ? new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.95, side: THREE.BackSide })
+        : new THREE.MeshBasicMaterial({
+            color: 0x9683E8, transparent: true, opacity: 0.10,
+            side: THREE.DoubleSide, depthWrite: false
+          }));
+    semImagem.name = "aux:dome-casca-sem-imagem";
+    cascaGrupo.add(semImagem);
+  }
 
   // A grelha é o que faz a forma ler-se quando está translúcida — sem ela,
   // uma casca a 10% de opacidade é uma névoa sem silhueta.
@@ -530,16 +609,22 @@ export function pintarQuemTapa(grupoDome, figura) {
  * é mapear para o vazio, e no media server isso aparece como conteúdo a cair
  * num sítio onde não há projetor que o ponha.
  *
- * O limite é o mesmo do desenho: um projetor de cove não põe imagem abaixo do
- * seu próprio plano (ver thetaDoChaoDaImagem em fazerProjetoresDoDome). Sem
- * altura de montagem escrita, a área de projeção é a cúpula toda.
+ * O limite é o mesmo do desenho e o mesmo do corte do conteúdo: a
+ * chaoDaImagem() acima. Sem anel de projetores com altura escrita, a área de
+ * projeção é a cúpula toda.
  *
  * Os UV continuam a ser os do dome master INTEIRO -- calculados contra o
  * thetaMax da cúpula, não contra o corte. É isso que faz a mesma imagem cair
  * no mesmo sítio nas duas formas: a de projeção é a de total sem o anel de
  * fora, não uma imagem reescalada.
+ *
+ * Com `inteira`, sai a cúpula TOTAL. A forma total era copiada da cena, e
+ * isso ligava o ficheiro à maneira como a cúpula estava desenhada no momento:
+ * desde que o conteúdo passou a ser cortado na base da imagem, copiar a cena
+ * exportava a casca cortada. As duas formas constroem-se aqui, e nenhuma
+ * depende do que está ligado no ecrã.
  */
-export function fazerCascaDeProjecao(dome) {
+export function fazerCascaDeProjecao(dome, inteira) {
   if (!dome) return null;
   const D = Math.max(0.5, parseFloat(dome.diametro) || 0);
   const h = Math.max(0.25, parseFloat(dome.altura) || D / 2);
@@ -547,14 +632,9 @@ export function fazerCascaDeProjecao(dome) {
   const R = (a * a + h * h) / (2 * h);
   const thetaMax = Math.acos(Math.min(1, Math.max(-1, (R - h) / R)));
 
-  const proj = dome.projetores || {};
-  const alturaPedida = parseFloat(proj.altura);
-  const yMont = (alturaPedida > 0)
-    ? Math.min(h - 0.2, alturaPedida)
-    : null;
-  const thetaChao = (yMont != null)
-    ? Math.min(thetaMax, Math.acos(Math.min(1, Math.max(-1, (yMont - h + R) / R))))
-    : thetaMax;
+  const chao = inteira ? null : chaoDaImagem(dome.projetores, h, R, thetaMax);
+  const yMont = chao ? chao.alturaCove : null;
+  const thetaChao = chao ? chao.theta : thetaMax;
 
   const geo = new THREE.SphereGeometry(R, 64, 40, 0, Math.PI * 2, 0, thetaChao);
   uvAzimutalEquidistante(geo, thetaMax);
@@ -726,18 +806,14 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   // boneco está a tapar -- ver pintarQuemTapa().
   const fontes = [];
   const n = Math.max(1, Math.round(proj.n));
-  const ARRANJO_ANTIGO = { 1: "centro", 2: "anel", 3: "anel-zenite", 4: "anel-duplo" };
-  const colocacao = proj.colocacao || ARRANJO_ANTIGO[Math.round(proj.arranjo || 3)] || "anel-zenite";
+  const colocacao = proj.colocacao || ARRANJO_ANTIGO_DOME[Math.round(proj.arranjo || 3)] || "anel-zenite";
   // A altura de montagem vem da aba Dome quando lá estiver escrita.
   // Reportado: *"a altura a que estão, pois não serão no chão, serão sempre
   // elevados"* -- e tinha razão: o valor que aqui estava (12% da altura da
   // cúpula, no máximo 1,2 m) punha-os praticamente no chão, e num planetário
   // vão na cove, numa cúpula de evento vão em truss. Por definir, mantém-se
   // o valor baixo e a nota do painel diz que é indicativo, não uma cota.
-  const alturaPedida = parseFloat(proj.altura);
-  const alturaCove = (alturaPedida > 0)
-    ? Math.min(h - 0.2, alturaPedida)       // nunca acima do topo da cúpula
-    : Math.min(1.2, h * 0.12);
+  const alturaCove = alturaDeMontagem(proj, h);
   // Raio de montagem: por omissão meio metro por dentro da base, mas pode vir
   // da aba Dome e pode ser MAIOR do que o raio da cúpula -- reportado: *"os
   // projetores podem estar fora da esfera ou dentro, consoante o tipo de dome
@@ -838,7 +914,9 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     const desvio = aoCentro > 1 ? (i - (aoCentro - 1) / 2) * 0.6 : 0;
     // O do zénite/centro também não fica no chão quando há altura de
     // montagem: num anel com zénite ele vai na mesma estrutura.
-    const yCentro = (alturaPedida > 0) ? Math.min(h - 0.2, alturaPedida) : 0.12;
+    // Por definir fica no chão (0,12 m) e não na altura indicativa do anel:
+    // um fisheye ao centro assenta-se, não se pendura.
+    const yCentro = (parseFloat(proj.altura) > 0) ? alturaCove : 0.12;
     const pos = new THREE.Vector3(desvio, yCentro, 0);
     grupo.add(corpoDeProjetor(pos, new THREE.Vector3(desvio, h, 0), "dome-projetor-c" + (i + 1),
       CORES_FATIA[i % CORES_FATIA.length]));

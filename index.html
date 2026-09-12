@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.18</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.19</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -387,7 +387,15 @@
     <label class="opcao" id="verDomeWrap" style="display:none;"><input id="verDome" type="checkbox" checked> Cúpula</label>
     <p class="vazio" id="notaDome" style="margin:6px 0 0"></p>
     <label class="opcao" id="verFatiasWrap" style="display:none;" title="A repartição da superfície pelos projetores, por área igual — não é o cone real da lente, que depende da lente que se alugar"><input id="verFatias" type="checkbox" checked> Fatias dos projetores</label>
-    <label class="opcao" id="domeSolidoWrap" style="display:none;" title="Fechada é mais realista e tapa o público, os ecrãs e o palco a partir de metade dos ângulos — e as perguntas aqui são cabe?, vê-se?, quem tapa o quê?"><input id="domeSolido" type="checkbox"> Cúpula fechada</label>
+    <!-- Chamava-se "Cúpula fechada" e ninguém sabia o que era (perguntado em
+         uso: *"o que e a cupula fechada"*). O que o interruptor mexe é a
+         SUPERFÍCIE: translúcida por omissão para se ver o interior, opaca
+         para ver a cúpula como ela é. A explicação existia só num title=,
+         que num telemóvel não aparece -- agora está à vista. -->
+    <div id="domeSolidoWrap" style="display:none;">
+      <label class="opcao"><input id="domeSolido" type="checkbox"> Superfície opaca</label>
+      <p class="vazio" style="margin:5px 0 0">Desligada, a cúpula é translúcida: vê-se através dela o público, os ecrãs e os projetores. Ligada, a superfície fica cheia como na realidade — mais parecida com o sítio, mas tapa tudo o que estiver do lado de lá.</p>
+    </div>
   </section>
 
   <section id="deposito">

@@ -4659,30 +4659,25 @@ async function exportar(formato, soACupula) {
   if (!desenhado) return;
 
   // "Só a cúpula" não precisa de nada do que vem a seguir: não há ecrãs a
-  // reconstruir nem público a decidir, é uma superfície e mais nada. E a
-  // cúpula tem de estar LIGADA, senão não está na cena para se copiar.
+  // reconstruir nem público a decidir, é uma superfície e mais nada.
   if (soACupula) {
     if (!(projeto && projeto.dome)) { nota.textContent = "Este projeto não traz cúpula."; return; }
-    // Duas formas: a cúpula TOTAL (a casca que está na cena) ou só a ÁREA DE
-    // PROJEÇÃO (do zénite até onde a imagem chega). A segunda constrói-se à
-    // parte, com os UV do dome master inteiro -- ver fazerCascaDeProjecao().
+    // Duas formas: a cúpula TOTAL ou só a ÁREA DE PROJEÇÃO (do zénite até
+    // onde a imagem chega). As duas constroem-se à PARTE da cena, com os UV
+    // do dome master inteiro -- ver fazerCascaDeProjecao().
+    //
+    // A total era COPIADA da cena, e isso deixou de servir quando o conteúdo
+    // passou a ser cortado na base da imagem: com um logo carregado, a casca
+    // da cena está cortada e a "total" saía cortada com ela. Construída
+    // aqui, também já não depende de a cúpula estar ligada na secção Vista.
     const soProjecao = $("expSoProjecao") && $("expSoProjecao").checked;
-    let soDome, recorte = null, temporarios = [];
-    if (soProjecao) {
-      recorte = fazerCascaDeProjecao(projeto.dome);
-      if (!recorte) { nota.textContent = "Não consegui construir a área de projeção."; return; }
-      const raiz = new THREE.Group();
-      raiz.add(recorte.malha);
-      raiz.updateMatrixWorld(true);
-      soDome = prepararParaExportar({ traverse: (cb) => raiz.traverse(cb) }, { soACupula: true });
-      temporarios = [recorte.malha];
-    } else {
-      if ($("verDome") && !$("verDome").checked) {
-        nota.textContent = 'A cúpula está desligada na secção Vista — liga "Cúpula" e guarda outra vez.';
-        return;
-      }
-      soDome = prepararParaExportar(desenhado, { soACupula: true });
-    }
+    const recorte = fazerCascaDeProjecao(projeto.dome, !soProjecao);
+    if (!recorte) { nota.textContent = "Não consegui construir a superfície da cúpula."; return; }
+    const raiz = new THREE.Group();
+    raiz.add(recorte.malha);
+    raiz.updateMatrixWorld(true);
+    const soDome = prepararParaExportar({ traverse: (cb) => raiz.traverse(cb) }, { soACupula: true });
+    const temporarios = [recorte.malha];
     const libertar = () => temporarios.forEach((o) => {
       if (o.geometry) o.geometry.dispose();
       if (o.material) o.material.dispose();
@@ -4701,10 +4696,10 @@ async function exportar(formato, soACupula) {
         `Guardado: <b>${soProjecao ? "a área de projeção" : "a cúpula total"}</b>, ` +
         `${(peso.vertices / 1000).toFixed(0)} mil vértices, ` +
         `<b>${(blob.size / 1048576).toFixed(2)} MB</b> — em metros, com os UV do dome master.` +
-        (recorte && !recorte.inteira
+        (!soProjecao ? "" : (!recorte.inteira
           ? ` Cortada a ${recorte.thetaChaoGraus.toFixed(0)}° do zénite (a imagem começa a ${recorte.yBase.toFixed(2)} m do chão); ` +
             `os UV são os do dome master inteiro, por isso a imagem cai no mesmo sítio que na cúpula total.`
-          : (recorte ? " Sem altura de montagem escrita, a área de projeção é a cúpula toda." : "")) +
+          : " Sem um anel de projetores com altura de montagem escrita, a área de projeção é a cúpula toda.")) +
         (formato === "obj" ? " Sem materiais, que o .obj não os leva." : "") +
         " As normais apontam para FORA: se o teu programa quiser a face de dentro, inverte-as lá.";
     } catch (e) {
