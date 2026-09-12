@@ -1878,6 +1878,23 @@ Calculadores): `dome.projetores.colocacao` é `centro`, `anel`, `anel-zenite`
 ou `anel-duplo`. O `arranjo` numérico antigo continua a ser aceite e
 traduzido, para um payload gravado antes disto.
 
+### ~~A altura de montagem dos projetores~~ — FEITO (v3.05)
+
+Reportado: *"a altura a que estão, pois não serão no chão, serão sempre
+elevados"*. O que aqui estava punha-os a 12% da altura da cúpula, no máximo
+1,2 m — numa cúpula de 8 m dá 48 cm, ou seja praticamente no chão. Estava
+comentado como "indicativo", mas indicativo errado continua a ser errado: num
+planetário vão na cove, numa cúpula de evento vão em truss.
+
+Agora vem da aba Dome (`dome.projetores.altura`, campo novo na v3.52 de lá) e
+aplica-se a todos, o do zénite incluído — num anel com zénite ele vai na
+mesma estrutura. Com clamp em `h − 0,2 m`, para não ficar acima do topo da
+cúpula com um número mal escrito. Em branco mantém-se o valor baixo de antes,
+e o painel do outro lado diz que isso é indicativo e não uma cota.
+
+Verificado: com 3,2 m escritos, os 5 corpos (1 ao centro + 4 no anel) ficam
+todos a `y = 3,20` numa cúpula de 8 m × 4 m.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a

@@ -176,6 +176,10 @@ export function lerProjeto(bruto) {
               // o "arranjo" numérico fica para um payload antigo, e é o
               // fazerProjetoresDoDome() que o traduz.
               colocacao: typeof projBruto.colocacao === "string" ? projBruto.colocacao : null,
+              // A altura de montagem, quando os Calculadores a trouxerem.
+              // Null é legítimo e significa "por definir" -- aí o desenho
+              // escolhe um valor baixo, e diz que é indicativo.
+              altura: numero(projBruto.altura, 0) > 0 ? numero(projBruto.altura, 0) : null,
               arranjo: Math.round(numero(projBruto.arranjo, 3))
             }
           : null
