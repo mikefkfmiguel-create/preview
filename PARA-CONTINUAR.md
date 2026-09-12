@@ -2140,6 +2140,54 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 12 de setembro — o boneco voava, saltava e ia para trás dos projetores (v3.20)
+
+Três queixas em dias diferentes — *"e o boy é voador?"*, *"o boneco foi para
+trás do projetor e ainda não parece tocar no chão"*, e finalmente a que deu a
+pista, *"quando o movi foi lá para sozinho"* — eram **o mesmo arrasto**, com
+três defeitos a somar. Antes disto tinha medido a figura **no sítio de
+nascimento** (pés a 0, raio 1,87 contra 4,00 dos projetores) e concluído que
+estava bem; estava, mas a pergunta não era essa. A frase *"quando o movi"* é
+que mandou medir a coisa certa, e aí os três apareceram de uma vez:
+
+| pega | antes | depois |
+|---|---|---|
+| barriga, 40 px para o lado | z salta de **+1,09 para −1,10** (2,2 m para trás) | z fica em 1,09, x anda 0,63 |
+| cabeça, 40 px | **y = 1,00, pés a 1,00** — a flutuar | y = 0, pés a 0 |
+| cabeça, +5 px | **r = 4,00** = o anel de projetores | r = 1,09 |
+
+**1. Não havia desvio de pega.** A posição da figura passava a ser o ponto
+onde o raio do rato bate no plano do chão — quem pega pela cabeça está a
+apontar para um ponto do chão a metros dos pés dela, e a figura *aterrava* aí
+em vez de seguir o rato. É o "foi lá para sozinho", e o primeiro pixel de
+arrasto já o fazia. Agora o `pointerdown` guarda `desvioArrasto` (da posição
+dela até ao ponto do plano) e o `pointermove` soma-o. Vale para o arrasto na
+cúpula **e** na sala.
+
+**2. Numa cúpula sozinha, o raio batia no tampo do palco.** O
+`pontoPisavelSobOApontador()` corre primeiro e ganha a tudo — e o palco está
+desenhado lá atrás mesmo num projeto que é só cúpula. O raio atravessava a
+casca, encontrava o tampo e a figura subia para cima dele: 1,00 m no ar,
+dentro de uma cúpula. O critério tinha de ser o **mesmo com que ela nasce**
+(`noChao` no `montar()`), e agora é: com `cupulaSemZonas()`, os tampos não
+contam. Estava escrito no comentário do `cupulaSemZonas()` — *"tem de ser o
+mesmo critério nos dois, senão ela nasce num sítio e o rato prende-a
+noutro"* — e era exactamente isso que estava a acontecer.
+
+**3. O limite do arrasto era o anel dos projetores, ao centímetro.** `raio −
+0,35` numa cúpula de 8,7 m dá **4,00 m**, e o raio de montagem dele era
+**4,00 m**: a figura era encostada aos projetores, o que de dentro se lê como
+estar atrás deles. Passa a `min(casca, raioMontagem − 0,45)`. Com o anel por
+fora da casca (telas translúcidas) quem manda continua a ser a casca; e um
+anel apertado é ignorado — abaixo de 1 m de espaço livre uma pessoa contorna
+os projetores, e prender a figura num círculo de meio metro tirava-lhe a única
+função que ela tem, que é dar escala.
+
+Verificado nos quatro sentidos (limite 3,55 m em todos, pés a 0), num projeto
+normal com palco (continua a subir ao tampo, y = 1, e para no limite da sala
+em x = 7,60 = 16/2 − 0,40) e com o anel a 1,2 m (o limite volta a ser a casca,
+4,00 m).
+
 ## 12 de setembro — o conteúdo parava no chão e não na base da imagem (v3.19)
 
 Reportado a olhar para o 3D com o logo carregado: *"continua a vir até ao chão
