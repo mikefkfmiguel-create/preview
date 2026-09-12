@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.16</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.18</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -98,6 +98,7 @@
       <button data-saida="dome-obj" title="Só a superfície da cúpula, em metros e com os UV do dome master — para mapear num media server">Só a cúpula (.obj)</button>
       <button data-saida="dome-glb" title="O mesmo em glTF, que o WATCHOUT também aceita">Só a cúpula (.glb)</button>
     </div>
+    <label class="opcao" id="opcaoSoProjecao" hidden title="Corta a banda de baixo, que não leva imagem nenhuma — mapear essa banda no media server é mapear para o vazio"><input id="expSoProjecao" type="checkbox"> Só a área de projeção (corta o que não leva imagem)</label>
     <label class="opcao" id="opcaoPublico" hidden><input id="expPublico" type="checkbox"> Incluir o público</label>
     <label class="opcao" id="opcaoLinhas" hidden><input id="expLinhas" type="checkbox"> Incluir a planta CAD</label>
     <button id="btGuardar" class="primario" style="margin-top:12px; width:100%">Guardar</button>
@@ -384,6 +385,7 @@
     <!-- Estes dois só aparecem quando o projeto TEM uma cúpula: dois
          interruptores mortos numa lista de oito é ruído. -->
     <label class="opcao" id="verDomeWrap" style="display:none;"><input id="verDome" type="checkbox" checked> Cúpula</label>
+    <p class="vazio" id="notaDome" style="margin:6px 0 0"></p>
     <label class="opcao" id="verFatiasWrap" style="display:none;" title="A repartição da superfície pelos projetores, por área igual — não é o cone real da lente, que depende da lente que se alugar"><input id="verFatias" type="checkbox" checked> Fatias dos projetores</label>
     <label class="opcao" id="domeSolidoWrap" style="display:none;" title="Fechada é mais realista e tapa o público, os ecrãs e o palco a partir de metade dos ângulos — e as perguntas aqui são cabe?, vê-se?, quem tapa o quê?"><input id="domeSolido" type="checkbox"> Cúpula fechada</label>
   </section>

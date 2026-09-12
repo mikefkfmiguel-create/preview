@@ -2086,7 +2086,56 @@ aparecem a 6,00 do centro, do lado de fora.
 **E o ângulo de tiro** (`dome.projetores.angulo`) manda na direção quando
 está escrito; em branco, aponta ao meio da fatia como antes.
 
-**Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
+### ~~A cúpula opaca, duas formas de export, e quem tapa pintado~~ — FEITO (v3.18)
+
+**Com conteúdo, a cúpula ficava OPACA vista de fora.** Apanhado em uso: *"apanhei
+outra falha"*, com o logo carregado e a cúpula a aparecer como um bloco azul.
+A casca estava em `DoubleSide` com a justificação de que "de fora parecia
+vazia" — e isso era errado: `DoubleSide` tapa tudo lá dentro (projetores,
+fatias, o boneco), que é justamente o que se quer inspecionar. Passou a
+`BackSide`: olha-se para dentro e vê-se o conteúdo na parede de lá.
+
+**O export da cúpula tem duas formas.** Pedido: *"o export da cúpula passa a
+ter duas formas, TOTAL e ÁREA DE PROJEÇÃO — para o obj pode ser importante
+para mapear corretamente no WATCHOUT ou outro media server"*. E é: mapear a
+banda que nunca leva imagem é mapear para o vazio.
+
+O que faz isto funcionar é os **UV serem os do dome master INTEIRO**, calculados
+contra o `thetaMax` da cúpula e não contra o corte: a área de projeção é a
+total *sem o anel de fora*, não uma imagem reescalada — logo a mesma imagem cai
+no mesmo sítio nas duas. Verificado nos ficheiros: total dá `y` de 0 a 4,35 com
+o UV a chegar ao raio 0,500; área de projeção dá `y` de **1,50** a 4,35 com o
+UV a parar em **0,388**, cortada a 70° do zénite.
+
+**Um nome errado fazia o export sair vazio:** a casca de projeção chamava-se
+`dome` e o filtro de "só a cúpula" procura `dome-casca` — dava *"não encontrei
+a superfície da cúpula"*. Apanhado a testar as duas formas.
+
+**Quem tapa, pintado no próprio boneco.** Pedido, e é uma ideia melhor do que a
+que eu ia seguir: *"para a sombra na cúpula pinta apenas o boneco e não
+desenhes a sombra em si"*.
+
+Eu tinha começado a desenhar a mancha de sombra na superfície, com a regra
+certa (um ponto só é escuro se estiver tapado para TODOS os projetores que o
+cobrem, senão o vizinho enche-o). Mas os números não me convenciam — 1, 2, 4 e
+8 projetores davam 438, 182, 122 e 494 células escuras, sem tendência que eu
+soubesse justificar — e **um mapa de sombra que mente é pior do que nenhum**.
+Esse caminho foi posto fora, não escondido.
+
+Pintar o boneco responde à pergunta que interessa — *estou a tapar?* — com uma
+conta que se verifica: o raio da lente para o corpo (quatro pontos: meio,
+cabeça e ombros), prolongado, bate dentro da fatia daquele projetor? Se bater,
+o boneco fica da cor dele e o painel diz quantos. Verificado: 1 projetor → 1
+tapado; 4 → 3 (o de trás não); **4 montados a 3,5 m numa cúpula de 4,35 → zero**,
+porque os feixes passam por cima de uma pessoa de 1,75 m. É essa última que
+mostra que a conta é a conta certa.
+
+Corre no `montar()` **e a cada arrastar**: a primeira versão corria só no
+montar, e arrastar o boneco deixava-o com a cor de onde tinha estado — a
+informação lá, e errada.
+
+**Fica por fazer:** a mancha de sombra na superfície (ver acima porque não
+entrou), e a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.

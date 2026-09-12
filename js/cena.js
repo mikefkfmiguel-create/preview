@@ -341,9 +341,16 @@ export function fazerDome(dome, solido, textura) {
   uvAzimutalEquidistante(geo, thetaMax);
 
   const casca = new THREE.Mesh(geo, textura
-    // Com conteúdo: vê-se de dentro, que é de onde o público vê. Fica também
-    // visível de fora, senão de fora do 3D a cúpula parecia vazia.
-    ? new THREE.MeshBasicMaterial({ map: textura, side: THREE.DoubleSide, toneMapped: false })
+    // Com conteúdo, só a face de DENTRO (BackSide) -- que é onde a imagem
+    // aparece na realidade, e também o que deixa ver a cúpula por fora.
+    //
+    // Estava em DoubleSide com a justificação de que "de fora a cúpula
+    // parecia vazia", e isso era errado: com DoubleSide a casca fica OPACA
+    // vista de fora e tapa tudo -- projetores, fatias, o boneco. Apanhado em
+    // uso, a olhar para o 3D com o logo carregado. Com BackSide olha-se para
+    // dentro e vê-se o conteúdo na parede de lá, que é exactamente o que se
+    // quer inspecionar.
+    ? new THREE.MeshBasicMaterial({ map: textura, side: THREE.BackSide, toneMapped: false })
     : (solido
       // Sólida: vê-se a face de DENTRO (BackSide), que é onde a imagem
       // aparece na realidade. Com a face de fora ficava uma bola opaca.
@@ -391,6 +398,9 @@ export function fazerDome(dome, solido, textura) {
     const p = fazerProjetoresDoDome(dome.projetores, a, h, R, thetaMax);
     grupo.add(p.corpos);
     if (dome.projetores.semFatias) p.fatias.visible = false;
+    // Guardado para a segunda passagem: o boneco é desenhado depois da cúpula,
+    // e é aí que se sabe se está a tapar alguém (ver pintarQuemTapa).
+    grupo.userData.paraSombras = { fontes: p.fontes, R: R, cy: h - R };
     // As fatias são desenhadas no referencial da CASCA (centro da esfera na
     // origem), por isso vão para o cascaGrupo -- no grupo de fora apareciam
     // deslocadas da superfície, que foi o mesmo laço em que o anel da base
@@ -433,6 +443,137 @@ function uvAzimutalEquidistante(geo, thetaMax) {
     uv.setXY(i, 0.5 + rr * Math.cos(phi), 0.5 + rr * Math.sin(phi));
   }
   uv.needsUpdate = true;
+}
+
+/**
+ * QUEM TAPA, PINTADO NO PRÓPRIO BONECO.
+ *
+ * Pedido: *"para a sombra na cúpula pinta apenas o boneco e não desenhes a
+ * sombra em si"* -- e é uma ideia melhor do que a que eu ia seguir. Desenhar a
+ * mancha de sombra numa cúpula com sobreposição obriga a decidir, ponto por
+ * ponto, se um projetor vizinho a tapa; a primeira versão que fiz dava números
+ * que eu não conseguia defender (1, 2, 4 e 8 projetores davam 438, 182, 122 e
+ * 494 células escuras, sem tendência que eu soubesse justificar), e um mapa de
+ * sombra que mente é pior do que nenhum.
+ *
+ * Pintar o boneco responde à pergunta que interessa -- *estou a tapar?* -- com
+ * uma conta que se verifica: o raio da lente para o boneco, prolongado, bate
+ * dentro da fatia daquele projetor? Se bater, aquele projetor está a ser
+ * tapado, e o boneco fica da cor dele.
+ *
+ * Devolve quantos projetores estão tapados (0 = ninguém).
+ */
+export function pintarQuemTapa(grupoDome, figura) {
+  if (!grupoDome || !figura) return 0;
+  const d = grupoDome.userData && grupoDome.userData.paraSombras;
+  if (!d || !d.fontes.length) return 0;
+
+  figura.updateMatrixWorld(true);
+  const caixa = new THREE.Box3().setFromObject(figura);
+  if (caixa.isEmpty()) return 0;
+  // Alguns pontos do corpo, não só o centro: de pé numa borda da fatia, o
+  // centro pode ficar de fora e os ombros dentro.
+  const meio = caixa.getCenter(new THREE.Vector3());
+  const pontos = [
+    meio.clone(),
+    new THREE.Vector3(meio.x, caixa.max.y - 0.05, meio.z),   // a cabeça
+    new THREE.Vector3(caixa.min.x, meio.y, meio.z),
+    new THREE.Vector3(caixa.max.x, meio.y, meio.z)
+  ].map((v) => v.setY(v.y - d.cy));   // para as coordenadas da casca
+
+  const R = d.R;
+  let tapados = 0, corPrimeiro = null;
+  for (const f of d.fontes) {
+    const L = f.lente;
+    let tapa = false;
+    for (const Q of pontos) {
+      // Onde é que o raio L→Q bate na casca (esfera de raio R na origem)?
+      const dx = Q.x - L.x, dy = Q.y - L.y, dz = Q.z - L.z;
+      const a = dx * dx + dy * dy + dz * dz;
+      if (a < 1e-9) continue;
+      const bb = L.x * dx + L.y * dy + L.z * dz;
+      const c = L.x * L.x + L.y * L.y + L.z * L.z - R * R;
+      const disc = bb * bb - a * c;
+      if (disc < 0) continue;
+      const t = (-bb + Math.sqrt(disc)) / a;
+      if (t <= 1) continue;              // a casca está ANTES do corpo: não tapa
+      const H = { x: L.x + dx * t, y: L.y + dy * t, z: L.z + dz * t };
+      const theta = Math.acos(Math.min(1, Math.max(-1, H.y / R)));
+      if (theta < f.t1 - 1e-6 || theta > f.t2 + 1e-6) continue;
+      if (!f.todoOAzimute) {
+        const phi = Math.atan2(H.z, -H.x);
+        let dPhi = phi - (f.a1 + f.a2) / 2;
+        while (dPhi > Math.PI) dPhi -= 2 * Math.PI;
+        while (dPhi < -Math.PI) dPhi += 2 * Math.PI;
+        if (Math.abs(dPhi) > (f.a2 - f.a1) / 2 + 1e-6) continue;
+      }
+      tapa = true;
+      break;
+    }
+    if (tapa) { tapados++; if (corPrimeiro == null) corPrimeiro = f.cor; }
+  }
+
+  // Pintar: a cor do primeiro projetor tapado, para casar com a tampa dele.
+  figura.traverse((o) => {
+    if (!o.isMesh || !o.material) return;
+    if (!o.userData.corOriginal) o.userData.corOriginal = o.material.color.getHex();
+    o.material.color.setHex(tapados ? (corPrimeiro || 0xE8544E) : o.userData.corOriginal);
+  });
+  return tapados;
+}
+
+/**
+ * A casca só da ÁREA DE PROJEÇÃO: do zénite até onde a imagem chega, e nada
+ * mais. Pedido: *"o export da cúpula passa a ter duas formas, TOTAL e ÁREA DE
+ * PROJEÇÃO — para o obj pode ser importante para mapear corretamente no
+ * WATCHOUT ou outro media server"*. E é: mapear a banda que nunca leva imagem
+ * é mapear para o vazio, e no media server isso aparece como conteúdo a cair
+ * num sítio onde não há projetor que o ponha.
+ *
+ * O limite é o mesmo do desenho: um projetor de cove não põe imagem abaixo do
+ * seu próprio plano (ver thetaDoChaoDaImagem em fazerProjetoresDoDome). Sem
+ * altura de montagem escrita, a área de projeção é a cúpula toda.
+ *
+ * Os UV continuam a ser os do dome master INTEIRO -- calculados contra o
+ * thetaMax da cúpula, não contra o corte. É isso que faz a mesma imagem cair
+ * no mesmo sítio nas duas formas: a de projeção é a de total sem o anel de
+ * fora, não uma imagem reescalada.
+ */
+export function fazerCascaDeProjecao(dome) {
+  if (!dome) return null;
+  const D = Math.max(0.5, parseFloat(dome.diametro) || 0);
+  const h = Math.max(0.25, parseFloat(dome.altura) || D / 2);
+  const a = D / 2;
+  const R = (a * a + h * h) / (2 * h);
+  const thetaMax = Math.acos(Math.min(1, Math.max(-1, (R - h) / R)));
+
+  const proj = dome.projetores || {};
+  const alturaPedida = parseFloat(proj.altura);
+  const yMont = (alturaPedida > 0)
+    ? Math.min(h - 0.2, alturaPedida)
+    : null;
+  const thetaChao = (yMont != null)
+    ? Math.min(thetaMax, Math.acos(Math.min(1, Math.max(-1, (yMont - h + R) / R))))
+    : thetaMax;
+
+  const geo = new THREE.SphereGeometry(R, 64, 40, 0, Math.PI * 2, 0, thetaChao);
+  uvAzimutalEquidistante(geo, thetaMax);
+  const malha = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ side: THREE.BackSide }));
+  // O nome TEM de ser "dome-casca": é por ele que o prepararParaExportar
+  // filtra a saída "só a cúpula". Chamava-se "dome" e a exportação da área de
+  // projeção saía vazia ("não encontrei a superfície da cúpula") -- apanhado
+  // a testar as duas formas. Lá o nome final já é posto como "dome".
+  malha.name = "dome-casca";
+  // A casca vive centrada no centro da esfera; para sair com a base no chão,
+  // desloca-se como o cascaGrupo faz na cena.
+  malha.position.y = h - R;
+  return {
+    malha: malha,
+    thetaChaoGraus: thetaChao * 180 / Math.PI,
+    thetaMaxGraus: thetaMax * 180 / Math.PI,
+    yBase: (yMont != null) ? yMont : 0,
+    inteira: Math.abs(thetaChao - thetaMax) < 0.001
+  };
 }
 
 /**
@@ -581,6 +722,9 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   // "aux:" porque isto é um auxiliar de análise, não geometria da cúpula: um
   // GLB da sala não leva as fatias, tal como não leva a grelha nem o anel.
   fatias.name = "aux:dome-fatias";
+  // Cada projetor com a lente e a fatia dele. Serve para saber quem é que o
+  // boneco está a tapar -- ver pintarQuemTapa().
+  const fontes = [];
   const n = Math.max(1, Math.round(proj.n));
   const ARRANJO_ANTIGO = { 1: "centro", 2: "anel", 3: "anel-zenite", 4: "anel-duplo" };
   const colocacao = proj.colocacao || ARRANJO_ANTIGO[Math.round(proj.arranjo || 3)] || "anel-zenite";
@@ -706,9 +850,12 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     const [f1, f2, ft1, ft2] = aoCentro > 1
       ? comBlend(p1, p2, 0, thetaDoCentro)
       : [p1, p2, 0, thetaDoCentro];
-    fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2,
-      new THREE.Vector3(desvio, yCentro - (h - R), 0), CORES_FATIA[i % CORES_FATIA.length],
+    const lenteCentro = new THREE.Vector3(desvio, yCentro - (h - R), 0);
+    const corCentro = CORES_FATIA[i % CORES_FATIA.length];
+    fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2, lenteCentro, corCentro,
       "dome-fatia-c" + (i + 1)));
+    fontes.push({ lente: lenteCentro, a1: f1, a2: f2, t1: ft1, t2: ft2,
+                  cor: corCentro, todoOAzimute: aoCentro === 1 });
   }
 
   if (noAnel > 0) {
@@ -757,6 +904,8 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         const corFatia = CORES_FATIA[cor++ % CORES_FATIA.length];
         const vertice = pos.clone().setY(pos.y - (h - R));
         fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2, vertice, corFatia, "dome-fatia-" + k));
+        fontes.push({ lente: vertice, a1: f1, a2: f2, t1: ft1, t2: ft2,
+                      cor: corFatia, todoOAzimute: false });
         // ATRAVESSAR O PÓLO. Reportado: *"não está a sobrepor na cúpula, no
         // topo está a ficar encostado apenas"* -- e estava: sem projetor de
         // zénite, as fatias chegavam ao pólo e encostavam ali num ponto.
@@ -792,7 +941,7 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     fatias.add(semImagem);
   }
 
-  return { corpos: grupo, fatias: fatias };
+  return { corpos: grupo, fatias: fatias, fontes: fontes };
 }
 
 /**
