@@ -312,7 +312,7 @@ function montar(recentrarCamara) {
   // quando ela existe -- ver fazerDome() em cena.js para a geometria e para
   // a razão de ser translúcida por omissão.
   const domeDoProjeto = (projeto && projeto.dome) ? projeto.dome : null;
-  ["verDomeWrap", "domeSolidoWrap", "verFatiasWrap", "btVistaDome"].forEach((id) => {
+  ["verDomeWrap", "domeSolidoWrap", "verFatiasWrap", "btVistaDome", "saidasDome"].forEach((id) => {
     if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
   });
   if (domeDoProjeto && $("verDome") && $("verDome").checked) {
@@ -4576,9 +4576,35 @@ function nomeDoFicheiro(extensao) {
   return `${nome || "preview"}-${quando}.${extensao}`;
 }
 
-async function exportar(formato) {
+async function exportar(formato, soACupula) {
   const nota = $("notaExportar");
   if (!desenhado) return;
+
+  // "Só a cúpula" não precisa de nada do que vem a seguir: não há ecrãs a
+  // reconstruir nem público a decidir, é uma superfície e mais nada. E a
+  // cúpula tem de estar LIGADA, senão não está na cena para se copiar.
+  if (soACupula) {
+    if (!(projeto && projeto.dome)) { nota.textContent = "Este projeto não traz cúpula."; return; }
+    if ($("verDome") && !$("verDome").checked) {
+      nota.textContent = 'A cúpula está desligada na secção Vista — liga "Cúpula" e guarda outra vez.';
+      return;
+    }
+    const soDome = prepararParaExportar(desenhado, { soACupula: true });
+    const peso = pesar(soDome);
+    if (!peso.pecas) { nota.textContent = "Não encontrei a superfície da cúpula na cena."; return; }
+    try {
+      const blob = formato === "glb" ? await comoGLB(soDome) : comoOBJ(soDome);
+      descarregar(blob, nomeDoFicheiro(formato).replace(/\.(obj|glb)$/, "-dome.$1"));
+      nota.innerHTML =
+        `Guardado: a superfície da cúpula, ${(peso.vertices / 1000).toFixed(0)} mil vértices, ` +
+        `<b>${(blob.size / 1048576).toFixed(2)} MB</b> — em metros, com os UV do dome master.` +
+        (formato === "obj" ? " Sem materiais, que o .obj não os leva." : "") +
+        " As normais apontam para FORA: se o teu programa quiser a face de dentro, inverte-as lá.";
+    } catch (e) {
+      nota.textContent = e.message;
+    }
+    return;
+  }
 
   // O interruptor "Ecrãs" da secção Vista serve para olhar para a sala vazia
   // -- não é uma decisão sobre o que sai no ficheiro. Sem isto, desligá-lo um
@@ -4654,7 +4680,16 @@ const NOTAS_DA_SAIDA = {
   "glb": "O <b>.glb</b> leva as cores e o nome de cada zona — é por esse nome que se lhe " +
          "põe a textura no Cinema 4D ou no Blender.",
   "obj": "O <b>.obj</b> abre em tudo, mas vai <b>sem materiais</b>: as peças chegam lá " +
-         "cinzentas e pintam-se à mão."
+         "cinzentas e pintam-se à mão.",
+  // O WATCHOUT 7 importa .obj, .gltf/.glb e .3ds, e exige UV para 3D mapping
+  // (docs.dataton.com/watchout-7/3d/models.html) -- por isso estes dois
+  // formatos bastam, e é por isso que a cúpula leva sempre UV.
+  "dome-obj": "Só a <b>superfície da cúpula</b>, em metros, com os UV do dome master " +
+              "(zénite ao centro, horizonte na borda). Entra no <b>WATCHOUT</b>, que " +
+              "importa .obj, .glb e .3ds e <b>exige UV para 3D mapping</b>. " +
+              "Sem sala, sem público, sem projetores.",
+  "dome-glb": "O mesmo que o .obj só da cúpula, em glTF — que o WATCHOUT também importa, " +
+              "e que ao contrário do .obj leva nomes e materiais."
 };
 
 function escolherSaida(qual) {
@@ -4678,6 +4713,8 @@ escolherSaida("png");
 $("btGuardar").onclick = () => {
   if (saidaEscolhida === "png") guardarVista();
   else if (saidaEscolhida === "png-medidas") guardarImagem();
+  else if (saidaEscolhida === "dome-obj") exportar("obj", true);
+  else if (saidaEscolhida === "dome-glb") exportar("glb", true);
   else exportar(saidaEscolhida);
 };
 

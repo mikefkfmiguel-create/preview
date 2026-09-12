@@ -332,7 +332,13 @@ export function fazerDome(dome, solido, textura) {
   //
   // Reportado assim: *"como ponho conteúdo se não tenho ecrã"*. Não havia
   // como -- o conteúdo só ia para zonas, e uma cúpula não é uma zona.
-  if (textura) uvAzimutalEquidistante(geo, thetaMax);
+  // Os UV são SEMPRE escritos, com ou sem conteúdo carregado: é o que faz a
+  // cúpula servir num media server. A documentação do WATCHOUT 7 é explícita
+  // -- "if you are going to use the imported 3D model for 3D mapping it is
+  // required that the model has uv-coordinates"
+  // (docs.dataton.com/watchout-7/3d/models.html). Uma cúpula exportada sem UV
+  // abre lá e não se lhe consegue mapear nada.
+  uvAzimutalEquidistante(geo, thetaMax);
 
   const casca = new THREE.Mesh(geo, textura
     // Com conteúdo: vê-se de dentro, que é de onde o público vê. Fica também
