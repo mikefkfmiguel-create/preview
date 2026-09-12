@@ -1801,11 +1801,38 @@ calota mais alta do que meia esfera é mais larga a meia altura do que na
 base. Ligar "fechada" tira a grelha; desligar "Cúpula" tira tudo. Sem erros
 de consola.
 
+### ~~Os projetores em anel~~ — FEITO (v3.03)
+
+Pedido a seguir: *"OK CUPULA TENHO E PROJECTORES"*. A ponte passou a trazer
+`dome.projetores = { n, arranjo }` — só **quantos** e **como**, que é o que a
+calculadora sabe. **Onde** ficam é conta deste lado.
+
+A colocação é a que as fontes nomeiam, *"center or horizon cove placement"*:
+o do zénite ao centro a apontar a prumo, e os restantes num anel encostado
+por dentro à base (`raio = a − 0,5 m`, altura `min(1,2 m; h × 0,12)`), a
+apontar para cima e para a metade oposta da cúpula — que é o que uma cove
+faz. O `arranjo` reparte o total: 1 = todos ao centro com fisheye; 2 = anel
+sem zénite; 3 = anel + zénite; 4 = anel duplo + zénite, com meio passo de
+desfasamento para as duas filas não ficarem uma atrás da outra.
+
+Cada projetor leva um traço curto a dizer para onde aponta (`aux:dome-mira`,
+fora dos exports): num anel de dez, sem isso não se percebe se estão virados
+para dentro ou para fora. O corpo é o **mesmo** que `fazerProjecao()` já usa,
+para não haver duas ideias de "projetor" na cena.
+
+**A altura de uma cove real depende da lente e decide-se na obra.** Aqui fica
+baixa e indicativa, e esta nota existe para não se ler o desenho como uma
+cota. O que ele responde é "onde é que isto se monta, mais ou menos", não "a
+que milímetro".
+
+**Verificado medindo a cena:** cúpula de 12 m, 6 projetores, arranjo 3 → 1 ao
+centro em `y = 0,12` e 5 num anel a `r = 5,50 m`, `y = 0,72 m` (= `6 − 0,5` e
+`min(1,2; 6×0,12)`). Sem erros de consola.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
-queira encostada a um lado. E os projetores em anel não estão desenhados: a
-aba Dome diz quantos são, o 3D ainda não mostra onde ficam.
+queira encostada a um lado.
 
 ## 12 de setembro — os palcos extra
 

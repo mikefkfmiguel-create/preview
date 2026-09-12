@@ -356,7 +356,98 @@ export function fazerDome(dome, solido) {
   base.name = "aux:dome-base";
   grupo.add(base);
 
+  // Os projetores, quando a aba Dome disser quantos e como. É o que
+  // responde a "onde monto isto" -- a calculadora diz o número, o 3D diz o
+  // sítio.
+  //
+  // A colocação é a que as fontes nomeiam: "center or horizon cove
+  // placement". O anel fica encostado por dentro à base (a cove), os
+  // projetores apontam para cima e para o centro, e o do zénite fica no
+  // meio a apontar a prumo. A ALTURA de uma cove real depende da lente e
+  // decide-se na obra -- aqui fica baixa e indicativa, e o desenho di-lo em
+  // vez de fingir precisão que não tem.
+  if (dome.projetores && dome.projetores.n > 0) {
+    grupo.add(fazerProjetoresDoDome(dome.projetores, a, h, R));
+  }
+
   grupo.name = "dome";
+  return grupo;
+}
+
+/**
+ * O corpo de um projetor apontado a um alvo — o mesmo corpo que a aba de
+ * projeção já usa, para não haver duas ideias de "projetor" na cena.
+ */
+function corpoDeProjetor(pos, alvo, nome) {
+  const caixa = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.18, 0.52),
+    new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
+  caixa.position.copy(pos);
+  caixa.lookAt(alvo);
+  caixa.name = nome;
+
+  // Um traço curto a dizer para onde aponta: sem isto, num anel de dez, não
+  // se percebe se estão virados para dentro ou para fora.
+  const dir = new THREE.Vector3().subVectors(alvo, pos).normalize().multiplyScalar(1.1);
+  const traco = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([pos.clone(), pos.clone().add(dir)]),
+    new THREE.LineBasicMaterial({ color: 0x8FC2FF, transparent: true, opacity: 0.55 }));
+  traco.name = "aux:dome-mira";
+
+  const g = new THREE.Group();
+  g.add(caixa, traco);
+  return g;
+}
+
+/**
+ * O arranjo de projetores de uma cúpula.
+ *
+ * `arranjo` é o mesmo número que a aba Dome usa: quantas imagens se
+ * atravessam de bordo a bordo por cima do pólo. 1 = um só ao centro com
+ * fisheye; 2 = anel sem zénite; 3 = anel + zénite; 4 = anel duplo + zénite.
+ * Daí sai como se reparte o número total.
+ */
+function fazerProjetoresDoDome(proj, a, h, R) {
+  const grupo = new THREE.Group();
+  grupo.name = "dome-projetores";
+  const n = Math.max(1, Math.round(proj.n));
+  const arranjo = Math.min(4, Math.max(1, Math.round(proj.arranjo || 3)));
+  const alturaCove = Math.min(1.2, h * 0.12);   // baixo, junto à base
+  const raioCove = Math.max(0.4, a - 0.5);      // encostado por dentro
+
+  // Quantos ficam ao centro (o do zénite) e quantos no anel.
+  const aoCentro = (arranjo === 1) ? n : (arranjo >= 3 ? 1 : 0);
+  const noAnel = n - aoCentro;
+
+  for (let i = 0; i < aoCentro; i++) {
+    // Um fisheye ao centro aponta a prumo. Com mais do que um (caso raro),
+    // afastam-se um pouco para não ficarem dentro um do outro.
+    const desvio = aoCentro > 1 ? (i - (aoCentro - 1) / 2) * 0.6 : 0;
+    const pos = new THREE.Vector3(desvio, 0.12, 0);
+    grupo.add(corpoDeProjetor(pos, new THREE.Vector3(desvio, h, 0), "dome-projetor-c" + (i + 1)));
+  }
+
+  if (noAnel > 0) {
+    // Com "anel duplo", o anel de fora leva a maior metade.
+    const aneis = (arranjo === 4 && noAnel >= 4)
+      ? [{ q: Math.ceil(noAnel / 2), r: raioCove, y: alturaCove },
+         { q: Math.floor(noAnel / 2), r: raioCove * 0.55, y: alturaCove + Math.min(1.5, h * 0.2) }]
+      : [{ q: noAnel, r: raioCove, y: alturaCove }];
+    let k = 0;
+    aneis.forEach((anel, ia) => {
+      for (let i = 0; i < anel.q; i++) {
+        // Meio passo de desfasamento no anel de dentro, para as duas filas
+        // não ficarem uma atrás da outra.
+        const ang = (i / anel.q) * Math.PI * 2 + (ia ? Math.PI / anel.q : 0);
+        const pos = new THREE.Vector3(Math.sin(ang) * anel.r, anel.y, Math.cos(ang) * anel.r);
+        // Aponta para cima e para o lado oposto da cúpula: é o que uma cove
+        // faz, cobrir a metade de lá.
+        const alvo = new THREE.Vector3(-Math.sin(ang) * a * 0.55, h * 0.85, -Math.cos(ang) * a * 0.55);
+        grupo.add(corpoDeProjetor(pos, alvo, "dome-projetor-" + (++k)));
+      }
+    });
+  }
+
   return grupo;
 }
 
