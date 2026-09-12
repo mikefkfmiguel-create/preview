@@ -556,6 +556,9 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     ? Math.min(h - 0.2, alturaPedida)       // nunca acima do topo da cúpula
     : Math.min(1.2, h * 0.12);
   const raioCove = Math.max(0.4, a - 0.5);      // encostado por dentro
+  // Do ponto de montagem até à lente. Sem número, zero: o corpo e a lente
+  // ficam no mesmo sítio, que é o que se desenhava antes.
+  const profundidade = Math.max(0, Math.min(raioCove - 0.3, parseFloat(proj.profundidade) || 0));
 
   // Quantos ficam ao centro (o do zénite) e quantos nos anéis.
   const aoCentro = (colocacao === "centro") ? n : (colocacao === "anel" ? 0 : Math.min(1, n));
@@ -587,12 +590,6 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   // onde duas se cruzam a transparência soma -- a faixa aparece mais clara,
   // que é exactamente como um mapa de blend se lê.
   const blend = Math.min(0.5, Math.max(0, parseFloat(proj.blend) || 0));
-  const comBlend = (a1, a2, t1, t2) => {
-    const dPhi = (a2 - a1) * blend / 2;
-    const dTheta = (t2 - t1) * blend / 2;
-    return [a1 - dPhi, a2 + dPhi,
-            Math.max(0, t1 - dTheta), Math.min(thetaMax, t2 + dTheta)];
-  };
 
   // ATÉ ONDE A IMAGEM DESCE. Reportado: *"a base da imagem é definida pela
   // altura do projetor e não está a fazer"* -- e não estava: as fatias do anel
@@ -609,6 +606,19 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   // fica às escuras, e quem está a decidir a montagem tem de a ver.
   const thetaDoChaoDaImagem = Math.min(thetaMax, Math.acos(
     Math.min(1, Math.max(-1, (alturaCove - h + R) / R))));
+
+  // A sobreposição cresce cada fatia para os lados e para cima -- mas NUNCA
+  // para baixo da base da imagem. Reportado: *"está a perder a base de imagem
+  // consoante a sobreposição que lhe dou"*, e era isso mesmo: o blend
+  // empurrava o bordo de baixo abaixo do plano do projetor, que é um limite
+  // físico e não uma margem com que se possa jogar. Duas fatias sobrepõem-se
+  // uma na outra; nenhuma se sobrepõe ao chão da imagem.
+  const comBlend = (a1, a2, t1, t2) => {
+    const dPhi = (a2 - a1) * blend / 2;
+    const dTheta = (t2 - t1) * blend / 2;
+    return [a1 - dPhi, a2 + dPhi,
+            Math.max(0, t1 - dTheta), Math.min(thetaDoChaoDaImagem, t2 + dTheta)];
+  };
 
   // O zénite leva a sua quota (aoCentro/n) a contar do pólo; os anéis
   // repartem o resto, de cima para baixo e cada um pelo nº de máquinas que
@@ -660,7 +670,12 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         // Meio passo de desfasamento no anel de dentro, para as duas filas
         // não ficarem uma atrás da outra.
         const ang = (i / anel.q) * Math.PI * 2 + (ia ? Math.PI / anel.q : 0);
-        const pos = new THREE.Vector3(Math.sin(ang) * anel.r, anel.y, Math.cos(ang) * anel.r);
+        // O corpo assenta no anel; a LENTE fica "profundidade" mais para
+        // dentro, e é de lá que a distância de tiro se conta (reportado: "o
+        // cálculo da lente é a partir dela e não da posição do projetor").
+        // Por isso o que se desenha no sítio do feixe é a lente, não o corpo.
+        const rLente = Math.max(0.2, anel.r - profundidade);
+        const pos = new THREE.Vector3(Math.sin(ang) * rLente, anel.y, Math.cos(ang) * rLente);
         // Aponta para cima e para o lado oposto da cúpula: é o que uma cove
         // faz, cobrir a metade de lá.
         const alvo = new THREE.Vector3(-Math.sin(ang) * a * 0.55, h * 0.85, -Math.cos(ang) * a * 0.55);
