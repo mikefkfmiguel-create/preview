@@ -2140,6 +2140,31 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 12 de setembro — o logo no peito, para se ver a frente (v3.24)
+
+*"Põe o logo no peito dos bonecos para identificar a frente."* Uma figura de
+escala é simétrica de propósito, e a rodar a câmara não se sabia se se estava a
+ver a frente ou as costas — o que passou a interessar com a pintura peça a
+peça: a cabeça pintada diz que o feixe lhe bate, mas não de que lado.
+
+Um crachá de 19 cm no peito, com o fundo azul da marca e o `mike-simbolo.png`
+por cima, a olhar para **+Z** (que é para onde um orador de palco olha). A
+textura devolve-se já com o fundo e o símbolo entra nela quando a imagem
+carrega — o render corre em contínuo, por isso aparece sozinho, e a
+`fazerFigura()` continua síncrona.
+
+Três cuidados, e nenhum deles é decorativo:
+
+- **A plateia não leva crachá.** O `fazerFigura` é o mesmo modelo que faz as
+  centenas de pessoas do público; o crachá é o terceiro argumento, e só o
+  orador e a pessoa da cúpula o pedem. Verificado: **2 crachás na cena
+  inteira**, com a plateia desenhada.
+- **Fica fora da pintura peça a peça.** Sem isso, o `pintarQuemTapa` tingia o
+  logo com a cor do projetor e contava o crachá como mais uma parte do corpo
+  tapada. O nome leva o prefixo `aux:` e o filtro é por aí.
+- **Não faz sombra** no ecrã plano (`caixasQueTapam`), pela mesma razão: é uma
+  etiqueta, não anatomia. O `aux:` também o mantém fora das exportações.
+
 ## 12 de setembro — pintar só a parte que o feixe apanha (v3.23)
 
 *"O boneco fica todo da cor do projetor de frente para ele e não apenas a
