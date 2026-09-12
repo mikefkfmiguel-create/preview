@@ -445,7 +445,7 @@ function montar(recentrarCamara) {
   // a dome; podíamos ter um para palcos e salas normais e outro para a dome"*.
   // Aqui ficaram as regras do palco, limpas; a pessoa da cúpula é outra, mais
   // abaixo, com as regras dela.
-  const figura = (!soCupula && $("verOrador").checked) ? fazerFigura(1.75) : null;
+  const figura = (!soCupula && $("verOrador").checked) ? fazerFigura(1.75, null, true) : null;
   const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
   const noPalco = palco.altura > 0 && palco.profundidade > 0;
   const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
@@ -478,7 +478,7 @@ function montar(recentrarCamara) {
       const pessoa = fazerFigura(1.75, {
         pele: new THREE.MeshStandardMaterial({ color: 0xBFC9D6, roughness: 0.85 }),
         roupa: new THREE.MeshStandardMaterial({ color: 0x6E7C8C, roughness: 0.95 })
-      });
+      }, true);
       pessoa.name = "figura-dome";
       // NASCE NO CENTRO. Nascia a um terço do raio, e o mike apontou o que
       // isso esconde: *"a posição dele deve ser no centro de origem, pois
@@ -707,7 +707,7 @@ function caixasQueTapam() {
     // percebe se aquilo apanha a cara de quem está a falar.
     const c = new THREE.Box3();
     figura.traverse((o) => {
-      if (!o.isMesh) return;
+      if (!o.isMesh || o.name.indexOf("aux:") === 0) return;   // o crachá não faz sombra
       c.setFromObject(o);
       caixas.push({ dele: "orador",
                     minX: c.min.x, maxX: c.max.x, minY: c.min.y, maxY: c.max.y,

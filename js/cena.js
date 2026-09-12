@@ -591,7 +591,11 @@ export function pintarQuemTapa(grupoDome, figura) {
   // por cima de uma pessoa deixa-lhe as pernas na cor original, que é
   // exactamente a informação que interessa.
   const pecas = [];
-  figura.traverse((o) => { if (o.isMesh && o.material) pecas.push(o); });
+  figura.traverse((o) => {
+    // O crachá do peito (aux:) não é corpo: pintá-lo tingia o logo com a cor
+    // do projetor e contava como mais uma parte tapada.
+    if (o.isMesh && o.material && o.name.indexOf("aux:") !== 0) pecas.push(o);
+  });
   if (!pecas.length) return 0;
 
   // As peças da figura PARTILHAM dois materiais (pele e roupa, ver
@@ -1668,7 +1672,43 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm, textura) {
  * botija de gás, e a figura que dá a medida a tudo o resto não pode ser a
  * coisa que se lê pior no desenho.
  */
-export function fazerFigura(altura = 1.75, cores) {
+/**
+ * O CRACHÁ DA MARCA, para se saber de que lado está a frente do boneco.
+ *
+ * Pedido: *"põe o logo no peito dos bonecos para identificar a frente"*. Uma
+ * figura de escala é simétrica de propósito -- sem nada no peito, a rodar a
+ * câmara não se sabe se se está a ver a frente ou as costas, e com a pintura
+ * peça a peça isso passou a interessar (a cabeça pintada diz que o feixe lhe
+ * bate, mas não de que lado).
+ *
+ * A textura devolve-se JÁ, com o fundo da marca, e o símbolo entra nela
+ * quando a imagem acabar de carregar -- o render corre em contínuo, por isso
+ * aparece sozinho. Assim o crachá nunca falta por causa de um ficheiro que
+ * demorou, e fazerFigura() continua a ser síncrona.
+ */
+let texturaDoCracha = null;
+function crachaDaMarca() {
+  if (texturaDoCracha) return texturaDoCracha;
+  const lado = 256;
+  const tela = document.createElement("canvas");
+  tela.width = lado; tela.height = lado;
+  const p = tela.getContext("2d");
+  p.fillStyle = "#0B2C6B";                 // o azul da marca, como na texturaDaMarca
+  p.fillRect(0, 0, lado, lado);
+  const t = new THREE.CanvasTexture(tela);
+  t.colorSpace = THREE.SRGBColorSpace;
+  carregarImagem("icons/mike-simbolo.png").then((img) => {
+    if (!img) return;
+    const larg = lado * 0.68;
+    const alt = larg * (img.height / img.width);
+    p.drawImage(img, (lado - larg) / 2, (lado - alt) / 2, larg, alt);
+    t.needsUpdate = true;
+  });
+  texturaDoCracha = t;
+  return t;
+}
+
+export function fazerFigura(altura = 1.75, cores, comCracha) {
   const grupo = new THREE.Group();
   grupo.name = "figura";
   // As cores vem de fora quando quem pede e a plateia: um orador claro no
@@ -1712,6 +1752,25 @@ export function fazerFigura(altura = 1.75, cores) {
   // mente sobre tudo o que está ao lado dela.
   const cabeca = por(new THREE.Mesh(new THREE.SphereGeometry(0.082, 14, 12), pele), 0, 1.655, 0);
   cabeca.scale.set(1, 1.16, 1.04);
+
+  // O crachá no peito: a frente é o +Z, que é para onde um orador de palco
+  // olha. Vai no "aux:" porque é um auxiliar de leitura, não anatomia -- e
+  // porque assim fica fora das exportações E fora da pintura peça a peça (ver
+  // pintarQuemTapa), que senão pintava o logo com a cor do projetor e contava
+  // o crachá como uma parte do corpo tapada.
+  //
+  // A plateia NÃO leva crachá: são centenas de figuras, e o que ali interessa
+  // é a silhueta, não a marca.
+  if (comCracha) {
+    const cracha = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.19, 0.19),
+      new THREE.MeshBasicMaterial({ map: crachaDaMarca(), toneMapped: false }));
+    // O tronco é uma caixa de 0,23 de fundo centrada em y = 1,10: a face da
+    // frente está em z = 0,115, e o crachá assenta um milímetro à frente dela.
+    cracha.position.set(0, 1.17, 0.117);
+    cracha.name = "aux:figura-cracha";
+    interior.add(cracha);
+  }
 
   const caixa = new THREE.Box3().setFromObject(interior);
   interior.position.y = -caixa.min.y;                       // pés no chão
