@@ -1829,6 +1829,55 @@ que milímetro".
 centro em `y = 0,12` e 5 num anel a `r = 5,50 m`, `y = 0,72 m` (= `6 − 0,5` e
 `min(1,2; 6×0,12)`). Sem erros de consola.
 
+### ~~As fatias, o conteúdo e a vista de dentro~~ — FEITO (v3.04)
+
+Três relatos seguidos, a testar a cúpula: *"não vejo os cones de projeção"*,
+*"como ponho conteúdo se não tenho ecrã"*, *"pode dar jeito uma vista inside
+dome"*.
+
+**As fatias dos projetores.** Cada projetor passa a ter desenhada na
+superfície a fatia de cúpula que lhe cabe, mais quatro traços que a ligam à
+máquina — é isso que se lê como cone. **O que isto é e o que não é:** é a
+repartição da superfície **por área igual** entre os projetores, não o cone
+real da lente. O cone real depende da lente, do shift e da posição exacta,
+nada disso está aqui, e inventar um ângulo de lente era inventar dados
+técnicos. Responde a "que pedaço de cúpula fica a cargo de cada máquina", que
+é a pergunta de quem está a decidir quantos alugar.
+
+A conta: a área de uma calota é `2πRh` com `h = R(1−cos θ)`, por isso
+repartir área é repartir o `(1−cos θ)` — e não o `θ`. Cada projetor leva
+`1/n` da área. **A primeira versão estava errada e o teste apanhou-a:** a
+fatia do zénite ia de 0 a `θmax`, ou seja levava a cúpula inteira em vez da
+calota de cima. Numa cúpula de 8 m com 6 projetores em "anel + zénite", a
+calota do zénite acaba nos 34° (`acos(1 − 1/6)`) e cada uma das 5 do anel
+leva 34°→90° por 72° de azimute.
+
+Uma cor por fatia, e um interruptor "Fatias dos projetores" — num anel de dez
+são dez manchas, e para olhar para a forma ou para o público convém tirá-las
+da frente. O grupo é `aux:dome-fatias`: é análise, não geometria, e não entra
+nos exports.
+
+**Conteúdo na cúpula.** Não havia como: o conteúdo só ia para zonas, e uma
+cúpula não é uma zona. Agora a casca mostra o conteúdo carregado em
+**azimutal equidistante**, que é como um dome master se mapeia — imagem
+quadrada, zénite no centro do círculo, horizonte na borda, raio proporcional
+ao ângulo ao zénite. É a definição da IMERSA para o Fulldome Master, e é por
+isso que uma imagem normal sai esticada: numa cúpula sai mesmo. Verificado
+medindo os UV: o vértice do pólo cai no raio 0 da imagem e o do horizonte no
+0,5. Com conteúdo, a grelha sai da frente.
+
+**Vista "Dentro da cúpula".** Botão novo, só visível quando o projeto traz
+uma cúpula. O que não era óbvio: aos 52° de campo que a app usa para uma
+sala, dentro de uma cúpula fica-se encostado à casca e não se vê nada —
+apanhado a olhar para os screenshots, não pela conta. Uma cúpula vê-se com
+visão periférica, por isso esta vista abre o campo para 88° e volta aos 52 em
+qualquer outra.
+
+**A colocação vem agora separada dos atravessamentos** (v3.50 dos
+Calculadores): `dome.projetores.colocacao` é `centro`, `anel`, `anel-zenite`
+ou `anel-duplo`. O `arranjo` numérico antigo continua a ser aceite e
+traduzido, para um payload gravado antes disto.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
