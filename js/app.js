@@ -10,7 +10,8 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
 import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, fazerPassarelaLivre, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
-         fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome } from "./cena.js";
+         fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
+         fazerCascaDeProjecao, pintarQuemTapa } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -76,6 +77,7 @@ const camadasEscondidas = new Set();   // camadas da planta que nao se veem
 const camadasLevantadas = new Set();   // camadas que sobem do chao, como paredes
 let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
+let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
 // Onde é que um delay ou um DSM ficam de verdade na sala -- decisão só do
@@ -311,6 +313,7 @@ function montar(recentrarCamara) {
   // "Adicionar ao projeto" marcado). Os dois interruptores só aparecem
   // quando ela existe -- ver fazerDome() em cena.js para a geometria e para
   // a razão de ser translúcida por omissão.
+  domeMontado = null;
   const domeDoProjeto = (projeto && projeto.dome) ? projeto.dome : null;
   ["verDomeWrap", "domeSolidoWrap", "verFatiasWrap", "btVistaDome", "saidasDome"].forEach((id) => {
     if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
@@ -322,7 +325,9 @@ function montar(recentrarCamara) {
     const domeParaDesenhar = comFatias
       ? domeDoProjeto
       : { ...domeDoProjeto, projetores: domeDoProjeto.projetores ? { ...domeDoProjeto.projetores, semFatias: true } : null };
-    desenhado.add(fazerDome(domeParaDesenhar, $("domeSolido") && $("domeSolido").checked, textura));
+    const grupoDome = fazerDome(domeParaDesenhar, $("domeSolido") && $("domeSolido").checked, textura);
+    desenhado.add(grupoDome);
+    domeMontado = grupoDome;
   }
 
   // Passarelas soltas (2ª, 3ª, ...) -- ao contrário da que sai do palco,
@@ -457,6 +462,11 @@ function montar(recentrarCamara) {
     figura.position.set(fx, hExtra != null ? hExtra : ((noPalco && !noChao) ? palco.altura : 0), fz);
     desenhado.add(figura);
   }
+
+  // Quem tapa, pintado no PRÓPRIO boneco -- depois de ele estar na cena, que é
+  // quando se sabe onde ficou. Não se desenha a mancha de sombra: ver o
+  // comentário de pintarQuemTapa() em cena.js para a razão.
+  atualizarQuemTapa();
 
   desenharProjecao(sala, palco);
   // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
@@ -600,6 +610,25 @@ function desenharProjecao(sala, palco) {
  * 4,5 m com gente a frente tem cabecas no feixe, e ver isso ANTES e a
  * diferenca entre pendurar a maquina uma vez ou duas.
  */
+/**
+ * Pinta o boneco quando ele está a tapar um projetor da cúpula, e escreve
+ * quantos. Corre no montar() E a cada arrastar: a primeira versão corria só no
+ * montar(), e arrastar o boneco não remonta -- ficava com a cor de onde tinha
+ * estado, que é o pior dos mundos (a informação lá, e errada).
+ */
+function atualizarQuemTapa() {
+  const nota = $("notaDome");
+  const figura = figuraNaCena();
+  if (!domeMontado || !figura) { if (nota) nota.textContent = ""; return; }
+  const tapados = pintarQuemTapa(domeMontado, figura);
+  if (!nota) return;
+  nota.textContent = tapados
+    ? (tapados === 1
+        ? "O orador está a tapar 1 projetor — está pintado com a cor dele."
+        : "O orador está a tapar " + tapados + " projetores — está pintado com a cor do primeiro.")
+    : "";
+}
+
 function caixasQueTapam() {
   const caixas = [];
 
@@ -4370,6 +4399,7 @@ tela.addEventListener("pointermove", (e) => {
     figura.updateMatrixWorld(true);
     ondeEsta = { x: figura.position.x, z: figura.position.z };
     medirSombra();
+    atualizarQuemTapa();
     return;
   }
 
@@ -4388,6 +4418,7 @@ tela.addEventListener("pointermove", (e) => {
     figura.updateMatrixWorld(true);
     ondeEsta = { x: figura.position.x, z: figura.position.z };
     medirSombra();
+    atualizarQuemTapa();
     return;
   }
 
@@ -4427,6 +4458,7 @@ tela.addEventListener("pointermove", (e) => {
   figura.updateMatrixWorld(true);
   ondeEsta = { x: figura.position.x, z: figura.position.z };
   medirSombra();
+  atualizarQuemTapa();
 });
 
 function largarFigura(e) {
@@ -4631,23 +4663,54 @@ async function exportar(formato, soACupula) {
   // cúpula tem de estar LIGADA, senão não está na cena para se copiar.
   if (soACupula) {
     if (!(projeto && projeto.dome)) { nota.textContent = "Este projeto não traz cúpula."; return; }
-    if ($("verDome") && !$("verDome").checked) {
-      nota.textContent = 'A cúpula está desligada na secção Vista — liga "Cúpula" e guarda outra vez.';
+    // Duas formas: a cúpula TOTAL (a casca que está na cena) ou só a ÁREA DE
+    // PROJEÇÃO (do zénite até onde a imagem chega). A segunda constrói-se à
+    // parte, com os UV do dome master inteiro -- ver fazerCascaDeProjecao().
+    const soProjecao = $("expSoProjecao") && $("expSoProjecao").checked;
+    let soDome, recorte = null, temporarios = [];
+    if (soProjecao) {
+      recorte = fazerCascaDeProjecao(projeto.dome);
+      if (!recorte) { nota.textContent = "Não consegui construir a área de projeção."; return; }
+      const raiz = new THREE.Group();
+      raiz.add(recorte.malha);
+      raiz.updateMatrixWorld(true);
+      soDome = prepararParaExportar({ traverse: (cb) => raiz.traverse(cb) }, { soACupula: true });
+      temporarios = [recorte.malha];
+    } else {
+      if ($("verDome") && !$("verDome").checked) {
+        nota.textContent = 'A cúpula está desligada na secção Vista — liga "Cúpula" e guarda outra vez.';
+        return;
+      }
+      soDome = prepararParaExportar(desenhado, { soACupula: true });
+    }
+    const libertar = () => temporarios.forEach((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
+    const peso = pesar(soDome);
+    if (!peso.pecas) {
+      libertar();
+      nota.textContent = "Não encontrei a superfície da cúpula.";
       return;
     }
-    const soDome = prepararParaExportar(desenhado, { soACupula: true });
-    const peso = pesar(soDome);
-    if (!peso.pecas) { nota.textContent = "Não encontrei a superfície da cúpula na cena."; return; }
     try {
       const blob = formato === "glb" ? await comoGLB(soDome) : comoOBJ(soDome);
-      descarregar(blob, nomeDoFicheiro(formato).replace(/\.(obj|glb)$/, "-dome.$1"));
+      const sufixo = soProjecao ? "-dome-projecao" : "-dome";
+      descarregar(blob, nomeDoFicheiro(formato).replace(/\.(obj|glb)$/, sufixo + ".$1"));
       nota.innerHTML =
-        `Guardado: a superfície da cúpula, ${(peso.vertices / 1000).toFixed(0)} mil vértices, ` +
+        `Guardado: <b>${soProjecao ? "a área de projeção" : "a cúpula total"}</b>, ` +
+        `${(peso.vertices / 1000).toFixed(0)} mil vértices, ` +
         `<b>${(blob.size / 1048576).toFixed(2)} MB</b> — em metros, com os UV do dome master.` +
+        (recorte && !recorte.inteira
+          ? ` Cortada a ${recorte.thetaChaoGraus.toFixed(0)}° do zénite (a imagem começa a ${recorte.yBase.toFixed(2)} m do chão); ` +
+            `os UV são os do dome master inteiro, por isso a imagem cai no mesmo sítio que na cúpula total.`
+          : (recorte ? " Sem altura de montagem escrita, a área de projeção é a cúpula toda." : "")) +
         (formato === "obj" ? " Sem materiais, que o .obj não os leva." : "") +
         " As normais apontam para FORA: se o teu programa quiser a face de dentro, inverte-as lá.";
     } catch (e) {
       nota.textContent = e.message;
+    } finally {
+      libertar();
     }
     return;
   }
@@ -4733,9 +4796,13 @@ const NOTAS_DA_SAIDA = {
   "dome-obj": "Só a <b>superfície da cúpula</b>, em metros, com os UV do dome master " +
               "(zénite ao centro, horizonte na borda). Entra no <b>WATCHOUT</b>, que " +
               "importa .obj, .glb e .3ds e <b>exige UV para 3D mapping</b>. " +
-              "Sem sala, sem público, sem projetores.",
+              "Sem sala, sem público, sem projetores.<br>Duas formas: <b>total</b> ou " +
+              "<b>só a área de projeção</b> (corta a banda que não leva imagem — mapear " +
+              "essa banda é mapear para o vazio).",
   "dome-glb": "O mesmo que o .obj só da cúpula, em glTF — que o WATCHOUT também importa, " +
-              "e que ao contrário do .obj leva nomes e materiais."
+              "e que ao contrário do .obj leva nomes e materiais.<br>Com <b>só a área de " +
+              "projeção</b>, sai a cúpula sem a banda de baixo que não leva imagem — os UV " +
+              "são os mesmos, por isso a imagem cai no mesmo sítio."
 };
 
 function escolherSaida(qual) {
@@ -4748,6 +4815,8 @@ function escolherSaida(qual) {
   const eTresD = qual === "glb" || qual === "obj";
   $("opcaoPublico").hidden = !eTresD;
   $("opcaoLinhas").hidden = !eTresD;
+  // "Só a área de projeção" é só das saídas da cúpula.
+  if ($("opcaoSoProjecao")) $("opcaoSoProjecao").hidden = !(qual === "dome-obj" || qual === "dome-glb");
   $("notaExportar").innerHTML = NOTAS_DA_SAIDA[qual] || "";
 }
 
