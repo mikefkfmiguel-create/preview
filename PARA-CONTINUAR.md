@@ -1763,20 +1763,51 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
-## PENDENTE deste lado (12 de setembro)
+## 12 de setembro — os palcos extra
 
-Dois pedidos a usar os palcos extra a sério, ainda por fazer:
+### ~~Meia-lua para encostar~~ — FEITO (v3.01)
 
-- **Meio palco (semicírculo), para encostar ao principal.** O `⭘` já faz um
-  círculo, mas *"queria arredondar e encostar ao outro como continuidade;
-  para isso deveria ser apenas meio palco, pois senão ao arrumar passa para
-  trás do outro"*. Ou seja: uma peça em meia-lua, com o lado reto para
-  encostar — um avanço arredondado à frente do palco. Mexe na
-  `geometriaDeTampo()` (`js/cena.js`), que hoje arredonda os quatro cantos
-  de um retângulo.
-- **O boneco não vai ao segundo palco.** A figura de escala fica presa ao
-  palco principal; devia poder subir a um palco extra (ou pelo menos
-  acompanhá-lo).
+*"Queria arredondar e encostar ao outro como continuidade; para isso deveria
+ser apenas meio palco, pois senão ao arrumar passa para trás do outro."* E
+está certo: um círculo de diâmetro igual à largura tem metade do corpo atrás
+da linha onde se quer encostar.
+
+Botão `⌒` ao lado do `⭘`: põe a profundidade em metade da largura e o raio
+no máximo, o que dá o semicírculo exacto. Há também um interruptor **"só a
+frente arredondada"**, para quem arredondou à mão e só quer a traseira reta
+sem repor medidas.
+
+A traseira aponta para o fundo da sala (o lado do palco principal); para a
+virar, usa-se o campo `rodar`. Os cantos da meia-lua são arcos de elipse a
+sério (`absellipse`) e não curvas quadráticas — duas quadráticas de ponta a
+ponta fazem uma forma de lente, com bicos nos lados, e isso nota-se quando a
+curva é a peça toda. O arredondar dos quatro cantos ficou como estava, para
+não mudar uma forma já aprovada.
+
+### ~~O boneco não vai ao segundo palco~~ — FEITO (v3.01)
+
+Não se resolvia com limites, como se tinha resolvido a passarela. O arrasto
+do orador sempre trabalhou sobre um **plano horizontal à altura dele** — e
+com um palco extra mais alto o raio atravessava o tampo e ia bater no plano
+lá atrás: a figura ia para TRÁS em vez de para cima. Visto a testar:
+arrastar para cima de uma peça de 2,5 m mandava a figura para `z = −6,33`.
+
+Passou a tocar nas peças a sério (raycast contra os tampos do palco, da
+passarela e dos palcos extra), e a figura fica no ponto e à altura do que
+está debaixo do apontador. Só faces viradas para cima contam — apontar a
+parede da frente de um palco punha a figura colada a meia altura dela. O
+plano antigo continua a servir de recurso para quando o rato sai para o chão
+ou para fora da borda, que é o que trata de a prender ao palco.
+
+Efeito colateral aceite: a figura pode agora encostar-se à borda do tampo,
+onde antes havia uma margem de 0,4 m. Aponta-se e ela vai — e "de onde é que
+ela tapa o ecrã" é justamente uma pergunta de borda.
+
+Falta, se algum dia incomodar: no caminho do *desenho*
+(`alturaDePalcoExtraEm`, usada quando não há apontador nenhum) a pegada de
+uma peça em meia-lua é testada como retângulo, por isso a figura pode ficar
+num canto que é ar. São centímetros, e a figura é uma referência de escala,
+não uma medida.
 
 ### ~~Painel dos extras com os nomes colados~~ — FEITO (v3.00)
 

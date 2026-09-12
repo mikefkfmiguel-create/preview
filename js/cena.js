@@ -93,8 +93,57 @@ export function fazerSala({ largura, profundidade, altura }, comGrelha, comPared
  * especial por preguiça, é para um projeto antigo continuar a ter o mesmo
  * palco, vértice por vértice, no que é exportado para .glb/.obj.
  */
-function geometriaDeTampo(largura, altura, profundidade, raio) {
+/**
+ * Só a FRENTE arredondada, a traseira a direito — a meia-lua.
+ *
+ * Pedido directo, a usar o círculo: *"queria arredondar e encostar ao outro
+ * como continuidade; para isso deveria ser apenas meio palco, pois senão ao
+ * arrumar passa para trás do outro"*. E está certo: um círculo de diâmetro
+ * igual à largura tem metade do corpo atrás da linha onde se quer encostar,
+ * por isso ou fica a flutuar à frente ou entra dentro do palco principal.
+ * Com a traseira reta, encosta.
+ *
+ * "Frente" é o lado do público. O palco principal nasce no fundo da sala
+ * (z negativo) e a plateia cresce para +z; no Shape, que se desenha em XY e
+ * depois se roda com rotateX(-90°), o +y do desenho vai dar a -z do mundo —
+ * logo a frente é o -y do desenho. Um palco extra rodado leva a meia-lua
+ * atrás dele, que é o que se quer: roda-se a peça, não a forma.
+ *
+ * O raio vertical vai até à profundidade INTEIRA (e não até metade, como no
+ * arredondar dos quatro cantos): é isso que deixa a curva fechar numa
+ * meia-elipse a sério. Com largura 8 e profundidade 4, raio 4, sai o
+ * semicírculo exacto.
+ *
+ * Os cantos são arcos de elipse a sério (absellipse) e não curvas
+ * quadráticas: duas quadráticas de ponta a ponta fazem uma forma de lente,
+ * com bicos nos lados — nota-se logo quando a curva é a peça toda, e não só
+ * um canto. Os quatro cantos do arredondar normal ficam como estavam, para
+ * não mudar uma forma que já está aprovada.
+ */
+function geometriaDeMeiaLua(largura, altura, profundidade, raio) {
+  const x = largura / 2, y = profundidade / 2;
+  const rx = Math.min(Math.max(raio || 0, 0), largura / 2);
+  const ry = Math.min(Math.max(raio || 0, 0), profundidade);
+  if (rx <= 0.001 || ry <= 0.001) return new THREE.BoxGeometry(largura, altura, profundidade);
+
+  const forma = new THREE.Shape();
+  forma.moveTo(-x, y);                    // traseira esquerda (encosta aqui)
+  forma.lineTo(x, y);                     // traseira direita
+  forma.lineTo(x, -y + ry);               // lado direito, até onde a curva começa
+  forma.absellipse(x - rx, -y + ry, rx, ry, 0, -Math.PI / 2, true);
+  forma.lineTo(-x + rx, -y);              // frente reta, se o raio não chegar aos lados
+  forma.absellipse(-x + rx, -y + ry, rx, ry, -Math.PI / 2, -Math.PI, true);
+  forma.closePath();                      // lado esquerdo, de volta à traseira
+
+  const geo = new THREE.ExtrudeGeometry(forma, { depth: altura, bevelEnabled: false, curveSegments: 24 });
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(0, -altura / 2, 0);
+  return geo;
+}
+
+function geometriaDeTampo(largura, altura, profundidade, raio, meio) {
   const pedido = Math.max(raio || 0, 0);
+  if (meio) return geometriaDeMeiaLua(largura, altura, profundidade, pedido);
   if (pedido <= 0.001) return new THREE.BoxGeometry(largura, altura, profundidade);
 
   // O raio limita-se POR EIXO, e não pelo lado mais curto — foi a correcção
@@ -173,7 +222,7 @@ export function fazerPalcoExtra(pe) {
   const altura = Math.max(0.1, pe.altura || 1);
   const profundidade = Math.max(0.5, pe.profundidade || 4);
   const caixa = new THREE.Mesh(
-    geometriaDeTampo(largura, altura, profundidade, pe.raio),
+    geometriaDeTampo(largura, altura, profundidade, pe.raio, pe.meio),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
   caixa.position.set(0, altura / 2, 0);
   grupo.add(caixa);
