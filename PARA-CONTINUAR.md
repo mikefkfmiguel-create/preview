@@ -2140,7 +2140,7 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
-## 12 de setembro — o logo no peito, para se ver a frente (v3.24, marca completa na v3.25)
+## 12 de setembro — o logo no peito, para se ver a frente (v3.24 → v3.26)
 
 *"Põe o logo no peito dos bonecos para identificar a frente."* Uma figura de
 escala é simétrica de propósito, e a rodar a câmara não se sabia se se estava a
@@ -2148,13 +2148,15 @@ ver a frente ou as costas — o que passou a interessar com a pintura peça a
 peça: a cabeça pintada diz que o feixe lhe bate, mas não de que lado.
 
 Um crachá no peito, com o fundo azul da marca e o logo por cima, a olhar para
-**+Z** (que é para onde um orador de palco olha). Começou como um quadrado de
-19 cm com o símbolo; perguntado o que significava *"como estamos da
-camisola"*, a resposta foi *"o meu logotipo da Mike Apps"* — ou seja a marca
-COMPLETA, como vai bordada numa camisola de trabalho. Passou a
-`mike-marca-branco.png` num rectângulo deitado de **24 × 8,9 cm**, com a
-altura a sair do rácio real da imagem (2,69:1) e não de um palpite: com o logo
-inteiro metido num quadrado, ou ficava minúsculo ao meio ou saía esticado. A
+**+Z** (que é para onde um orador de palco olha). Levou três voltas até assentar, e vale a pena
+guardar porquê: começou num quadrado de 19 cm com o símbolo; perguntado o que
+significava *"como estamos da camisola"*, a resposta foi *"o meu logotipo da
+Mike Apps"*, e passou à marca completa (símbolo + nome) num rectângulo de
+24 × 8,9 cm; a seguir veio *"Mike apps, apenas o logo gráfico"* — o nome era
+para tirar. Ficou o **símbolo sozinho, 13 cm, quadrado** (o símbolo é 1:1), um
+emblema de peito e não uma tarja. A esta escala o lettering não se lia e só
+fazia o crachá crescer. Em todas as voltas a altura saiu do rácio real da
+imagem e nunca de um palpite. A
 textura devolve-se já com o fundo e o símbolo entra nela quando a imagem
 carrega — o render corre em contínuo, por isso aparece sozinho, e a
 `fazerFigura()` continua síncrona.
