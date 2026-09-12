@@ -10,7 +10,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
 import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, fazerPassarelaLivre, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
-         fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura } from "./cena.js";
+         fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -298,6 +298,17 @@ function montar(recentrarCamara) {
       grupoExtra.name = "palco-" + (i + 1);
       desenhado.add(grupoExtra);
     });
+  }
+
+  // A cúpula, quando o projeto trouxer uma dos Calculadores (aba Dome, com
+  // "Adicionar ao projeto" marcado). Os dois interruptores só aparecem
+  // quando ela existe -- ver fazerDome() em cena.js para a geometria e para
+  // a razão de ser translúcida por omissão.
+  const domeDoProjeto = (projeto && projeto.dome) ? projeto.dome : null;
+  if ($("verDomeWrap")) $("verDomeWrap").style.display = domeDoProjeto ? "" : "none";
+  if ($("domeSolidoWrap")) $("domeSolidoWrap").style.display = domeDoProjeto ? "" : "none";
+  if (domeDoProjeto && $("verDome") && $("verDome").checked) {
+    desenhado.add(fazerDome(domeDoProjeto, $("domeSolido") && $("domeSolido").checked));
   }
 
   // Passarelas soltas (2ª, 3ª, ...) -- ao contrário da que sai do palco,
@@ -3251,7 +3262,11 @@ function estadoCompleto() {
       verPalco: $("verPalco").checked,
       verOrador: $("verOrador").checked,
       verParedes: $("verParedes").checked,
-      verCobertura: $("verCobertura").checked
+      verCobertura: $("verCobertura").checked,
+      // A cúpula e o modo dela também se guardam: um projeto de dome
+      // reaberto tinha de voltar a ligar-se à mão.
+      verDome: $("verDome") ? $("verDome").checked : true,
+      domeSolido: $("domeSolido") ? $("domeSolido").checked : false
     }
   };
 }
@@ -3313,6 +3328,7 @@ async function abrirProjetoTodo(estado) {
   preencherCheckbox("verRegie", v.verRegie); preencherCheckbox("verPalco", v.verPalco);
   preencherCheckbox("verOrador", v.verOrador); preencherCheckbox("verParedes", v.verParedes);
   preencherCheckbox("verCobertura", v.verCobertura);
+  preencherCheckbox("verDome", v.verDome); preencherCheckbox("domeSolido", v.domeSolido);
 
   projeto = estado.projeto || null;
   // "gomos" faltava aqui — ficava undefined (nem um array vazio) em vez de

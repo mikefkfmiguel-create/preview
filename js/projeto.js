@@ -73,13 +73,22 @@ export function lerProjeto(bruto) {
   // Também se aceita a lista de zonas à seca, que é o que está no localStorage
   // dos Calculadores: quem cola raramente sabe qual das duas coisas tem na mão.
   const zonasBrutas = Array.isArray(dados) ? dados : dados.zonas;
-  if (!Array.isArray(zonasBrutas) || !zonasBrutas.length) {
+  // Uma CÚPULA sozinha (ou um DSM sozinho) é um projeto legítimo: não tem
+  // zonas nenhumas e há mesmo assim o que desenhar. Sem esta exceção,
+  // marcar a aba Dome nos Calculadores mandava a carga para cá e este erro
+  // atirava-a fora calado -- projetoGuardado() engole a excepção, por isso
+  // o sintoma era "não aparece nada" sem uma linha de aviso.
+  const temFormaSemZonas =
+    !Array.isArray(dados) &&
+    ((dados.dome && numero(dados.dome.diametro, 0) > 0) ||
+     (dados.dsm && numero(dados.dsm.n, 0) > 0));
+  if ((!Array.isArray(zonasBrutas) || !zonasBrutas.length) && !temFormaSemZonas) {
     throw new Error("Não encontrei zonas nenhumas lá dentro.");
   }
 
   const zonas = [];
   const recusadas = [];
-  zonasBrutas.forEach((z, i) => {
+  (Array.isArray(zonasBrutas) ? zonasBrutas : []).forEach((z, i) => {
     const largura = numero(z.w, numero(z.largura, NaN));
     const altura = numero(z.h, numero(z.altura, NaN));
     if (!(largura > 0) || !(altura > 0)) {
@@ -122,7 +131,15 @@ export function lerProjeto(bruto) {
     });
   });
 
-  if (!zonas.length) {
+  // Sem zonas, isto normalmente é um erro: alguém colou o sítio errado. Mas
+  // um projeto que só tem uma CÚPULA é um projeto legítimo -- é para isso
+  // que a aba Dome existe --, por isso a rejeição é só quando não há zonas
+  // NEM cúpula. (Reportado como "como adiciono para poder ver no 3D": a
+  // cúpula ia no payload e este erro atirava o projeto todo fora.) O mesmo
+  // vale para um DSM sozinho.
+  const temDome = dados.dome && numero(dados.dome.diametro, 0) > 0;
+  const temDsm = dados.dsm && numero(dados.dsm.n, 0) > 0;
+  if (!zonas.length && !temDome && !temDsm) {
     throw new Error("Nenhuma zona trazia medidas em metros. " +
                     "Isto veio do localStorage em vez do botão dos Calculadores?");
   }
@@ -133,6 +150,22 @@ export function lerProjeto(bruto) {
   const dsmBruto = dados.dsm;
   const dsm = (dsmBruto && numero(dsmBruto.n, 0) > 0 && numero(dsmBruto.w, 0) > 0 && numero(dsmBruto.h, 0) > 0)
     ? { n: Math.round(numero(dsmBruto.n, 0)), w: numero(dsmBruto.w, 0.6), h: numero(dsmBruto.h, 0.4) }
+    : null;
+
+  // A cúpula (aba Dome dos Calculadores). Tal como o DSM, não é uma zona --
+  // é uma forma para a sala toda. Só as medidas chegam aqui: o Preview
+  // desenha, não calcula dome masters nem lúmenes.
+  //
+  // Sem altura assume-se meia-esfera (altura = raio), que é o caso mais
+  // comum e o único que se deduz do diâmetro sem inventar nada.
+  const domeBruto = dados.dome;
+  const dome = (domeBruto && numero(domeBruto.diametro, 0) > 0)
+    ? {
+        diametro: numero(domeBruto.diametro, 0),
+        altura: numero(domeBruto.altura, 0) > 0
+          ? numero(domeBruto.altura, 0)
+          : numero(domeBruto.diametro, 0) / 2
+      }
     : null;
 
   // O standard de distância de visualização escolhido na aba "Distância de
@@ -160,6 +193,7 @@ export function lerProjeto(bruto) {
     sala: dados.sala || null,
     zonas,
     dsm,
+    dome,
     standard,
     recusadas
   };

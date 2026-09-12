@@ -274,6 +274,93 @@ export function zonaDaPassarela(sala, palco, passarela) {
 }
 
 /**
+ * A cúpula de projeção (dome), à escala, vista por dentro.
+ *
+ * Pedido directo depois de a calculadora de dome ficar feita: *"como
+ * adiciono para poder ver no 3D"*. Vem dos Calculadores pela mesma ponte
+ * das zonas, com as medidas e mais nada — o Preview não ganha contas de
+ * dome master, lúmenes nem projetores, que é regra da casa.
+ *
+ * A geometria é uma CALOTA esférica, não meia esfera: um dome geodésico de
+ * evento é muitas vezes mais (ou menos) do que metade. De um diâmetro de
+ * base D e uma altura h sai o raio da esfera
+ *
+ *     R = (a² + h²) / 2h,   a = D/2
+ *
+ * e o centro dessa esfera fica a y = h − R (abaixo do chão numa meia-esfera,
+ * acima dele numa cúpula mais alta do que meia). A calota vai do zénite até
+ * ao ângulo polar onde a superfície encontra o chão:
+ *
+ *     cos(θmax) = (R − h) / R
+ *
+ * Numa meia-esfera (h = a = R) isso dá θmax = 90°, como tem de ser.
+ *
+ * Por omissão desenha-se TRANSLÚCIDA, com uma grelha de meridianos e
+ * paralelos por cima. Uma cúpula opaca é mais realista e é inútil aqui: as
+ * perguntas deste Preview são "cabe?", "vê-se?" e "quem tapa o quê?", e uma
+ * casca fechada tapa o público, os ecrãs e o palco a partir de metade dos
+ * ângulos. Sólida existe no interruptor, para quem quer a imagem bonita.
+ */
+export function fazerDome(dome, solido) {
+  const grupo = new THREE.Group();
+  if (!dome) return grupo;
+  const D = Math.max(0.5, parseFloat(dome.diametro) || 0);
+  const h = Math.max(0.25, parseFloat(dome.altura) || D / 2);
+  if (!(D > 0)) return grupo;
+  const a = D / 2;
+  const R = (a * a + h * h) / (2 * h);
+  // Clamp defensivo: com medidas absurdas (h enorme para um D pequeno) o
+  // arco-cosseno saía fora de [-1, 1] e a geometria vinha NaN.
+  const cosMax = Math.min(1, Math.max(-1, (R - h) / R));
+  const thetaMax = Math.acos(cosMax);
+
+  const geo = new THREE.SphereGeometry(R, 64, 40, 0, Math.PI * 2, 0, thetaMax);
+
+  // A casca vive num sub-grupo deslocado para o centro da esfera; o anel da
+  // base fica no grupo de fora, ao nível do chão. Sem esta separação, o
+  // deslocamento da esfera levava o anel com ele e a pegada aparecia no ar.
+  const cascaGrupo = new THREE.Group();
+  cascaGrupo.position.y = h - R;
+  grupo.add(cascaGrupo);
+
+  const casca = new THREE.Mesh(geo, solido
+    // Sólida: vê-se a face de DENTRO (BackSide), que é onde a imagem
+    // aparece na realidade. Com a face de fora ficava uma bola opaca.
+    ? new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.95, side: THREE.BackSide })
+    : new THREE.MeshBasicMaterial({
+        color: 0x9683E8, transparent: true, opacity: 0.10,
+        side: THREE.DoubleSide, depthWrite: false
+      }));
+  casca.name = "dome-casca";
+  cascaGrupo.add(casca);
+
+  // A grelha é o que faz a forma ler-se quando está translúcida — sem ela,
+  // uma casca a 10% de opacidade é uma névoa sem silhueta.
+  if (!solido) {
+    const grelha = new THREE.Mesh(
+      new THREE.SphereGeometry(R, 24, 12, 0, Math.PI * 2, 0, thetaMax),
+      new THREE.MeshBasicMaterial({
+        color: 0x9683E8, wireframe: true, transparent: true, opacity: 0.35, depthWrite: false
+      }));
+    grelha.name = "aux:dome-grelha";
+    cascaGrupo.add(grelha);
+  }
+
+  // O anel da base, sempre visível: é a pegada da cúpula no chão, e é por
+  // ela que se vê se cabe na sala.
+  const base = new THREE.Mesh(
+    new THREE.RingGeometry(Math.max(0.01, a - 0.06), a, 96),
+    new THREE.MeshBasicMaterial({ color: 0x9683E8, transparent: true, opacity: 0.7, side: THREE.DoubleSide }));
+  base.rotation.x = -Math.PI / 2;
+  base.position.y = 0.012;   // um dedo acima do chão, para não piscar contra ele
+  base.name = "aux:dome-base";
+  grupo.add(base);
+
+  grupo.name = "dome";
+  return grupo;
+}
+
+/**
  * Uma passarela SOLTA (2ª, 3ª, ...) — pedido direto ("preciso ter como
  * criar mais do que um... passarela"). Ao contrário da de cima, que sai
  * sempre do meio da frente do palco e nunca roda, esta é livre: posição e
