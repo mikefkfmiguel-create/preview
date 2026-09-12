@@ -183,6 +183,10 @@ export function lerProjeto(bruto) {
               // A sobreposição de blending, para as fatias se montarem umas
               // nas outras como as imagens a sério fazem. Vem em fracção.
               blend: Math.min(0.5, Math.max(0, numero(projBruto.blend, 0))),
+              // Do ponto de montagem à lente. A distância de tiro conta-se da
+              // lente, por isso é ela que fica no sítio do feixe.
+              profundidade: numero(projBruto.profundidade, 0) > 0
+                ? numero(projBruto.profundidade, 0) : null,
               // Quem é o projetor e que lente leva -- só para o 3D poder
               // dizer o nome. Nenhuma conta deste lado depende disto: os
               // catálogos são dos Calculadores, que é a regra da casa.

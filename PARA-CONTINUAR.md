@@ -1993,6 +1993,27 @@ Verificado numa cúpula de 8 m com 4 projetores em anel: a 1,5 m as fatias vão
 a 73° e a faixa vermelha ocupa 68°–90°; a 3,0 m as fatias vão a 45° e a faixa
 ocupa 41°–90°. Sobe a montagem, cresce o escuro.
 
+### ~~A sobreposição deixa de comer a base, e a lente vai no vértice~~ — FEITO (v3.09)
+
+Reportado: *"está a perder a base de imagem consoante a sobreposição que lhe
+dou"* e *"o cálculo da lente é a partir dela e não da posição do projetor"*.
+
+**O blend crescia a fatia também para BAIXO**, e empurrava o bordo de baixo
+abaixo do plano do projetor. Estava errado: esse bordo é um limite físico, não
+uma margem com que se possa jogar — duas fatias sobrepõem-se uma na outra,
+nenhuma se sobrepõe ao chão da imagem. Agora o crescimento é para os lados e
+para cima, com o `thetaDoChaoDaImagem` como tecto em baixo.
+
+Verificado a 0, 25 e 45% de blend numa cúpula de 8 m com montagem a 1,5 m: a
+faixa sem imagem começa sempre nos **68°** e o bordo das fatias fica nos 68°;
+só o azimute cresce, 90° → 113° → 131°.
+
+**A lente fica no vértice do feixe, não o corpo.** `dome.projetores.profundidade`
+(campo novo na v3.55 de lá) é a distância do ponto de montagem à lente: o corpo
+assenta no anel, a lente fica esse tanto mais para dentro, e é de lá que sai o
+feixe. Com 1,4 m de profundidade num anel de raio 3,5 m, a lente aparece a
+2,10 m do centro.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
