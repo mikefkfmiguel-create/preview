@@ -27,6 +27,13 @@ const renderizador = new THREE.WebGLRenderer({ canvas: tela, antialias: true,
 renderizador.setPixelRatio(Math.min(devicePixelRatio, 2));
 
 const camara = new THREE.PerspectiveCamera(52, 1, 0.05, 400);
+// Os 52° servem uma sala vista de fora. Dentro de uma cúpula não servem: a
+// superfície está a três ou quatro metros da cara e o enquadramento fica
+// encostado à casca, sem se ver a forma nem a repartição pelos projetores.
+// Uma cúpula vê-se com visão periférica -- daí a vista de dentro abrir o
+// campo, e voltar aos 52 em qualquer outra.
+const FOV_NORMAL = 52;
+const FOV_DENTRO_DA_CUPULA = 88;
 const cena = fazerCena();
 const controlos = new OrbitControls(camara, tela);
 controlos.enableDamping = true;
@@ -305,10 +312,17 @@ function montar(recentrarCamara) {
   // quando ela existe -- ver fazerDome() em cena.js para a geometria e para
   // a razão de ser translúcida por omissão.
   const domeDoProjeto = (projeto && projeto.dome) ? projeto.dome : null;
-  if ($("verDomeWrap")) $("verDomeWrap").style.display = domeDoProjeto ? "" : "none";
-  if ($("domeSolidoWrap")) $("domeSolidoWrap").style.display = domeDoProjeto ? "" : "none";
+  ["verDomeWrap", "domeSolidoWrap", "verFatiasWrap", "btVistaDome"].forEach((id) => {
+    if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
+  });
   if (domeDoProjeto && $("verDome") && $("verDome").checked) {
-    desenhado.add(fazerDome(domeDoProjeto, $("domeSolido") && $("domeSolido").checked));
+    // As fatias desligam-se: num anel de dez são dez manchas, e para olhar
+    // para a forma da cúpula ou para o público convém tirá-las da frente.
+    const comFatias = !$("verFatias") || $("verFatias").checked;
+    const domeParaDesenhar = comFatias
+      ? domeDoProjeto
+      : { ...domeDoProjeto, projetores: domeDoProjeto.projetores ? { ...domeDoProjeto.projetores, semFatias: true } : null };
+    desenhado.add(fazerDome(domeParaDesenhar, $("domeSolido") && $("domeSolido").checked, textura));
   }
 
   // Passarelas soltas (2ª, 3ª, ...) -- ao contrário da que sai do palco,
@@ -2511,6 +2525,8 @@ function desenharListaConteudoZonas(projetoAtual) {
 // -------------------------------------------------------------------- vistas
 
 function vista(qual) {
+  const fovQueQuer = qual === "dome" ? FOV_DENTRO_DA_CUPULA : FOV_NORMAL;
+  if (camara.fov !== fovQueQuer) { camara.fov = fovQueQuer; camara.updateProjectionMatrix(); }
   const sala = lerSala();
   const palco = lerPalco();
   const alvo = new THREE.Vector3(
@@ -2532,6 +2548,21 @@ function vista(qual) {
     // Planta: a pique sobre o meio da sala, e não a olhar para a parede.
     camara.position.set(0, Math.max(sala.largura, sala.profundidade) * 1.15, 0.01);
     alvo.set(0, 0, -sala.profundidade * 0.08);
+  } else if (qual === "dome") {
+    // De dentro, a olhar para cima: é de onde o público vê uma cúpula, e é a
+    // única vista em que se percebe a repartição pelos projetores. Ao nível
+    // dos olhos, um pouco fora do centro (no centro exacto não se percebe
+    // para que lado se está virado).
+    const d = projeto && projeto.dome;
+    const aDome = d ? Math.max(0.5, (parseFloat(d.diametro) || 8) / 2) : 4;
+    const hDome = d ? Math.max(0.5, parseFloat(d.altura) || aDome) : 4;
+    // Perto do centro (não no centro exacto: aí não se percebe para que lado
+    // se está virado) e a olhar para cima em diagonal. Apontar quase a prumo
+    // enche o ecrã com a superfície ao lado e não se vê a cúpula.
+    camara.position.set(0, 1.6, aDome * 0.15);
+    controlos.target.set(0, hDome * 0.7, -aDome * 0.9);
+    controlos.update();
+    return;
   } else if (qual === "olhos") {
     const p = olhosDaPlateia || new THREE.Vector3(0, 1.2, sala.profundidade / 4);
     camara.position.copy(p);
@@ -3266,7 +3297,8 @@ function estadoCompleto() {
       // A cúpula e o modo dela também se guardam: um projeto de dome
       // reaberto tinha de voltar a ligar-se à mão.
       verDome: $("verDome") ? $("verDome").checked : true,
-      domeSolido: $("domeSolido") ? $("domeSolido").checked : false
+      domeSolido: $("domeSolido") ? $("domeSolido").checked : false,
+      verFatias: $("verFatias") ? $("verFatias").checked : true
     }
   };
 }
@@ -3329,6 +3361,7 @@ async function abrirProjetoTodo(estado) {
   preencherCheckbox("verOrador", v.verOrador); preencherCheckbox("verParedes", v.verParedes);
   preencherCheckbox("verCobertura", v.verCobertura);
   preencherCheckbox("verDome", v.verDome); preencherCheckbox("domeSolido", v.domeSolido);
+  preencherCheckbox("verFatias", v.verFatias);
 
   projeto = estado.projeto || null;
   // "gomos" faltava aqui — ficava undefined (nem um array vazio) em vez de

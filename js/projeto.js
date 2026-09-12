@@ -172,6 +172,10 @@ export function lerProjeto(bruto) {
         projetores: (projBruto && numero(projBruto.n, 0) > 0)
           ? {
               n: Math.round(numero(projBruto.n, 0)),
+              // A colocação é o campo novo (v3.50 dos Calculadores) e manda;
+              // o "arranjo" numérico fica para um payload antigo, e é o
+              // fazerProjetoresDoDome() que o traduz.
+              colocacao: typeof projBruto.colocacao === "string" ? projBruto.colocacao : null,
               arranjo: Math.round(numero(projBruto.arranjo, 3))
             }
           : null

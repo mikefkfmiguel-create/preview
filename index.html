@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.03</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.04</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -365,6 +365,7 @@
       <button data-vista="lado">Lado</button>
       <button data-vista="cima">Cima</button>
       <button data-vista="olhos" class="destaque">Olhos da plateia</button>
+      <button data-vista="dome" id="btVistaDome" style="display:none;" title="De dentro da cúpula, a olhar para cima — é de onde o público a vê">Dentro da cúpula</button>
     </div>
     <label class="opcao"><input id="verEcras" type="checkbox" checked> Ecrãs</label>
     <label class="opcao"><input id="verPlanta" type="checkbox" checked> Planta</label>
@@ -378,6 +379,7 @@
     <!-- Estes dois só aparecem quando o projeto TEM uma cúpula: dois
          interruptores mortos numa lista de oito é ruído. -->
     <label class="opcao" id="verDomeWrap" style="display:none;"><input id="verDome" type="checkbox" checked> Cúpula</label>
+    <label class="opcao" id="verFatiasWrap" style="display:none;" title="A repartição da superfície pelos projetores, por área igual — não é o cone real da lente, que depende da lente que se alugar"><input id="verFatias" type="checkbox" checked> Fatias dos projetores</label>
     <label class="opcao" id="domeSolidoWrap" style="display:none;" title="Fechada é mais realista e tapa o público, os ecrãs e o palco a partir de metade dos ângulos — e as perguntas aqui são cabe?, vê-se?, quem tapa o quê?"><input id="domeSolido" type="checkbox"> Cúpula fechada</label>
   </section>
 

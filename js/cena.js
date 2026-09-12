@@ -301,7 +301,7 @@ export function zonaDaPassarela(sala, palco, passarela) {
  * casca fechada tapa o público, os ecrãs e o palco a partir de metade dos
  * ângulos. Sólida existe no interruptor, para quem quer a imagem bonita.
  */
-export function fazerDome(dome, solido) {
+export function fazerDome(dome, solido, textura) {
   const grupo = new THREE.Group();
   if (!dome) return grupo;
   const D = Math.max(0.5, parseFloat(dome.diametro) || 0);
@@ -323,20 +323,35 @@ export function fazerDome(dome, solido) {
   cascaGrupo.position.y = h - R;
   grupo.add(cascaGrupo);
 
-  const casca = new THREE.Mesh(geo, solido
-    // Sólida: vê-se a face de DENTRO (BackSide), que é onde a imagem
-    // aparece na realidade. Com a face de fora ficava uma bola opaca.
-    ? new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.95, side: THREE.BackSide })
-    : new THREE.MeshBasicMaterial({
-        color: 0x9683E8, transparent: true, opacity: 0.10,
-        side: THREE.DoubleSide, depthWrite: false
-      }));
+  // Com conteúdo carregado ("Conteúdo nos ecrãs"), a cúpula mostra-o como
+  // ele aparece de facto: o dome master é uma imagem QUADRADA mapeada em
+  // azimutal equidistante -- o zénite no centro, o horizonte na borda do
+  // círculo, e o raio proporcional ao ângulo ao zénite. É a definição da
+  // IMERSA para o Fulldome Master, e é por isso que uma imagem normal sai
+  // esticada: numa cúpula sai mesmo.
+  //
+  // Reportado assim: *"como ponho conteúdo se não tenho ecrã"*. Não havia
+  // como -- o conteúdo só ia para zonas, e uma cúpula não é uma zona.
+  if (textura) uvAzimutalEquidistante(geo, thetaMax);
+
+  const casca = new THREE.Mesh(geo, textura
+    // Com conteúdo: vê-se de dentro, que é de onde o público vê. Fica também
+    // visível de fora, senão de fora do 3D a cúpula parecia vazia.
+    ? new THREE.MeshBasicMaterial({ map: textura, side: THREE.DoubleSide, toneMapped: false })
+    : (solido
+      // Sólida: vê-se a face de DENTRO (BackSide), que é onde a imagem
+      // aparece na realidade. Com a face de fora ficava uma bola opaca.
+      ? new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.95, side: THREE.BackSide })
+      : new THREE.MeshBasicMaterial({
+          color: 0x9683E8, transparent: true, opacity: 0.10,
+          side: THREE.DoubleSide, depthWrite: false
+        })));
   casca.name = "dome-casca";
   cascaGrupo.add(casca);
 
   // A grelha é o que faz a forma ler-se quando está translúcida — sem ela,
   // uma casca a 10% de opacidade é uma névoa sem silhueta.
-  if (!solido) {
+  if (!solido && !textura) {
     const grelha = new THREE.Mesh(
       new THREE.SphereGeometry(R, 24, 12, 0, Math.PI * 2, 0, thetaMax),
       new THREE.MeshBasicMaterial({
@@ -367,11 +382,51 @@ export function fazerDome(dome, solido) {
   // decide-se na obra -- aqui fica baixa e indicativa, e o desenho di-lo em
   // vez de fingir precisão que não tem.
   if (dome.projetores && dome.projetores.n > 0) {
-    grupo.add(fazerProjetoresDoDome(dome.projetores, a, h, R));
+    const p = fazerProjetoresDoDome(dome.projetores, a, h, R, thetaMax);
+    grupo.add(p.corpos);
+    if (dome.projetores.semFatias) p.fatias.visible = false;
+    // As fatias são desenhadas no referencial da CASCA (centro da esfera na
+    // origem), por isso vão para o cascaGrupo -- no grupo de fora apareciam
+    // deslocadas da superfície, que foi o mesmo laço em que o anel da base
+    // caiu quando a cúpula foi feita.
+    cascaGrupo.add(p.fatias);
   }
 
   grupo.name = "dome";
   return grupo;
+}
+
+// Uma cor por fatia, para se distinguirem: num anel de dez, fatias todas da
+// mesma cor leem-se como uma mancha só. Tons frios e claros, que é o que se vê
+// contra a casca violeta e contra o chão escuro.
+const CORES_FATIA = [0x7FD1FF, 0xFFD479, 0x9BE8A8, 0xFF9FB5, 0xC5A6FF, 0x8FE8DE,
+                     0xFFC2F0, 0xBFD46A, 0x7FA8FF, 0xFFAE7A];
+
+/**
+ * Reescreve os UV de uma calota para AZIMUTAL EQUIDISTANTE, que é como um
+ * dome master se mapeia: imagem quadrada, zénite no centro do círculo,
+ * horizonte na borda, raio proporcional ao ângulo ao zénite.
+ *
+ *   raio no master = (theta / thetaMax) * 0.5      (theta medido do zénite)
+ *   u = 0,5 + raio*cos(phi)    v = 0,5 + raio*sin(phi)
+ *
+ * A SphereGeometry do three já nasce com o pólo em +Y e theta a crescer para
+ * baixo, por isso theta sai da posição do vértice sem contas extra.
+ */
+function uvAzimutalEquidistante(geo, thetaMax) {
+  const pos = geo.attributes.position;
+  const uv = geo.attributes.uv;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const raioEsfera = v.length() || 1;
+    // Ângulo ao zénite, protegido do arredondamento que põe y/R fora de [-1,1].
+    const theta = Math.acos(Math.min(1, Math.max(-1, v.y / raioEsfera)));
+    const phi = Math.atan2(v.z, v.x);
+    const rr = Math.min(0.5, (theta / thetaMax) * 0.5);
+    uv.setXY(i, 0.5 + rr * Math.cos(phi), 0.5 + rr * Math.sin(phi));
+  }
+  uv.needsUpdate = true;
 }
 
 /**
@@ -400,24 +455,125 @@ function corpoDeProjetor(pos, alvo, nome) {
 }
 
 /**
- * O arranjo de projetores de uma cúpula.
+ * A FATIA da cúpula que um projetor tem de cobrir, desenhada na superfície
+ * mais os quatro traços que a ligam ao projetor — é isto que se lê como cone.
  *
- * `arranjo` é o mesmo número que a aba Dome usa: quantas imagens se
- * atravessam de bordo a bordo por cima do pólo. 1 = um só ao centro com
- * fisheye; 2 = anel sem zénite; 3 = anel + zénite; 4 = anel duplo + zénite.
- * Daí sai como se reparte o número total.
+ * Pedido directo: *"não vejo os cones de projeção"*. É importante o que isto
+ * é e o que NÃO é: é a **repartição da superfície**, por área igual entre os
+ * projetores, e não o cone real da lente. O cone real depende da lente, do
+ * shift e da posição exacta, nada disso está aqui — e inventar um ângulo de
+ * lente era inventar dados técnicos. Isto responde a "que pedaço de cúpula
+ * fica a cargo de cada máquina", que é a pergunta de quem está a decidir
+ * quantos alugar.
+ *
+ * `a1`/`a2` são azimutes, `t1`/`t2` ângulos ao zénite (theta), em radianos.
+ * Desenha-se no referencial da casca (centro da esfera na origem), por isso
+ * entra no cascaGrupo e não no grupo de fora.
  */
-function fazerProjetoresDoDome(proj, a, h, R) {
+function fatiaDaCupula(R, a1, a2, t1, t2, pos, cor, nome) {
+  const g = new THREE.Group();
+  g.name = nome;
+
+  const phiLen = a2 - a1;
+  const thetaLen = t2 - t1;
+  const geo = new THREE.SphereGeometry(R * 0.995, 24, 12, a1, phiLen, t1, thetaLen);
+  const mancha = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color: cor, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false
+  }));
+  mancha.name = nome + "-area";
+  g.add(mancha);
+
+  // O contorno da fatia, senão duas fatias vizinhas leem-se como uma só.
+  // Grosseiro de propósito (4x2 segmentos): a casca já tem a sua grelha, e
+  // seis fatias com grelha fina davam uma teia de aranha -- visto de dentro
+  // não se percebia nada, que é justamente a vista que isto serve.
+  const bordo = new THREE.Mesh(
+    new THREE.SphereGeometry(R * 0.997, 4, 2, a1, phiLen, t1, thetaLen),
+    new THREE.MeshBasicMaterial({ color: cor, wireframe: true, transparent: true, opacity: 0.45, depthWrite: false }));
+  bordo.name = "aux:dome-fatia-grelha";
+  g.add(bordo);
+
+  // Os quatro cantos ligados ao projetor: é o que faz a forma ler-se como um
+  // feixe em vez de uma mancha colada à casca.
+  const canto = (phi, theta) => new THREE.Vector3(
+    R * Math.sin(theta) * Math.cos(phi),
+    R * Math.cos(theta),
+    R * Math.sin(theta) * Math.sin(phi));
+  const pontos = [];
+  [[a1, t1], [a2, t1], [a2, t2], [a1, t2]].forEach(([phi, theta]) => {
+    pontos.push(pos.clone(), canto(phi, theta));
+  });
+  const feixe = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(pontos),
+    new THREE.LineBasicMaterial({ color: cor, transparent: true, opacity: 0.45 }));
+  feixe.name = "aux:dome-feixe";
+  g.add(feixe);
+
+  return g;
+}
+
+/**
+ * O arranjo de projetores de uma cúpula: onde ficam, para onde apontam, e que
+ * pedaço de cúpula fica a cargo de cada um.
+ *
+ * `colocacao` vem da aba Dome e é SÓ colocação (desde a v3.50 lá; antes o
+ * campo fazia isto e a resolução ao mesmo tempo, o que dava escolher onde
+ * montar e ver a resolução mudar):
+ *   centro       — todos ao centro, com fisheye
+ *   anel         — todos em anel à volta, sem zénite
+ *   anel-zenite  — anel à volta + um no zénite
+ *   anel-duplo   — dois anéis + um no zénite
+ *
+ * A repartição da superfície é por ÁREA IGUAL (área de uma calota = 2piRh, e
+ * por isso repartir por área é repartir a altura da calota). Não é um plano
+ * de blending -- é a conta de primeira mão que diz se o número de projetores
+ * faz sentido para a cúpula que se tem.
+ */
+function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   const grupo = new THREE.Group();
   grupo.name = "dome-projetores";
+  const fatias = new THREE.Group();
+  // "aux:" porque isto é um auxiliar de análise, não geometria da cúpula: um
+  // GLB da sala não leva as fatias, tal como não leva a grelha nem o anel.
+  fatias.name = "aux:dome-fatias";
   const n = Math.max(1, Math.round(proj.n));
-  const arranjo = Math.min(4, Math.max(1, Math.round(proj.arranjo || 3)));
+  const ARRANJO_ANTIGO = { 1: "centro", 2: "anel", 3: "anel-zenite", 4: "anel-duplo" };
+  const colocacao = proj.colocacao || ARRANJO_ANTIGO[Math.round(proj.arranjo || 3)] || "anel-zenite";
   const alturaCove = Math.min(1.2, h * 0.12);   // baixo, junto à base
   const raioCove = Math.max(0.4, a - 0.5);      // encostado por dentro
 
-  // Quantos ficam ao centro (o do zénite) e quantos no anel.
-  const aoCentro = (arranjo === 1) ? n : (arranjo >= 3 ? 1 : 0);
+  // Quantos ficam ao centro (o do zénite) e quantos nos anéis.
+  const aoCentro = (colocacao === "centro") ? n : (colocacao === "anel" ? 0 : Math.min(1, n));
   const noAnel = n - aoCentro;
+
+  const duplo = colocacao === "anel-duplo" && noAnel >= 4;
+  const aneis = noAnel <= 0 ? [] : (duplo
+    ? [{ q: Math.ceil(noAnel / 2), r: raioCove, y: alturaCove },
+       { q: Math.floor(noAnel / 2), r: raioCove * 0.55, y: alturaCove + Math.min(1.5, h * 0.2) }]
+    : [{ q: noAnel, r: raioCove, y: alturaCove }]);
+
+  // A cada PROJETOR a mesma área de cúpula. A área de uma calota é 2piRh com
+  // h = R(1-cos theta), por isso repartir a área é repartir o (1-cos theta) --
+  // e não o theta. Daí sair o theta de uma fracção acumulada de área.
+  //
+  // Foi aqui que a primeira versão falhou, e o teste apanhou-a: a fatia do
+  // zénite ia de 0 a thetaMax, ou seja levava a cúpula inteira em vez da
+  // calota de cima.
+  const thetaDe = (fraccao) => Math.acos(Math.min(1, Math.max(-1,
+    1 - Math.min(1, Math.max(0, fraccao)) * (1 - Math.cos(thetaMax)))));
+
+  // O zénite leva a sua quota (aoCentro/n) a contar do pólo; os anéis
+  // repartem o resto, de cima para baixo e cada um pelo nº de máquinas que
+  // tem. Com a colocação "centro" isto dá aoCentro/n = 1, ou seja a cúpula
+  // toda -- que é o que um fisheye ao centro faz, e sai da mesma fórmula.
+  const thetaDoCentro = thetaDe(aoCentro / n);
+  const faixas = new Map();
+  let acumulado = aoCentro / n;
+  aneis.slice().reverse().forEach((anel) => {
+    const f0 = acumulado;
+    acumulado += anel.q / n;
+    faixas.set(anel, [thetaDe(f0), thetaDe(acumulado)]);
+  });
 
   for (let i = 0; i < aoCentro; i++) {
     // Um fisheye ao centro aponta a prumo. Com mais do que um (caso raro),
@@ -425,16 +581,18 @@ function fazerProjetoresDoDome(proj, a, h, R) {
     const desvio = aoCentro > 1 ? (i - (aoCentro - 1) / 2) * 0.6 : 0;
     const pos = new THREE.Vector3(desvio, 0.12, 0);
     grupo.add(corpoDeProjetor(pos, new THREE.Vector3(desvio, h, 0), "dome-projetor-c" + (i + 1)));
+    // Ao centro cada um cobre uma fatia em gomo, do zénite ao horizonte: é o
+    // que um fisheye faz. Com um só, é a cúpula toda.
+    const p1 = (i / aoCentro) * Math.PI * 2, p2 = ((i + 1) / aoCentro) * Math.PI * 2;
+    fatias.add(fatiaDaCupula(R, p1, p2, 0, thetaDoCentro,
+      new THREE.Vector3(desvio, 0.12 - (h - R), 0), CORES_FATIA[i % CORES_FATIA.length],
+      "dome-fatia-c" + (i + 1)));
   }
 
   if (noAnel > 0) {
-    // Com "anel duplo", o anel de fora leva a maior metade.
-    const aneis = (arranjo === 4 && noAnel >= 4)
-      ? [{ q: Math.ceil(noAnel / 2), r: raioCove, y: alturaCove },
-         { q: Math.floor(noAnel / 2), r: raioCove * 0.55, y: alturaCove + Math.min(1.5, h * 0.2) }]
-      : [{ q: noAnel, r: raioCove, y: alturaCove }];
-    let k = 0;
+    let k = 0, cor = 0;
     aneis.forEach((anel, ia) => {
+      const [tCima, tBaixo] = faixas.get(anel);
       for (let i = 0; i < anel.q; i++) {
         // Meio passo de desfasamento no anel de dentro, para as duas filas
         // não ficarem uma atrás da outra.
@@ -444,11 +602,19 @@ function fazerProjetoresDoDome(proj, a, h, R) {
         // faz, cobrir a metade de lá.
         const alvo = new THREE.Vector3(-Math.sin(ang) * a * 0.55, h * 0.85, -Math.cos(ang) * a * 0.55);
         grupo.add(corpoDeProjetor(pos, alvo, "dome-projetor-" + (++k)));
+        // A fatia fica do lado OPOSTO ao projetor, que é para onde ele
+        // aponta. O azimute da esfera do three conta de +X para +Z, e a
+        // posição usa sin/cos ao contrário -- daí o atan2(z, x).
+        const phiOposto = Math.atan2(-Math.cos(ang), -Math.sin(ang));
+        const meio = Math.PI / anel.q;   // meia fatia de azimute
+        fatias.add(fatiaDaCupula(R, phiOposto - meio, phiOposto + meio, tCima, tBaixo,
+          pos.clone().setY(pos.y - (h - R)), CORES_FATIA[cor++ % CORES_FATIA.length],
+          "dome-fatia-" + k));
       }
     });
   }
 
-  return grupo;
+  return { corpos: grupo, fatias: fatias };
 }
 
 /**
