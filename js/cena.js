@@ -1681,18 +1681,18 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm, textura) {
  * peça a peça isso passou a interessar (a cabeça pintada diz que o feixe lhe
  * bate, mas não de que lado).
  *
- * Leva a marca COMPLETA (símbolo + nome), como vai bordada numa camisola de
- * trabalho -- *"o meu logotipo da Mike Apps"*, *"como estamos da camisola"*.
- * É a mesma imagem que a texturaDaMarca usa no modo "completa" e tem 2,69:1,
- * por isso o crachá é um rectângulo deitado e não um quadrado: com o logo
- * inteiro metido num quadrado ou fica minúsculo ao meio, ou sai esticado.
+ * Leva o SÍMBOLO da Mike Apps e mais nada -- *"Mike apps, apenas o logo
+ * gráfico"*. Passou por uma versão com a marca completa (símbolo + o nome
+ * escrito) e o nome é para tirar: a esta escala, num boneco de 1,75 m visto de
+ * longe, o lettering não se lê e só faz o emblema crescer. O símbolo é 1:1,
+ * por isso o crachá é quadrado.
  *
- * A textura devolve-se JÁ, com o fundo da marca, e o logo entra nela
+ * A textura devolve-se JÁ, com o fundo da marca, e o símbolo entra nela
  * quando a imagem acabar de carregar -- o render corre em contínuo, por isso
  * aparece sozinho. Assim o crachá nunca falta por causa de um ficheiro que
  * demorou, e fazerFigura() continua a ser síncrona.
  */
-const CRACHA_LARGURA = 512, CRACHA_ALTURA = 190;   // 2,69:1, o rácio da marca
+const CRACHA_LARGURA = 256, CRACHA_ALTURA = 256;   // quadrado: o símbolo é 1:1
 let texturaDoCracha = null;
 function crachaDaMarca() {
   if (texturaDoCracha) return texturaDoCracha;
@@ -1706,9 +1706,9 @@ function crachaDaMarca() {
   p.fillRect(0, 0, CRACHA_LARGURA, CRACHA_ALTURA);
   const t = new THREE.CanvasTexture(tela);
   t.colorSpace = THREE.SRGBColorSpace;
-  carregarImagem("icons/mike-marca-branco.png").then((img) => {
+  carregarImagem("icons/mike-simbolo.png").then((img) => {
     if (!img) return;
-    const larg = CRACHA_LARGURA * 0.82;
+    const larg = CRACHA_LARGURA * 0.74;
     const alt = larg * (img.height / img.width);
     p.drawImage(img, (CRACHA_LARGURA - larg) / 2, (CRACHA_ALTURA - alt) / 2, larg, alt);
     t.needsUpdate = true;
@@ -1771,9 +1771,9 @@ export function fazerFigura(altura = 1.75, cores, comCracha) {
   // A plateia NÃO leva crachá: são centenas de figuras, e o que ali interessa
   // é a silhueta, não a marca.
   if (comCracha) {
-    // 24 cm de largura no tronco de 34: uma estampa de peito, à escala de uma
-    // camisola a sério. A altura sai do rácio da marca, não de um palpite.
-    const larg = 0.24;
+    // 13 cm num tronco de 34: um emblema de peito, à escala de uma camisola a
+    // sério. A altura sai do rácio da imagem, não de um palpite.
+    const larg = 0.13;
     const cracha = new THREE.Mesh(
       new THREE.PlaneGeometry(larg, larg * (CRACHA_ALTURA / CRACHA_LARGURA)),
       new THREE.MeshBasicMaterial({ map: crachaDaMarca(), toneMapped: false }));
