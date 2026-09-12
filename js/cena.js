@@ -577,6 +577,23 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   const thetaDe = (fraccao) => Math.acos(Math.min(1, Math.max(-1,
     1 - Math.min(1, Math.max(0, fraccao)) * (1 - Math.cos(thetaMax)))));
 
+  // A SOBREPOSIÇÃO. Pedido: *"não vejo a sobreposição nos cones para ter
+  // noção"* -- e não via, porque as fatias azulejavam a cúpula exactamente,
+  // bordo a bordo. Numa cúpula a sério as imagens montam umas nas outras, e é
+  // essa faixa que se faz o blending.
+  //
+  // A percentagem é a que está na aba Dome (o mesmo número que já entra na
+  // conta do dome master): cada fatia cresce metade dela para cada lado, e
+  // onde duas se cruzam a transparência soma -- a faixa aparece mais clara,
+  // que é exactamente como um mapa de blend se lê.
+  const blend = Math.min(0.5, Math.max(0, parseFloat(proj.blend) || 0));
+  const comBlend = (a1, a2, t1, t2) => {
+    const dPhi = (a2 - a1) * blend / 2;
+    const dTheta = (t2 - t1) * blend / 2;
+    return [a1 - dPhi, a2 + dPhi,
+            Math.max(0, t1 - dTheta), Math.min(thetaMax, t2 + dTheta)];
+  };
+
   // O zénite leva a sua quota (aoCentro/n) a contar do pólo; os anéis
   // repartem o resto, de cima para baixo e cada um pelo nº de máquinas que
   // tem. Com a colocação "centro" isto dá aoCentro/n = 1, ou seja a cúpula
@@ -602,7 +619,12 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     // Ao centro cada um cobre uma fatia em gomo, do zénite ao horizonte: é o
     // que um fisheye faz. Com um só, é a cúpula toda.
     const p1 = (i / aoCentro) * Math.PI * 2, p2 = ((i + 1) / aoCentro) * Math.PI * 2;
-    fatias.add(fatiaDaCupula(R, p1, p2, 0, thetaDoCentro,
+    // Com um só ao centro não há vizinho com quem sobrepor: a fatia é a
+    // cúpula toda e crescê-la não queria dizer nada.
+    const [f1, f2, ft1, ft2] = aoCentro > 1
+      ? comBlend(p1, p2, 0, thetaDoCentro)
+      : [p1, p2, 0, thetaDoCentro];
+    fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2,
       new THREE.Vector3(desvio, yCentro - (h - R), 0), CORES_FATIA[i % CORES_FATIA.length],
       "dome-fatia-c" + (i + 1)));
   }
@@ -625,7 +647,8 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         // posição usa sin/cos ao contrário -- daí o atan2(z, x).
         const phiOposto = Math.atan2(-Math.cos(ang), -Math.sin(ang));
         const meio = Math.PI / anel.q;   // meia fatia de azimute
-        fatias.add(fatiaDaCupula(R, phiOposto - meio, phiOposto + meio, tCima, tBaixo,
+        const [f1, f2, ft1, ft2] = comBlend(phiOposto - meio, phiOposto + meio, tCima, tBaixo);
+        fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2,
           pos.clone().setY(pos.y - (h - R)), CORES_FATIA[cor++ % CORES_FATIA.length],
           "dome-fatia-" + k));
       }

@@ -180,6 +180,14 @@ export function lerProjeto(bruto) {
               // Null é legítimo e significa "por definir" -- aí o desenho
               // escolhe um valor baixo, e diz que é indicativo.
               altura: numero(projBruto.altura, 0) > 0 ? numero(projBruto.altura, 0) : null,
+              // A sobreposição de blending, para as fatias se montarem umas
+              // nas outras como as imagens a sério fazem. Vem em fracção.
+              blend: Math.min(0.5, Math.max(0, numero(projBruto.blend, 0))),
+              // Quem é o projetor e que lente leva -- só para o 3D poder
+              // dizer o nome. Nenhuma conta deste lado depende disto: os
+              // catálogos são dos Calculadores, que é a regra da casa.
+              modelo: typeof projBruto.modelo === "string" ? projBruto.modelo : null,
+              lente: typeof projBruto.lente === "string" ? projBruto.lente : null,
               arranjo: Math.round(numero(projBruto.arranjo, 3))
             }
           : null

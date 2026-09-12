@@ -1939,6 +1939,31 @@ Verificado no ficheiro, não só no ecrã: `o dome`, 2665 vértices com 2665 `vt
 0,000 no zénite a 0,500 no horizonte. O .glb sai com o magic `glTF` e com o
 nome `dome` lá dentro.
 
+### ~~A sobreposição nas fatias~~ — FEITO (v3.07)
+
+Reportado: *"não vejo a sobreposição nos cones para ter noção"*. E não via: as
+fatias azulejavam a cúpula exactamente, bordo a bordo. Numa cúpula a sério as
+imagens montam umas nas outras, e é essa faixa que se faz o blending — sem ela
+desenhada, o desenho estava a dizer uma coisa que não é verdade.
+
+A percentagem é a que já está na aba Dome (o mesmo número que entra na conta
+do dome master), e chega na ponte como `dome.projetores.blend`, em fracção.
+Cada fatia cresce metade dela para cada lado — em azimute e em theta — e onde
+duas se cruzam a transparência soma: a faixa aparece mais clara, que é
+exactamente como um mapa de blend se lê.
+
+Verificado na geometria: numa cúpula de 8 m com 5 projetores em anel+zénite e
+25% de blend, as fatias do anel passam de 90° para **113°** de azimute (logo
+22,5° de sobreposição entre vizinhas), e a calota do zénite de 0–34° para
+0–37°, montando na banda do anel que agora começa aos 30°.
+
+Com um só projetor ao centro não se cresce nada: não há vizinho com quem
+sobrepor, a fatia é a cúpula toda e crescê-la não queria dizer nada.
+
+**O modelo e a lente chegam como nomes.** A ponte traz também
+`dome.projetores.modelo` e `.lente`, só para este lado poder etiquetar —
+nenhuma conta daqui depende deles, que os catálogos são dos Calculadores.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
