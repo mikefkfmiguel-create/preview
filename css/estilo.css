@@ -217,11 +217,18 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
   display: flex; align-items: center; justify-content: center;
 }
 
-#listaAjustes .ajuste-linha, #listaGomos .ajuste-linha {
+/* Linhas de campos numéricos -- as dos delays/DSM e também as dos palcos,
+   régies, passarelas e projetores extra, que antes ficavam de fora por a
+   regra estar presa a dois #id. Ver a nota em .ajuste-campo. */
+#listaAjustes .ajuste-linha, #listaGomos .ajuste-linha,
+#listaPalcosExtra .ajuste-linha, #listaRegiesExtra .ajuste-linha,
+#listaPassarelasExtra .ajuste-linha, #listaProjetoresExtra .ajuste-linha {
   padding: 10px 0; border-bottom: 1px solid #1A222A;
   display: flex; flex-direction: column; gap: 6px;
 }
-#listaAjustes .ajuste-linha:last-child, #listaGomos .ajuste-linha:last-child { border-bottom: 0; }
+#listaAjustes .ajuste-linha:last-child, #listaGomos .ajuste-linha:last-child,
+#listaPalcosExtra .ajuste-linha:last-child, #listaRegiesExtra .ajuste-linha:last-child,
+#listaPassarelasExtra .ajuste-linha:last-child, #listaProjetoresExtra .ajuste-linha:last-child { border-bottom: 0; }
 /* Uma imagem por ecrã: cada linha é só um nome + botões, não uma grelha de
    campos numéricos como as duas de cima -- regras próprias, mais simples. */
 #listaConteudoZonas .ajuste-linha {
@@ -232,12 +239,45 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
 #listaConteudoZonas .ajuste-linha strong { font-size: 13px; flex: 1 1 auto; min-width: 80px; }
 #listaConteudoZonas .ajuste-linha button { flex: none; width: auto; padding: 5px 10px; font-size: 12px; }
 #listaConteudoZonas .ajuste-linha i { font-style: normal; font-size: 11px; color: var(--apagado); }
-#listaAjustes .ajuste-linha strong, #listaGomos .ajuste-linha strong { font-size: 13px; }
-#listaAjustes .ajuste-linha .ajuste-campo, #listaGomos .ajuste-linha .ajuste-campo {
-  display: grid; grid-template-columns: 90px 30px 1fr 30px 26px 22px; align-items: center; gap: 6px;
+#listaAjustes .ajuste-linha strong, #listaGomos .ajuste-linha strong,
+#listaPalcosExtra .ajuste-linha strong, #listaRegiesExtra .ajuste-linha strong,
+#listaPassarelasExtra .ajuste-linha strong, #listaProjetoresExtra .ajuste-linha strong { font-size: 13px; }
+
+/* Um campo numérico: o nome em cima, e em baixo −, valor, + e unidade.
+ *
+ * A regra vive aqui, na própria classe, e NÃO presa a #listaAjustes/
+ * #listaGomos como estava. Isso era um bug à espera: as listas dos palcos,
+ * régies, passarelas e projetores extra usam o mesmo campoAjuste() e
+ * nasceram sem regra nenhuma -- ficavam a "display: inline", cada botão numa
+ * linha, e a unidade em itálico colava-se ao nome do campo seguinte. Saía
+ * "mprofundidade", "marredondar", "mfundo", "mrodar". Reportado com foto:
+ * "os nomes aqui estão estranhos" -- e não estavam, era o layout.
+ *
+ * O nome vai numa linha própria (e num <span> seu, para deixar de ser um
+ * item anónimo da grelha) porque o painel é estreito: com o nome, os dois
+ * botões, o campo e a unidade todos na mesma fila, "profundidade" não cabe
+ * sem empurrar o resto para fora. As colunas usam minmax(0, 1fr) para o
+ * <input> poder encolher -- sem isso, a largura mínima natural de um
+ * input[type=number] estoura o painel. */
+.ajuste-campo {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 30px auto auto;
+  grid-template-areas:
+    "rotulo rotulo rotulo rotulo rotulo"
+    "menos  valor  mais   calc    unidade";
+  align-items: center; gap: 6px;
   font-size: 12px; color: var(--apagado);
 }
-#listaAjustes .ajuste-campo i, #listaGomos .ajuste-campo i { font-style: normal; font-size: 12px; color: var(--apagado); }
+.ajuste-campo .ajuste-rotulo { grid-area: rotulo; }
+.ajuste-campo > input { grid-area: valor; min-width: 0; }
+/* Os dois botões de passo são o 1.º e o 2.º <button> do campo; o 3.º,
+   quando existe, é o da calculadora, que o calc-widget insere antes da
+   unidade. Sem lugar próprio na grelha ele caía numa linha implícita e
+   aparecia sozinho debaixo do campo. */
+.ajuste-campo > button:nth-of-type(1) { grid-area: menos; }
+.ajuste-campo > button:nth-of-type(2) { grid-area: mais; }
+.ajuste-campo > .calcw-btn { grid-area: calc; }
+.ajuste-campo > i { grid-area: unidade; font-style: normal; font-size: 12px; color: var(--apagado); }
 /* As setas nativas do "number" não se veem (ou não se tocam bem) em
    telemóvel -- isto é o substituto, sempre visível, do tamanho de um dedo. */
 .ajuste-passo {

@@ -2010,7 +2010,15 @@ function aEscreverNaLista(lista) {
 function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", idCampo, min = -500, max = 500) {
   const campo = document.createElement("label");
   campo.className = "ajuste-campo";
-  campo.textContent = rotulo + " ";
+  // O nome num <span> seu, e não num nó de texto solto: um nó de texto
+  // dentro de um grid é um item anónimo, e itens anónimos não se conseguem
+  // colocar por CSS. Ficava à mercê do que o browser decidisse -- e em
+  // painel estreito a unidade em itálico ("m") acabava colada ao nome do
+  // campo seguinte: "mprofundidade", "mrodar".
+  const nomeDoCampo = document.createElement("span");
+  nomeDoCampo.className = "ajuste-rotulo";
+  nomeDoCampo.textContent = rotulo;
+  campo.append(nomeDoCampo);
   const input = document.createElement("input");
   input.type = "number";
   input.step = passo;
