@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.20</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.21</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -379,12 +379,22 @@
     <label class="opcao"><input id="verPublico" type="checkbox" checked> Público</label>
     <label class="opcao"><input id="verRegie" type="checkbox" checked> Régie</label>
     <label class="opcao"><input id="verPalco" type="checkbox" checked> Palco</label>
-    <label class="opcao"><input id="verOrador" type="checkbox" checked> Orador</label>
+    <!-- O orador é do PALCO. Num projeto que é só cúpula ele desaparece da
+         lista, porque quem lá dentro dá a medida é a pessoa da cúpula, mais
+         abaixo — dois bonecos com regras diferentes e o mesmo nome era
+         exactamente o que não convivia bem. -->
+    <label class="opcao" id="verOradorWrap"><input id="verOrador" type="checkbox" checked> Orador (no palco)</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
     <label class="opcao"><input id="verCobertura" type="checkbox" title="Um ponto por lugar, no chão: verde vê bem, amarelo vê na marginal, vermelho não vê ecrã nenhum"> Cobertura dos ecrãs</label>
     <!-- Estes dois só aparecem quando o projeto TEM uma cúpula: dois
          interruptores mortos numa lista de oito é ruído. -->
     <label class="opcao" id="verDomeWrap" style="display:none;"><input id="verDome" type="checkbox" checked> Cúpula</label>
+    <!-- A régua humana da cúpula: uma pessoa de 1,75 m no chão, lá dentro,
+         arrastável só dentro dela. É outra coisa que não o orador do palco
+         (pedido: *"podíamos ter um para palcos e salas normais e outro para a
+          dome apenas para tirar a medida quando uma pessoa estiver dentro
+          dela"*), e é esta que diz quem tapa que projetor. -->
+    <label class="opcao" id="verPessoaDomeWrap" style="display:none;"><input id="verPessoaDome" type="checkbox" checked> Pessoa dentro da cúpula (1,75 m)</label>
     <p class="vazio" id="notaDome" style="margin:6px 0 0"></p>
     <label class="opcao" id="verFatiasWrap" style="display:none;" title="A repartição da superfície pelos projetores, por área igual — não é o cone real da lente, que depende da lente que se alugar"><input id="verFatias" type="checkbox" checked> Fatias dos projetores</label>
     <!-- Chamava-se "Cúpula fechada" e ninguém sabia o que era (perguntado em

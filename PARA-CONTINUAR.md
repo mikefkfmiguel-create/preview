@@ -2140,6 +2140,60 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 12 de setembro — dois bonecos, porque são dois trabalhos (v3.21)
+
+Diagnóstico do mike, e é o certo: *"o boneco não convive bem com a dome; acho
+que podíamos ter um para palcos e salas normais e outro para a dome apenas
+para tirar a medida quando uma pessoa estiver dentro dela"*. O `figura` era **o
+orador do palco** com um segundo emprego — servir de escala dentro da cúpula
+—, e foi desse duplo emprego que saíram TODAS as queixas do boneco: voava,
+não tocava no chão, ia para trás dos projetores, saltava ao ser movido. Cada
+correição era um "se estiver numa cúpula faz outra coisa" a mais no mesmo
+caminho.
+
+Agora são dois objetos com regras próprias e nenhuma condição cruzada:
+
+| | `figura` (orador) | `figura-dome` (pessoa da cúpula) |
+|---|---|---|
+| interruptor | "Orador (no palco)" | "Pessoa dentro da cúpula (1,75 m)" |
+| aparece | quando há sala/palco | quando o projeto traz cúpula |
+| altura | sobe a palcos e palcos extra | chão, sempre (y = 0) |
+| limite | sala, palco, passarela | casca, e por dentro do anel de projetores |
+| serve para | sombra no ecrã plano | a medida lá dentro, e quem tapa que projetor |
+
+Num projeto que é **só cúpula** o interruptor do orador desaparece da lista,
+porque quem dá a medida lá dentro é a pessoa da cúpula — um interruptor ligado
+que não põe ninguém à vista lê-se como defeito. Num projeto com **cúpula e
+ecrãs** existem os dois, cada um no seu sítio: isto é novo, antes um projeto
+com zonas *e* cúpula não tinha ninguém lá dentro.
+
+O arrasto passou a saber **em quem** se pegou (`aMoverQuem`, escolhido pelo
+boneco mais à frente no raio) em vez de "na figura", e o caminho do orador
+ficou sem uma única condição de cúpula. A pessoa da cúpula nunca passa pelos
+tampos dos palcos, que era o que a punha 1 m no ar dentro da casca.
+
+**A nota da cúpula passou a ser uma régua.** A pessoa serve *"apenas para
+tirar a medida"*, e uma régua que não mostra o número não serve: agora diz a
+superfície **por cima dela** (numa calota o pé-direito cai com o raio — é por
+isso que se põe a pessoa onde se quer medir), se a cabeça dela fica dentro da
+área de imagem, e quem está a tapar. As medidas saem de uma
+`medidasDaCupula()` nova no `cena.js`, para a fórmula do raio e a da base da
+imagem não serem copiadas para o `app.js` — já se viu o que dá ter a mesma
+conta em três sítios (ver a entrada da v3.19).
+
+Medido nos três tipos de projeto, numa cúpula de 8,7 × 4,35 com anel de 4 a
+1,5 m:
+
+- **só cúpula** → orador não existe e o interruptor dele está escondido; a
+  pessoa nasce no chão (pés a 0), e arrastada 900 px para a direita para em
+  r = 3,55 (dentro do anel de 4,00), y = 0. A nota acompanha: 3,93 m de
+  superfície por cima dela ao centro, 2,51 m encostada — e √(4,35²−3,55²) =
+  2,51, que é a conta certa. Tapava 4 projetores ao centro, 1 encostada.
+- **cúpula + ecrã** → os dois existem, o orador no palco (y = 1, pés a 1) e a
+  pessoa no chão da cúpula; arrastar um não mexe o outro.
+- **só sala** → só o orador, o interruptor da pessoa escondido, limites da
+  sala como antes.
+
 ## 12 de setembro — o boneco voava, saltava e ia para trás dos projetores (v3.20)
 
 Três queixas em dias diferentes — *"e o boy é voador?"*, *"o boneco foi para
