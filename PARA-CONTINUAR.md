@@ -2140,6 +2140,34 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 12 de setembro — pintar só a parte que o feixe apanha (v3.23)
+
+*"O boneco fica todo da cor do projetor de frente para ele e não apenas a
+parte que abrange; dava jeito saber onde é a frente, ou marcar de cor apenas a
+parte que lhe toca."* Tinha razão duas vezes — e havia uma razão técnica por
+baixo que explica tudo: **as peças da figura partilham dois materiais**
+(`pele` e `roupa`, ver `fazerFigura`), por isso pintar uma peça pintava todas
+as que usavam aquele material. O teste também era do corpo inteiro: quatro
+pontos, e se algum caía na fatia pintava-se tudo.
+
+Agora cada malha é testada por si e leva a cor de quem a apanha, com o
+material clonado uma vez por peça. E o resultado é a informação que faltava —
+medido numa cúpula de 8,7 m com a imagem a começar aos 1,50 m:
+
+| montagem | peças pintadas |
+|---|---|
+| anel a **1,5 m** | 2 de 8 — **só o pescoço (1,45–1,54) e a cabeça (1,56–1,75)** |
+| anel a **3,5 m** | 0 de 8 — o feixe passa todo por cima |
+
+É exactamente onde a imagem começa: abaixo de 1,50 m não há feixe nenhum, logo
+as pernas e o tronco não tapam nada. A versão anterior pintava-os na mesma, e
+isso era uma informação errada com ar de certa.
+
+**Sobre "onde é a frente":** a cor de cada peça é a da tampa do projetor que a
+apanha, e a nota di-lo. Não se marca uma frente na figura — ela não tem
+orientação nenhuma, é uma régua — mas sabe-se de onde vem o feixe pela cor,
+que é a pergunta a sério.
+
 ## 12 de setembro — a pessoa da cúpula nasce no centro (v3.22)
 
 *"A posição dele deve ser no centro de origem, pois será onde se interfere
