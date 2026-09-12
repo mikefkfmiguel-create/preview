@@ -1763,6 +1763,50 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 12 de setembro — a cúpula no 3D (v3.02)
+
+Pedido, a seguir à calculadora de dome ficar feita nos Calculadores: *"como
+adiciono para poder ver no 3D"*. Não se adicionava — a palavra "dome" não
+existia em sítio nenhum deste repositório nem da ponte.
+
+**`fazerDome()` em `js/cena.js`.** Uma calota esférica, não meia esfera: um
+dome de evento é muitas vezes mais (ou menos) do que metade. De um diâmetro
+de base D e uma altura h sai `R = (a² + h²)/2h`, o centro da esfera fica a
+`y = h − R`, e a calota vai do zénite até `cos(θmax) = (R − h)/R`. Numa
+meia-esfera isso dá 90°, como tem de ser.
+
+**Translúcida por omissão, com grelha**, e um interruptor "Cúpula fechada"
+para quem quer a imagem bonita. A razão é a de sempre neste Preview: as
+perguntas aqui são *cabe?*, *vê-se?*, *quem tapa o quê?* — e uma casca opaca
+tapa o público, os ecrãs e o palco a partir de metade dos ângulos. A grelha
+existe porque uma casca a 10% de opacidade sem arestas é uma névoa sem
+silhueta. O anel da base fica sempre visível: é a pegada no chão, e é por ela
+que se vê se cabe na sala.
+
+Os dois interruptores (`verDome`, `domeSolido`) só aparecem quando o projeto
+traz uma cúpula, guardam-se no ficheiro do projeto, e a grelha e o anel vão
+com prefixo `aux:` para não sujarem os exports (a casca exporta como "dome").
+
+**O que estava a bloquear, e não era o desenho.** O leitor de projetos
+rejeitava qualquer carga sem zonas — em DOIS sítios, e `projetoGuardado()`
+engole a excepção, por isso o sintoma era "não aparece nada", sem uma linha
+de aviso. Uma cúpula sozinha (ou um DSM sozinho) passou a ser um projeto
+legítimo. O `dome` também tinha de ser acrescentado à lista fechada de campos
+que `lerProjeto()` devolve, senão vinha na carga e era descartado ali.
+
+**Verificado medindo a cena, não pixéis:** um dome de 12 m de base × 9 m de
+altura dá pegada no chão de 12,00 m, topo a 9,00 m, base assente no chão, e
+barriga de 13,00 m à altura do equador da esfera — que está certo, porque uma
+calota mais alta do que meia esfera é mais larga a meia altura do que na
+base. Ligar "fechada" tira a grelha; desligar "Cúpula" tira tudo. Sem erros
+de consola.
+
+**Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
+evento é normalmente a sala toda, por isso o centro é um bom sítio por
+omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
+queira encostada a um lado. E os projetores em anel não estão desenhados: a
+aba Dome diz quantos são, o 3D ainda não mostra onde ficam.
+
 ## 12 de setembro — os palcos extra
 
 ### ~~Meia-lua para encostar~~ — FEITO (v3.01)
