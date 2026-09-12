@@ -1895,6 +1895,50 @@ e o painel do outro lado diz que isso é indicativo e não uma cota.
 Verificado: com 3,2 m escritos, os 5 corpos (1 ao centro + 4 no anel) ficam
 todos a `y = 3,20` numa cúpula de 8 m × 4 m.
 
+### ~~Exportar só a cúpula, para o media server~~ — FEITO (v3.06)
+
+Pedido: *"o bonito será até poder exportar apenas a dome em obj ou 3ds para
+usar no media server, WATCHOUT por exemplo"*.
+
+**Confirmado na fonte antes de construir**, porque decidia o que fazer: o
+WATCHOUT 7 importa **.obj, .gltf/.glb e .3ds** — e, mais importante, *"if you
+are going to use the imported 3D model for 3D mapping it is required that the
+model has uv-coordinates"*
+([docs.dataton.com/watchout-7/3d/models.html](https://docs.dataton.com/watchout-7/3d/models.html),
+e a exigência de UV repetida em
+[.../3d/mapping.html](https://docs.dataton.com/watchout-7/3d/mapping.html)).
+
+Daí saíram duas decisões:
+
+- **Não se escreve exportador de .3ds.** O WATCHOUT aceita .obj e .glb, e
+  este repositório já escrevia os dois. Um exportador de .3ds era formato
+  binário legado escrito à mão para não acrescentar destino nenhum.
+- **Os UV da cúpula passam a ser escritos SEMPRE**, com ou sem conteúdo
+  carregado. Antes só apareciam quando havia textura (era para isso que
+  existiam); uma cúpula exportada sem UV abre no WATCHOUT e não se lhe
+  consegue mapear nada, e essa era a metade que faltava para o pedido fazer
+  sentido.
+
+Duas saídas novas na secção Exportar, visíveis só quando o projeto traz
+cúpula: **Só a cúpula (.obj)** e **(.glb)**. Sai a superfície e mais nada —
+sem sala, sem público, sem projetores, sem grelha —, em metros, base no chão,
+centrada na origem, com os UV do dome master (zénite ao centro do quadrado,
+horizonte na borda do círculo). No ficheiro a peça chama-se `dome`.
+
+Com a cúpula desligada na secção Vista, diz-o em vez de escrever um ficheiro
+vazio.
+
+**As normais apontam para fora**, que é a geometria padrão de uma esfera, e a
+nota da app di-lo: quem precisar da face de dentro inverte-as do outro lado.
+Não se inverteram aqui porque um modelo do avesso é pior de diagnosticar do
+que um modelo normal com uma nota.
+
+Verificado no ficheiro, não só no ecrã: `o dome`, 2665 vértices com 2665 `vt`,
+5056 faces, `y` de 0,000 a 4,000 e raio máximo 4,000 numa cúpula de 8 m × 4 m
+(ou seja escala em metros, base assente); UV todos dentro de [0,1] com raio de
+0,000 no zénite a 0,500 no horizonte. O .glb sai com o magic `glTF` e com o
+nome `dome` lá dentro.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a

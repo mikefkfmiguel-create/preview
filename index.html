@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.05</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.06</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -84,6 +84,7 @@
       <div class="ajuda-corpo">
         <p><b>PNG da vista</b> é a imagem tal como está no ecrã — para um slide ou um email. <b>PNG com medidas</b> leva as cotas desenhadas por cima.</p>
         <p><b>Cinema 4D (.glb)</b> e <b>.obj</b> levam a geometria a sério, para continuar o desenho noutro programa.</p>
+        <p><b>Só a cúpula</b> (aparece quando o projeto traz uma) exporta a superfície sozinha — sem sala, sem público, sem projetores — em metros e com os UV do dome master, que é o que um media server precisa para lhe mapear imagem.</p>
         <p>As duas caixas por baixo só aparecem quando fazem sentido: incluir o público engorda muito o ficheiro, e a planta CAD só existe se tiveres carregado uma.</p>
       </div>
     </details>
@@ -92,6 +93,10 @@
       <button data-saida="png-medidas">PNG com medidas</button>
       <button data-saida="glb">Cinema 4D (.glb)</button>
       <button data-saida="obj">.obj</button>
+    </div>
+    <div class="vistas" id="saidasDome" style="margin-top:8px; display:none;">
+      <button data-saida="dome-obj" title="Só a superfície da cúpula, em metros e com os UV do dome master — para mapear num media server">Só a cúpula (.obj)</button>
+      <button data-saida="dome-glb" title="O mesmo em glTF, que o WATCHOUT também aceita">Só a cúpula (.glb)</button>
     </div>
     <label class="opcao" id="opcaoPublico" hidden><input id="expPublico" type="checkbox"> Incluir o público</label>
     <label class="opcao" id="opcaoLinhas" hidden><input id="expLinhas" type="checkbox"> Incluir a planta CAD</label>

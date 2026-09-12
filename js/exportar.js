@@ -71,10 +71,16 @@ function assar(malha) {
  */
 export function prepararParaExportar(cena, opcoes = {}) {
   const raiz = new THREE.Group();
-  raiz.name = "preview";
+  raiz.name = opcoes.soACupula ? "dome" : "preview";
 
   cena.traverse((objeto) => {
     if (!objeto.isMesh && !objeto.isLineSegments) return;
+
+    // "Só a cúpula": para um media server não interessa a sala, o público nem
+    // os projetores -- interessa a SUPERFÍCIE onde a imagem vai cair, e mais
+    // nada. Pedido directo: *"poder exportar apenas a dome em obj para usar
+    // no media server, WATCHOUT por exemplo"*.
+    if (opcoes.soACupula && objeto.name !== "dome-casca") return;
 
     // Um objecto dentro de um grupo "aux:" também é auxiliar.
     let o = objeto, auxiliar = false;
@@ -103,7 +109,10 @@ export function prepararParaExportar(cena, opcoes = {}) {
     objeto.updateWorldMatrix(true, false);
     copia.matrix.copy(objeto.matrixWorld);
     copia.matrix.decompose(copia.position, copia.quaternion, copia.scale);
-    copia.name = objeto.name || nomeDeFallback(objeto);
+    // Num ficheiro que só tem a cúpula, "dome-casca" não diz nada a mais do
+    // que "dome" -- e é por este nome que a peça aparece na lista de objetos
+    // do media server.
+    copia.name = opcoes.soACupula ? "dome" : (objeto.name || nomeDeFallback(objeto));
     raiz.add(copia);
   });
 
