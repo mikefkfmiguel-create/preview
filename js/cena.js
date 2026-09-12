@@ -581,57 +581,83 @@ export function pintarQuemTapa(grupoDome, figura) {
   if (!d || !d.fontes.length) return 0;
 
   figura.updateMatrixWorld(true);
-  const caixa = new THREE.Box3().setFromObject(figura);
-  if (caixa.isEmpty()) return 0;
-  // Alguns pontos do corpo, não só o centro: de pé numa borda da fatia, o
-  // centro pode ficar de fora e os ombros dentro.
-  const meio = caixa.getCenter(new THREE.Vector3());
-  const pontos = [
-    meio.clone(),
-    new THREE.Vector3(meio.x, caixa.max.y - 0.05, meio.z),   // a cabeça
-    new THREE.Vector3(caixa.min.x, meio.y, meio.z),
-    new THREE.Vector3(caixa.max.x, meio.y, meio.z)
-  ].map((v) => v.setY(v.y - d.cy));   // para as coordenadas da casca
 
-  const R = d.R;
-  let tapados = 0, corPrimeiro = null;
-  for (const f of d.fontes) {
-    const L = f.lente;
-    let tapa = false;
-    for (const Q of pontos) {
-      // Onde é que o raio L→Q bate na casca (esfera de raio R na origem)?
-      const dx = Q.x - L.x, dy = Q.y - L.y, dz = Q.z - L.z;
-      const a = dx * dx + dy * dy + dz * dz;
-      if (a < 1e-9) continue;
-      const bb = L.x * dx + L.y * dy + L.z * dz;
-      const c = L.x * L.x + L.y * L.y + L.z * L.z - R * R;
-      const disc = bb * bb - a * c;
-      if (disc < 0) continue;
-      const t = (-bb + Math.sqrt(disc)) / a;
-      if (t <= 1) continue;              // a casca está ANTES do corpo: não tapa
-      const H = { x: L.x + dx * t, y: L.y + dy * t, z: L.z + dz * t };
-      const theta = Math.acos(Math.min(1, Math.max(-1, H.y / R)));
-      if (theta < f.t1 - 1e-6 || theta > f.t2 + 1e-6) continue;
-      if (!f.todoOAzimute) {
-        const phi = Math.atan2(H.z, -H.x);
-        let dPhi = phi - (f.a1 + f.a2) / 2;
-        while (dPhi > Math.PI) dPhi -= 2 * Math.PI;
-        while (dPhi < -Math.PI) dPhi += 2 * Math.PI;
-        if (Math.abs(dPhi) > (f.a2 - f.a1) / 2 + 1e-6) continue;
-      }
-      tapa = true;
-      break;
-    }
-    if (tapa) { tapados++; if (corPrimeiro == null) corPrimeiro = f.cor; }
+  // PEÇA A PEÇA, e não o corpo todo. Reportado: *"o boneco fica todo da cor
+  // do projetor de frente para ele e não apenas a parte que abrange; dava
+  // jeito marcar de cor apenas a parte que lhe toca"*. E tinha razão duas
+  // vezes: o teste era feito em quatro pontos do corpo INTEIRO, e a pintura
+  // era aplicada a tudo. Agora cada malha -- cabeça, tronco, pernas, braços --
+  // é testada por si, e só se pinta a que o feixe apanha. Um feixe que passa
+  // por cima de uma pessoa deixa-lhe as pernas na cor original, que é
+  // exactamente a informação que interessa.
+  const pecas = [];
+  figura.traverse((o) => { if (o.isMesh && o.material) pecas.push(o); });
+  if (!pecas.length) return 0;
+
+  // As peças da figura PARTILHAM dois materiais (pele e roupa, ver
+  // fazerFigura), e era essa a razão técnica de o boneco ficar todo da mesma
+  // cor: pintar uma peça pintava todas as que usam aquele material. Cada peça
+  // passa a ter o seu, clonado uma vez só.
+  for (const o of pecas) {
+    if (o.userData.materialProprio) continue;
+    o.material = o.material.clone();
+    o.userData.materialProprio = true;
   }
 
-  // Pintar: a cor do primeiro projetor tapado, para casar com a tampa dele.
-  figura.traverse((o) => {
-    if (!o.isMesh || !o.material) return;
-    if (!o.userData.corOriginal) o.userData.corOriginal = o.material.color.getHex();
-    o.material.color.setHex(tapados ? (corPrimeiro || 0xE8544E) : o.userData.corOriginal);
-  });
-  return tapados;
+  const R = d.R;
+  const caixaPeca = new THREE.Box3();
+  const meio = new THREE.Vector3();
+
+  // O raio lente→ponto, prolongado, bate dentro da fatia daquele projetor?
+  const apanha = (f, Q) => {
+    const L = f.lente;
+    const dx = Q.x - L.x, dy = Q.y - L.y, dz = Q.z - L.z;
+    const a = dx * dx + dy * dy + dz * dz;
+    if (a < 1e-9) return false;
+    const bb = L.x * dx + L.y * dy + L.z * dz;
+    const c = L.x * L.x + L.y * L.y + L.z * L.z - R * R;
+    const disc = bb * bb - a * c;
+    if (disc < 0) return false;
+    const t = (-bb + Math.sqrt(disc)) / a;
+    if (t <= 1) return false;            // a casca está ANTES do corpo: não tapa
+    const H = { x: L.x + dx * t, y: L.y + dy * t, z: L.z + dz * t };
+    const theta = Math.acos(Math.min(1, Math.max(-1, H.y / R)));
+    if (theta < f.t1 - 1e-6 || theta > f.t2 + 1e-6) return false;
+    if (!f.todoOAzimute) {
+      const phi = Math.atan2(H.z, -H.x);
+      let dPhi = phi - (f.a1 + f.a2) / 2;
+      while (dPhi > Math.PI) dPhi -= 2 * Math.PI;
+      while (dPhi < -Math.PI) dPhi += 2 * Math.PI;
+      if (Math.abs(dPhi) > (f.a2 - f.a1) / 2 + 1e-6) return false;
+    }
+    return true;
+  };
+
+  const fontesApanhadas = new Set();
+  for (const o of pecas) {
+    caixaPeca.setFromObject(o);
+    if (caixaPeca.isEmpty()) continue;
+    caixaPeca.getCenter(meio);
+    // Alguns pontos da PEÇA, não só o centro dela: numa borda de fatia o
+    // centro pode ficar de fora e o topo dentro.
+    const pontos = [
+      meio.clone(),
+      new THREE.Vector3(meio.x, caixaPeca.max.y - 0.02, meio.z),
+      new THREE.Vector3(caixaPeca.min.x, meio.y, meio.z),
+      new THREE.Vector3(caixaPeca.max.x, meio.y, meio.z)
+    ].map((v) => v.setY(v.y - d.cy));   // para as coordenadas da casca
+
+    let cor = null;
+    for (let i = 0; i < d.fontes.length; i++) {
+      const f = d.fontes[i];
+      if (!pontos.some((Q) => apanha(f, Q))) continue;
+      fontesApanhadas.add(i);
+      if (cor == null) cor = f.cor;      // a primeira que a apanha dá-lhe a cor
+    }
+    if (o.userData.corOriginal == null) o.userData.corOriginal = o.material.color.getHex();
+    o.material.color.setHex(cor != null ? cor : o.userData.corOriginal);
+  }
+  return fontesApanhadas.size;
 }
 
 /**

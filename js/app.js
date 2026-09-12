@@ -683,9 +683,11 @@ function atualizarNotaDaCupula() {
     }
   }
   if (tapados) {
-    linhas.push(tapados === 1
-      ? "Está a tapar 1 projetor — pintada com a cor dele."
-      : "Está a tapar " + tapados + " projetores — pintada com a cor do primeiro.");
+    // Cada peça do corpo leva a cor do projetor que a apanha, e essa cor é a
+    // da tampa do próprio projetor no 3D — é assim que se sabe DE ONDE vem o
+    // feixe que lhe toca, sem ter de adivinhar qual é a frente dela.
+    linhas.push((tapados === 1 ? "Está a tapar 1 projetor" : "Está a tapar " + tapados + " projetores") +
+      " — só as partes do corpo que o feixe apanha ficam pintadas, com a cor da tampa desse projetor.");
   }
   nota.textContent = linhas.join(" ");
 }
