@@ -316,6 +316,39 @@ function chaoDaImagem(proj, h, R, thetaMax) {
 }
 
 /**
+ * AS MEDIDAS DE UMA CÚPULA, num sítio só.
+ *
+ * Serve quem precisa de as saber sem desenhar nada — a nota da pessoa que
+ * está lá dentro, por exemplo, que quer o pé-direito por cima dela e a altura
+ * a que a imagem começa. Sem isto a fórmula do raio e a da base da imagem
+ * eram copiadas para o app.js, e já se viu o que dá ter a mesma conta em três
+ * sítios (ver chaoDaImagem acima).
+ *
+ * `alturaAcimaDe(r)` é a altura da superfície a `r` metros do eixo:
+ * y = cy + √(R² − r²), que é a esfera resolvida para cima.
+ */
+export function medidasDaCupula(dome) {
+  if (!dome) return null;
+  const D = Math.max(0.5, parseFloat(dome.diametro) || 0);
+  if (!(D > 0)) return null;
+  const h = Math.max(0.25, parseFloat(dome.altura) || D / 2);
+  const a = D / 2;
+  const R = (a * a + h * h) / (2 * h);
+  const cy = h - R;
+  const thetaMax = Math.acos(Math.min(1, Math.max(-1, (R - h) / R)));
+  const chao = chaoDaImagem(dome.projetores, h, R, thetaMax);
+  return {
+    diametro: D, raioBase: a, altura: h, R: R, cy: cy, thetaMax: thetaMax,
+    // 0 quando a imagem chega ao chão (fisheye ao centro, ou sem projetores).
+    yBaseDaImagem: chao ? chao.alturaCove : 0,
+    alturaAcimaDe: function (r) {
+      const dentro = Math.min(Math.max(0, r), a);
+      return cy + Math.sqrt(Math.max(0, R * R - dentro * dentro));
+    }
+  };
+}
+
+/**
  * A cúpula de projeção (dome), à escala, vista por dentro.
  *
  * Pedido directo depois de a calculadora de dome ficar feita: *"como

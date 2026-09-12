@@ -11,7 +11,7 @@ import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, faze
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
-         fazerCascaDeProjecao, pintarQuemTapa } from "./cena.js";
+         fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -77,6 +77,9 @@ const camadasEscondidas = new Set();   // camadas da planta que nao se veem
 const camadasLevantadas = new Set();   // camadas que sobem do chao, como paredes
 let projecaoAtual = null;  // a lente e a imagem de agora, para medir a sombra
 let ondeEsta = null;       // onde o orador foi posto à mão, se foi
+// A pessoa da cúpula tem a posição DELA: são dois bonecos com regras
+// diferentes, e uma posição partilhada punha um no sítio do outro.
+let ondeEstaNaDome = null;
 let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
@@ -315,9 +318,15 @@ function montar(recentrarCamara) {
   // a razão de ser translúcida por omissão.
   domeMontado = null;
   const domeDoProjeto = (projeto && projeto.dome) ? projeto.dome : null;
-  ["verDomeWrap", "domeSolidoWrap", "verFatiasWrap", "btVistaDome", "saidasDome"].forEach((id) => {
+  ["verDomeWrap", "domeSolidoWrap", "verFatiasWrap", "verPessoaDomeWrap",
+   "btVistaDome", "saidasDome"].forEach((id) => {
     if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
   });
+  // E ao contrário: num projeto que é SÓ cúpula, o orador do palco sai da
+  // lista. Quem dá a medida lá dentro é a pessoa da cúpula, e um interruptor
+  // ligado que não põe ninguém à vista lê-se como defeito.
+  const soCupula = cupulaSemZonas();
+  if ($("verOradorWrap")) $("verOradorWrap").style.display = soCupula ? "none" : "";
   if (domeDoProjeto && $("verDome") && $("verDome").checked) {
     // As fatias desligam-se: num anel de dez são dez manchas, e para olhar
     // para a forma da cúpula ou para o público convém tirá-las da frente.
@@ -427,46 +436,61 @@ function montar(recentrarCamara) {
   // Uma pessoa no palco, que é o que dá a medida a tudo o resto. Fica FORA do
   // "se houver projeto": sem zonas nenhumas ela é ainda mais precisa, porque é
   // a única coisa na cena com um tamanho que toda a gente conhece.
-  const figura = $("verOrador").checked ? fazerFigura(1.75) : null;
+  //
+  // O ORADOR É DO PALCO, E MAIS NADA. Teve durante uns dias um segundo
+  // emprego -- servir de escala dentro da cúpula --, e foi de onde saíram
+  // todas as queixas do boneco: *"o boy é voador?"*, *"não parece tocar no
+  // chão"*, *"foi para trás do projetor"*, *"quando o movi foi lá para
+  // sozinho"*. O mike acertou no diagnóstico: *"o boneco não convive bem com
+  // a dome; podíamos ter um para palcos e salas normais e outro para a dome"*.
+  // Aqui ficaram as regras do palco, limpas; a pessoa da cúpula é outra, mais
+  // abaixo, com as regras dela.
+  const figura = (!soCupula && $("verOrador").checked) ? fazerFigura(1.75) : null;
   const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
   const noPalco = palco.altura > 0 && palco.profundidade > 0;
   const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
   const x = -(medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
-  // Num projeto SÓ de cúpula, a figura é a única escala que há -- e estava a
-  // cair FORA dela: sem zonas, a posição saía da largura da SALA (numa sala de
-  // 24 m dá x = -6,2 m, e uma cúpula de 8,7 m tem raio 4,35). Reportado a
-  // olhar para o 3D: *"olha a escala comparativa"*. Numa cúpula ela tem de
-  // estar lá dentro, senão não compara com nada.
-  const cupulaSozinha = cupulaSemZonas();
   if (figura) {
-    const raioDome = cupulaSozinha
-      ? Math.max(0.5, (parseFloat(domeDoProjeto.diametro) || 8) / 2)
-      : 0;
-    const fx = ondeEsta ? ondeEsta.x : (cupulaSozinha ? -raioDome * 0.35 : x);
+    const fx = ondeEsta ? ondeEsta.x : x;
     const fz = ondeEsta ? ondeEsta.z
-      : (cupulaSozinha
-          ? raioDome * 0.25
-          : (noPalco
-            ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
-            : -sala.profundidade / 2 + 1.6));
+      : (noPalco
+          ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
+          : -sala.profundidade / 2 + 1.6);
     // Em cima de um palco extra, a altura é a dele. Sem isto a figura
     // continuava à altura do palco principal e ficava enterrada ou a
     // flutuar por cima da peça -- ver alturaDePalcoExtraEm().
     const hExtra = alturaDePalcoExtraEm(fx, fz);
     // A figura só sobe ao palco se o palco ESTIVER LÁ. Reportado: *"o boneco
     // não vai ao chão"* -- e não ia: com "Palco" desligado, ela ficava à
-    // altura de um palco que não está desenhado, a flutuar no ar. Numa cúpula
-    // sozinha é sempre o chão: é lá que uma pessoa está, e é com ela que se
-    // compara a cúpula.
-    const noChao = cupulaSozinha || !$("verPalco").checked;
+    // altura de um palco que não está desenhado, a flutuar no ar.
+    const noChao = !$("verPalco").checked;
     figura.position.set(fx, hExtra != null ? hExtra : ((noPalco && !noChao) ? palco.altura : 0), fz);
     desenhado.add(figura);
+  }
+
+  // A PESSOA DENTRO DA CÚPULA -- a régua humana de lá, e só de lá. Chão
+  // sempre (y = 0), limites da cúpula, e é ela que responde a "quem tapa que
+  // projetor". Roupa mais escura do que o orador, para não haver dúvida sobre
+  // quem é quem num projeto que tenha os dois.
+  if (domeDoProjeto && $("verPessoaDome") && $("verPessoaDome").checked) {
+    const m = medidasDaCupula(domeDoProjeto);
+    if (m) {
+      const pessoa = fazerFigura(1.75, {
+        pele: new THREE.MeshStandardMaterial({ color: 0xBFC9D6, roughness: 0.85 }),
+        roupa: new THREE.MeshStandardMaterial({ color: 0x6E7C8C, roughness: 0.95 })
+      });
+      pessoa.name = "figura-dome";
+      const px = ondeEstaNaDome ? ondeEstaNaDome.x : -m.raioBase * 0.35;
+      const pz = ondeEstaNaDome ? ondeEstaNaDome.z : m.raioBase * 0.25;
+      pessoa.position.set(px, 0, pz);
+      desenhado.add(pessoa);
+    }
   }
 
   // Quem tapa, pintado no PRÓPRIO boneco -- depois de ele estar na cena, que é
   // quando se sabe onde ficou. Não se desenha a mancha de sombra: ver o
   // comentário de pintarQuemTapa() em cena.js para a razão.
-  atualizarQuemTapa();
+  atualizarNotaDaCupula();
 
   desenharProjecao(sala, palco);
   // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
@@ -611,23 +635,54 @@ function desenharProjecao(sala, palco) {
  * diferenca entre pendurar a maquina uma vez ou duas.
  */
 /**
- * Pinta o boneco quando ele está a tapar um projetor da cúpula, e escreve
- * quantos. Corre no montar() E a cada arrastar: a primeira versão corria só no
+ * A NOTA DA CÚPULA: a medida que a pessoa lá dentro dá, e quem ela tapa.
+ *
+ * Pedido: a pessoa da cúpula serve *"apenas para tirar a medida quando uma
+ * pessoa estiver dentro dela"*, e uma régua que não mostra o número não serve
+ * de nada. Dois factos, os dois relativos ao sítio onde ela está:
+ *
+ *  - a superfície POR CIMA dela -- e não a altura ao centro, que é a única que
+ *    a calculadora dá: numa calota o pé-direito cai com o raio, e é por isso
+ *    que se põe a pessoa onde se quer medir;
+ *  - se a cabeça dela fica dentro da área de imagem, que é o que decide se
+ *    uma pessoa de pé leva imagem na cara.
+ *
+ * Corre no montar() E a cada arrastar: a primeira versão corria só no
  * montar(), e arrastar o boneco não remonta -- ficava com a cor de onde tinha
  * estado, que é o pior dos mundos (a informação lá, e errada).
  */
-function atualizarQuemTapa() {
+function atualizarNotaDaCupula() {
   const nota = $("notaDome");
-  const figura = figuraNaCena();
-  if (!domeMontado || !figura) { if (nota) nota.textContent = ""; return; }
-  const tapados = pintarQuemTapa(domeMontado, figura);
   if (!nota) return;
-  nota.textContent = tapados
-    ? (tapados === 1
-        ? "O orador está a tapar 1 projetor — está pintado com a cor dele."
-        : "O orador está a tapar " + tapados + " projetores — está pintado com a cor do primeiro.")
-    : "";
+  const pessoa = pessoaDaCupula();
+  if (!domeMontado || !pessoa) { nota.textContent = ""; return; }
+
+  const tapados = pintarQuemTapa(domeMontado, pessoa);
+  const m = projeto && projeto.dome ? medidasDaCupula(projeto.dome) : null;
+  const linhas = [];
+
+  if (m) {
+    const r = Math.hypot(pessoa.position.x, pessoa.position.z);
+    const acima = m.alturaAcimaDe(r);
+    linhas.push("Pessoa de 1,75 m: a superfície está a " + nnum(acima) +
+                " m por cima dela (" + nnum(m.altura) + " m ao centro).");
+    if (m.yBaseDaImagem > 0.05) {
+      linhas.push(m.yBaseDaImagem < 1.75
+        ? "A imagem começa a " + nnum(m.yBaseDaImagem) +
+          " m — a cabeça dela fica dentro da área de imagem."
+        : "A imagem começa a " + nnum(m.yBaseDaImagem) + " m, acima da cabeça dela.");
+    }
+  }
+  if (tapados) {
+    linhas.push(tapados === 1
+      ? "Está a tapar 1 projetor — pintada com a cor dele."
+      : "Está a tapar " + tapados + " projetores — pintada com a cor do primeiro.");
+  }
+  nota.textContent = linhas.join(" ");
 }
+
+/** Um número em português, com duas casas e vírgula. */
+function nnum(v) { return (Math.round(v * 100) / 100).toFixed(2).replace(".", ","); }
 
 function caixasQueTapam() {
   const caixas = [];
@@ -3243,6 +3298,7 @@ function limparTudo() {
   texturasPorZonaDataURL = {};
   mostrarLogoProprioExtra(false);
   ondeEsta = null;
+  ondeEstaNaDome = null;
   limitesDoShift = null;
   projecaoAtual = null;
   modoConteudo = "espalhado";
@@ -3344,7 +3400,8 @@ function estadoCompleto() {
       // reaberto tinha de voltar a ligar-se à mão.
       verDome: $("verDome") ? $("verDome").checked : true,
       domeSolido: $("domeSolido") ? $("domeSolido").checked : false,
-      verFatias: $("verFatias") ? $("verFatias").checked : true
+      verFatias: $("verFatias") ? $("verFatias").checked : true,
+      verPessoaDome: $("verPessoaDome") ? $("verPessoaDome").checked : true
     }
   };
 }
@@ -3408,6 +3465,7 @@ async function abrirProjetoTodo(estado) {
   preencherCheckbox("verCobertura", v.verCobertura);
   preencherCheckbox("verDome", v.verDome); preencherCheckbox("domeSolido", v.domeSolido);
   preencherCheckbox("verFatias", v.verFatias);
+  preencherCheckbox("verPessoaDome", v.verPessoaDome);
 
   projeto = estado.projeto || null;
   // "gomos" faltava aqui — ficava undefined (nem um array vazio) em vez de
@@ -4256,9 +4314,31 @@ const ondeCaiu = new THREE.Vector3();
 // nela -- ver o pointerdown.
 const desvioArrasto = new THREE.Vector3();
 let aArrastar = false;
+// Qual dos dois bonecos está na mão. São dois com regras diferentes (o orador
+// sobe a palcos, a pessoa da cúpula nunca sai do chão de lá), por isso quem
+// arrasta tem de saber em quem pegou -- e não "na figura", que era o que havia.
+let aMoverQuem = null;
 
 function figuraNaCena() {
   return desenhado ? desenhado.getObjectByName("figura") : null;
+}
+
+function pessoaDaCupula() {
+  return desenhado ? desenhado.getObjectByName("figura-dome") : null;
+}
+
+/** Em qual dos bonecos o rato está a apontar, o da frente primeiro. */
+function bonecoSobOApontador() {
+  let melhor = null, maisPerto = Infinity;
+  for (const f of [figuraNaCena(), pessoaDaCupula()]) {
+    if (!f) continue;
+    const toques = apontador.intersectObject(f, true);
+    if (toques.length && toques[0].distance < maisPerto) {
+      maisPerto = toques[0].distance;
+      melhor = f;
+    }
+  }
+  return melhor;
 }
 
 /**
@@ -4362,11 +4442,11 @@ function porRato(e) {
 
 tela.addEventListener("pointerdown", (e) => {
   if (!edicaoLivreLigada()) return;   // cadeado fechado: só a câmara mexe
-  const figura = figuraNaCena();
-  if (!figura) return;
   porRato(e);
   apontador.setFromCamera(rato, camara);
-  if (!apontador.intersectObject(figura, true).length) return;
+  const figura = bonecoSobOApontador();
+  if (!figura) return;
+  aMoverQuem = figura;
 
   aArrastar = true;
   controlos.enabled = false;                       // senao a camara vem atras
@@ -4387,9 +4467,6 @@ tela.addEventListener("pointerdown", (e) => {
 });
 
 tela.addEventListener("pointermove", (e) => {
-  const figura = figuraNaCena();
-  if (!figura) return;
-
   if (!aArrastar) {
     // Um cursor de mao a dizer que aquilo se pega — senao ninguem descobre.
     // Só com o cadeado aberto: fechado, nada se pega, e um cursor de mao a
@@ -4397,65 +4474,59 @@ tela.addEventListener("pointermove", (e) => {
     if (!edicaoLivreLigada()) { tela.style.cursor = ""; return; }
     porRato(e);
     apontador.setFromCamera(rato, camara);
-    tela.style.cursor = apontador.intersectObject(figura, true).length ? "grab" : "";
+    tela.style.cursor = bonecoSobOApontador() ? "grab" : "";
     return;
   }
+
+  const figura = aMoverQuem;
+  if (!figura || !figura.parent) return;   // remontou a cena a meio do arrasto
 
   porRato(e);
   apontador.setFromCamera(rato, camara);
 
-  // Primeiro: o rato está em cima de um tampo? Se sim, é ali que a figura
-  // fica, à altura desse tampo -- e nada mais se aplica. É isto que a deixa
-  // subir a um palco extra de outra altura.
-  //
-  // Numa cúpula sozinha, NÃO: o critério tem de ser o mesmo com que ela nasce
-  // (ver "noChao" no montar()), que é o chão da cúpula. Sem esta condição, o
-  // raio atravessava a casca, batia no tampo do palco que está desenhado lá
-  // atrás, e a figura subia para cima dele -- medido em y = 1,00 m com os pés
-  // a 1,00, dentro de uma cúpula. É a explicação das duas queixas: *"e o boy
-  // é voador?"* e *"ainda não parece tocar no chão"*.
-  const emCima = cupulaSemZonas() ? null : pontoPisavelSobOApontador();
-  if (emCima) {
-    figura.position.set(emCima.x, emCima.y, emCima.z);
-    figura.updateMatrixWorld(true);
-    ondeEsta = { x: figura.position.x, z: figura.position.z };
-    medirSombra();
-    atualizarQuemTapa();
-    return;
-  }
-
-  if (!apontador.ray.intersectPlane(planoDoPalco, ondeCaiu)) return;
-
-  // Numa cúpula sozinha não há palco a que a figura se prenda: o chão é o da
-  // cúpula e ela anda por ele à vontade, limitada só pela pegada dela.
-  // Reportado: *"podemos pôr o boneco inside dome também, ou apenas movê-lo
-  // livremente pelo espaço"*. Sem isto o arrastar mandava-a para a boca de um
-  // palco que não está lá, fora da cúpula e à altura dele.
-  if (cupulaSemZonas()) {
-    // O limite é a pegada da cúpula -- e, quando há um anel de projetores,
-    // por DENTRO dele. Reportado: *"o boneco foi para trás do projetor"*, e
-    // era isto: numa cúpula de 8,7 m o limite dava 4,00 m, exactamente o raio
-    // de montagem do anel, por isso a figura era encostada aos projetores.
-    // Com o anel por fora da casca (acontece em telas translúcidas), quem
-    // manda continua a ser a casca.
+  // A PESSOA DA CÚPULA tem as regras dela, e nenhuma do palco: nunca sai do
+  // chão de lá (y = 0), e o limite é a cúpula -- por dentro do anel de
+  // projetores quando ele existe. Não passa pelos tampos dos palcos, que era
+  // o que a punha 1 m no ar dentro de uma cúpula.
+  if (figura.name === "figura-dome") {
+    if (!apontador.ray.intersectPlane(planoDoPalco, ondeCaiu)) return;
+    const m = (projeto && projeto.dome) ? medidasDaCupula(projeto.dome) : null;
+    if (!m) return;
     const proj = projeto.dome.projetores || {};
     const raioMont = numeroSeguro(proj.raioMontagem);
-    let raioD = Math.max(0.5, numeroSeguro(projeto.dome.diametro) / 2) - 0.35;
-    // Um anel apertado (um aglomerado ao meio, por exemplo) não vale como
-    // limite: prendia a figura num círculo de meio metro e ela deixava de
-    // servir de escala. Abaixo de 1 m de espaço livre, uma pessoa contorna os
-    // projetores, e quem manda volta a ser a casca.
+    let raioD = Math.max(0.3, m.raioBase - 0.35);
+    // Um anel apertado (um aglomerado ao meio) não vale como limite: prendia
+    // a pessoa num círculo de meio metro e ela deixava de servir de escala.
     if (proj.n > 0 && raioMont - 0.45 >= 1) raioD = Math.min(raioD, raioMont - 0.45);
     const alvoX = ondeCaiu.x + desvioArrasto.x, alvoZ = ondeCaiu.z + desvioArrasto.z;
     const d = Math.hypot(alvoX, alvoZ);
     const k = d > raioD && d > 0 ? raioD / d : 1;
     figura.position.set(alvoX * k, 0, alvoZ * k);
     figura.updateMatrixWorld(true);
-    ondeEsta = { x: figura.position.x, z: figura.position.z };
-    medirSombra();
-    atualizarQuemTapa();
+    ondeEstaNaDome = { x: figura.position.x, z: figura.position.z };
+    atualizarNotaDaCupula();
     return;
   }
+
+  // Daqui para baixo é o ORADOR, e só ele: as regras do palco, sem uma única
+  // condição de cúpula pelo meio. Era o "se estiver numa cúpula faz outra
+  // coisa" espalhado por este caminho que punha o boneco 1 m no ar dentro da
+  // casca e o mandava para trás dos projetores.
+  //
+  // O rato está em cima de um tampo? Se sim, é ali que ele fica, à altura
+  // desse tampo -- e nada mais se aplica. É isto que o deixa subir a um palco
+  // extra de outra altura.
+  const emCima = pontoPisavelSobOApontador();
+  if (emCima) {
+    figura.position.set(emCima.x, emCima.y, emCima.z);
+    figura.updateMatrixWorld(true);
+    ondeEsta = { x: figura.position.x, z: figura.position.z };
+    medirSombra();
+    atualizarNotaDaCupula();
+    return;
+  }
+
+  if (!apontador.ray.intersectPlane(planoDoPalco, ondeCaiu)) return;
 
   const sala = lerSala();
   const palco = lerPalco();
@@ -4496,12 +4567,13 @@ tela.addEventListener("pointermove", (e) => {
   figura.updateMatrixWorld(true);
   ondeEsta = { x: figura.position.x, z: figura.position.z };
   medirSombra();
-  atualizarQuemTapa();
+  atualizarNotaDaCupula();
 });
 
 function largarFigura(e) {
   if (!aArrastar) return;
   aArrastar = false;
+  aMoverQuem = null;
   controlos.enabled = true;
   tela.style.cursor = "";
   try { tela.releasePointerCapture(e.pointerId); } catch (_) {}
