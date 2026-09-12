@@ -439,7 +439,7 @@ function uvAzimutalEquidistante(geo, thetaMax) {
  * O corpo de um projetor apontado a um alvo — o mesmo corpo que a aba de
  * projeção já usa, para não haver duas ideias de "projetor" na cena.
  */
-function corpoDeProjetor(pos, alvo, nome) {
+function corpoDeProjetor(pos, alvo, nome, cor) {
   const caixa = new THREE.Mesh(
     new THREE.BoxGeometry(0.42, 0.18, 0.52),
     new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
@@ -447,16 +447,31 @@ function corpoDeProjetor(pos, alvo, nome) {
   caixa.lookAt(alvo);
   caixa.name = nome;
 
+  const g = new THREE.Group();
+  g.add(caixa);
+
+  // Uma tampa da COR DA FATIA em cima do corpo: é o que responde a "de quem é
+  // esta fatia?" sem se ter de seguir o feixe com os olhos. Um corpo cinzento
+  // igual a todos os outros não dizia nada.
+  if (cor != null) {
+    const marca = new THREE.Mesh(
+      new THREE.BoxGeometry(0.44, 0.05, 0.54),
+      new THREE.MeshBasicMaterial({ color: cor }));
+    marca.position.copy(pos);
+    marca.quaternion.copy(caixa.quaternion);
+    marca.translateY(0.11);
+    marca.name = "aux:dome-marca";
+    g.add(marca);
+  }
+
   // Um traço curto a dizer para onde aponta: sem isto, num anel de dez, não
   // se percebe se estão virados para dentro ou para fora.
   const dir = new THREE.Vector3().subVectors(alvo, pos).normalize().multiplyScalar(1.1);
   const traco = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([pos.clone(), pos.clone().add(dir)]),
-    new THREE.LineBasicMaterial({ color: 0x8FC2FF, transparent: true, opacity: 0.55 }));
+    new THREE.LineBasicMaterial({ color: cor != null ? cor : 0x8FC2FF, transparent: true, opacity: 0.7 }));
   traco.name = "aux:dome-mira";
-
-  const g = new THREE.Group();
-  g.add(caixa, traco);
+  g.add(traco);
   return g;
 }
 
@@ -499,21 +514,45 @@ function fatiaDaCupula(R, a1, a2, t1, t2, pos, cor, nome) {
   bordo.name = "aux:dome-fatia-grelha";
   g.add(bordo);
 
-  // Os quatro cantos ligados ao projetor: é o que faz a forma ler-se como um
-  // feixe em vez de uma mancha colada à casca.
+  // O FEIXE, com o mesmo desenho do cone da aba de Projeção: quatro
+  // triângulos preenchidos da lente para os cantos, não quatro linhas.
+  // Reportado: *"era bem mais fácil de perceber que raio é de quem se
+  // estivessem mais marcados, como o cone de projecção"* -- e com linhas
+  // finas num anel de seis não se percebia de quem era cada fatia.
+  // A convenção de phi TEM de ser a do SphereGeometry do three, senão o feixe
+  // aponta para um sítio espelhado em x e não para a mancha que está a
+  // iluminar. O three faz:
+  //   x = -R*cos(phi)*sin(theta),  y = R*cos(theta),  z = R*sin(phi)*sin(theta)
+  // -- o x é NEGATIVO, e era isso que aqui faltava.
   const canto = (phi, theta) => new THREE.Vector3(
-    R * Math.sin(theta) * Math.cos(phi),
+    -R * Math.cos(phi) * Math.sin(theta),
     R * Math.cos(theta),
-    R * Math.sin(theta) * Math.sin(phi));
-  const pontos = [];
-  [[a1, t1], [a2, t1], [a2, t2], [a1, t2]].forEach(([phi, theta]) => {
-    pontos.push(pos.clone(), canto(phi, theta));
-  });
-  const feixe = new THREE.LineSegments(
-    new THREE.BufferGeometry().setFromPoints(pontos),
-    new THREE.LineBasicMaterial({ color: cor, transparent: true, opacity: 0.45 }));
+    R * Math.sin(phi) * Math.sin(theta));
+  const cantos = [canto(a1, t1), canto(a2, t1), canto(a2, t2), canto(a1, t2)];
+  const vertices = [];
+  for (let i = 0; i < 4; i++) {
+    const A = cantos[i], B = cantos[(i + 1) % 4];
+    vertices.push(pos.x, pos.y, pos.z, A.x, A.y, A.z, B.x, B.y, B.z);
+  }
+  const geoFeixe = new THREE.BufferGeometry();
+  geoFeixe.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geoFeixe.computeVertexNormals();
+  const feixe = new THREE.Mesh(geoFeixe, new THREE.MeshBasicMaterial({
+    color: cor, transparent: true, opacity: 0.10,
+    side: THREE.DoubleSide, depthWrite: false
+  }));
   feixe.name = "aux:dome-feixe";
   g.add(feixe);
+
+  // As arestas do feixe por cima, para a forma ter contorno: sem elas, quatro
+  // triângulos a 10% leem-se como névoa.
+  const arestas = [];
+  cantos.forEach((c) => { arestas.push(pos.clone(), c.clone()); });
+  const contorno = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(arestas),
+    new THREE.LineBasicMaterial({ color: cor, transparent: true, opacity: 0.55 }));
+  contorno.name = "aux:dome-feixe-arestas";
+  g.add(contorno);
 
   return g;
 }
@@ -648,7 +687,8 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     // montagem: num anel com zénite ele vai na mesma estrutura.
     const yCentro = (alturaPedida > 0) ? Math.min(h - 0.2, alturaPedida) : 0.12;
     const pos = new THREE.Vector3(desvio, yCentro, 0);
-    grupo.add(corpoDeProjetor(pos, new THREE.Vector3(desvio, h, 0), "dome-projetor-c" + (i + 1)));
+    grupo.add(corpoDeProjetor(pos, new THREE.Vector3(desvio, h, 0), "dome-projetor-c" + (i + 1),
+      CORES_FATIA[i % CORES_FATIA.length]));
     // Ao centro cada um cobre uma fatia em gomo, do zénite ao horizonte: é o
     // que um fisheye faz. Com um só, é a cúpula toda.
     const p1 = (i / aoCentro) * Math.PI * 2, p2 = ((i + 1) / aoCentro) * Math.PI * 2;
@@ -679,16 +719,43 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         // Aponta para cima e para o lado oposto da cúpula: é o que uma cove
         // faz, cobrir a metade de lá.
         const alvo = new THREE.Vector3(-Math.sin(ang) * a * 0.55, h * 0.85, -Math.cos(ang) * a * 0.55);
-        grupo.add(corpoDeProjetor(pos, alvo, "dome-projetor-" + (++k)));
-        // A fatia fica do lado OPOSTO ao projetor, que é para onde ele
-        // aponta. O azimute da esfera do three conta de +X para +Z, e a
-        // posição usa sin/cos ao contrário -- daí o atan2(z, x).
-        const phiOposto = Math.atan2(-Math.cos(ang), -Math.sin(ang));
+        grupo.add(corpoDeProjetor(pos, alvo, "dome-projetor-" + (++k),
+          CORES_FATIA[cor % CORES_FATIA.length]));
+        // A fatia fica do lado OPOSTO ao projetor: é uma cove, atira em
+        // diagonal para a metade de lá. Reportado: *"parece estar a projetar
+        // na própria parede em que está posicionado e não na oposta, como
+        // deveria ser cruzado"* -- e estava mesmo, por um sinal.
+        //
+        // O projetor está na direção (sin(ang), cos(ang)) em (x, z). No
+        // SphereGeometry do three, um ponto de parâmetro phi está na direção
+        // (-cos(phi), sin(phi)). Querer a direção OPOSTA à do projetor:
+        //   -cos(phi) = -sin(ang)   =>   cos(phi) =  sin(ang)
+        //    sin(phi) = -cos(ang)
+        //   logo  phi = atan2(-cos(ang), sin(ang))
+        // O que aqui estava -- atan2(-cos, -sin) -- dava cos(phi) = -sin(ang),
+        // ou seja a fatia do MESMO lado.
+        const phiOposto = Math.atan2(-Math.cos(ang), Math.sin(ang));
         const meio = Math.PI / anel.q;   // meia fatia de azimute
         const [f1, f2, ft1, ft2] = comBlend(phiOposto - meio, phiOposto + meio, tCima, tBaixo);
-        fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2,
-          pos.clone().setY(pos.y - (h - R)), CORES_FATIA[cor++ % CORES_FATIA.length],
-          "dome-fatia-" + k));
+        const corFatia = CORES_FATIA[cor++ % CORES_FATIA.length];
+        const vertice = pos.clone().setY(pos.y - (h - R));
+        fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2, vertice, corFatia, "dome-fatia-" + k));
+        // ATRAVESSAR O PÓLO. Reportado: *"não está a sobrepor na cúpula, no
+        // topo está a ficar encostado apenas"* -- e estava: sem projetor de
+        // zénite, as fatias chegavam ao pólo e encostavam ali num ponto.
+        //
+        // Mas num anel sem zénite é precisamente por cima do pólo que as
+        // imagens se montam: é isso que significa "2 imagens a atravessar o
+        // pólo". Cada fatia continua para o lado de LÁ, no azimute oposto,
+        // pelo tanto que a sobreposição pedir -- e é aí que se cruza com a
+        // fatia de quem está à frente.
+        if (aoCentro === 0 && ft1 <= 0.0001 && blend > 0) {
+          const passo = (tBaixo - tCima) * blend;
+          if (passo > 0.01) {
+            fatias.add(fatiaDaCupula(R, f1 + Math.PI, f2 + Math.PI, 0, Math.min(thetaMax, passo),
+              vertice, corFatia, "dome-fatia-" + k + "-polo"));
+          }
+        }
       }
     });
   }

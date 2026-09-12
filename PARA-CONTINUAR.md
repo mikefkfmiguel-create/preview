@@ -2014,6 +2014,42 @@ assenta no anel, a lente fica esse tanto mais para dentro, e é de lá que sai o
 feixe. Com 1,4 m de profundidade num anel de raio 3,5 m, a lente aparece a
 2,10 m do centro.
 
+### ~~Cruzar a cúpula, atravessar o pólo, e ver de quem é cada fatia~~ — FEITO (v3.12)
+
+Três relatos seguidos, e o último era um bug de sinal.
+
+**A fatia caía do MESMO lado do projetor.** *"Parece estar a projetar na
+própria parede em que está posicionado e não na oposta, como deveria ser
+cruzado"* — e estava mesmo. Duas contas erradas, a compor-se:
+
+1. O azimute "oposto" era `atan2(-cos(ang), -sin(ang))`. No SphereGeometry do
+   three um ponto de parâmetro `phi` está na direção `(-cos(phi), sin(phi))`
+   em (x, z); o projetor está em `(sin(ang), cos(ang))`. Querer o lado oposto
+   dá `cos(phi) = sin(ang)` e `sin(phi) = -cos(ang)`, logo
+   **`phi = atan2(-cos(ang), sin(ang))`**. O sinal a mais no segundo argumento
+   punha a fatia do mesmo lado.
+2. O canto do feixe usava `x = +R·sin(theta)·cos(phi)`, e o three usa
+   **`x = -R·cos(phi)·sin(theta)`** — o feixe apontava para um sítio
+   espelhado em x, não para a mancha que estava a iluminar.
+
+Verificado com uma medida que passou a ser teste: para cada projetor do anel,
+o produto escalar entre a direção horizontal dele e a do centro da sua fatia.
+Antes: `+1` (mesmo lado) e `0` (lateral) em vários. Depois: **−1 em todos** —
+diametralmente opostos, que é o que uma cove faz.
+
+**No topo encostavam em vez de atravessar.** *"Não está a sobrepor na cúpula,
+no topo está a ficar encostado apenas"*. Num anel sem zénite é por cima do
+pólo que as imagens se montam — é isso que "2 imagens a atravessar o pólo"
+significa. Cada fatia passou a continuar para o lado de lá, no azimute
+oposto, pelo tanto que a sobreposição pedir (`dome-fatia-N-polo`).
+
+**De quem é cada fatia.** *"Era bem mais fácil de perceber que raio é de quem
+se estivessem mais marcados, como o cone de projecção"*. O feixe passou a ser
+desenhado como o cone da aba de Projeção — **quatro triângulos preenchidos** da
+lente para os cantos, mais as arestas por cima — e cada corpo de projetor leva
+uma **tampa da cor da sua fatia**. Um corpo cinzento igual a todos os outros
+não dizia nada.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
