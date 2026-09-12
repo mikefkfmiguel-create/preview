@@ -268,6 +268,17 @@ button.destaque { border-color: var(--ciano); color: var(--ciano); }
   align-items: center; gap: 6px;
   font-size: 12px; color: var(--apagado);
 }
+/* Os atalhos de forma de um palco extra (círculo, meia-lua) e o
+   interruptor "só a frente": numa fila própria, porque a linha do palco é
+   uma coluna de campos e um botão solto lá dentro ficava a ocupar uma
+   linha inteira sozinho. */
+.ajuste-formas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ajuste-formas .ajuste-sofrente {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--apagado); cursor: pointer;
+}
+.ajuste-formas .ajuste-sofrente input { width: auto; }
+
 .ajuste-campo .ajuste-rotulo { grid-area: rotulo; }
 .ajuste-campo > input { grid-area: valor; min-width: 0; }
 /* Os dois botões de passo são o 1.º e o 2.º <button> do campo; o 3.º,

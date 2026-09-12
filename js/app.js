@@ -403,13 +403,16 @@ function montar(recentrarCamara) {
   const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
   const x = -(medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
   if (figura) {
-    figura.position.set(
-      ondeEsta ? ondeEsta.x : x,
-      noPalco ? palco.altura : 0,
-      ondeEsta ? ondeEsta.z
-        : (noPalco
-            ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
-            : -sala.profundidade / 2 + 1.6));
+    const fx = ondeEsta ? ondeEsta.x : x;
+    const fz = ondeEsta ? ondeEsta.z
+      : (noPalco
+          ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
+          : -sala.profundidade / 2 + 1.6);
+    // Em cima de um palco extra, a altura é a dele. Sem isto a figura
+    // continuava à altura do palco principal e ficava enterrada ou a
+    // flutuar por cima da peça -- ver alturaDePalcoExtraEm().
+    const hExtra = alturaDePalcoExtraEm(fx, fz);
+    figura.position.set(fx, hExtra != null ? hExtra : (noPalco ? palco.altura : 0), fz);
     desenhado.add(figura);
   }
 
@@ -2227,8 +2230,14 @@ function desenharPalcosExtra() {
     linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `palcoExtra-${i}-altura`, 0, 10));
     linha.append(campoAjuste("profundidade", pe, "profundidade", "m", "0.5", `palcoExtra-${i}-profundidade`, 0.5, 60));
     linha.append(campoAjuste("arredondar", pe, "raio", "m", "0.25", `palcoExtra-${i}-raio`, 0, 100));
-    // O mesmo atalho do palco principal, por peça: iguala a profundidade à
-    // largura e põe o arredondamento no máximo.
+    // Dois atalhos de forma, lado a lado. O primeiro já existia; o segundo
+    // veio do pedido "queria arredondar e encostar ao outro como
+    // continuidade; para isso deveria ser apenas meio palco, pois senão ao
+    // arrumar passa para trás do outro".
+    const formas = document.createElement("div");
+    formas.className = "ajuste-formas";
+    linha.append(formas);
+
     const redondo = document.createElement("button");
     redondo.type = "button";
     redondo.className = "ajuste-passo";
@@ -2238,10 +2247,46 @@ function desenharPalcosExtra() {
     redondo.addEventListener("click", () => {
       pe.profundidade = pe.largura;
       pe.raio = pe.largura / 2;
+      pe.meio = false;
       guardarAjustes(ajustes);
       remontarDaqui(0);
     });
-    linha.append(redondo);
+    formas.append(redondo);
+
+    // Meia-lua: traseira reta para encostar, frente em curva. A
+    // profundidade fica em metade da largura e o raio no máximo -- é isso
+    // que dá o semicírculo exacto. A traseira aponta para o fundo da sala;
+    // para a virar para outro lado, é o campo "rodar".
+    const meiaLua = document.createElement("button");
+    meiaLua.type = "button";
+    meiaLua.className = "ajuste-passo";
+    meiaLua.textContent = "⌒";
+    meiaLua.title = "Meia-lua — traseira reta para encostar a outro palco, frente arredondada";
+    meiaLua.setAttribute("aria-label", "Fazer uma meia-lua no Palco " + (i + 2));
+    meiaLua.addEventListener("click", () => {
+      pe.profundidade = pe.largura / 2;
+      pe.raio = pe.largura / 2;
+      pe.meio = true;
+      guardarAjustes(ajustes);
+      remontarDaqui(0);
+    });
+    formas.append(meiaLua);
+
+    // E um interruptor para tirar/pôr a meia-lua sem mexer nas medidas --
+    // quem arredondou à mão e só quer a traseira reta não tem de repor
+    // largura e profundidade.
+    const soFrente = document.createElement("label");
+    soFrente.className = "ajuste-sofrente";
+    const caixa = document.createElement("input");
+    caixa.type = "checkbox";
+    caixa.checked = !!pe.meio;
+    caixa.addEventListener("change", () => {
+      pe.meio = caixa.checked;
+      guardarAjustes(ajustes);
+      remontarDaqui(0);
+    });
+    soFrente.append(caixa, document.createTextNode(" só a frente arredondada"));
+    formas.append(soFrente);
     linha.append(campoAjuste("↔", pe, "dx", "m", "0.25", `palcoExtra-${i}-dx`));
     linha.append(campoAjuste("fundo", pe, "dz", "m", "0.25", `palcoExtra-${i}-dz`));
     linha.append(campoAjuste("rodar", pe, "rot", "°", "15", `palcoExtra-${i}-rot`, -180, 180));
@@ -4118,6 +4163,85 @@ function figuraNaCena() {
   return desenhado ? desenhado.getObjectByName("figura") : null;
 }
 
+/**
+ * Se (x, z) cai em cima de um palco extra, a altura do tampo dele; senão
+ * null.
+ *
+ * Reportado: *"o boneco não vai ao segundo palco"*. É o mesmo buraco que já
+ * se tinha tapado para a passarela (*"o prop não vai à passarela"*): a
+ * figura estava presa ao retângulo do palco principal, e tudo o que se
+ * acrescentou depois -- os palcos extra -- ficou de fora.
+ *
+ * A conta faz-se a partir do array de ajustes e não dos objetos da cena, de
+ * propósito: isto também corre a desenhar, e a desenhar os palcos extra
+ * podem ainda não estar montados. A rotação é a inversa da que a cena
+ * aplica (fazerPalcoExtra: grupo.rotation.y = -rot em radianos).
+ *
+ * Pisar-se testa contra o RETÂNGULO, mesmo numa peça arredondada ou em
+ * meia-lua: a tolerância nos cantos são centímetros de ar, e a figura é
+ * uma referência de escala, não uma medida.
+ */
+/**
+ * Onde é que o rato está a apontar, em cima de algo que se possa pisar.
+ *
+ * O arrasto do orador sempre trabalhou sobre um PLANO horizontal à altura
+ * dele. Isso chega enquanto tudo é da mesma altura (palco + passarela), mas
+ * não dá para subir a um palco extra mais alto: o raio atravessa o tampo e
+ * vai bater no plano lá atrás, e a figura ia para trás em vez de para cima
+ * -- foi exactamente o que se viu a testar ("o boneco não vai ao segundo
+ * palco" não se resolvia só com limites).
+ *
+ * Aqui toca-se nas peças a sério. Devolve o ponto e a altura, ou null se o
+ * rato não está sobre nenhuma; nesse caso quem chama volta ao plano de
+ * sempre, que é o que trata de arrastar para fora da borda.
+ *
+ * Só faces viradas para cima contam: apontar a parede da frente de um palco
+ * punha a figura colada a meia altura dela.
+ */
+const normalDoTampo = new THREE.Vector3();
+function pontoPisavelSobOApontador() {
+  if (!desenhado) return null;
+  const pecas = [];
+  desenhado.traverse((o) => {
+    if (!o.isMesh) return;
+    const n = o.name || (o.parent && o.parent.name) || "";
+    const nPai = (o.parent && o.parent.name) || "";
+    if (n === "palco" || n === "passarela" || nPai.indexOf("palco-") === 0 || nPai.indexOf("passarela-") === 0) {
+      pecas.push(o);
+    }
+  });
+  if (!pecas.length) return null;
+  const toques = apontador.intersectObjects(pecas, false);
+  for (const t of toques) {
+    if (!t.face) continue;
+    normalDoTampo.copy(t.face.normal).transformDirection(t.object.matrixWorld);
+    if (normalDoTampo.y < 0.5) continue;      // parede, não tampo
+    return { x: t.point.x, y: t.point.y, z: t.point.z };
+  }
+  return null;
+}
+
+function alturaDePalcoExtraEm(x, z) {
+  const lista = (ajustes && Array.isArray(ajustes.palcosExtra)) ? ajustes.palcosExtra : [];
+  // De trás para a frente: o último acrescentado ganha, que é o que a
+  // pessoa acabou de pôr e está a olhar para ele.
+  for (let i = lista.length - 1; i >= 0; i--) {
+    const pe = lista[i];
+    const r = ((pe.rot || 0) * Math.PI) / 180;
+    const dx = x - (pe.dx || 0), dz = z - (pe.dz || 0);
+    const lx = dx * Math.cos(r) + dz * Math.sin(r);
+    const lz = -dx * Math.sin(r) + dz * Math.cos(r);
+    const meiaL = Math.max(1, pe.largura || 6) / 2;
+    const meiaP = Math.max(0.5, pe.profundidade || 4) / 2;
+    // A margem é a mesma dos outros limites: a figura não fica com os pés
+    // meio no ar na borda.
+    if (Math.abs(lx) <= meiaL - 0.2 && Math.abs(lz) <= meiaP - 0.2) {
+      return Math.max(0.1, pe.altura || 1);
+    }
+  }
+  return null;
+}
+
 function porRato(e) {
   const caixa = tela.getBoundingClientRect();
   rato.set(
@@ -4157,6 +4281,19 @@ tela.addEventListener("pointermove", (e) => {
 
   porRato(e);
   apontador.setFromCamera(rato, camara);
+
+  // Primeiro: o rato está em cima de um tampo? Se sim, é ali que a figura
+  // fica, à altura desse tampo -- e nada mais se aplica. É isto que a deixa
+  // subir a um palco extra de outra altura.
+  const emCima = pontoPisavelSobOApontador();
+  if (emCima) {
+    figura.position.set(emCima.x, emCima.y, emCima.z);
+    figura.updateMatrixWorld(true);
+    ondeEsta = { x: figura.position.x, z: figura.position.z };
+    medirSombra();
+    return;
+  }
+
   if (!apontador.ray.intersectPlane(planoDoPalco, ondeCaiu)) return;
 
   const sala = lerSala();
@@ -4187,8 +4324,11 @@ tela.addEventListener("pointermove", (e) => {
   const limiteXEsq = emCimaDaPassarela ? zonaPass.dx - (zonaPass.largura / 2 - 0.2) : -limiteX;
   const limiteXDir = emCimaDaPassarela ? zonaPass.dx + (zonaPass.largura / 2 - 0.2) : limiteX;
 
+  // Fora de qualquer tampo (o rato foi para o chão, ou para fora da borda):
+  // os limites de sempre, do palco principal e da passarela.
   figura.position.x = Math.max(limiteXEsq, Math.min(limiteXDir, ondeCaiu.x));
   figura.position.z = z;
+  figura.position.y = noPalco ? palco.altura : 0;
   figura.updateMatrixWorld(true);
   ondeEsta = { x: figura.position.x, z: figura.position.z };
   medirSombra();
