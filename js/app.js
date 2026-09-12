@@ -427,17 +427,34 @@ function montar(recentrarCamara) {
   const noPalco = palco.altura > 0 && palco.profundidade > 0;
   const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
   const x = -(medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
+  // Num projeto SÓ de cúpula, a figura é a única escala que há -- e estava a
+  // cair FORA dela: sem zonas, a posição saía da largura da SALA (numa sala de
+  // 24 m dá x = -6,2 m, e uma cúpula de 8,7 m tem raio 4,35). Reportado a
+  // olhar para o 3D: *"olha a escala comparativa"*. Numa cúpula ela tem de
+  // estar lá dentro, senão não compara com nada.
+  const cupulaSozinha = cupulaSemZonas();
   if (figura) {
-    const fx = ondeEsta ? ondeEsta.x : x;
+    const raioDome = cupulaSozinha
+      ? Math.max(0.5, (parseFloat(domeDoProjeto.diametro) || 8) / 2)
+      : 0;
+    const fx = ondeEsta ? ondeEsta.x : (cupulaSozinha ? -raioDome * 0.35 : x);
     const fz = ondeEsta ? ondeEsta.z
-      : (noPalco
-          ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
-          : -sala.profundidade / 2 + 1.6);
+      : (cupulaSozinha
+          ? raioDome * 0.25
+          : (noPalco
+            ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
+            : -sala.profundidade / 2 + 1.6));
     // Em cima de um palco extra, a altura é a dele. Sem isto a figura
     // continuava à altura do palco principal e ficava enterrada ou a
     // flutuar por cima da peça -- ver alturaDePalcoExtraEm().
     const hExtra = alturaDePalcoExtraEm(fx, fz);
-    figura.position.set(fx, hExtra != null ? hExtra : (noPalco ? palco.altura : 0), fz);
+    // A figura só sobe ao palco se o palco ESTIVER LÁ. Reportado: *"o boneco
+    // não vai ao chão"* -- e não ia: com "Palco" desligado, ela ficava à
+    // altura de um palco que não está desenhado, a flutuar no ar. Numa cúpula
+    // sozinha é sempre o chão: é lá que uma pessoa está, e é com ela que se
+    // compara a cúpula.
+    const noChao = cupulaSozinha || !$("verPalco").checked;
+    figura.position.set(fx, hExtra != null ? hExtra : ((noPalco && !noChao) ? palco.altura : 0), fz);
     desenhado.add(figura);
   }
 
@@ -4248,6 +4265,19 @@ function figuraNaCena() {
  * punha a figura colada a meia altura dela.
  */
 const normalDoTampo = new THREE.Vector3();
+/**
+ * Um projeto que é SÓ cúpula: não tem zonas montadas, e portanto o chão que
+ * conta é o da cúpula, não o do palco. Serve o desenho (onde nasce a figura) e
+ * o arrastar (até onde ela pode ir) -- e tem de ser o mesmo critério nos dois,
+ * senão ela nasce num sítio e o rato prende-a noutro.
+ */
+function cupulaSemZonas() {
+  if (!projeto || !projeto.dome || !(numeroSeguro(projeto.dome.diametro) > 0)) return false;
+  const m = projetoMontado(projeto);
+  return !(m && m.zonas && m.zonas.length);
+}
+function numeroSeguro(v) { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; }
+
 function pontoPisavelSobOApontador() {
   if (!desenhado) return null;
   const pecas = [];
@@ -4344,6 +4374,22 @@ tela.addEventListener("pointermove", (e) => {
   }
 
   if (!apontador.ray.intersectPlane(planoDoPalco, ondeCaiu)) return;
+
+  // Numa cúpula sozinha não há palco a que a figura se prenda: o chão é o da
+  // cúpula e ela anda por ele à vontade, limitada só pela pegada dela.
+  // Reportado: *"podemos pôr o boneco inside dome também, ou apenas movê-lo
+  // livremente pelo espaço"*. Sem isto o arrastar mandava-a para a boca de um
+  // palco que não está lá, fora da cúpula e à altura dele.
+  if (cupulaSemZonas()) {
+    const raioD = Math.max(0.5, numeroSeguro(projeto.dome.diametro) / 2) - 0.35;
+    const d = Math.hypot(ondeCaiu.x, ondeCaiu.z);
+    const k = d > raioD && d > 0 ? raioD / d : 1;
+    figura.position.set(ondeCaiu.x * k, 0, ondeCaiu.z * k);
+    figura.updateMatrixWorld(true);
+    ondeEsta = { x: figura.position.x, z: figura.position.z };
+    medirSombra();
+    return;
+  }
 
   const sala = lerSala();
   const palco = lerPalco();

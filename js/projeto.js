@@ -187,6 +187,15 @@ export function lerProjeto(bruto) {
               // lente, por isso é ela que fica no sítio do feixe.
               profundidade: numero(projBruto.profundidade, 0) > 0
                 ? numero(projBruto.profundidade, 0) : null,
+              // Ângulo de tiro acima da horizontal, em graus. Null = aponta ao
+              // meio da fatia, que é o que fazia antes de haver campo lá.
+              angulo: (numero(projBruto.angulo, 0) > 0 && numero(projBruto.angulo, 0) < 89)
+                ? numero(projBruto.angulo, 0) : null,
+              // Raio de montagem a contar do centro. Pode ser MAIOR do que o
+              // raio da cúpula -- numa tela translúcida ou numa geodésica com
+              // estrutura por fora, os projetores ficam do lado de fora.
+              raioMontagem: numero(projBruto.raioMontagem, 0) > 0
+                ? numero(projBruto.raioMontagem, 0) : null,
               // Quem é o projetor e que lente leva -- só para o 3D poder
               // dizer o nome. Nenhuma conta deste lado depende disto: os
               // catálogos são dos Calculadores, que é a regra da casa.

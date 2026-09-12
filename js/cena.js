@@ -594,10 +594,19 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   const alturaCove = (alturaPedida > 0)
     ? Math.min(h - 0.2, alturaPedida)       // nunca acima do topo da cúpula
     : Math.min(1.2, h * 0.12);
-  const raioCove = Math.max(0.4, a - 0.5);      // encostado por dentro
+  // Raio de montagem: por omissão meio metro por dentro da base, mas pode vir
+  // da aba Dome e pode ser MAIOR do que o raio da cúpula -- reportado: *"os
+  // projetores podem estar fora da esfera ou dentro, consoante o tipo de dome
+  // montada"*. Numa tela translúcida ou numa geodésica com estrutura
+  // exterior, ficam do lado de fora da casca.
+  const raioPedido = parseFloat(proj.raioMontagem);
+  const raioCove = (raioPedido > 0) ? raioPedido : Math.max(0.4, a - 0.5);
   // Do ponto de montagem até à lente. Sem número, zero: o corpo e a lente
   // ficam no mesmo sítio, que é o que se desenhava antes.
   const profundidade = Math.max(0, Math.min(raioCove - 0.3, parseFloat(proj.profundidade) || 0));
+  // Ângulo de tiro em radianos, ou null para "aponta ao meio da fatia".
+  const grausTiro = parseFloat(proj.angulo);
+  const anguloTiro = (grausTiro > 0 && grausTiro < 89) ? grausTiro * Math.PI / 180 : null;
 
   // Quantos ficam ao centro (o do zénite) e quantos nos anéis.
   const aoCentro = (colocacao === "centro") ? n : (colocacao === "anel" ? 0 : Math.min(1, n));
@@ -717,8 +726,16 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         const rLente = Math.max(0.2, anel.r - profundidade);
         const pos = new THREE.Vector3(Math.sin(ang) * rLente, anel.y, Math.cos(ang) * rLente);
         // Aponta para cima e para o lado oposto da cúpula: é o que uma cove
-        // faz, cobrir a metade de lá.
-        const alvo = new THREE.Vector3(-Math.sin(ang) * a * 0.55, h * 0.85, -Math.cos(ang) * a * 0.55);
+        // faz, cobrir a metade de lá. Com ângulo de tiro escrito na aba Dome,
+        // é esse que manda -- reportado: *"ângulo dos projetores poderá
+        // influenciar também"*, e influencia, é ele que decide onde o raio
+        // bate. Sem ângulo, aponta ao meio da fatia como antes.
+        const alvo = (anguloTiro != null)
+          ? new THREE.Vector3(
+              pos.x - Math.sin(ang) * Math.cos(anguloTiro) * 2,
+              pos.y + Math.sin(anguloTiro) * 2,
+              pos.z - Math.cos(ang) * Math.cos(anguloTiro) * 2)
+          : new THREE.Vector3(-Math.sin(ang) * a * 0.55, h * 0.85, -Math.cos(ang) * a * 0.55);
         grupo.add(corpoDeProjetor(pos, alvo, "dome-projetor-" + (++k),
           CORES_FATIA[cor % CORES_FATIA.length]));
         // A fatia fica do lado OPOSTO ao projetor: é uma cove, atira em

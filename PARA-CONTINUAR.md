@@ -2050,6 +2050,42 @@ lente para os cantos, mais as arestas por cima — e cada corpo de projetor leva
 uma **tampa da cor da sua fatia**. Um corpo cinzento igual a todos os outros
 não dizia nada.
 
+### ~~O boneco na cúpula, e os projetores por fora da casca~~ — FEITO (v3.16)
+
+**O boneco não ia ao chão nem para dentro da cúpula.** Reportado: *"olha a
+escala comparativa"*, depois *"o boneco não vai ao chão nem dentro dela para
+comparar"*. Duas causas, as duas minhas:
+
+1. **Nascia fora da cúpula.** Sem zonas, a posição saía da largura da SALA:
+   numa sala de 24 m dá `x = −6,2 m`, e uma cúpula de 8,7 m tem raio 4,35.
+   Num projeto só de cúpula a figura é a única escala que há — tem de estar lá
+   dentro, senão não compara com nada. Agora nasce a `r = 1,87 m`.
+2. **Ficava à altura do palco mesmo com o palco desligado**, a flutuar no ar
+   por cima de um palco que não está desenhado. Agora só sobe ao palco se o
+   palco estiver lá.
+
+Verificado a medir: 1,75 m de altura, pés a `y = 0`, com "Palco" ligado e
+desligado.
+
+**E anda livremente pelo chão da cúpula.** Reportado: *"podemos pôr o boneco
+inside dome também, ou apenas movê-lo livremente pelo espaço"*. O arrastar
+prendia-a aos limites do palco — mandava-a para a boca de um palco que não
+está lá. Numa cúpula sozinha passou a ser livre no chão dela, travada na
+pegada: arrastada para fora, para a `r = 4,00` exactos (4,35 − 0,35). O
+critério é o mesmo do desenho (`cupulaSemZonas()`), senão nascia num sítio e
+o rato prendia-a noutro.
+
+**Os projetores podem ficar POR FORA da casca.** Reportado: *"os projetores
+podem estar fora da esfera ou dentro, consoante o tipo de dome montada"*, e o
+raio estava fixo em meio metro por dentro da base. Agora vem de
+`dome.projetores.raioMontagem` (campo novo na v3.59 de lá) e pode ser maior do
+que o raio da cúpula — numa tela translúcida ou numa geodésica com estrutura
+exterior é o caso normal. Com 6,0 m numa cúpula de raio 4,35, os corpos
+aparecem a 6,00 do centro, do lado de fora.
+
+**E o ângulo de tiro** (`dome.projetores.angulo`) manda na direção quando
+está escrito; em branco, aponta ao meio da fatia como antes.
+
 **Fica por fazer:** a cúpula nasce centrada na sala e não se mexe. Um dome de
 evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
