@@ -4252,6 +4252,9 @@ const apontador = new THREE.Raycaster();
 const rato = new THREE.Vector2();
 const planoDoPalco = new THREE.Plane();
 const ondeCaiu = new THREE.Vector3();
+// Do ponto onde o raio bate no chão até à figura, no momento em que se pega
+// nela -- ver o pointerdown.
+const desvioArrasto = new THREE.Vector3();
 let aArrastar = false;
 
 function figuraNaCena() {
@@ -4369,6 +4372,17 @@ tela.addEventListener("pointerdown", (e) => {
   controlos.enabled = false;                       // senao a camara vem atras
   tela.setPointerCapture(e.pointerId);
   planoDoPalco.set(new THREE.Vector3(0, 1, 0), -figura.position.y);
+
+  // O DESVIO DA PEGA. Sem isto a figura SALTA ao primeiro pixel de arrasto:
+  // a posição dela passava a ser o ponto onde o raio bate no plano do chão, e
+  // quem pega pela cabeça está a apontar para um ponto do chão a metros de
+  // distância dos pés dela. Medido antes: pegar na barriga e mexer 40 px para
+  // o lado dava 2,2 m para TRÁS. Reportado: *"quando o movi foi lá para
+  // sozinho"*. Guardado o desvio, a figura segue o rato em vez de aterrar nele.
+  desvioArrasto.set(0, 0, 0);
+  if (apontador.ray.intersectPlane(planoDoPalco, ondeCaiu)) {
+    desvioArrasto.set(figura.position.x - ondeCaiu.x, 0, figura.position.z - ondeCaiu.z);
+  }
   tela.style.cursor = "grabbing";
 });
 
@@ -4393,7 +4407,14 @@ tela.addEventListener("pointermove", (e) => {
   // Primeiro: o rato está em cima de um tampo? Se sim, é ali que a figura
   // fica, à altura desse tampo -- e nada mais se aplica. É isto que a deixa
   // subir a um palco extra de outra altura.
-  const emCima = pontoPisavelSobOApontador();
+  //
+  // Numa cúpula sozinha, NÃO: o critério tem de ser o mesmo com que ela nasce
+  // (ver "noChao" no montar()), que é o chão da cúpula. Sem esta condição, o
+  // raio atravessava a casca, batia no tampo do palco que está desenhado lá
+  // atrás, e a figura subia para cima dele -- medido em y = 1,00 m com os pés
+  // a 1,00, dentro de uma cúpula. É a explicação das duas queixas: *"e o boy
+  // é voador?"* e *"ainda não parece tocar no chão"*.
+  const emCima = cupulaSemZonas() ? null : pontoPisavelSobOApontador();
   if (emCima) {
     figura.position.set(emCima.x, emCima.y, emCima.z);
     figura.updateMatrixWorld(true);
@@ -4411,10 +4432,24 @@ tela.addEventListener("pointermove", (e) => {
   // livremente pelo espaço"*. Sem isto o arrastar mandava-a para a boca de um
   // palco que não está lá, fora da cúpula e à altura dele.
   if (cupulaSemZonas()) {
-    const raioD = Math.max(0.5, numeroSeguro(projeto.dome.diametro) / 2) - 0.35;
-    const d = Math.hypot(ondeCaiu.x, ondeCaiu.z);
+    // O limite é a pegada da cúpula -- e, quando há um anel de projetores,
+    // por DENTRO dele. Reportado: *"o boneco foi para trás do projetor"*, e
+    // era isto: numa cúpula de 8,7 m o limite dava 4,00 m, exactamente o raio
+    // de montagem do anel, por isso a figura era encostada aos projetores.
+    // Com o anel por fora da casca (acontece em telas translúcidas), quem
+    // manda continua a ser a casca.
+    const proj = projeto.dome.projetores || {};
+    const raioMont = numeroSeguro(proj.raioMontagem);
+    let raioD = Math.max(0.5, numeroSeguro(projeto.dome.diametro) / 2) - 0.35;
+    // Um anel apertado (um aglomerado ao meio, por exemplo) não vale como
+    // limite: prendia a figura num círculo de meio metro e ela deixava de
+    // servir de escala. Abaixo de 1 m de espaço livre, uma pessoa contorna os
+    // projetores, e quem manda volta a ser a casca.
+    if (proj.n > 0 && raioMont - 0.45 >= 1) raioD = Math.min(raioD, raioMont - 0.45);
+    const alvoX = ondeCaiu.x + desvioArrasto.x, alvoZ = ondeCaiu.z + desvioArrasto.z;
+    const d = Math.hypot(alvoX, alvoZ);
     const k = d > raioD && d > 0 ? raioD / d : 1;
-    figura.position.set(ondeCaiu.x * k, 0, ondeCaiu.z * k);
+    figura.position.set(alvoX * k, 0, alvoZ * k);
     figura.updateMatrixWorld(true);
     ondeEsta = { x: figura.position.x, z: figura.position.z };
     medirSombra();
@@ -4438,10 +4473,13 @@ tela.addEventListener("pointermove", (e) => {
   // largura dela; senão continua-se preso à borda do palco como sempre.
   const passarela = lerPassarela();
   const zonaPass = noPalco && passarela.ligada ? zonaDaPassarela(sala, palco, passarela) : null;
-  const frenteZ = (zonaPass && Math.abs(ondeCaiu.x - zonaPass.dx) < zonaPass.largura / 2 - 0.2)
+  // Com o desvio da pega (ver o pointerdown): é o ponto do chão mais o desvio
+  // que a figura persegue, não o ponto do chão.
+  const pedidoX = ondeCaiu.x + desvioArrasto.x, pedidoZ = ondeCaiu.z + desvioArrasto.z;
+  const frenteZ = (zonaPass && Math.abs(pedidoX - zonaPass.dx) < zonaPass.largura / 2 - 0.2)
     ? Math.max(frenteZPalco, zonaPass.zMax - 0.3)
     : frenteZPalco;
-  const z = Math.max(fundoZ, Math.min(frenteZ, ondeCaiu.z));
+  const z = Math.max(fundoZ, Math.min(frenteZ, pedidoZ));
 
   // E já em cima dela (para lá da borda do palco), a largura livre passa a
   // ser só a da passarela -- não dá para "flutuar" ao lado dela, por cima da
@@ -4452,7 +4490,7 @@ tela.addEventListener("pointermove", (e) => {
 
   // Fora de qualquer tampo (o rato foi para o chão, ou para fora da borda):
   // os limites de sempre, do palco principal e da passarela.
-  figura.position.x = Math.max(limiteXEsq, Math.min(limiteXDir, ondeCaiu.x));
+  figura.position.x = Math.max(limiteXEsq, Math.min(limiteXDir, pedidoX));
   figura.position.z = z;
   figura.position.y = noPalco ? palco.altura : 0;
   figura.updateMatrixWorld(true);
