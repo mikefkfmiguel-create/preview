@@ -539,7 +539,16 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   const n = Math.max(1, Math.round(proj.n));
   const ARRANJO_ANTIGO = { 1: "centro", 2: "anel", 3: "anel-zenite", 4: "anel-duplo" };
   const colocacao = proj.colocacao || ARRANJO_ANTIGO[Math.round(proj.arranjo || 3)] || "anel-zenite";
-  const alturaCove = Math.min(1.2, h * 0.12);   // baixo, junto à base
+  // A altura de montagem vem da aba Dome quando lá estiver escrita.
+  // Reportado: *"a altura a que estão, pois não serão no chão, serão sempre
+  // elevados"* -- e tinha razão: o valor que aqui estava (12% da altura da
+  // cúpula, no máximo 1,2 m) punha-os praticamente no chão, e num planetário
+  // vão na cove, numa cúpula de evento vão em truss. Por definir, mantém-se
+  // o valor baixo e a nota do painel diz que é indicativo, não uma cota.
+  const alturaPedida = parseFloat(proj.altura);
+  const alturaCove = (alturaPedida > 0)
+    ? Math.min(h - 0.2, alturaPedida)       // nunca acima do topo da cúpula
+    : Math.min(1.2, h * 0.12);
   const raioCove = Math.max(0.4, a - 0.5);      // encostado por dentro
 
   // Quantos ficam ao centro (o do zénite) e quantos nos anéis.
@@ -579,13 +588,16 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     // Um fisheye ao centro aponta a prumo. Com mais do que um (caso raro),
     // afastam-se um pouco para não ficarem dentro um do outro.
     const desvio = aoCentro > 1 ? (i - (aoCentro - 1) / 2) * 0.6 : 0;
-    const pos = new THREE.Vector3(desvio, 0.12, 0);
+    // O do zénite/centro também não fica no chão quando há altura de
+    // montagem: num anel com zénite ele vai na mesma estrutura.
+    const yCentro = (alturaPedida > 0) ? Math.min(h - 0.2, alturaPedida) : 0.12;
+    const pos = new THREE.Vector3(desvio, yCentro, 0);
     grupo.add(corpoDeProjetor(pos, new THREE.Vector3(desvio, h, 0), "dome-projetor-c" + (i + 1)));
     // Ao centro cada um cobre uma fatia em gomo, do zénite ao horizonte: é o
     // que um fisheye faz. Com um só, é a cúpula toda.
     const p1 = (i / aoCentro) * Math.PI * 2, p2 = ((i + 1) / aoCentro) * Math.PI * 2;
     fatias.add(fatiaDaCupula(R, p1, p2, 0, thetaDoCentro,
-      new THREE.Vector3(desvio, 0.12 - (h - R), 0), CORES_FATIA[i % CORES_FATIA.length],
+      new THREE.Vector3(desvio, yCentro - (h - R), 0), CORES_FATIA[i % CORES_FATIA.length],
       "dome-fatia-c" + (i + 1)));
   }
 
