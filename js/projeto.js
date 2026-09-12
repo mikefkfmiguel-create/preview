@@ -158,13 +158,23 @@ export function lerProjeto(bruto) {
   //
   // Sem altura assume-se meia-esfera (altura = raio), que é o caso mais
   // comum e o único que se deduz do diâmetro sem inventar nada.
+  // Dos projetores só vem o NÚMERO e o arranjo -- quantos são e como se
+  // dispõem. Onde exatamente ficam é conta do desenho (fazerDome), não da
+  // calculadora: uma cove real decide-se na obra, com a lente na mão.
   const domeBruto = dados.dome;
+  const projBruto = domeBruto && domeBruto.projetores;
   const dome = (domeBruto && numero(domeBruto.diametro, 0) > 0)
     ? {
         diametro: numero(domeBruto.diametro, 0),
         altura: numero(domeBruto.altura, 0) > 0
           ? numero(domeBruto.altura, 0)
-          : numero(domeBruto.diametro, 0) / 2
+          : numero(domeBruto.diametro, 0) / 2,
+        projetores: (projBruto && numero(projBruto.n, 0) > 0)
+          ? {
+              n: Math.round(numero(projBruto.n, 0)),
+              arranjo: Math.round(numero(projBruto.arranjo, 3))
+            }
+          : null
       }
     : null;
 
