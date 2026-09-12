@@ -2327,6 +2327,11 @@ Do lado do Preview, o que lá está e toca a esta pasta:
   ficam os delays e o DSM", "fundo" em vez de "↕"/"profundidade" para a
   posição). Se algum não soar bem a usar, é uma linha a mudar.
 - **Uma ideia do mike**, por contar e analisar.
+- **Analítica de uso** (item 8 da lista de lá, decidido a 12/9 e por fazer): a
+  fase 1 mexe também nesta pasta — id de instalação anónimo, fila de eventos
+  offline e os eventos `abriu` / `exportou` / `partilhou`. O plano, o que se
+  mede e o passo manual do Cloudflare estão todos no `PARA-CONTINUAR.md` do
+  **calculadores**; aqui não se decide nada à parte.
 
 ## Coisas que se decidiram e não se voltam a discutir
 
