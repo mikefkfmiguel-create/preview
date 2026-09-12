@@ -480,8 +480,14 @@ function montar(recentrarCamara) {
         roupa: new THREE.MeshStandardMaterial({ color: 0x6E7C8C, roughness: 0.95 })
       });
       pessoa.name = "figura-dome";
-      const px = ondeEstaNaDome ? ondeEstaNaDome.x : -m.raioBase * 0.35;
-      const pz = ondeEstaNaDome ? ondeEstaNaDome.z : m.raioBase * 0.25;
+      // NASCE NO CENTRO. Nascia a um terço do raio, e o mike apontou o que
+      // isso esconde: *"a posição dele deve ser no centro de origem, pois
+      // será onde se interfere mais"*. E é: medido nesta mesma cúpula, ao
+      // centro tapa 4 projetores, encostada à parede tapa 1. O sítio por
+      // omissão tem de ser o PIOR caso, senão a primeira leitura é optimista
+      // -- e depois arrasta-se para onde a pessoa vai estar de facto.
+      const px = ondeEstaNaDome ? ondeEstaNaDome.x : 0;
+      const pz = ondeEstaNaDome ? ondeEstaNaDome.z : 0;
       pessoa.position.set(px, 0, pz);
       desenhado.add(pessoa);
     }
@@ -664,8 +670,11 @@ function atualizarNotaDaCupula() {
   if (m) {
     const r = Math.hypot(pessoa.position.x, pessoa.position.z);
     const acima = m.alturaAcimaDe(r);
-    linhas.push("Pessoa de 1,75 m: a superfície está a " + nnum(acima) +
-                " m por cima dela (" + nnum(m.altura) + " m ao centro).");
+    // Ao centro, dizer "4,35 m por cima dela (4,35 m ao centro)" é repetir-se.
+    linhas.push(r < 0.15
+      ? "Pessoa de 1,75 m no centro da cúpula: " + nnum(acima) + " m de superfície por cima dela."
+      : "Pessoa de 1,75 m: a superfície está a " + nnum(acima) +
+        " m por cima dela (" + nnum(m.altura) + " m ao centro).");
     if (m.yBaseDaImagem > 0.05) {
       linhas.push(m.yBaseDaImagem < 1.75
         ? "A imagem começa a " + nnum(m.yBaseDaImagem) +

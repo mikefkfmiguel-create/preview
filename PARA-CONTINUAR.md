@@ -2140,6 +2140,20 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 12 de setembro — a pessoa da cúpula nasce no centro (v3.22)
+
+*"A posição dele deve ser no centro de origem, pois será onde se interfere
+mais."* Nascia a um terço do raio, e o mike apontou o que isso esconde: o
+sítio por omissão de uma régua de interferência tem de ser o **pior caso**,
+senão a primeira leitura é optimista e quem não arrastar o boneco fica com
+ela. Medido na mesma cúpula (8,7 m, anel de 4 a 1,5 m): **ao centro tapa 4
+projetores, encostada à parede tapa 2**. Depois arrasta-se para onde a pessoa
+vai estar de facto.
+
+A nota deixou de se repetir no centro ("4,35 m por cima dela (4,35 m ao
+centro)") e passa a dizer *"no centro da cúpula: 4,35 m de superfície por cima
+dela"*.
+
 ## 12 de setembro — dois bonecos, porque são dois trabalhos (v3.21)
 
 Diagnóstico do mike, e é o certo: *"o boneco não convive bem com a dome; acho
