@@ -17,6 +17,7 @@ import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
 import { criarLinkPartilha, lerLinkPartilha } from "./partilha.js";
 import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
+import { paginaDeRelatorio } from "./relatorio.js";
 
 const $ = (id) => document.getElementById(id);
 const tela = $("tela");
@@ -775,13 +776,62 @@ function fichaDeProjetor(nome, pos, zEcra, shiftH, shiftV, largura, altura) {
  * mesma conta em dois sítios -- e coordenadas que não batem certo com o modelo
  * são piores do que não existirem.
  */
+
+/**
+ * Quem tem coordenadas nesta montagem. Um sítio só: o painel, o texto do
+ * "Copiar" e o relatório em página leem todos daqui, para não haver três
+ * versões da mesma lista a divergirem quando uma delas mudar.
+ */
+function dadosDeCoordenadas() {
+  const cupula = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
+  const planos = montagemProjetores;
+  return {
+    cupula: cupula, planos: planos,
+    temCupula: !!(cupula && cupula.length),
+    temPlanos: !!(planos && planos.length)
+  };
+}
+
+/**
+ * A tabela de coordenadas em HTML. Serve o painel e a página do relatório
+ * com o mesmo markup -- a folha de estilo é que muda de um lado para o outro.
+ */
+function tabelaDeCoordenadas(quais, tipo) {
+  if (tipo === "cupula") {
+    const linhas = quais.map((p) => `<tr>
+        <td><span class="quem"><span class="bolha" style="background:${p.cor}"></span>${p.nome}</span></td>
+        <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
+        <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
+        <td class="n">${nnum(p.distancia)}</td>
+        <td class="n">${Math.round(p.inclinacao)}°</td>
+      </tr>`).join("");
+    return `<div class="coords-rolar"><table class="coords">
+      <thead><tr>
+        <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th><th>Incl.</th>
+      </tr></thead><tbody>${linhas}</tbody></table></div>`;
+  }
+  // O shift só ganha coluna quando algum projetor o usa: uma coluna de zeros
+  // é ruído numa tabela que já é larga.
+  const comShift = quais.some((p) => p.shiftH || p.shiftV);
+  const linhas = quais.map((p) => `<tr>
+      <td><span class="quem"><span class="bolha" style="background:#6E8BA8"></span>${p.nome}</span></td>
+      <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
+      <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
+      <td class="n">${nnum(p.distancia)}</td>
+      ${comShift ? `<td class="n">${Math.round(p.shiftH * 100)}% · ${Math.round(p.shiftV * 100)}%</td>` : ""}
+    </tr>`).join("");
+  return `<div class="coords-rolar"><table class="coords">
+    <thead><tr>
+      <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th>
+      ${comShift ? "<th>Shift H · V</th>" : ""}
+    </tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+
 function escreverCoordenadas() {
   const caixa = $("coordsTabela");
   const nota = $("coordsNota");
   if (!caixa) return;
-  const cupula = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
-  const planos = montagemProjetores;
-  const temCupula = !!(cupula && cupula.length), temPlanos = !!(planos && planos.length);
+  const { cupula, planos, temCupula, temPlanos } = dadosDeCoordenadas();
 
   if (!temCupula && !temPlanos) {
     caixa.innerHTML = "";
@@ -795,36 +845,12 @@ function escreverCoordenadas() {
 
   let html = "";
   if (temCupula) {
-    const linhas = cupula.map((p) => `<tr>
-        <td><span class="quem"><span class="bolha" style="background:${p.cor}"></span>${p.nome}</span></td>
-        <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
-        <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
-        <td class="n">${nnum(p.distancia)}</td>
-        <td class="n">${Math.round(p.inclinacao)}°</td>
-      </tr>`).join("");
-    html += `${temPlanos ? '<p class="vazio" style="margin:0 0 6px">Cúpula</p>' : ""}
-      <div class="coords-rolar"><table class="coords">
-      <thead><tr>
-        <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th><th>Incl.</th>
-      </tr></thead><tbody>${linhas}</tbody></table></div>`;
+    html += (temPlanos ? '<p class="vazio" style="margin:0 0 6px">Cúpula</p>' : "") +
+            tabelaDeCoordenadas(cupula, "cupula");
   }
   if (temPlanos) {
-    // O shift só ganha coluna quando algum projetor o usa: uma coluna de zeros
-    // é ruído numa tabela que já é larga.
-    const comShift = planos.some((p) => p.shiftH || p.shiftV);
-    const linhas = planos.map((p) => `<tr>
-        <td><span class="quem"><span class="bolha" style="background:#6E8BA8"></span>${p.nome}</span></td>
-        <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
-        <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
-        <td class="n">${nnum(p.distancia)}</td>
-        ${comShift ? `<td class="n">${Math.round(p.shiftH * 100)}% · ${Math.round(p.shiftV * 100)}%</td>` : ""}
-      </tr>`).join("");
-    html += `${temCupula ? '<p class="vazio" style="margin:14px 0 6px">Ecrã plano</p>' : ""}
-      <div class="coords-rolar"><table class="coords">
-      <thead><tr>
-        <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th>
-        ${comShift ? "<th>Shift H · V</th>" : ""}
-      </tr></thead><tbody>${linhas}</tbody></table></div>`;
+    html += (temCupula ? '<p class="vazio" style="margin:14px 0 6px">Ecrã plano</p>' : "") +
+            tabelaDeCoordenadas(planos, "plano");
   }
   caixa.innerHTML = html;
 
@@ -838,9 +864,7 @@ function escreverCoordenadas() {
 
 /** As coordenadas em texto, para colar no media server ou no email da obra. */
 function coordenadasEmTexto() {
-  const cupula = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
-  const planos = montagemProjetores;
-  const temCupula = !!(cupula && cupula.length), temPlanos = !!(planos && planos.length);
+  const { cupula, planos, temCupula, temPlanos } = dadosDeCoordenadas();
   if (!temCupula && !temPlanos) return "";
 
   const tres = (p) => [p.x, p.y, p.z].map((v) => nsin(v).padStart(7)).join("  ");
@@ -870,6 +894,221 @@ function coordenadasEmTexto() {
         : "")));
   }
   return linhas.join("\n");
+}
+
+// ------------------------------------------------- o relatório, em página
+//
+// Pedido directo: *"os relatórios de montagem e ajustes podem sair como
+// página como fizeste o que te pedi antes"*. O que sai daqui é o que já está
+// no ecrã -- coordenadas, medidas e ajustes -- numa folha que se imprime, se
+// anexa a um email ou se abre no telemóvel em cima da obra. Não se calcula
+// nada de novo: quem faz as contas continua a ser quem desenha.
+
+/** Só os nomes das colocações que a cúpula usa — para não sair "anel-zenite". */
+const NOME_DA_COLOCACAO = {
+  "centro": "todos ao centro (fisheye)",
+  "anel": "em anel",
+  "anel-zenite": "anel + um ao zénite",
+  "anel-duplo": "anel duplo"
+};
+
+/** Um ajuste só entra no relatório se alguém lhe mexeu. */
+function mexido(v) { return Math.abs(Number(v) || 0) > 0.005; }
+function grausComSinal(v) {
+  const n = Math.round(Number(v) || 0);
+  return (n > 0 ? "+" : "−") + Math.abs(n) + "°";
+}
+
+/**
+ * O que aqui difere do que veio dos Calculadores. Só o que foi mexido: uma
+ * lista de zeros não diz nada a quem está a montar.
+ *
+ * Os projetores extra não entram — já vão, com posição e tudo, na tabela de
+ * coordenadas acima. Escrevê-los duas vezes era dar duas respostas à mesma
+ * pergunta, e um dia elas deixavam de bater certo.
+ */
+function resumoDeAjustes() {
+  const grupos = [];
+  if (!projeto) return grupos;
+  const dist = (v) => nsin(v) + " m";
+
+  const linhasDelay = [];
+  for (const z of projeto.zonas) {
+    if (z.tipo === "led") continue;
+    const a = ajustes.delays[z.nome];
+    if (!a) continue;
+    const partes = [];
+    if (mexido(a.dx)) partes.push("lado " + dist(a.dx));
+    if (mexido(a.dz)) partes.push("fundo " + dist(a.dz));
+    if (mexido(a.dy)) partes.push("altura " + dist(a.dy));
+    if (mexido(a.rot)) partes.push("rodado " + grausComSinal(a.rot));
+    if (mexido(a.tilt)) partes.push("tilt " + grausComSinal(a.tilt));
+    if (partes.length) {
+      linhasDelay.push({ quem: z.nome + (z.tipo === "tv" ? " (TV)" : " (projeção)"), texto: partes.join(" · ") });
+    }
+  }
+  if (linhasDelay.length) grupos.push({ titulo: "Ecrãs mexidos na sala", linhas: linhasDelay });
+
+  const numDsm = (projeto.dsm && projeto.dsm.n) ? projeto.dsm.n : 0;
+  const linhasDsm = [];
+  for (let i = 0; i < numDsm; i++) {
+    const a = ajustes.dsm[i];
+    if (!a) continue;
+    const partes = [];
+    if (mexido(a.dx)) partes.push("lado " + dist(a.dx));
+    if (mexido(a.dz)) partes.push("fundo " + dist(a.dz));
+    if (mexido(a.rot)) partes.push("rodado " + grausComSinal(a.rot));
+    if (mexido(a.tilt)) partes.push("tilt " + grausComSinal(a.tilt));
+    if (partes.length) linhasDsm.push({ quem: "DSM " + (i + 1), texto: partes.join(" · ") });
+  }
+  if (linhasDsm.length) grupos.push({ titulo: "DSM", linhas: linhasDsm });
+
+  const linhasPalco = ajustes.palcosExtra.map((p, i) => ({
+    quem: "Palco " + (i + 2),
+    texto: nnum(p.largura) + " × " + nnum(p.profundidade) + " m, " + nnum(p.altura) + " m de alto" +
+      " · em " + nsin(p.dx) + " / " + nsin(p.dz) +
+      (mexido(p.rot) ? " · rodado " + grausComSinal(p.rot) : "") +
+      (mexido(p.raio) ? " · arredondado " + nnum(p.raio) + " m" : "")
+  }));
+  if (linhasPalco.length) grupos.push({ titulo: "Palcos acrescentados aqui", linhas: linhasPalco });
+
+  const linhasRegie = ajustes.regiesExtra.map((r, i) => ({
+    quem: "Régie " + (i + 2),
+    texto: nnum(r.largura) + " × " + nnum(r.profundidade) + " m · em " + nsin(r.dx) + " / " + nsin(r.dz) +
+      (mexido(r.rot) ? " · rodada " + grausComSinal(r.rot) : "")
+  }));
+  if (linhasRegie.length) grupos.push({ titulo: "Régies acrescentadas aqui", linhas: linhasRegie });
+
+  const linhasPassarela = ajustes.passarelasExtra.map((p, i) => ({
+    quem: "Passarela " + (i + 1),
+    texto: nnum(p.largura) + " × " + nnum(p.comprimento) + " m, " + nnum(p.altura) + " m de alto" +
+      " · em " + nsin(p.dx) + " / " + nsin(p.dz) +
+      (mexido(p.rot) ? " · rodada " + grausComSinal(p.rot) : "")
+  }));
+  if (linhasPassarela.length) grupos.push({ titulo: "Passarelas", linhas: linhasPassarela });
+
+  return grupos;
+}
+
+/**
+ * A marca para o cabeçalho da folha. Vai em data URL porque a página tem de
+ * abrir sozinha, sem a app e sem rede — é para isso que ela serve.
+ */
+let marcaRelatorioPromise = null;
+function marcaDoRelatorio() {
+  if (!marcaRelatorioPromise) {
+    marcaRelatorioPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const folha = document.createElement("canvas");
+          folha.width = img.naturalWidth; folha.height = img.naturalHeight;
+          folha.getContext("2d").drawImage(img, 0, 0);
+          resolve(folha.toDataURL("image/png"));
+        } catch (e) { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = "icons/mike-marca-branco.png";
+    });
+  }
+  return marcaRelatorioPromise;
+}
+
+/**
+ * A vista, em JPEG e não em PNG: um render 3D com degradês faz um PNG de
+ * megabytes, e esta imagem viaja dentro do próprio HTML. A largura fica pelos
+ * 1600 px, que chega para imprimir em A4 e não faz uma folha que não abre.
+ */
+function vistaParaRelatorio() {
+  if (!renderizador || !tela) return null;
+  try {
+    renderizador.render(cena, camara);
+    const largura = Math.min(1600, tela.width);
+    if (largura === tela.width) return tela.toDataURL("image/jpeg", 0.88);
+    const folha = document.createElement("canvas");
+    folha.width = largura;
+    folha.height = Math.round(tela.height * (largura / tela.width));
+    const p = folha.getContext("2d");
+    p.fillStyle = "#0E1418";
+    p.fillRect(0, 0, folha.width, folha.height);
+    p.drawImage(tela, 0, 0, folha.width, folha.height);
+    return folha.toDataURL("image/jpeg", 0.88);
+  } catch (e) {
+    return null;   // canvas "sujo" (uma textura de outro sítio) — a folha sai sem imagem
+  }
+}
+
+async function guardarRelatorio() {
+  const nota = $("notaExportar");
+  const { cupula, planos, temCupula, temPlanos } = dadosDeCoordenadas();
+  const sala = lerSala();
+  const agora = new Date();
+
+  const medidasSala = [
+    ["Sala", nnum(sala.largura) + " × " + nnum(sala.profundidade) + " m"],
+    ["Pé-direito", nnum(sala.altura) + " m"]
+  ];
+  if ($("verPalco") && $("verPalco").checked) {
+    const palco = lerPalco();
+    medidasSala.push(["Palco", nnum(palco.largura) + " × " + nnum(palco.profundidade) +
+      " m, " + nnum(palco.altura) + " m de alto"]);
+  }
+  // A lotação é a que o rodapé mostra — quem a conta é a cobertura, e é de lá
+  // que ela tem de vir para não haver duas contagens diferentes na mesma app.
+  const lugares = $("rodape") ? $("rodape").textContent.trim() : "";
+  if (lugares && lugares !== "—") medidasSala.push(["Público", lugares]);
+
+  let medidasDome = null;
+  if (temCupula && projeto && projeto.dome) {
+    const d = projeto.dome;
+    const pr = d.projetores || {};
+    const med = medidasDaCupula(d);
+    medidasDome = [
+      ["Diâmetro", nnum(parseFloat(d.diametro) || 0) + " m"],
+      ["Altura", nnum(parseFloat(d.altura) || 0) + " m"],
+      ["Projetores", String(cupula.length)],
+      ["Montagem", NOME_DA_COLOCACAO[pr.colocacao] || pr.colocacao || ""],
+      ["Lentes a", pr.altura > 0 ? nnum(parseFloat(pr.altura)) + " m do chão" : ""],
+      ["Blend", pr.blend > 0 ? Math.round(pr.blend * 100) + " %" : ""],
+      ["Base da imagem", med && med.yBaseDaImagem > 0 ? nnum(med.yBaseDaImagem) + " m" : "chega ao chão"]
+    ];
+  }
+
+  let medidasPlano = null;
+  if (temPlanos) {
+    const p = lerProjecao();
+    const largura = p.distancia / p.racio;
+    medidasPlano = [
+      ["Projetores", String(planos.length)],
+      ["Máquina", ajustes.projetor ? [ajustes.projetor.modelo, ajustes.projetor.lente].filter(Boolean).join(" · ") : ""],
+      ["Rácio", nnum(p.racio) + ":1"],
+      ["Distância", nnum(p.distancia) + " m"],
+      ["Imagem (cada)", nnum(largura) + " × " + nnum(largura / formatoImagem) + " m"]
+    ];
+  }
+
+  const html = paginaDeRelatorio({
+    nome: ($("nomeProjeto") && $("nomeProjeto").value.trim()) || (projeto && projeto.nome) || "",
+    quando: agora.toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" }) +
+            ", " + agora.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
+    versao: $("versao") ? $("versao").textContent.trim() : "",
+    logo: await marcaDoRelatorio(),
+    imagem: vistaParaRelatorio(),
+    sala: medidasSala,
+    dome: medidasDome,
+    plano: medidasPlano,
+    coordsCupula: temCupula ? tabelaDeCoordenadas(cupula, "cupula") : "",
+    coordsPlanos: temPlanos ? tabelaDeCoordenadas(planos, "plano") : "",
+    nota: "Medidas em <b>metros</b>, origem no <b>centro da sala ao nível do chão</b>" +
+      (temCupula ? " — as mesmas coordenadas do OBJ da cúpula" : "") +
+      ". No WATCHOUT 7, a coluna <b>Lente</b> é o <i>Eye</i> e a coluna <b>Aponta a</b> é o <i>Target</i>" +
+      (temPlanos ? ", e o shift vai no campo <i>Lense Shift</i>." : "."),
+    ajustes: resumoDeAjustes(),
+    deposito: pecasNoDeposito().map((p) => p.nome + " · " + p.detalhe)
+  });
+
+  descarregar(new Blob([html], { type: "text/html;charset=utf-8" }), nomeDoFicheiro("html"));
+  if (nota) nota.textContent = "Relatório guardado. Abre em qualquer browser, sem a app e sem internet — e imprime em A4.";
 }
 
 function caixasQueTapam() {
@@ -1572,7 +1811,10 @@ function pecasNoDeposito() {
   for (const zona of projeto.zonas) {
     const chave = chaveDeDeposito(zona);
     if (!estaNoDeposito(chave)) continue;
-    pecas.push({ chave, nome: zona.nome, detalhe: `${zona.w.toFixed(2)} × ${zona.h.toFixed(2)} m` });
+    // Vírgula e não ponto: é o que o resto da app escreve, e a lista do
+    // depósito vai para dentro do relatório de montagem ao lado de medidas
+    // que já vinham com vírgula.
+    pecas.push({ chave, nome: zona.nome, detalhe: `${nnum(zona.w)} × ${nnum(zona.h)} m` });
   }
   if (projeto.dsm && estaNoDeposito(CHAVE_DEPOSITO_DSM)) {
     pecas.push({
@@ -3497,7 +3739,7 @@ function limparTudo() {
   // não era a conta da primeira fila, era isto).
   // O interruptor do depósito é feitio de trabalhar, não conteúdo do projeto:
   // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado() };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -3683,9 +3925,11 @@ async function abrirProjetoTodo(estado) {
         depositoIniciado: true,
         // Não vem do ficheiro de propósito: é o feitio de trabalhar de quem
         // está a abrir, não de quem gravou.
-        depositoLigado: depositoLigado()
+        depositoLigado: depositoLigado(),
+        // Esta vem: a máquina faz parte do projeto que se gravou.
+        projetor: (estado.ajustes.projetor && typeof estado.ajustes.projetor === "object") ? estado.ajustes.projetor : null
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado() };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
@@ -5096,6 +5340,10 @@ const NOTAS_DA_SAIDA = {
   "png": "A vista como está no ecrã, tal e qual — para entrar num slide ou num email.",
   "png-medidas": "A vista com as etiquetas e uma tira com as contas em baixo — " +
                  "para mandar a quem tem de decidir.",
+  "relatorio": "Uma <b>página</b> com o que está no ecrã: a vista, as medidas da sala, as " +
+         "coordenadas de montagem, os ajustes feitos aqui e o que ficou por montar. Abre em " +
+         "qualquer browser <b>sem a app e sem internet</b>, e imprime em A4 — é para levar " +
+         "para a obra ou anexar a um email.",
   "glb": "O <b>.glb</b> leva as cores e o nome de cada zona — é por esse nome que se lhe " +
          "põe a textura no Cinema 4D ou no Blender.",
   "obj": "O <b>.obj</b> abre em tudo, mas vai <b>sem materiais</b>: as peças chegam lá " +
@@ -5138,6 +5386,7 @@ escolherSaida("png");
 $("btGuardar").onclick = () => {
   if (saidaEscolhida === "png") guardarVista();
   else if (saidaEscolhida === "png-medidas") guardarImagem();
+  else if (saidaEscolhida === "relatorio") guardarRelatorio();
   else if (saidaEscolhida === "dome-obj") exportar("obj", true);
   else if (saidaEscolhida === "dome-glb") exportar("glb", true);
   else exportar(saidaEscolhida);
@@ -5160,6 +5409,14 @@ function aplicarProjetor(p) {
     document.querySelectorAll("[data-formato]").forEach(b => {
       b.classList.toggle("destaque", Math.abs(parseFloat(b.dataset.formato) - p.formato) < 0.02);
     });
+  }
+  // Qual é a máquina fica GUARDADO, e não só escrito na nota: a nota
+  // desaparece no recarregamento seguinte, e o relatório de montagem tem de
+  // poder dizer "PT-RZ120 · ET-DLE060" amanhã de manhã em cima da obra. Os
+  // extra do blend já guardavam o seu; era só o #0 que perdia o nome.
+  if (p.modelo || p.lente) {
+    ajustes.projetor = { modelo: p.modelo || "", lente: p.lente || "" };
+    guardarAjustes(ajustes);
   }
   montar(false);
   const quem = [p.modelo, p.lente].filter(Boolean).join(" · ");

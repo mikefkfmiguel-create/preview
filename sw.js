@@ -7,7 +7,7 @@
 
 // O nome do cache segue a versao que aparece no painel: subindo uma, sobe a
 // outra, e quem estiver com a app aberta recebe a nova sem fazer nada.
-const CACHE = "preview-v3.29";
+const CACHE = "preview-v3.30";
 
 const TUDO = [
   "./",
@@ -23,6 +23,7 @@ const TUDO = [
   "./js/importar.js",
   "./js/assistente.js",
   "./js/partilha.js",
+  "./js/relatorio.js",
   "./vendor/three.module.js",
   "./vendor/OrbitControls.js",
   "./vendor/GLTFExporter.js",

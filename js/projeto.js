@@ -425,10 +425,14 @@ export function ajustesGuardados() {
       // parar no depósito — a forma como isto funcionava antes da v2.92.
       // Ligado por omissão: só está desligado quem o desligou de propósito,
       // e um ficheiro antigo (sem o campo) não muda de comportamento.
-      depositoLigado: !(dados && dados.depositoLigado === false)
+      depositoLigado: !(dados && dados.depositoLigado === false),
+      // Que máquina é o projetor #0 (modelo + lente), tal como veio dos
+      // Calculadores. Só serve para o relatório de montagem lhe saber o nome
+      // — o desenho continua a viver de rácio/distância e mais nada.
+      projetor: (dados && typeof dados.projetor === "object" && dados.projetor) || null
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null };
   }
 }
 
