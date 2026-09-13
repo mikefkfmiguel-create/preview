@@ -2140,6 +2140,68 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 13 de setembro — as coordenadas de montagem, para um media server (v3.27)
+
+Pedido depois de eu fazer à mão uma folha com as posições dos quatro
+projetores para o WATCHOUT 7: *"sabes que podemos adicionar esta ferramenta à
+calculadora, tanto na dome como no blending"*. A app já tinha os números — só
+não os mostrava em coordenadas.
+
+**Ficaram no Preview, e não nos Calculadores**, por uma razão que vale a pena
+guardar: quem coloca os projetores é o `fazerProjetoresDoDome()`, e é do mesmo
+sítio que sai o OBJ exportado ao lado. Calculá-las outra vez do lado dos
+Calculadores era pôr a mesma conta em dois sítios — e coordenadas que não
+batem certo com o modelo são piores do que não existirem. O mike escolheu esta
+opção depois de lhe explicar o custo das outras duas.
+
+A secção nova, "Coordenadas de montagem", só aparece quando o projeto traz
+cúpula **com projetores**. Dá, por projetor: a posição da lente, o ponto para
+onde aponta, a distância e a inclinação, em metros, com a origem no centro da
+cúpula ao nível do chão — as mesmas coordenadas do OBJ. Mais um botão de
+copiar, em texto alinhado, para colar no media server ou no email da obra. A
+bolinha de cor de cada linha é a da tampa do projetor no 3D, que é o que liga
+a linha ao que se vê na cena.
+
+**Nomes genéricos, com uma tradução.** As colunas chamam-se "lente" e "aponta
+a"; a nota diz que no WATCHOUT 7 esses dois pontos são o *Eye* e o *Target*.
+Amarrar a app a um media server seria estreitá-la à conta de nada — e vai ao
+contrário da ideia da versão para venda que está no `CLAUDE.md`.
+
+### O defeito que isto destapou
+
+A linha de mira que o 3D desenhava **não apontava para onde a conta da lente
+assume**. O desenho usava um ponto aproximado (raio `a*0,55`, altura `h*0,85`)
+que servia para ver a direção; a conta dos Calculadores aponta ao meio da
+fatia. Enquanto era só uma linha no ecrã ninguém dava por isso — no momento em
+que estas posições saem como coordenadas para uma máquina, o desenho e a conta
+têm de apontar ao mesmo ponto. É a mesma divergência que na v3.19 fez o
+conteúdo descer até ao chão: a mesma coisa calculada em dois sítios.
+
+Agora o alvo é o ponto da casca no meio da fatia, e os números do 3D coincidem
+com os que a aba Dome usa para o rácio de tiro.
+
+### Medido
+
+Cúpula de 8,7 m, anel de 4 a 1,5 m (raio por omissão 3,85 m):
+
+| | lente | aponta a | dist. | incl. |
+|---|---|---|---|---|
+| P1 | 0 · 1,50 · **+3,85** | 0 · 3,57 · **−2,49** | 6,67 m | 18° |
+| P2 | **+3,85** · 1,50 · 0 | **−2,49** · 3,57 · 0 | 6,67 m | 18° |
+| P3 | 0 · 1,50 · **−3,85** | 0 · 3,57 · **+2,49** | 6,67 m | 18° |
+| P4 | **−3,85** · 1,50 · 0 | **+2,49** · 3,57 · 0 | 6,67 m | 18° |
+
+São exactamente os valores que eu tinha calculado à mão para a folha do
+WATCHOUT, o que serve de segunda opinião a ambos. Três verificações a sério,
+todas a passar: a ficha de cada projetor coincide com a posição do corpo na
+cena (< 1 mm), cada alvo está **sobre** a casca (|alvo − centro| = R) e do lado
+**oposto** ao projetor (produto interno ≤ 0). Com a cúpula desligada na secção
+Vista, a tabela não mostra números velhos — diz que é preciso ligá-la.
+
+**Fica por fazer:** o mesmo para o **Blending** (grelha de nh × nv num ecrã
+plano), que foi combinado para a ronda seguinte. O ecrã curvo fica de fora até
+se decidir como se colocam os projetores num arco.
+
 ## 12 de setembro — o logo no peito, para se ver a frente (v3.24 → v3.26)
 
 *"Põe o logo no peito dos bonecos para identificar a frente."* Uma figura de

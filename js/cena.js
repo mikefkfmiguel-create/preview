@@ -513,6 +513,9 @@ export function fazerDome(dome, solido, textura) {
     // Guardado para a segunda passagem: o boneco é desenhado depois da cúpula,
     // e é aí que se sabe se está a tapar alguém (ver pintarQuemTapa).
     grupo.userData.paraSombras = { fontes: p.fontes, R: R, cy: h - R };
+    // A ficha de montagem viaja com a cúpula: é o painel que a mostra, e tem
+    // de vir de quem colocou os projetores.
+    grupo.userData.montagem = p.montagem;
     // As fatias são desenhadas no referencial da CASCA (centro da esfera na
     // origem), por isso vão para o cascaGrupo -- no grupo de fora apareciam
     // deslocadas da superfície, que foi o mesmo laço em que o anel da base
@@ -868,6 +871,10 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
   // Cada projetor com a lente e a fatia dele. Serve para saber quem é que o
   // boneco está a tapar -- ver pintarQuemTapa().
   const fontes = [];
+  // A ficha de montagem de cada um: onde fica a lente e para onde aponta, nas
+  // MESMAS coordenadas do OBJ exportado. Sai daqui e não de uma conta à parte,
+  // que é a única forma de as coordenadas e o modelo nunca discordarem.
+  const montagem = [];
   const n = Math.max(1, Math.round(proj.n));
   const colocacao = proj.colocacao || ARRANJO_ANTIGO_DOME[Math.round(proj.arranjo || 3)] || "anel-zenite";
   // A altura de montagem vem da aba Dome quando lá estiver escrita.
@@ -981,7 +988,10 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     // um fisheye ao centro assenta-se, não se pendura.
     const yCentro = (parseFloat(proj.altura) > 0) ? alturaCove : 0.12;
     const pos = new THREE.Vector3(desvio, yCentro, 0);
-    grupo.add(corpoDeProjetor(pos, new THREE.Vector3(desvio, h, 0), "dome-projetor-c" + (i + 1),
+    const alvoCentro = new THREE.Vector3(desvio, h, 0);
+    grupo.add(corpoDeProjetor(pos, alvoCentro, "dome-projetor-c" + (i + 1),
+      CORES_FATIA[i % CORES_FATIA.length]));
+    montagem.push(fichaDeMontagem("C" + (i + 1), pos, alvoCentro,
       CORES_FATIA[i % CORES_FATIA.length]));
     // Ao centro cada um cobre uma fatia em gomo, do zénite ao horizonte: é o
     // que um fisheye faz. Com um só, é a cúpula toda.
@@ -1018,13 +1028,28 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         // é esse que manda -- reportado: *"ângulo dos projetores poderá
         // influenciar também"*, e influencia, é ele que decide onde o raio
         // bate. Sem ângulo, aponta ao meio da fatia como antes.
+        //
+        // Sem ângulo, o alvo é o MEIO DA FATIA deste projetor, na parede de
+        // lá. Estava um ponto aproximado (a*0,55 de raio, h*0,85 de altura)
+        // que servia para desenhar a linha mas não era o sítio que a conta da
+        // lente assume -- e a partir do momento em que estas posições saem da
+        // app como coordenadas para um media server, o desenho e a conta têm
+        // de apontar ao mesmo ponto. É a mesma divergência que na v3.19 fez o
+        // conteúdo descer até ao chão: a mesma coisa calculada em dois sítios.
+        const phiOpostoAlvo = Math.atan2(-Math.cos(ang), Math.sin(ang));
+        const tMeio = (tCima + tBaixo) / 2;
         const alvo = (anguloTiro != null)
           ? new THREE.Vector3(
               pos.x - Math.sin(ang) * Math.cos(anguloTiro) * 2,
               pos.y + Math.sin(anguloTiro) * 2,
               pos.z - Math.cos(ang) * Math.cos(anguloTiro) * 2)
-          : new THREE.Vector3(-Math.sin(ang) * a * 0.55, h * 0.85, -Math.cos(ang) * a * 0.55);
+          : new THREE.Vector3(
+              -R * Math.cos(phiOpostoAlvo) * Math.sin(tMeio),
+              (h - R) + R * Math.cos(tMeio),
+              R * Math.sin(phiOpostoAlvo) * Math.sin(tMeio));
         grupo.add(corpoDeProjetor(pos, alvo, "dome-projetor-" + (++k),
+          CORES_FATIA[cor % CORES_FATIA.length]));
+        montagem.push(fichaDeMontagem("P" + k, pos, alvo,
           CORES_FATIA[cor % CORES_FATIA.length]));
         // A fatia fica do lado OPOSTO ao projetor: é uma cove, atira em
         // diagonal para a metade de lá. Reportado: *"parece estar a projetar
@@ -1082,7 +1107,27 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
     fatias.add(semImagem);
   }
 
-  return { corpos: grupo, fatias: fatias, fontes: fontes };
+  return { corpos: grupo, fatias: fatias, fontes: fontes, montagem: montagem };
+}
+
+/**
+ * A ficha de um projetor: onde está a lente, para onde aponta, a que distância
+ * e com que inclinação. Nas coordenadas do mundo -- as mesmas do OBJ que a
+ * exportação "só a cúpula" produz, com a origem no centro da cúpula ao nível
+ * do chão.
+ */
+function fichaDeMontagem(nome, pos, alvo, cor) {
+  const dx = alvo.x - pos.x, dy = alvo.y - pos.y, dz = alvo.z - pos.z;
+  const horizontal = Math.hypot(dx, dz);
+  return {
+    nome: nome,
+    cor: "#" + cor.toString(16).padStart(6, "0"),
+    pos: { x: pos.x, y: pos.y, z: pos.z },
+    alvo: { x: alvo.x, y: alvo.y, z: alvo.z },
+    distancia: Math.hypot(horizontal, dy),
+    // 90° é a apontar a prumo (o fisheye ao centro); 0° é na horizontal.
+    inclinacao: Math.atan2(dy, horizontal) * 180 / Math.PI
+  };
 }
 
 /**
