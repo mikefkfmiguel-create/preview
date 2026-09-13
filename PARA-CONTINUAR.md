@@ -2178,16 +2178,42 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
-### Sabe-se e fica assim (por decidir)
+### Sabe-se e fica assim (decidido a 13 de setembro)
 
-Os projetores extra do blend nascem com **shift 0**, enquanto o primeiro
-mantém o que está no campo do Preview (que arranca a −25%). Numa fila de
-blend isso desalinha o primeiro em relação aos outros — quase um metro, numa
-imagem de 3,75 m de altura. Não mexi: o shift é uma propriedade física da
-máquina, os extras não têm campo onde o definir, e mudá-lo altera o aspeto de
-projetos já guardados. **A recomendação é os extras herdarem o shift do
-primeiro** (numa fila de blend as máquinas são iguais e montadas igual), mas é
-uma decisão do mike, não minha.
+Ficava aqui a pergunta de se os extras do blend deviam herdar o shift do
+primeiro. **Resposta do mike: *"deve ser de igual sim"*.** Feito em v3.29,
+já a seguir.
+
+## 13 de setembro — o shift é da fila inteira, não de cada máquina (v3.29)
+
+Os projetores extra do blend nasciam com **shift 0**, enquanto o primeiro
+usava o que está no campo do Preview (que arranca a −25%). Numa fila de blend
+isso baixava o primeiro **0,94 m** em relação aos outros numa imagem de 3,75 m
+de altura — e a tabela de coordenadas, ao escrever o shift numa coluna, pôs
+isso preto no branco.
+
+A decisão foi o mike a tomá-la, porque o shift é uma propriedade física da
+máquina e alterá-lo muda o aspeto de projetos já guardados. Disse que sim:
+numa fila de blend são máquinas iguais montadas da mesma maneira.
+
+**O que mudou, e porque é assim e não de outra maneira.** A tentação era
+copiar o valor do campo para cada extra no momento em que o blend chega
+(`aplicarProjetores()`), mas isso congela-o: mexer no campo depois passava a
+mover só o primeiro, e voltava o mesmo desalinhamento por outra porta. Além
+disso não arranjava nenhum projeto já guardado.
+
+Por isso o shift **deixou de ser guardado no extra**. O ciclo dos
+`projetoresExtra` em `montar()` lê `lerProjecao()` — a mesma fonte que o
+projetor #0 usa — e aplica-o a todos. Um sítio só, a mesma doença de sempre
+curada da mesma maneira. Como não é um campo por extra, também não faz falta
+migração: o `shiftV`/`shiftH` que ficou em ajustes antigos simplesmente já
+não é lido.
+
+Medido, blend de 3 a 9 m com rácio 1,5 (imagem de 6,00 × 3,75 m): com o campo
+a −25 %, 0 % e −40 %, os três centros de imagem ficam sempre à **mesma
+altura** — 3,56 m, 4,50 m e 3,00 m respetivamente — e as três linhas da tabela
+mostram o mesmo shift. Mudar o campo move a fila toda. Nos ajustes guardados
+os extras já não levam `shiftV`/`shiftH` nenhum.
 
 ## 13 de setembro — as coordenadas de montagem, para um media server (v3.27)
 
