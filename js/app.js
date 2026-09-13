@@ -518,23 +518,32 @@ function montar(recentrarCamara) {
   desenharProjecao(sala, palco);
   // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
   // Projetor nunca manda nada" para o Preview). Cada um guarda o SEU
-  // racio/distancia/lateral/altura/shift, tal como a instância #0 --
-  // simplesmente não vêm de campos no ecrã, vêm do array. Só visuais: sem
-  // sombra nem cobertura calculadas para eles (ver PARA-CONTINUAR.md).
+  // racio/distancia/lateral/altura -- simplesmente não vêm de campos no ecrã,
+  // vêm do array. O shift é a excepção: esse é o do campo, igual para toda a
+  // fila (ver a seguir). Só visuais: sem sombra nem cobertura calculadas para
+  // eles (ver PARA-CONTINUAR.md).
   const z0Proj = -sala.profundidade / 2 + 0.35;
+  // O shift é o do CAMPO, igual para todos -- decisão do mike ("deve ser de
+  // igual sim"). Numa fila de blend são máquinas iguais montadas da mesma
+  // maneira, e não há campo de shift por extra: enquanto cada um guardava o
+  // seu, os extras nasciam a 0 com o primeiro no valor do campo (que arranca
+  // a -25%), e a fila ficava com o primeiro quase um metro abaixo dos outros.
+  // Lido aqui a cada desenho, e não gravado no ajuste, para que mexer no campo
+  // mexa na fila inteira -- inclusive em projetos já guardados.
+  const fila = lerProjecao();
   ajustes.projetoresExtra.forEach((pe, i) => {
     if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
     const larguraExtra = pe.distancia / pe.racio;
     const alturaExtra = larguraExtra / formatoImagem;
     const projetorExtra = { x: pe.lateral || 0, y: pe.altura || 0, z: z0Proj + pe.distancia };
     const imagemExtra = {
-      x: projetorExtra.x + (pe.shiftH || 0) * larguraExtra,
-      y: projetorExtra.y + (pe.shiftV || 0) * alturaExtra,
+      x: projetorExtra.x + fila.shiftH * larguraExtra,
+      y: projetorExtra.y + fila.shiftV * alturaExtra,
       z: z0Proj, largura: larguraExtra, altura: alturaExtra
     };
     desenhado.add(fazerProjecao(projetorExtra, imagemExtra, textura, "projetor-" + (i + 1)));
     montagemProjetores.push(fichaDeProjetor("P" + (i + 2), projetorExtra, z0Proj,
-      pe.shiftH || 0, pe.shiftV || 0, larguraExtra, alturaExtra));
+      fila.shiftH, fila.shiftV, larguraExtra, alturaExtra));
   });
   escreverCoordenadas();
 
@@ -5201,7 +5210,7 @@ function aplicarProjetores(lista) {
     racio: p.racio, distancia: p.distancia,
     lateral: anchorLateral + ((p.lateral || 0) - baseLateral),
     altura: anchorAltura + ((p.alturaOffset || 0) - baseAltura),
-    shiftV: 0, shiftH: 0,
+    // Sem shift próprio de propósito: toda a fila usa o do campo (ver montar()).
     modelo: p.modelo, lente: p.lente
   }));
   guardarAjustes(ajustes);
