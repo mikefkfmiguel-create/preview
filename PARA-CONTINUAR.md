@@ -2178,6 +2178,37 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 13 de setembro — o aviso das unidades vai escrito na folha (v3.31)
+
+Eu tinha avisado o mike, por escrito aqui, para avisar o colega de duas coisas
+antes de levar as coordenadas para o WATCHOUT. A resposta foi a certa:
+*"podes escrever nos relatórios de instalação e ajuste que já fica
+resolvido"*. E é mesmo — **um aviso que só existe numa conversa perde-se assim
+que a folha muda de mãos.**
+
+Passou a ir escrito nos **três sítios por onde estas coordenadas saem daqui**:
+a nota do painel, o texto do botão *Copiar* (que é o que acaba num email) e a
+página do relatório. Escrito num sítio só — `notaDeLeitura()` —, para os três
+nunca divergirem. Antes disto já havia duas versões da mesma nota a viver em
+sítios diferentes.
+
+**As duas coisas que estragam uma montagem, e que agora estão escritas:**
+
+1. **Importar o `.obj` sem recentrar nem reescalar.** As coordenadas e o
+   objeto partilham a origem (centro da sala, ao nível do chão). Basta o
+   programa oferecer-se para encaixar o objeto na cena e deixam de falar a
+   mesma língua — sem nada a avisar.
+2. **Confirmar a unidade na máquina.** A documentação do WATCHOUT 7
+   (docs.dataton.com) descreve os campos *Eye*, *Target*, *Orientation* e
+   *Lense Shift* do 3D Projector, mas **em lado nenhum diz em que unidade os
+   lê**, nem qual é o eixo "para cima". Isto foi verificado, não é uma reserva
+   de precaução. Por isso a folha não promete o que ninguém confirmou: diz o
+   que a app escreve (metros) e manda conferir.
+
+A nota do relatório passou a sair em parágrafos separados e não num bloco
+corrido — estas duas linhas são precisamente as que não podem passar
+despercebidas. A linha do `.obj` só aparece quando há cúpula.
+
 ## 13 de setembro — o relatório de montagem, em página (v3.30)
 
 Pedido directo: *"os relatórios de montagem e ajustes podem sair como página

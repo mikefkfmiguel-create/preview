@@ -94,6 +94,8 @@ const ESTILO = `
   ul.lista b { font-weight: 600; }
   ul.lista span { color: #5A6875; }
   .nota { background: #F4F7FA; border-left: 3px solid #2E7BFF; padding: 12px 14px; font-size: 12.5px; color: #3C4A57; border-radius: 0 6px 6px 0; }
+  .nota p { margin: 0 0 7px; }
+  .nota p:last-child { margin-bottom: 0; }
   .nota b { color: #16202A; }
   footer { padding: 16px 30px 26px; font-size: 11px; color: #8A97A6; }
   @media print {
@@ -134,8 +136,11 @@ export function paginaDeRelatorio(d) {
            d.coordsCupula ? "coordenadas de montagem" : ""),
     seccao("Ecrã plano", (d.plano ? fichas(d.plano) : "") + (d.coordsPlanos || ""),
            d.coordsPlanos ? "coordenadas de montagem" : ""),
-    (d.coordsCupula || d.coordsPlanos)
-      ? `<section><div class="nota">${d.nota}</div></section>` : "",
+    // A nota de leitura chega em linhas, e cada uma fica no seu parágrafo: o
+    // aviso das unidades e o "sem recentrar nem reescalar" são as duas coisas
+    // que estragam uma montagem, e num bloco corrido passavam despercebidas.
+    (d.coordsCupula || d.coordsPlanos) && d.nota && d.nota.length
+      ? `<section><div class="nota">${d.nota.map((l) => `<p>${l}</p>`).join("")}</div></section>` : "",
     seccao("Ajustes feitos no 3D", d.ajustes && d.ajustes.length
       ? d.ajustes.map((g) => `<h3>${esc(g.titulo)}</h3><ul class="lista">` +
           g.linhas.map((l) => `<li><b>${esc(l.quem)}</b> <span>${esc(l.texto)}</span></li>`).join("") +

@@ -854,12 +854,45 @@ function escreverCoordenadas() {
   }
   caixa.innerHTML = html;
 
-  if (nota) {
-    nota.textContent = "Metros, origem no centro da sala ao nível do chão" +
-      (temCupula ? " — as mesmas coordenadas do OBJ da cúpula" : "") +
-      ". No WATCHOUT 7 estes dois pontos são o Eye e o Target" +
-      (temPlanos ? ", e o shift vai no campo Lense Shift." : ".");
+  if (nota) nota.innerHTML = notaDeLeitura(temCupula, temPlanos, true).join(" ");
+}
+
+/**
+ * COMO SE LEEM ESTAS COORDENADAS, E O QUE ESTRAGA A LEITURA.
+ *
+ * Pedido directo, depois de eu avisar o mike por escrito para avisar o colega:
+ * *"podes escrever nos relatórios de instalação e ajuste que já fica
+ * resolvido"*. E tem razão — um aviso que só existe numa conversa perde-se
+ * assim que a folha muda de mãos. Passa a ir escrito, nos três sítios onde
+ * estas coordenadas saem daqui: o painel, o texto do "Copiar" e a página do
+ * relatório. Um sítio só a escrevê-lo, para os três nunca divergirem.
+ *
+ * O aviso das unidades NÃO é uma reserva minha: a documentação do WATCHOUT 7
+ * (docs.dataton.com) descreve os campos Eye, Target, Orientation e Lense
+ * Shift do 3D Projector, mas em lado nenhum diz em que unidade os lê nem qual
+ * é o eixo "para cima". Escrever "são metros" era inventar uma coisa que
+ * ninguém confirmou. O que a app pode dizer com verdade é o que ELA escreve,
+ * e que isso se confere na máquina.
+ */
+function notaDeLeitura(temCupula, temPlanos, emHtml) {
+  const forte = (t) => (emHtml ? "<b>" + t + "</b>" : t);
+  const italico = (t) => (emHtml ? "<i>" + t + "</i>" : t);
+  const linhas = [
+    "Medidas em " + forte("metros") + ", origem no " +
+      forte("centro da sala ao nível do chão") + "."
+  ];
+  if (temCupula) {
+    linhas.push("É a mesma origem do .obj da cúpula: importa o objeto " +
+      forte("sem recentrar nem reescalar") + " — basta o programa oferecer-se " +
+      "para o encaixar na cena e as coordenadas deixam de bater certo, sem nada a avisar.");
   }
+  linhas.push("No WATCHOUT 7, a coluna " + forte("Lente") + " é o " + italico("Eye") +
+    " e a coluna " + forte("Aponta a") + " é o " + italico("Target") +
+    (temPlanos ? ", e o shift vai no campo " + italico("Lense Shift") + "." : "."));
+  linhas.push(forte("Confirma a unidade na máquina") +
+    ": a documentação do WATCHOUT não diz em que unidade lê o Eye e o Target. " +
+    "Estes números são metros.");
+  return linhas;
 }
 
 /** As coordenadas em texto, para colar no media server ou no email da obra. */
@@ -870,8 +903,7 @@ function coordenadasEmTexto() {
   const tres = (p) => [p.x, p.y, p.z].map((v) => nsin(v).padStart(7)).join("  ");
   const linhas = [
     "COORDENADAS DE MONTAGEM — " + (($("nomeProjeto") && $("nomeProjeto").value.trim()) || "sem nome"),
-    "Metros. Origem no centro da sala, ao nível do chão.",
-    "No WATCHOUT 7: a coluna LENTE é o Eye, a coluna APONTA A é o Target.",
+    ...notaDeLeitura(temCupula, temPlanos, false),
     ""
   ];
   if (temCupula) {
@@ -1099,10 +1131,7 @@ async function guardarRelatorio() {
     plano: medidasPlano,
     coordsCupula: temCupula ? tabelaDeCoordenadas(cupula, "cupula") : "",
     coordsPlanos: temPlanos ? tabelaDeCoordenadas(planos, "plano") : "",
-    nota: "Medidas em <b>metros</b>, origem no <b>centro da sala ao nível do chão</b>" +
-      (temCupula ? " — as mesmas coordenadas do OBJ da cúpula" : "") +
-      ". No WATCHOUT 7, a coluna <b>Lente</b> é o <i>Eye</i> e a coluna <b>Aponta a</b> é o <i>Target</i>" +
-      (temPlanos ? ", e o shift vai no campo <i>Lense Shift</i>." : "."),
+    nota: notaDeLeitura(temCupula, temPlanos, true),
     ajustes: resumoDeAjustes(),
     deposito: pecasNoDeposito().map((p) => p.nome + " · " + p.detalhe)
   });
