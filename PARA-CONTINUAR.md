@@ -2178,6 +2178,74 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 13 de setembro — a app nasce vazia (v3.32)
+
+Regra posta pelo mike, depois de ver a cúpula dele de 8,7 m pousada no meio de
+352 lugares e de um palco de 16 m que ele nunca tinha pedido:
+
+> *"O Preview deve apenas mostrar o que vem do projeto, a menos que algo seja
+> criado nele. Fora isso deve nascer vazio e esperar o que vai para o
+> depósito, assumindo uma sala de 50 por 50 de base e vazia até adicionar o
+> que tiver."*
+
+E, quando lhe perguntei se "vazio" era só o material ou mesmo tudo:
+*"Tudo vazio e vou colocando, apenas os guardados trazem tudo no sítio."*
+
+**A incoerência que isto arruma.** O depósito já dizia *"a sala só tem o que tu
+lá montares"* — mas só valia para o material que vinha dos Calculadores. O que
+a própria app punha lá não obedecia a regra nenhuma:
+
+| | antes | agora |
+|---|---|---|
+| Sala | 24 × 20 × 8 m | **50 × 50** × 8 m |
+| Palco 16 × 6 | ligado | **desligado** |
+| Público (≈352 lugares) | ligado | **desligado** |
+| Régie | ligada | **desligada** |
+| Orador | ligado | **desligado** |
+
+Só a *visibilidade* nasce desligada: as medidas ficam como estavam (16 × 6,
+10 filas), por isso ligar a caixa dá logo um palco e uma plateia com jeito. É
+o "vou colocando" — não é começar do zero em cada campo.
+
+**A armadilha, e é a mesma de sempre.** Um ficheiro guardado antes disto não
+diz que tinha o palco ligado — tinha-o porque *era* a omissão. Sem defesa,
+reabria vazio e parecia trabalho perdido. Por isso existe `LIGADO_ANTES`: o
+`abrirProjetoTodo()` preenche por baixo o que o ficheiro não diga, e o que ele
+diga manda sempre por cima (um `false` gravado continua `false`). Não chegava
+proteger o ficheiro *sem* bloco `visibilidade` nenhum: um ficheiro com o bloco
+mas sem uma das chaves (gravado antes de ela existir) caía na mesma armadilha.
+Mesma regra do `depositoIniciado`: **uma omissão nova nunca se aplica a um
+ficheiro antigo.**
+
+**O preço, que era previsível e teve de ser pago.** Um chão cinzento sem uma
+palavra não se lê como "à espera", lê-se como avariado — e com 50 × 50 era
+pior: a câmara enquadrava a *sala*, punha-se a 42 m e mostrava uma tira de
+chão ao fundo de um túnel escuro. Duas coisas:
+
+1. **`salaEstaVazia()`** pergunta ao DESENHO — há alguma coisa na cena além da
+   casca da sala? — e não a uma lista de condições que ficaria desactualizada
+   à primeira coisa nova que se desenhasse. Com a sala vazia, a câmara
+   enquadra 24 × 20 (a área de trabalho) em vez dos 50 m de nada.
+2. **`#avisoVazio`**, ao meio da tela: *"A sala está vazia — nasce assim de
+   propósito: só tem o que lhe puseres"*, com três botões (trazer um projeto,
+   ligar o palco/público/régie, montar um ecrã aqui). Sóbrio e não laranja
+   como os outros dois avisos: uma sala à espera não é um problema. Some
+   sozinho assim que houver seja o que for lá dentro, e não volta. Não aparece
+   num link de visualização — quem o abre não monta nada.
+
+Medido em seis casos: arranque vazio (50 × 50, tudo desligado, aviso visível,
+só a casca na cena) · ligar o palco faz o aviso sumir · chega uma cúpula e a
+sala **dela** (12 × 12) manda · ficheiro antigo sem `visibilidade` reabre com
+palco, público, régie e orador ligados · ficheiro novo gravado com tudo
+desligado reabre desligado · "Limpar tudo" volta ao vazio. Sem erros de
+página. A caixa cabe a 390 px sem partir linhas.
+
+**Fica por resolver, e é do mesmo assunto:** um projeto sem zonas (e sem dome
+nem DSM) continua a ser recusado pelo `lerProjeto()` com *"Não encontrei zonas
+nenhumas lá dentro"*, e a excepção é engolida — por isso nem a sala dele
+chega cá. Com tudo a nascer vazio, "projeto sem peças" deixa de ser um caso
+esquisito. Não entrou nesta versão para não a alargar.
+
 ## 13 de setembro — o aviso das unidades vai escrito na folha (v3.31)
 
 Eu tinha avisado o mike, por escrito aqui, para avisar o colega de duas coisas

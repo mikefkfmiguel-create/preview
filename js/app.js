@@ -607,6 +607,8 @@ function montar(recentrarCamara) {
   });
   escreverPainel(medidas, gente.lugares, gente, cobertura);
   avisarDoDeposito();
+  // Depois de a cena estar montada: quem responde é o desenho, não os campos.
+  avisarDaSalaVazia();
   desenharAjustes();
   desenharGomos(publico);
   desenharPalcosExtra();
@@ -1952,6 +1954,44 @@ $("avisoDeposito").addEventListener("click", (e) => {
   if (alvo) irParaSeccao(alvo.dataset.secao);
 });
 
+/**
+ * A SALA VAZIA.
+ *
+ * A app passou a nascer sem palco, sem público, sem régie e sem orador --
+ * pedido directo: *"tudo vazio e vou colocando"*. O que se ganha é grande (o
+ * projeto de quem abre deixa de ser hóspede numa sala montada por outra
+ * pessoa), mas tem um preço que não se pode ignorar: um chão cinzento sem uma
+ * palavra não se lê como "à espera", lê-se como avariado.
+ *
+ * Por isso a sala vazia diz o que é e por onde se começa. Some-se sozinha
+ * assim que houver seja o que for lá dentro -- e quem a fez desaparecer não a
+ * quer ver outra vez.
+ */
+function avisarDaSalaVazia() {
+  const aviso = $("avisoVazio");
+  if (!aviso) return;
+  // Num link de visualização quem abre não monta nada: dizer-lhe por onde
+  // começar seria dar-lhe trabalho que ele não pode fazer.
+  if (modoVisualizacao || !salaEstaVazia()) {
+    aviso.classList.remove("mostra");
+    return;
+  }
+  // Uma acção por linha, e não uma frase com três links no meio: a frase
+  // partia-se toda no telemóvel e o ponto final acabava sozinho numa linha.
+  aviso.innerHTML =
+    "<b>A sala está vazia</b>" +
+    "<p>Nasce assim de propósito: só tem o que lhe puseres.</p>" +
+    '<button type="button" class="aviso-link" data-secao="sProjeto">Trazer um projeto dos Calculadores</button>' +
+    '<button type="button" class="aviso-link" data-secao="sVista">Ligar o palco, o público ou a régie</button>' +
+    '<button type="button" class="aviso-link" data-secao="zonas">Montar um ecrã aqui mesmo</button>';
+  aviso.classList.add("mostra");
+}
+
+$("avisoVazio").addEventListener("click", (e) => {
+  const alvo = e.target.closest("[data-secao]");
+  if (alvo) irParaSeccao(alvo.dataset.secao);
+});
+
 $("btMontarTudo").onclick = () => {
   ajustes.noDeposito = [];
   guardarAjustes(ajustes);
@@ -3084,10 +3124,46 @@ function desenharListaConteudoZonas(projetoAtual) {
 
 // -------------------------------------------------------------------- vistas
 
+/** As peças que SÃO a sala. Tudo o resto é alguém ter posto lá qualquer coisa. */
+const CASCA_DA_SALA = ["sala", "chao", "paredes", "planta", "grelha"];
+
+/**
+ * Há alguma coisa na sala, ou só a sala?
+ *
+ * Pergunta-se ao DESENHO e não aos campos: é a única resposta que não pode
+ * divergir do que se está a ver. Uma lista de condições ("sem zonas, e sem
+ * dome, e sem dsm, e com o palco desligado, e...") ficava desatualizada à
+ * primeira coisa nova que se desenhasse.
+ */
+function salaEstaVazia() {
+  if (!desenhado) return true;
+  let algo = false;
+  desenhado.traverse((o) => {
+    if (algo || !o.name || o === desenhado) return;
+    if (o.name.indexOf("aux:") === 0) return;
+    if (CASCA_DA_SALA.includes(o.name)) return;
+    // Filho de uma peça da casca (as paredes têm as suas) não conta por si.
+    for (let p = o.parent; p && p !== desenhado; p = p.parent) {
+      if (p.name && CASCA_DA_SALA.includes(p.name)) return;
+    }
+    algo = true;
+  });
+  return !algo;
+}
+
 function vista(qual) {
   const fovQueQuer = qual === "dome" ? FOV_DENTRO_DA_CUPULA : FOV_NORMAL;
   if (camara.fov !== fovQueQuer) { camara.fov = fovQueQuer; camara.updateProjectionMatrix(); }
-  const sala = lerSala();
+  // Numa sala VAZIA não se enquadra a sala: enquadra-se onde as coisas vão
+  // nascer. A app passou a abrir com 50 × 50 por omissão, e enquadrar 50 m de
+  // nada punha a câmara a 42 m a olhar para uma tira de chão ao fundo -- uma
+  // sala pronta a receber parecia uma app avariada. Com qualquer coisa lá
+  // dentro, volta a mandar a sala a sério.
+  const salaReal = lerSala();
+  const sala = salaEstaVazia()
+    ? { largura: Math.min(salaReal.largura, 24), profundidade: Math.min(salaReal.profundidade, 20),
+        altura: salaReal.altura }
+    : salaReal;
   const palco = lerPalco();
   const alvo = new THREE.Vector3(
     0,
@@ -3815,6 +3891,17 @@ function limparTudo() {
 // numa obra sem rede: fecha-se aqui, leva-se o ficheiro, reabre-se noutro
 // computador e a sala está exactamente como se deixou, sem depender do
 // localStorage nem dos Calculadores estarem por perto.
+/**
+ * O que estava ligado por omissão ANTES de a app passar a nascer vazia
+ * (v3.32). Serve só para reabrir ficheiros gravados nessa altura — ver
+ * abrirProjetoTodo(). Não é a omissão de hoje, é a omissão de então, e por
+ * isso não se toca nela quando as omissões mudarem outra vez.
+ */
+const LIGADO_ANTES = {
+  verEcras: true, verPlanta: true, verMedidas: true, verPublico: true,
+  verRegie: true, verPalco: true, verOrador: true, verParedes: true
+};
+
 function estadoCompleto() {
   return {
     v: 1,
@@ -3916,7 +4003,19 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("projShiftV", pj.shiftV != null ? pj.shiftV * 100 : null);
   preencherCampo("projShiftH", pj.shiftH != null ? pj.shiftH * 100 : null);
 
-  const v = estado.visibilidade || {};
+  // A partir da v3.32 a app nasce VAZIA (sem palco, público, régie nem
+  // orador). Um ficheiro guardado antes disso não diz que os tinha ligados --
+  // tinha-os porque ERAM a omissão. Sem isto, reabria uma sala vazia e parecia
+  // trabalho perdido.
+  //
+  // É a mesma armadilha do depositoIniciado, e a regra é a mesma: uma omissão
+  // nova nunca se aplica a um ficheiro antigo. *"Apenas os guardados trazem
+  // tudo no sítio."*
+  // Não chega proteger o ficheiro SEM bloco nenhum: um ficheiro com o bloco
+  // mas sem uma destas chaves (gravado antes de ela existir) caía na mesma
+  // armadilha. Por isso o que falta preenche-se por baixo, e o que o ficheiro
+  // diz manda sempre por cima -- um "false" gravado continua a ser false.
+  const v = { ...LIGADO_ANTES, ...(estado.visibilidade || {}) };
   preencherCheckbox("verEcras", v.verEcras); preencherCheckbox("verPlanta", v.verPlanta);
   preencherCheckbox("verMedidas", v.verMedidas); preencherCheckbox("verPublico", v.verPublico);
   preencherCheckbox("verRegie", v.verRegie); preencherCheckbox("verPalco", v.verPalco);
