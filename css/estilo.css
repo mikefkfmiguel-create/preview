@@ -329,6 +329,30 @@ main { flex: 1; position: relative; min-width: 0; }
 }
 #aviso .aviso-link:hover, #avisoDeposito .aviso-link:hover { color: #FFDFC7; }
 
+/* A sala vazia. Vai ao MEIO da tela e não no rodapé como os outros dois: não é
+   um aviso sobre alguma coisa que aconteceu, é a única coisa que ali há para
+   ver. E é sóbria (cinzento, não laranja) de propósito — uma sala à espera não
+   é um problema. */
+#avisoVazio {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: rgba(20, 27, 33, 0.92); border: 1px solid var(--linha);
+  color: var(--apagado); padding: 18px 20px; border-radius: 10px;
+  font-size: 13.5px; line-height: 1.5; display: none;
+  /* Num telemóvel a tela é estreita, e um "80%" dela dava uma caixa de 195 px
+     onde cada linha se partia em três. Ocupa o que há, menos uma margem. */
+  width: max-content; max-width: min(380px, calc(100% - 32px)); text-align: center;
+}
+#avisoVazio.mostra { display: block; }
+#avisoVazio b { color: var(--texto); display: block; font-size: 15px; }
+#avisoVazio p { margin: 6px 0 12px; }
+#avisoVazio .aviso-link {
+  display: block; width: 100%; margin-top: 7px;
+  color: var(--azul); cursor: pointer; text-decoration: none;
+  font: inherit; font-weight: 600; background: none;
+  border: 1px solid var(--linha); border-radius: 7px; padding: 8px 10px;
+}
+#avisoVazio .aviso-link:hover { color: var(--ciano); border-color: var(--azul); }
+
 @media (max-width: 820px) {
   body { flex-direction: column; }
   #painel { width: 100%; flex: 0 0 46%; border-right: 0; border-bottom: 1px solid var(--linha); }

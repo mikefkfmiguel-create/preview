@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.31</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.32</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -155,8 +155,12 @@
       </div>
     </details>
     <div class="campos">
-      <label>Largura <input id="salaL" type="number" value="24" min="2" max="200" step="0.5"><i>m</i></label>
-      <label>Profundidade <input id="salaP" type="number" value="20" min="2" max="300" step="0.5"><i>m</i></label>
+      <!-- 50 × 50 por omissão, a pedido: uma base grande e vazia onde tudo o
+           que se traga cabe, em vez de uma sala inventada de 24 × 20 que
+           depois avisa que o projeto "não cabe" numa medida que ninguém deu.
+           Assim que um projeto traz a sala dele, esta é substituída. -->
+      <label>Largura <input id="salaL" type="number" value="50" min="2" max="200" step="0.5"><i>m</i></label>
+      <label>Profundidade <input id="salaP" type="number" value="50" min="2" max="300" step="0.5"><i>m</i></label>
       <label>Pé-direito <input id="salaA" type="number" value="8" min="2" max="60" step="0.5"><i>m</i></label>
     </div>
   </section>
@@ -397,14 +401,20 @@
     <label class="opcao"><input id="verEcras" type="checkbox" checked> Ecrãs</label>
     <label class="opcao"><input id="verPlanta" type="checkbox" checked> Planta</label>
     <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>
-    <label class="opcao"><input id="verPublico" type="checkbox" checked> Público</label>
-    <label class="opcao"><input id="verRegie" type="checkbox" checked> Régie</label>
-    <label class="opcao"><input id="verPalco" type="checkbox" checked> Palco</label>
+    <!-- Estes quatro nascem DESLIGADOS, a pedido: *"tudo vazio e vou
+         colocando, apenas os guardados trazem tudo no sítio"*. A app deixou de
+         pôr na sala um palco de 16 m, uma régie, um orador e 352 lugares que
+         ninguém pediu — o projeto de quem abre passava a ser hóspede numa sala
+         montada por outra pessoa. As MEDIDAS de cada um ficam como estavam:
+         ligar a caixa dá logo um palco e uma plateia com jeito. -->
+    <label class="opcao"><input id="verPublico" type="checkbox"> Público</label>
+    <label class="opcao"><input id="verRegie" type="checkbox"> Régie</label>
+    <label class="opcao"><input id="verPalco" type="checkbox"> Palco</label>
     <!-- O orador é do PALCO. Num projeto que é só cúpula ele desaparece da
          lista, porque quem lá dentro dá a medida é a pessoa da cúpula, mais
          abaixo — dois bonecos com regras diferentes e o mesmo nome era
          exactamente o que não convivia bem. -->
-    <label class="opcao" id="verOradorWrap"><input id="verOrador" type="checkbox" checked> Orador (no palco)</label>
+    <label class="opcao" id="verOradorWrap"><input id="verOrador" type="checkbox"> Orador (no palco)</label>
     <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
     <label class="opcao"><input id="verCobertura" type="checkbox" title="Um ponto por lugar, no chão: verde vê bem, amarelo vê na marginal, vermelho não vê ecrã nenhum"> Cobertura dos ecrãs</label>
     <!-- Estes dois só aparecem quando o projeto TEM uma cúpula: dois
@@ -526,6 +536,11 @@
        mesmo sítio fazia a mensagem do depósito desaparecer com a primeira
        mensagem passageira que viesse a seguir. -->
   <div id="avisoDeposito"></div>
+  <!-- A sala nasce vazia (v3.32). Um chão cinzento sem uma palavra parece uma
+       app avariada, e não uma sala à espera — por isso esta nota diz o que é e
+       por onde se começa. Desaparece assim que houver o que quer que seja na
+       sala, e não volta. -->
+  <div id="avisoVazio"></div>
 </main>
 
 <!-- O Three.js vive dentro do repositório, e não num CDN: isto usa-se em salas e
