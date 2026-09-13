@@ -80,6 +80,9 @@ let ondeEsta = null;       // onde o orador foi posto à mão, se foi
 // A pessoa da cúpula tem a posição DELA: são dois bonecos com regras
 // diferentes, e uma posição partilhada punha um no sítio do outro.
 let ondeEstaNaDome = null;
+// A ficha de montagem dos projetores de ecrã plano (o da projeção e os do
+// blend), enchida por quem os desenha -- ver escreverCoordenadas().
+let montagemProjetores = [];
 let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
@@ -322,10 +325,15 @@ function montar(recentrarCamara) {
    "btVistaDome", "saidasDome"].forEach((id) => {
     if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
   });
-  // A secção das coordenadas pede mais do que uma cúpula: pede projetores.
+  // A secção das coordenadas aparece com projetores de cúpula OU de ecrã
+  // plano -- a projeção simples e o blend contam, e é o próprio desenho deles
+  // que enche a tabela mais abaixo.
   if ($("sCoordenadas")) {
-    $("sCoordenadas").style.display =
-      (domeDoProjeto && domeDoProjeto.projetores && domeDoProjeto.projetores.n > 0) ? "" : "none";
+    const temCupulaComProjetores = !!(domeDoProjeto && domeDoProjeto.projetores &&
+                                      domeDoProjeto.projetores.n > 0);
+    const proj = lerProjecao();
+    const temPlanos = !!(proj.ligada && proj.racio > 0 && proj.distancia > 0);
+    $("sCoordenadas").style.display = (temCupulaComProjetores || temPlanos) ? "" : "none";
   }
   // E ao contrário: num projeto que é SÓ cúpula, o orador do palco sai da
   // lista. Quem dá a medida lá dentro é a pessoa da cúpula, e um interruptor
@@ -502,8 +510,11 @@ function montar(recentrarCamara) {
   // quando se sabe onde ficou. Não se desenha a mancha de sombra: ver o
   // comentário de pintarQuemTapa() em cena.js para a razão.
   atualizarNotaDaCupula();
-  escreverCoordenadas();
 
+  // A ficha dos projetores de ecrã plano enche-se enquanto eles são
+  // desenhados, aqui a seguir -- por isso as coordenadas só se escrevem
+  // depois da projeção e dos extras do blend.
+  montagemProjetores = [];
   desenharProjecao(sala, palco);
   // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
   // Projetor nunca manda nada" para o Preview). Cada um guarda o SEU
@@ -522,7 +533,10 @@ function montar(recentrarCamara) {
       z: z0Proj, largura: larguraExtra, altura: alturaExtra
     };
     desenhado.add(fazerProjecao(projetorExtra, imagemExtra, textura, "projetor-" + (i + 1)));
+    montagemProjetores.push(fichaDeProjetor("P" + (i + 2), projetorExtra, z0Proj,
+      pe.shiftH || 0, pe.shiftV || 0, larguraExtra, alturaExtra));
   });
+  escreverCoordenadas();
 
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
   // levar um número errado para uma reunião. Mas com o público DESLIGADO não
@@ -620,6 +634,7 @@ function desenharProjecao(sala, palco) {
   };
 
   desenhado.add(fazerProjecao(projetor, imagem, textura));
+  montagemProjetores.push(fichaDeProjetor("P1", projetor, z0, p.shiftH, p.shiftV, largura, altura));
   projecaoAtual = {
     projetor, imagem,
     base: imagem.y - altura / 2,
@@ -709,6 +724,35 @@ function nsin(v) {
 }
 
 /**
+ * A ficha de um projetor de ECRÃ PLANO — o da aba Distância de Projeção e os
+ * do blend.
+ *
+ * A diferença para os da cúpula não é de contas, é de montagem: aqui as
+ * máquinas ficam a prumo com o ecrã e quem move a imagem é o LENS SHIFT, não
+ * a inclinação. Por isso o alvo é sempre em frente (o mesmo x e y, no plano do
+ * ecrã) e o shift vai à parte — que é exactamente a distinção que o WATCHOUT
+ * faz entre o Target ("o ponto para onde o projetor aponta quando não há lens
+ * shift") e o campo Lense Shift.
+ */
+function fichaDeProjetor(nome, pos, zEcra, shiftH, shiftV, largura, altura) {
+  return {
+    nome: nome,
+    pos: { x: pos.x, y: pos.y, z: pos.z },
+    alvo: { x: pos.x, y: pos.y, z: zEcra },
+    distancia: Math.abs(pos.z - zEcra),
+    shiftH: shiftH || 0,
+    shiftV: shiftV || 0,
+    // Para onde a imagem vai de facto, depois do shift — é o que se confere
+    // no 3D, e não bate com o alvo sempre que houver shift.
+    centroDaImagem: {
+      x: pos.x + (shiftH || 0) * largura,
+      y: pos.y + (shiftV || 0) * altura,
+      z: zEcra
+    }
+  };
+}
+
+/**
  * AS COORDENADAS DE MONTAGEM, para um media server.
  *
  * Pedido: *"podemos adicionar esta ferramenta à calculadora, tanto na dome
@@ -726,8 +770,11 @@ function escreverCoordenadas() {
   const caixa = $("coordsTabela");
   const nota = $("coordsNota");
   if (!caixa) return;
-  const m = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
-  if (!m || !m.length) {
+  const cupula = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
+  const planos = montagemProjetores;
+  const temCupula = !!(cupula && cupula.length), temPlanos = !!(planos && planos.length);
+
+  if (!temCupula && !temPlanos) {
     caixa.innerHTML = "";
     if (nota) {
       nota.textContent = (projeto && projeto.dome)
@@ -736,42 +783,84 @@ function escreverCoordenadas() {
     }
     return;
   }
-  const linhas = m.map((p) => `<tr>
-      <td><span class="quem"><span class="bolha" style="background:${p.cor}"></span>${p.nome}</span></td>
-      <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
-      <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
-      <td class="n">${nnum(p.distancia)}</td>
-      <td class="n">${Math.round(p.inclinacao)}°</td>
-    </tr>`).join("");
-  caixa.innerHTML = `<div class="coords-rolar"><table class="coords">
+
+  let html = "";
+  if (temCupula) {
+    const linhas = cupula.map((p) => `<tr>
+        <td><span class="quem"><span class="bolha" style="background:${p.cor}"></span>${p.nome}</span></td>
+        <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
+        <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
+        <td class="n">${nnum(p.distancia)}</td>
+        <td class="n">${Math.round(p.inclinacao)}°</td>
+      </tr>`).join("");
+    html += `${temPlanos ? '<p class="vazio" style="margin:0 0 6px">Cúpula</p>' : ""}
+      <div class="coords-rolar"><table class="coords">
       <thead><tr>
         <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th><th>Incl.</th>
       </tr></thead><tbody>${linhas}</tbody></table></div>`;
+  }
+  if (temPlanos) {
+    // O shift só ganha coluna quando algum projetor o usa: uma coluna de zeros
+    // é ruído numa tabela que já é larga.
+    const comShift = planos.some((p) => p.shiftH || p.shiftV);
+    const linhas = planos.map((p) => `<tr>
+        <td><span class="quem"><span class="bolha" style="background:#6E8BA8"></span>${p.nome}</span></td>
+        <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
+        <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
+        <td class="n">${nnum(p.distancia)}</td>
+        ${comShift ? `<td class="n">${Math.round(p.shiftH * 100)}% · ${Math.round(p.shiftV * 100)}%</td>` : ""}
+      </tr>`).join("");
+    html += `${temCupula ? '<p class="vazio" style="margin:14px 0 6px">Ecrã plano</p>' : ""}
+      <div class="coords-rolar"><table class="coords">
+      <thead><tr>
+        <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th>
+        ${comShift ? "<th>Shift H · V</th>" : ""}
+      </tr></thead><tbody>${linhas}</tbody></table></div>`;
+  }
+  caixa.innerHTML = html;
+
   if (nota) {
-    nota.textContent = "Metros, origem no centro da cúpula ao nível do chão — as mesmas " +
-      "coordenadas do OBJ. No WATCHOUT 7 estes dois pontos são o Eye e o Target.";
+    nota.textContent = "Metros, origem no centro da sala ao nível do chão" +
+      (temCupula ? " — as mesmas coordenadas do OBJ da cúpula" : "") +
+      ". No WATCHOUT 7 estes dois pontos são o Eye e o Target" +
+      (temPlanos ? ", e o shift vai no campo Lense Shift." : ".");
   }
 }
 
 /** As coordenadas em texto, para colar no media server ou no email da obra. */
 function coordenadasEmTexto() {
-  const m = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
-  if (!m || !m.length) return "";
-  const d = projeto && projeto.dome ? projeto.dome : {};
-  const cab = [
-    "COORDENADAS DE MONTAGEM — " + (($("nomeProjeto") && $("nomeProjeto").value.trim()) || "cúpula"),
-    "Cúpula " + nnum(parseFloat(d.diametro) || 0) + " m de diâmetro, " +
-      nnum(parseFloat(d.altura) || 0) + " m de altura — " + m.length + " projetor(es)",
-    "Metros. Origem no centro da cúpula, ao nível do chão — as mesmas coordenadas do OBJ.",
+  const cupula = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
+  const planos = montagemProjetores;
+  const temCupula = !!(cupula && cupula.length), temPlanos = !!(planos && planos.length);
+  if (!temCupula && !temPlanos) return "";
+
+  const tres = (p) => [p.x, p.y, p.z].map((v) => nsin(v).padStart(7)).join("  ");
+  const linhas = [
+    "COORDENADAS DE MONTAGEM — " + (($("nomeProjeto") && $("nomeProjeto").value.trim()) || "sem nome"),
+    "Metros. Origem no centro da sala, ao nível do chão.",
     "No WATCHOUT 7: a coluna LENTE é o Eye, a coluna APONTA A é o Target.",
     ""
   ];
-  const linhas = m.map((p) =>
-    p.nome.padEnd(4) +
-    "lente " + [p.pos.x, p.pos.y, p.pos.z].map((v) => nsin(v).padStart(7)).join("  ") +
-    "   aponta a " + [p.alvo.x, p.alvo.y, p.alvo.z].map((v) => nsin(v).padStart(7)).join("  ") +
-    "   " + nnum(p.distancia) + " m   " + Math.round(p.inclinacao) + "°");
-  return cab.concat(linhas).join("\n");
+  if (temCupula) {
+    const d = projeto && projeto.dome ? projeto.dome : {};
+    linhas.push("CÚPULA — " + nnum(parseFloat(d.diametro) || 0) + " m de diâmetro, " +
+      nnum(parseFloat(d.altura) || 0) + " m de altura, " + cupula.length + " projetor(es)");
+    linhas.push("(estas são também as coordenadas do OBJ exportado)");
+    cupula.forEach((p) => linhas.push(
+      p.nome.padEnd(4) + "lente " + tres(p.pos) + "   aponta a " + tres(p.alvo) +
+      "   " + nnum(p.distancia) + " m   " + Math.round(p.inclinacao) + "°"));
+    if (temPlanos) linhas.push("");
+  }
+  if (temPlanos) {
+    linhas.push("ECRÃ PLANO — " + planos.length + " projetor(es), a prumo com o ecrã");
+    planos.forEach((p) => linhas.push(
+      p.nome.padEnd(4) + "lente " + tres(p.pos) + "   aponta a " + tres(p.alvo) +
+      "   " + nnum(p.distancia) + " m" +
+      ((p.shiftH || p.shiftV)
+        ? "   shift " + Math.round(p.shiftH * 100) + "% · " + Math.round(p.shiftV * 100) + "%"
+        : "")));
+  }
+  return linhas.join("\n");
 }
 
 function caixasQueTapam() {
@@ -5095,10 +5184,23 @@ function aplicarProjetores(lista) {
   if (!lista || !lista.length) return false;
   const primeiro = lista[0], resto = lista.slice(1);
   const anchorLateral = num("projLateral"), anchorAltura = num("projAltura");
+  // Os offsets do blend vêm ABSOLUTOS, medidos a partir do centro do ecrã:
+  // num blend de três, as células são -6, 0, +6. Mas o primeiro projetor fica
+  // no ÂNCORA que está escrito aqui no Preview (a posição física da máquina,
+  // que os Calculadores não sabem), por isso os outros têm de ser colocados
+  // relativamente a ELE e não ao centro do ecrã.
+  //
+  // Somar o offset absoluto ao âncora punha o segundo projetor exactamente em
+  // cima do primeiro: com as células a -6, 0, +6 e o âncora a 0, dava 0, 0 e
+  // +6 em vez de 0, +6 e +12. Só apareceu quando as posições passaram a ser
+  // escritas como coordenadas -- no desenho, dois projetores sobrepostos
+  // parecem um só.
+  const baseLateral = primeiro.lateral || 0;
+  const baseAltura = primeiro.alturaOffset || 0;
   ajustes.projetoresExtra = resto.map((p) => ({
     racio: p.racio, distancia: p.distancia,
-    lateral: anchorLateral + (p.lateral || 0),
-    altura: anchorAltura + (p.alturaOffset || 0),
+    lateral: anchorLateral + ((p.lateral || 0) - baseLateral),
+    altura: anchorAltura + ((p.alturaOffset || 0) - baseAltura),
     shiftV: 0, shiftH: 0,
     modelo: p.modelo, lente: p.lente
   }));

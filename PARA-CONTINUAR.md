@@ -2140,6 +2140,55 @@ evento é normalmente a sala toda, por isso o centro é um bom sítio por
 omissão — mas faltam-lhe `dx`/`dz` como os palcos extra têm, para quem a
 queira encostada a um lado.
 
+## 13 de setembro — as coordenadas do blending, e um projetor em cima do outro (v3.28)
+
+A segunda metade do pedido: *"agora faz o blending"*. Mesma secção, segunda
+tabela — e a mesma regra de onde vêm os números: de quem desenha os
+projetores, que aqui é o `montar()` com o `desenharProjecao()` e o ciclo dos
+`projetoresExtra`.
+
+**A diferença não é de contas, é de montagem.** Na cúpula as máquinas ficam
+inclinadas e apontadas ao meio da fatia da parede oposta. Num ecrã plano ficam
+a prumo e quem move a imagem é o **lens shift** — por isso o alvo é sempre em
+frente (o mesmo x e y, no plano do ecrã) e o shift vai numa coluna à parte,
+que só aparece quando algum projetor o usa. É exactamente a distinção que o
+WATCHOUT faz entre o *Target* ("o ponto para onde o projetor aponta quando não
+há lens shift") e o campo *Lense Shift*.
+
+Com cúpula **e** ecrã plano no mesmo projeto saem duas tabelas, cada uma com
+as suas colunas. Ecrãs curvos não entram: a aba Blending nem sequer os manda
+para o 3D, porque a distância de tiro varia ao longo do arco.
+
+### O defeito que a tabela destapou
+
+Num blend de três projetores, **o segundo aterrava em cima do primeiro**.
+
+Os offsets do blend vêm absolutos, medidos do centro do ecrã: num blend de
+três, as células estão a −6, 0 e +6. Mas o primeiro projetor fica no ÂNCORA
+escrito no Preview (a posição física da máquina, que os Calculadores não
+sabem), e o `aplicarProjetores()` somava o offset absoluto a esse âncora. Com
+o âncora a 0 dava **0, 0 e +6** em vez de 0, +6 e +12. Agora os outros são
+colocados relativamente ao primeiro (`p.lateral − primeiro.lateral`).
+
+Isto estava lá desde que o blend passou a chegar ao 3D e ninguém deu por ele:
+**no desenho, dois projetores sobrepostos parecem um só**. Só apareceu quando
+as posições passaram a ser escritas como números.
+
+Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
+agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
+centímetro.
+
+### Sabe-se e fica assim (por decidir)
+
+Os projetores extra do blend nascem com **shift 0**, enquanto o primeiro
+mantém o que está no campo do Preview (que arranca a −25%). Numa fila de
+blend isso desalinha o primeiro em relação aos outros — quase um metro, numa
+imagem de 3,75 m de altura. Não mexi: o shift é uma propriedade física da
+máquina, os extras não têm campo onde o definir, e mudá-lo altera o aspeto de
+projetos já guardados. **A recomendação é os extras herdarem o shift do
+primeiro** (numa fila de blend as máquinas são iguais e montadas igual), mas é
+uma decisão do mike, não minha.
+
 ## 13 de setembro — as coordenadas de montagem, para um media server (v3.27)
 
 Pedido depois de eu fazer à mão uma folha com as posições dos quatro
