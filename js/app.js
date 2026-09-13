@@ -322,6 +322,11 @@ function montar(recentrarCamara) {
    "btVistaDome", "saidasDome"].forEach((id) => {
     if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
   });
+  // A secção das coordenadas pede mais do que uma cúpula: pede projetores.
+  if ($("sCoordenadas")) {
+    $("sCoordenadas").style.display =
+      (domeDoProjeto && domeDoProjeto.projetores && domeDoProjeto.projetores.n > 0) ? "" : "none";
+  }
   // E ao contrário: num projeto que é SÓ cúpula, o orador do palco sai da
   // lista. Quem dá a medida lá dentro é a pessoa da cúpula, e um interruptor
   // ligado que não põe ninguém à vista lê-se como defeito.
@@ -497,6 +502,7 @@ function montar(recentrarCamara) {
   // quando se sabe onde ficou. Não se desenha a mancha de sombra: ver o
   // comentário de pintarQuemTapa() em cena.js para a razão.
   atualizarNotaDaCupula();
+  escreverCoordenadas();
 
   desenharProjecao(sala, palco);
   // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
@@ -694,6 +700,79 @@ function atualizarNotaDaCupula() {
 
 /** Um número em português, com duas casas e vírgula. */
 function nnum(v) { return (Math.round(v * 100) / 100).toFixed(2).replace(".", ","); }
+
+/** O mesmo com sinal à frente, para coordenadas: +3,85 lê-se melhor que 3,85. */
+function nsin(v) {
+  const n = Math.round(v * 100) / 100;
+  if (Math.abs(n) < 0.005) return "0";
+  return (n > 0 ? "+" : "−") + Math.abs(n).toFixed(2).replace(".", ",");
+}
+
+/**
+ * AS COORDENADAS DE MONTAGEM, para um media server.
+ *
+ * Pedido: *"podemos adicionar esta ferramenta à calculadora, tanto na dome
+ * como no blending"* -- depois de eu ter feito à mão uma folha com as
+ * posições dos quatro projetores para o WATCHOUT. A app já tinha os números;
+ * só não os mostrava assim.
+ *
+ * Ficam AQUI, no Preview, e não nos Calculadores, por uma razão: quem coloca
+ * os projetores é o fazerProjetoresDoDome(), e é do mesmo sítio que sai o OBJ
+ * exportado ao lado. Calculá-las outra vez do lado dos Calculadores era pôr a
+ * mesma conta em dois sítios -- e coordenadas que não batem certo com o modelo
+ * são piores do que não existirem.
+ */
+function escreverCoordenadas() {
+  const caixa = $("coordsTabela");
+  const nota = $("coordsNota");
+  if (!caixa) return;
+  const m = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
+  if (!m || !m.length) {
+    caixa.innerHTML = "";
+    if (nota) {
+      nota.textContent = (projeto && projeto.dome)
+        ? 'Liga a “Cúpula” na secção Vista para a app colocar os projetores e dar as coordenadas.'
+        : "";
+    }
+    return;
+  }
+  const linhas = m.map((p) => `<tr>
+      <td><span class="quem"><span class="bolha" style="background:${p.cor}"></span>${p.nome}</span></td>
+      <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
+      <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
+      <td class="n">${nnum(p.distancia)}</td>
+      <td class="n">${Math.round(p.inclinacao)}°</td>
+    </tr>`).join("");
+  caixa.innerHTML = `<div class="coords-rolar"><table class="coords">
+      <thead><tr>
+        <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th><th>Incl.</th>
+      </tr></thead><tbody>${linhas}</tbody></table></div>`;
+  if (nota) {
+    nota.textContent = "Metros, origem no centro da cúpula ao nível do chão — as mesmas " +
+      "coordenadas do OBJ. No WATCHOUT 7 estes dois pontos são o Eye e o Target.";
+  }
+}
+
+/** As coordenadas em texto, para colar no media server ou no email da obra. */
+function coordenadasEmTexto() {
+  const m = domeMontado && domeMontado.userData ? domeMontado.userData.montagem : null;
+  if (!m || !m.length) return "";
+  const d = projeto && projeto.dome ? projeto.dome : {};
+  const cab = [
+    "COORDENADAS DE MONTAGEM — " + (($("nomeProjeto") && $("nomeProjeto").value.trim()) || "cúpula"),
+    "Cúpula " + nnum(parseFloat(d.diametro) || 0) + " m de diâmetro, " +
+      nnum(parseFloat(d.altura) || 0) + " m de altura — " + m.length + " projetor(es)",
+    "Metros. Origem no centro da cúpula, ao nível do chão — as mesmas coordenadas do OBJ.",
+    "No WATCHOUT 7: a coluna LENTE é o Eye, a coluna APONTA A é o Target.",
+    ""
+  ];
+  const linhas = m.map((p) =>
+    p.nome.padEnd(4) +
+    "lente " + [p.pos.x, p.pos.y, p.pos.z].map((v) => nsin(v).padStart(7)).join("  ") +
+    "   aponta a " + [p.alvo.x, p.alvo.y, p.alvo.z].map((v) => nsin(v).padStart(7)).join("  ") +
+    "   " + nnum(p.distancia) + " m   " + Math.round(p.inclinacao) + "°");
+  return cab.concat(linhas).join("\n");
+}
 
 function caixasQueTapam() {
   const caixas = [];
@@ -3612,6 +3691,23 @@ if ($("btCopiarLinkPartilha")) $("btCopiarLinkPartilha").onclick = async () => {
     setTimeout(() => { botao.textContent = original; }, 2200);
   } catch (_) { /* sem permissão -- o campo já está selecionado, copia-se à mão */ }
 };
+if ($("btCopiarCoords")) $("btCopiarCoords").onclick = async () => {
+  const texto = coordenadasEmTexto();
+  const botao = $("btCopiarCoords");
+  if (!texto) { botao.textContent = "Ainda não há coordenadas"; setTimeout(() => { botao.textContent = "Copiar coordenadas"; }, 2200); return; }
+  try {
+    await navigator.clipboard.writeText(texto);
+    botao.textContent = "Copiado";
+  } catch (_) {
+    // Sem permissão para a área de transferência: em vez de falhar calado,
+    // mostra-se o texto para ser copiado à mão.
+    const nota = $("coordsNota");
+    if (nota) nota.textContent = "Sem permissão para copiar — as coordenadas estão na tabela acima.";
+    botao.textContent = "Copia à mão da tabela";
+  }
+  setTimeout(() => { botao.textContent = "Copiar coordenadas"; }, 2200);
+};
+
 $("ficheiroProjeto").addEventListener("change", () => {
   const ficheiro = $("ficheiroProjeto").files[0];
   $("ficheiroProjeto").value = "";
