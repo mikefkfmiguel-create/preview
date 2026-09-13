@@ -2178,6 +2178,63 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 13 de setembro — o relatório de montagem, em página (v3.30)
+
+Pedido directo: *"os relatórios de montagem e ajustes podem sair como página
+como fizeste o que te pedi antes"* — a seguir à folha do WATCHOUT que eu tinha
+feito à mão. A app já tinha os números todos no ecrã; o que faltava era
+poderem sair dali.
+
+**Sai como saída de exportação** (`Relatório (página)`, ao lado dos PNG e dos
+3D) e não como um botão à parte, porque é exactamente isso que é: mais uma
+forma de o projeto sair daqui. O `Guardar` que já lá estava trata dela como
+trata das outras.
+
+**Um ficheiro só, sem rede.** O desenho vai em data URL, a marca também, e o
+CSS vai lá dentro. Uma página que fosse buscar seja o que for à internet era
+uma página que não abria no sítio onde faz mais falta — a sala, antes de haver
+wi-fi. Custa ~200 KB com a vista lá dentro, que é o preço certo a pagar. A
+vista vai em **JPEG e não em PNG**: um render 3D com degradês faz um PNG de
+megabytes, e esta imagem viaja dentro do próprio HTML.
+
+**O que a folha leva:** a vista, as medidas da sala (com o palco e a lotação
+que o rodapé conta), a cúpula com as suas medidas e a tabela de coordenadas, o
+ecrã plano com a máquina e a sua tabela, a nota de leitura (metros, origem,
+*Eye*/*Target*/*Lense Shift*), os ajustes feitos aqui que diferem do que veio
+dos Calculadores, e o que ficou no depósito por montar. Uma secção sem
+conteúdo não aparece — folhas com títulos vazios não servem para nada.
+
+**Nada se calcula aqui.** As tabelas chegam em HTML de quem as escreve no
+painel, e por isso `escreverCoordenadas()` foi partido em dois:
+`dadosDeCoordenadas()` (quem tem coordenadas) e `tabelaDeCoordenadas()` (o
+markup). O painel, o texto do botão *Copiar* e a página leem os três do mesmo
+sítio. Antes disto o painel e o *Copiar* já refaziam a mesma lista cada um por
+sua conta — eram duas, seriam três.
+
+**Só entra no relatório o que foi mexido.** Um delay a zeros não é um ajuste,
+é o sítio onde ele nasceu. Os projetores extra do blend também não entram na
+secção dos ajustes: já vão, com posição e tudo, na tabela de coordenadas.
+
+**Uma coisa passou a ser guardada:** `ajustes.projetor` (modelo + lente do
+projetor #0). A nota *"Veio dos Calculadores: PT-RZ120 · ET-DLE060"*
+desaparecia no recarregamento seguinte, e um relatório de montagem tem de
+saber o nome da máquina amanhã de manhã em cima da obra. Os extra do blend já
+guardavam o seu; era só o #0 que perdia o nome. O desenho continua a viver de
+rácio/distância e mais nada.
+
+Medido em quatro projetos (cúpula+blend, só blend, sala vazia, e um com
+ajustes e depósito a sério): as secções certas aparecem e as vazias não, sem
+erros de página, **sem um único recurso externo** na folha, e sem rolar para o
+lado a 390 px de largura. A altura da vista tem tecto (460 px): sem isso, o 3D
+numa janela alta comia a primeira folha inteira antes de alguém chegar a um
+número. A lista do depósito passou a escrever `4,00 × 2,25 m` em vez de
+`4.00 × 2.25 m` — estava a aparecer ao lado de medidas que já vinham com
+vírgula.
+
+**Fica de fora:** coordenadas de ecrãs, palcos e delays. O relatório diz o que
+lhes foi mexido, não onde cada um aterra em x/y/z — isso é a tabela de
+coordenadas a crescer para lá dos projetores, e é outra conversa.
+
 ### Sabe-se e fica assim (decidido a 13 de setembro)
 
 Ficava aqui a pergunta de se os extras do blend deviam herdar o shift do
