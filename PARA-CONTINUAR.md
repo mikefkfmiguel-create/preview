@@ -2231,9 +2231,19 @@ número. A lista do depósito passou a escrever `4,00 × 2,25 m` em vez de
 `4.00 × 2.25 m` — estava a aparecer ao lado de medidas que já vinham com
 vírgula.
 
-**Fica de fora:** coordenadas de ecrãs, palcos e delays. O relatório diz o que
-lhes foi mexido, não onde cada um aterra em x/y/z — isso é a tabela de
-coordenadas a crescer para lá dos projetores, e é outra conversa.
+**Fica de fora, e fica mesmo (decidido pelo mike a 13 de setembro).** Perguntei
+se as coordenadas deviam crescer para lá dos projetores — ecrãs, palcos,
+delays. A resposta fecha o assunto: *"apenas os projetores está muito melhor,
+os outros serão sempre de colocação física e está feito, apenas estes dois que
+vimos agora têm mais que se lhe diga e já criámos a ajuda"*.
+
+E a razão é boa, vale a pena ficar escrita para quem vier a seguir a pensar
+que isto é uma falha: **um ecrã, um palco ou um delay coloca-se a olho, no
+sítio onde cabe** — quem monta vê a sala e decide. **Um projetor de cúpula ou
+de blend não**: a posição sai de uma conta (a fatia que lhe toca, o ângulo, o
+shift), tem de ser a mesma no 3D e no media server, e ninguém a acerta a olho.
+São os dois únicos sítios onde uma coordenada escrita vale mais do que estar
+lá em pessoa. O relatório diz o que foi mexido no resto, e isso chega.
 
 ### Sabe-se e fica assim (decidido a 13 de setembro)
 
