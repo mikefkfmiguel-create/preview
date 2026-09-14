@@ -2178,6 +2178,42 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — um passo atrás, cinco vezes (v3.48)
+
+Pedido a seguir ao "trazer tudo à vista": *"podes incluir um undo também, que
+dá jeito — com apenas 5 níveis chega"*. E cinco chegam: isto é para desfazer o
+arrasto que correu mal, não para viajar no tempo.
+
+**O ponto de passagem é um só.** Trinta e duas linhas desta app mudam os
+ajustes e a seguir chamam `guardarAjustes()`. Em vez de pendurar um gancho em
+cada uma — e esquecer a trigésima terceira no mês que vem — o
+`guardarAjustes()` do app.js embrulha o de projeto.js: **quem grava,
+regista**.
+
+**O instantâneo só se pode tirar depois da alteração**, que é quando se sabe
+que ela aconteceu. Por isso guarda-se sempre o estado atual à parte: quando
+chega uma alteração nova, o que vai para a pilha é esse (que já é o anterior),
+e só então se tira um fresco. A pilha fica com estados **anteriores**, que é o
+que um "anular" precisa.
+
+**Os ajustes não chegavam.** A régie, o ecrã curvo e o projetor guardam a
+posição em **campos do painel**, não no objeto dos ajustes (ver
+`alvoDeCampos()`). Um anular que repusesse só os ajustes desfazia metade dos
+arrastos e deixava a outra metade onde estava — pior do que não ter anular
+nenhum. O instantâneo leva os ajustes, os campos todos do painel e as duas
+posições do boneco.
+
+Medido com sete movimentos de 2 m numa zona: a pilha pára nos **5**, e os
+cinco "desfazer" andam para trás 8 → 6 → 4 → 2 → 0 → −2, um passo de cada vez.
+Ao quinto o botão desliga-se sozinho e diz *"era o último passo guardado"* —
+carregar num botão que já não faz nada parece uma app avariada em vez de uma
+pilha no fim.
+
+**Ctrl+Z / Cmd+Z** também, para quem está ao computador — mas não dentro de um
+campo de texto: aí o desfazer que a pessoa quer é o do próprio campo, e
+roubá-lo seria trocar um passo pequeno por um grande sem ela pedir. Verificado:
+peça movida 9 m, Ctrl+Z, volta aos −6 m originais.
+
 ## 14 de setembro — trazer tudo à vista (v3.47)
 
 Reportado do telemóvel: *"acabei de desaparecer com tudo enquanto estava a
