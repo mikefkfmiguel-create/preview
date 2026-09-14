@@ -6230,7 +6230,17 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
     (p.modelo ? ` (<b>${p.modelo}</b>)` : "") +
     `: rácio ${p.racio.toFixed(2)}:1 a ${p.distancia.toFixed(2)} m` +
     (lista.length > 1 ? ` — e mais ${lista.length - 1} do blend` : "") +
+    (lista.curva ? ` — num ecrã curvo de ${lista.curva.raio} m de raio` : "") +
     `. Carrega no botão para o trazer.`;
+  // E ABRIR A SECÇÃO, senão este aviso não existe para ninguém.
+  //
+  // Esperar por um botão é decisão tomada (acima) e continua de pé: quem só
+  // quer ver a sala não leva uma projeção ligada sem a pedir. O que não pode é
+  // o aviso ficar dentro de uma secção fechada -- reportado como *"não desenha
+  // o curvo"*, e não desenhava mesmo: a carga estava guardada, a dizer-se numa
+  // gaveta que ninguém tinha aberto. Aberta a secção, o botão e a razão ficam
+  // à vista e a escolha continua a ser de quem está a olhar.
+  document.getElementById("sProjecao").classList.remove("fechada");
 })();
 
 montar(true);

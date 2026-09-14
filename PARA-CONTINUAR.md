@@ -2178,6 +2178,24 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — a carga chegava e ficava numa gaveta fechada (v3.38)
+
+Reportado assim: *"não desenha o curvo"*. E não desenhava — mas o desenho
+estava bom. O que faltava era a carga chegar à sala.
+
+Um projetor **guardado** (ao contrário de um que venha no endereço, do botão
+"Ver no Preview 3D") não se aplica sozinho, e isso continua certo: quem abre o
+Preview só para ver a sala não leva uma projeção ligada sem a pedir. O problema
+é que o aviso que diz *"está guardado um projetor, carrega no botão"* vive
+dentro da secção **Projeção**, e essa nasce fechada. Uma gaveta fechada é o
+mesmo que nada: ele abria o Preview, via a montagem anterior, e não havia um
+único sinal de que estava outra à espera.
+
+Agora, quando há carga à espera, a secção abre. A escolha continua a ser de
+quem está a olhar — só deixa de ser uma escolha às escuras. A nota passa também
+a dizer quando a carga traz um ecrã curvo e de que raio, que é a diferença que
+ele estava a tentar ver.
+
 ## 14 de setembro — numa curva, a lente cobre menos do que promete (v3.37)
 
 Par com a v3.64 dos Calculadores, que passa a escolher a lente do blend pela
