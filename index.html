@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.42</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.43</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -557,6 +557,12 @@
   <button id="btRecentrarVista" title="Repor a vista — põe a câmara de frente para o palco outra vez. Útil se rodaste/afastaste de mais e já não vês a sala.">🔄</button>
   <div id="nomeProjetoViewport" hidden></div>
   <canvas id="tela"></canvas>
+  <!-- O painel de ajuste, ao pé da coisa que se está a mexer. Pedido direto:
+       "numa situação destas, onde ajusto a posição dos elementos com números,
+       poderia saltar um painel de ajuste". Nasce vazio e escondido -- quem o
+       enche é o abrirPainelDeAjuste(), com os MESMOS campos da lista do
+       painel, sobre o mesmo objeto de ajustes. -->
+  <div id="painelAjuste" hidden></div>
   <div id="etiquetas"></div>
   <div id="aviso"></div>
   <!-- Separado do #aviso de propósito: o #aviso é para mensagens de passagem,

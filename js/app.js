@@ -5613,7 +5613,10 @@ let alvoArrasto = null;
 function alvoDeAjuste(ajuste) {
   return {
     getXZ: () => ({ x: Number(ajuste.dx) || 0, z: Number(ajuste.dz) || 0 }),
-    setXZ: (x, z) => { ajuste.dx = x; ajuste.dz = z; }
+    setXZ: (x, z) => { ajuste.dx = x; ajuste.dz = z; },
+    // O objeto dos ajustes, para o painel flutuante poder escrever nele os
+    // mesmos campos que a lista do painel já escreve -- ver painelDeAjuste().
+    ajuste: ajuste
   };
 }
 
@@ -5625,8 +5628,34 @@ function alvoDeCampos(idX, idZ) {
       $(idZ).value = String(Math.round(z * 1e6) / 1e6);
       $(idX).dispatchEvent(new Event("input", { bubbles: true }));
       $(idZ).dispatchEvent(new Event("input", { bubbles: true }));
-    }
+    },
+    ajuste: ajusteSobreCampos({ dx: idX, dz: idZ })
   };
+}
+
+/**
+ * Os CAMPOS DO PAINEL vistos como um objeto de ajustes.
+ *
+ * Nem tudo o que se arrasta tem um objeto de ajustes próprio: a régie e o
+ * primeiro projetor saem de campos do painel. O painel flutuante não precisa
+ * de saber a diferença -- o campoAjuste() escreve em `alvo[chave]`, e um
+ * objeto com getters/setters que dão nesses campos serve na mesma. Uma
+ * implementação só, e o que se escreve no flutuante aparece no painel e
+ * vice-versa, porque é o mesmo campo.
+ */
+function ajusteSobreCampos(mapa) {
+  const obj = {};
+  Object.keys(mapa).forEach((chave) => {
+    Object.defineProperty(obj, chave, {
+      enumerable: true,
+      get() { return parseFloat($(mapa[chave]).value) || 0; },
+      set(v) {
+        $(mapa[chave]).value = String(Math.round((Number(v) || 0) * 1e6) / 1e6);
+        $(mapa[chave]).dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+  });
+  return obj;
 }
 
 // O projetor não guarda x/z directamente -- a posição sai de "lateral" e
@@ -5656,9 +5685,30 @@ function alvoDeProjetorExtra(sala, ajuste) {
     setXZ: (x, z) => {
       ajuste.lateral = x;
       ajuste.distancia = Math.max(0.1, z - z0);
-    }
+    },
+    ajuste: ajuste
   };
 }
+
+// Que campos é que cada coisa tem para ajustar. Os mesmos nomes, passos e
+// limites da lista do painel -- é a mesma campoAjuste() a desenhá-los, para
+// não haver dois sítios a discordar sobre o que é "rodar" ou quanto anda uma
+// seta.
+const CAMPOS_POSICAO = [
+  { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
+  { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.05" },
+  { rotulo: "altura", chave: "dy", unidade: "m", passo: "0.05" },
+  { rotulo: "rodar", chave: "rot", unidade: "°", passo: "5", min: -180, max: 180 }
+];
+const CAMPOS_SO_XZ = [
+  { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
+  { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.05" }
+];
+const CAMPOS_PROJETOR = [
+  { rotulo: "↔", chave: "lateral", unidade: "m", passo: "0.05" },
+  { rotulo: "distância", chave: "distancia", unidade: "m", passo: "0.05", min: 0.1 },
+  { rotulo: "altura", chave: "altura", unidade: "m", passo: "0.05" }
+];
 
 function objetosArrastaveis() {
   if (!desenhado) return [];
@@ -5668,26 +5718,26 @@ function objetosArrastaveis() {
     if (!o.name) return;
     if (publicoAtual.formato === "circular" && o.name.indexOf("gomo-") === 0) {
       const i = parseInt(o.name.slice(5), 10);
-      if (ajustes.gomos[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.gomos[i]) });
+      if (ajustes.gomos[i]) alvos.push({ obj: o, rotulo: "Gomo " + (i + 1), campos: CAMPOS_POSICAO, ...alvoDeAjuste(ajustes.gomos[i]) });
     } else if (o.name.indexOf("zona ") === 0) {
       const aj = ajustes.delays[o.name.slice(5)];
-      if (aj) alvos.push({ obj: o, ...alvoDeAjuste(aj) });
+      if (aj) alvos.push({ obj: o, rotulo: o.name.slice(5), campos: CAMPOS_POSICAO, ...alvoDeAjuste(aj) });
     } else if (o.name.indexOf("dsm ") === 0) {
       const aj = ajustes.dsm[parseInt(o.name.slice(4), 10) - 1];
-      if (aj) alvos.push({ obj: o, ...alvoDeAjuste(aj) });
+      if (aj) alvos.push({ obj: o, rotulo: "DSM " + o.name.slice(4), campos: CAMPOS_POSICAO, ...alvoDeAjuste(aj) });
     } else if (o.name === "regie") {
-      alvos.push({ obj: o, ...alvoDeCampos("regieX", "regieZ") });
+      alvos.push({ obj: o, rotulo: "Régie", campos: CAMPOS_SO_XZ, ...alvoDeCampos("regieX", "regieZ") });
     } else if (o.name === "projetor-0") {
-      alvos.push({ obj: o, ...alvoDeCamposProjetor(lerSala()) });
+      alvos.push({ obj: o, rotulo: "Projetor", campos: CAMPOS_SO_XZ, ...alvoDeCamposProjetor(lerSala()) });
     } else if (o.name.indexOf("palco-") === 0) {
       const i = parseInt(o.name.slice(6), 10) - 1;
-      if (ajustes.palcosExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.palcosExtra[i]) });
+      if (ajustes.palcosExtra[i]) alvos.push({ obj: o, rotulo: "Palco " + (i + 1), campos: CAMPOS_POSICAO, ...alvoDeAjuste(ajustes.palcosExtra[i]) });
     } else if (o.name.indexOf("regie-") === 0) {
       const i = parseInt(o.name.slice(6), 10) - 1;
-      if (ajustes.regiesExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.regiesExtra[i]) });
+      if (ajustes.regiesExtra[i]) alvos.push({ obj: o, rotulo: "Régie " + (i + 1), campos: CAMPOS_POSICAO, ...alvoDeAjuste(ajustes.regiesExtra[i]) });
     } else if (o.name.indexOf("passarela-") === 0) {
       const i = parseInt(o.name.slice(10), 10) - 1;
-      if (ajustes.passarelasExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.passarelasExtra[i]) });
+      if (ajustes.passarelasExtra[i]) alvos.push({ obj: o, rotulo: "Passarela " + (i + 1), campos: CAMPOS_POSICAO, ...alvoDeAjuste(ajustes.passarelasExtra[i]) });
     } else if (o.name.indexOf("projetor-") === 0) {
       // Num ecrã CURVO a posição de cada máquina não é dela: sai do arco (a
       // fatia que lhe toca e a distância da fila). Arrastar escrevia um
@@ -5696,11 +5746,80 @@ function objetosArrastaveis() {
       // pegar nela: quem quiser mexer mexe na distância ou na curva.
       if (curvaAtivaDoBlend()) return;
       const i = parseInt(o.name.slice(9), 10) - 1;
-      if (ajustes.projetoresExtra[i]) alvos.push({ obj: o, ...alvoDeProjetorExtra(lerSala(), ajustes.projetoresExtra[i]) });
+      if (ajustes.projetoresExtra[i]) alvos.push({ obj: o, rotulo: "Projetor " + (i + 1), campos: CAMPOS_PROJETOR, ...alvoDeProjetorExtra(lerSala(), ajustes.projetoresExtra[i]) });
     }
   });
   return alvos;
 }
+
+/**
+ * O PAINEL DE AJUSTE, onde a coisa está.
+ *
+ * Pedido direto: *"numa situação destas, onde ajusto a posição dos elementos
+ * com números, poderia saltar um painel de ajuste"*. Os campos já existiam --
+ * ↔, fundo, altura, rodar -- mas viviam numa lista lá em baixo no painel, e
+ * para afinar dois centímetros do que se acabou de arrastar era preciso ir
+ * procurar a linha certa. O arrasto põe a peça perto; os números põem-na no
+ * sítio, e não faz sentido que morem em pontos opostos do ecrã.
+ *
+ * Os campos são os MESMOS: a campoAjuste() que a lista usa, sobre o mesmo
+ * objeto de ajustes. Escrever aqui é escrever lá -- não há dois valores, há
+ * dois sítios a mostrar o mesmo.
+ */
+function abrirPainelDeAjuste(alvo) {
+  const caixa = $("painelAjuste");
+  if (!caixa || !alvo || !alvo.ajuste || !alvo.campos) return;
+  caixa.innerHTML = "";
+  const topo = document.createElement("div");
+  topo.className = "ajuste-flutuante-topo";
+  const nome = document.createElement("b");
+  nome.textContent = alvo.rotulo || "Ajustar";
+  const fechar = document.createElement("button");
+  fechar.type = "button";
+  fechar.className = "btn-icone";
+  fechar.title = "Fechar";
+  fechar.textContent = "×";
+  fechar.addEventListener("click", fecharPainelDeAjuste);
+  topo.append(nome, fechar);
+  caixa.append(topo);
+  const campos = document.createElement("div");
+  campos.className = "campos";
+  const inputs = [];
+  alvo.campos.forEach((c) => {
+    const campo = campoAjuste(c.rotulo, alvo.ajuste, c.chave, c.unidade, c.passo,
+      undefined, c.min === undefined ? -500 : c.min, c.max === undefined ? 500 : c.max);
+    inputs.push({ input: campo.querySelector("input"), chave: c.chave });
+    campos.append(campo);
+  });
+  caixa.append(campos);
+  caixa.hidden = false;
+  painelDeAjusteAberto = { alvo, inputs };
+}
+
+/**
+ * Arrastar muda os mesmos números que o painel mostra -- se ele não os
+ * acompanhar, fica a dizer onde a peça ESTAVA. Escreve-se no `value` em vez
+ * de refazer o painel: refazê-lo a cada movimento tirava o foco a quem
+ * estivesse a escrever num campo.
+ */
+function refrescarPainelDeAjuste() {
+  if (!painelDeAjusteAberto) return;
+  const { alvo, inputs } = painelDeAjusteAberto;
+  inputs.forEach(({ input, chave }) => {
+    if (document.activeElement === input) return;   // não pisar quem escreve
+    const v = Number(alvo.ajuste[chave]) || 0;
+    input.value = String(Math.round(v * 100) / 100);
+  });
+}
+
+function fecharPainelDeAjuste() {
+  const caixa = $("painelAjuste");
+  if (!caixa) return;
+  caixa.hidden = true;
+  caixa.innerHTML = "";
+  painelDeAjusteAberto = null;
+}
+let painelDeAjusteAberto = null;
 
 function porRatoAjuste(e) {
   const caixa = tela.getBoundingClientRect();
@@ -5724,8 +5843,9 @@ tela.addEventListener("pointerdown", (e) => {
       melhor = { alvo, ponto: hits[0].point };
     }
   }
-  if (!melhor) return;
+  if (!melhor) { fecharPainelDeAjuste(); return; }
 
+  abrirPainelDeAjuste(melhor.alvo);
   controlos.enabled = false;
   tela.setPointerCapture(e.pointerId);
   planoAjuste.set(new THREE.Vector3(0, 1, 0), -melhor.ponto.y);
@@ -5746,11 +5866,19 @@ tela.addEventListener("pointermove", (e) => {
   const novoX = alvoArrasto.x0 + (ondeCaiuAjuste.x - alvoArrasto.px0);
   const novoZ = alvoArrasto.z0 + (ondeCaiuAjuste.z - alvoArrasto.pz0);
   alvoArrasto.alvo.setXZ(novoX, novoZ);
+  refrescarPainelDeAjuste();
   remontarDaqui(0);
 });
 
 function largarAjuste(e) {
   if (!alvoArrasto) return;
+  // AO LARGAR, ARREDONDA AO CENTÍMETRO. Um arrasto deixa valores como
+  // 28,957212 m, e o painel a mostrá-los faz um número que ninguém escreveu
+  // parecer uma medida. Arredonda-se o VALOR, não só o que se mostra: mostrar
+  // 28,96 e guardar 28,957212 era pôr o painel a mentir por dois dígitos.
+  const onde = alvoArrasto.alvo.getXZ();
+  alvoArrasto.alvo.setXZ(Math.round(onde.x * 100) / 100, Math.round(onde.z * 100) / 100);
+  refrescarPainelDeAjuste();
   guardarAjustes(ajustes);
   alvoArrasto = null;
   controlos.enabled = true;
