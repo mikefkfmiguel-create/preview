@@ -2178,6 +2178,40 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — numa curva, a lente cobre menos do que promete (v3.37)
+
+Par com a v3.64 dos Calculadores, que passa a escolher a lente do blend pela
+conta certa. Este lado tinha a conta plana:
+
+```js
+const larguraNoArco = distancia / pe.racio;   // errado numa superfície côncava
+```
+
+`distância ÷ rácio` é a largura numa **parede**, e uma parede está toda à mesma
+distância do eixo. Numa superfície côncava as pontas do feixe afastam-se e
+batem mais cedo, por isso a mesma lente cobre **menos** arco. Medido: 5,8%
+menos num raio de 15 m com 6 m de tiro; 7,8% num de 10 m; 2,1% num de 50 m;
+nada num ecrã quase plano. Numa fila de quatro, 5,8% por fatia são 1,7 m de
+arco por cobrir — o suficiente para comer o blend todo e abrir banda preta
+entre imagens.
+
+A conta passou a viver em `medidasDaCurva().arcoDaLente(racio, t)`, ao lado do
+`pontoNoArco` e do `lenteNoArco`, que é onde a geometria da curva já mora. A
+mesma existe do lado dos Calculadores, e é de propósito que são duas: são duas
+apps separadas e a ponte leva dados, não funções — o que não pode acontecer é
+uma ter a conta e a outra não, que era o caso.
+
+A **altura** continua a sair da conta plana, também de propósito: a curvatura é
+só horizontal, e no meio da fatia — onde a altura se mede — a superfície está
+mesmo a `distancia` da lente. Tirá-la do arco esticava a imagem para cima pelos
+mesmos 5,8% que a curva rouba à largura, e a imagem não fica mais alta por o
+ecrã ser curvo.
+
+Verificado com as duas apps a falar: corda 28, diâmetro 36, 4 projetores a 6 m.
+Os Calculadores dizem fatia de 9,51 m de arco e rácio 0,57:1; o Preview desenha
+quatro fatias de **9,50 m** — a diferença é o arredondamento do rácio a três
+casas. Com a conta plana desenhava 10,49 m, 10% a mais.
+
 ## 14 de setembro — o ecrã não era um ecrã, era a soma das imagens (v3.36)
 
 O mike mandou duas fotografias e uma pergunta só: **"???????"**. Na do Preview,
