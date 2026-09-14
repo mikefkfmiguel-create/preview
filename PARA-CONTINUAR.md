@@ -2178,6 +2178,57 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — mover o pano, com ou sem as máquinas (v3.41)
+
+Pedido direto: *"preciso do ecrã de projeção até para reposicionar no 3D, e
+forma de levar os projetores com ele ou não"*. Interruptor novo ao pé do dx/dz.
+
+- **Ligado** (como era): move-se a montagem inteira. É arrumar o rig na sala, e
+  a imagem não muda — a geometria entre máquinas e pano é a mesma.
+- **Desligado**: o pano vai sozinho e as máquinas ficam onde a montagem as pôs.
+  É a pergunta que faz valer a pena mover uma coisa sem a outra: *onde é que o
+  feixe passa a bater*.
+
+O desenho passou a ter **duas referências**: `m`, o pano onde ele está agora, e
+`mMaquinas`, o ecrã na posição de origem — a que a montagem foi pensada. As
+máquinas saem da segunda; a luz delas bate sempre na primeira. Uma máquina
+aparafusada não se vira sozinha quando o pano anda para o lado.
+
+Com as duas desalinhadas, a conta rápida do caso em arco (`arcoDaLente`) deixa
+de servir: ela assume a lente no raio e a olhar a direito, e nenhuma das duas
+coisas continua verdade. Usa-se o `arcoEntre()` da v3.39, que não assume nada.
+
+**Três coisas que isto obrigou a endireitar:**
+
+1. **A base do ecrã não levava as máquinas.** O dx/dz move o centro da
+   curvatura e elas vão atrás sozinhas, porque saem dele; a base não, porque a
+   altura das lentes é um campo à parte. Subir o ecrã dois metros com "levar os
+   projetores" ligado deixava a fila no chão. Agora a base arrasta o campo da
+   altura — mexe no número à vista, e não num valor escondido.
+2. **A altura das máquinas estava congelada** no ajuste, como a distância
+   esteve até à v3.34. Guardava-se a altura absoluta, calculada com o âncora
+   que estava no campo no momento de aplicar — que era o 4,5 m por omissão,
+   não o que os Calculadores mandaram. Passa a guardar-se o **offset**, e a
+   altura da fila é do campo. Um ajuste antigo só tem a absoluta: lê-se essa,
+   para um projeto guardado não saltar de sítio ao reabrir.
+3. **O shift arrancava sempre a −25%.** Os Calculadores calculam o shift que a
+   montagem obriga desde a v3.67 — a app dizia "shift necessário 0%" numa aba
+   enquanto o 3D desenhava a imagem meio metro abaixo do pano na outra. Agora
+   vem na carga e o campo nasce com ele.
+
+Uma máquina cujo feixe já não apanha o pano de todo não se desenha (não há o
+que desenhar), mas **conta-se e diz-se** na nota das coordenadas, com o
+deslocamento que a pôs assim: uma máquina que desaparece do 3D sem explicação é
+pior do que uma máquina desenhada no sítio errado.
+
+Medido (ecrã de 32,08 × 6 m, 4 máquinas): no sítio, a imagem enche o pano
+exactamente (y 0→6, x ±14). Com "levar" ligado e o ecrã 6 m para o lado, pano e
+máquinas andam os dois e a imagem continua a encher. Com a base a subir 2 m, as
+lentes sobem de 3,00 para 5,00 m e a imagem acompanha. Com "levar" desligado e
+os mesmos 6 m, as máquinas ficam e a imagem passa a cobrir x −8 a 17,8 em vez
+de −8 a 20 — a ponta direita do pano fica às escuras. A 14 m, uma das quatro
+deixa de apanhar o pano e a nota di-lo.
+
 ## 14 de setembro — a tela também tem altura (v3.40)
 
 Pedido direto: *"ter em conta a posição com a relação da altura do ecrã e o
