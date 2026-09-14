@@ -2434,6 +2434,45 @@ export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
       const cos = Math.cos(phi);
       const d = -r * cos + Math.sqrt(r * r * cos * cos + R * R - r * r);
       return 2 * R * Math.asin(Math.min(1, (d * Math.sin(phi)) / R));
+    },
+    /**
+     * ONDE É QUE ESTA LENTE APANHA O ECRÃ, de um sítio qualquer e virada para
+     * onde quiser.
+     *
+     * O arcoDaLente() acima é o caso particular de uma máquina no arco
+     * concêntrico, a olhar a direito para a sua fatia. Esta serve a montagem em
+     * LINHA RETA, pedida pelo mike: *"os projetores poderão ser posicionados
+     * tanto em círculo a acompanhar como em uma linha reta"*. Aí cada máquina
+     * está a uma distância diferente do ecrã (as pontas da curva vêm para a
+     * frente, por isso a do meio fica mais longe) e olha para a sua fatia de
+     * esguelha — o cone é simétrico, a fatia vista dali não é.
+     *
+     * `de` e `para` em coordenadas da sala (x, z). Devolve os dois ângulos no
+     * arco e o tiro, ou null se o feixe não bate na superfície.
+     */
+    arcoEntre(de, para, racio) {
+      if (!(racio > 0)) return null;
+      const L = [de.x - cx, de.z - cz];
+      if (Math.hypot(L[0], L[1]) >= R) return null;   // a lente fora da curva
+      const d = [para.x - de.x, para.z - de.z];
+      const norma = Math.hypot(d[0], d[1]);
+      if (!(norma > 0)) return null;
+      const u = [d[0] / norma, d[1] / norma];
+      const phi = Math.atan(1 / (2 * racio));
+      const bate = (ang) => {
+        const c = Math.cos(ang), s = Math.sin(ang);
+        const v = [u[0] * c - u[1] * s, u[0] * s + u[1] * c];
+        const wv = L[0] * v[0] + L[1] * v[1];
+        const disc = wv * wv + R * R - (L[0] * L[0] + L[1] * L[1]);
+        if (disc < 0) return null;
+        const t = -wv + Math.sqrt(disc);
+        if (!(t > 0)) return null;
+        const Q = [L[0] + t * v[0], L[1] + t * v[1]];
+        return Math.atan2(Q[0], -Q[1]);
+      };
+      const a1 = bate(phi), a2 = bate(-phi);
+      if (a1 === null || a2 === null) return null;
+      return { a1: Math.min(a1, a2), a2: Math.max(a1, a2), tiro: norma };
     }
   };
 }

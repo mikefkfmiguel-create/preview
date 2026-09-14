@@ -696,27 +696,62 @@ function desenharBlendCurvo(sala, curva) {
   distanciaDaFilaLimitada = pedida > maxima ? maxima : null;
   const distancia = distanciaDaFilaLimitada || pedida;
 
+  // EM ARCO OU EM LINHA RETA. Pedido direto: *"os projetores poderão ser
+  // posicionados tanto em círculo a acompanhar como em uma linha reta"*. Muda
+  // onde a máquina está e para onde olha -- daí para a frente (cortar no
+  // tamanho do ecrã, desenhar, escrever a ficha) é tudo igual, e por isso os
+  // dois caminhos separam-se só aqui e voltam a juntar-se três linhas abaixo.
+  // Uma carga antiga não traz `montagem` e lê-se como "arco", que era a única
+  // que existia.
+  const emLinha = curva.montagem === "linha" && curva.trussLargura > 0;
+
   ajustes.projetoresExtra.forEach((pe, i) => {
     if (!(pe.racio > 0) || !(distancia > 0)) return;
-    // Quanto arco é que esta lente apanha daqui. NÃO é distância ÷ rácio: isso
-    // é a largura numa parede, e aqui a superfície é côncava — ver
-    // medidasDaCurva().arcoDaLente(), que é onde a conta vive, a mesma que os
-    // Calculadores usam para escolher a lente. O rácio é da LENTE e fica de
-    // cada máquina; mexer na distância com a mesma lente faz a imagem crescer,
-    // que é o que acontece na vida real.
-    const larguraNoArco = m.arcoDaLente(pe.racio, distancia);
-    if (!(larguraNoArco > 0)) return;
+    const s = pe.arco || 0;
+    const alvo = m.pontoNoArco(s);
+    let projetor, aInicio, aFim, larguraNoArco, tiro;
+    if (emLinha) {
+      // A máquina na truss, à mesma fração do meio a que a sua fatia está no
+      // arco -- a fila na truss acompanha a fila no ecrã. A truss fica a
+      // `distancia` do ponto MAIS FUNDO do ecrã, que é o número que se mede na
+      // sala com uma fita, e por isso as máquinas das pontas ficam mais perto
+      // da sua fatia do que a do meio: são as pontas da curva que vêm à frente.
+      const fracao = m.arco > 0 ? s / (m.arco / 2) : 0;
+      const px = m.cx + fracao * (curva.trussLargura / 2);
+      const pz = m.cz - m.R + distancia;
+      projetor = { x: px, y: pe.altura || 0, z: pz };
+      // Daqui a fatia vê-se de esguelha, e o cone é simétrico: o pedaço de arco
+      // que ela apanha não é simétrico em relação ao alvo. Só a geometria a
+      // sério responde -- ver medidasDaCurva().arcoEntre().
+      const apanha = m.arcoEntre({ x: px, z: pz }, { x: alvo.x, z: alvo.z }, pe.racio);
+      // Sem interseção a máquina estaria fora da curva; os Calculadores recusam
+      // essa montagem na origem, por isso aqui é mesmo só uma guarda.
+      if (!apanha) return;
+      aInicio = apanha.a1;
+      aFim = apanha.a2;
+      tiro = apanha.tiro;
+      larguraNoArco = (apanha.a2 - apanha.a1) * m.R;
+    } else {
+      // Quanto arco é que esta lente apanha daqui. NÃO é distância ÷ rácio:
+      // isso é a largura numa parede, e aqui a superfície é côncava — ver
+      // medidasDaCurva().arcoDaLente(), a mesma conta que os Calculadores usam
+      // para escolher a lente. O rácio é da LENTE e fica de cada máquina; mexer
+      // na distância com a mesma lente faz a imagem crescer, como na vida real.
+      larguraNoArco = m.arcoDaLente(pe.racio, distancia);
+      if (!(larguraNoArco > 0)) return;
+      const lente = m.lenteNoArco(s, distancia);
+      projetor = { x: lente.x, y: pe.altura || 0, z: lente.z };
+      const meiaAbertura = (larguraNoArco / 2) / m.R;
+      aInicio = lente.angulo - meiaAbertura;
+      aFim = lente.angulo + meiaAbertura;
+      tiro = distancia;
+    }
     // A ALTURA sai da conta plana, e de propósito: a curvatura é só horizontal,
     // e no meio da fatia — onde a altura se mede — a superfície está mesmo a
-    // `distancia` da lente. Medi-la a partir do arco esticava a imagem para
-    // cima pelos mesmos 5,8% que a curva rouba à largura, e a imagem não é
-    // mais alta por o ecrã ser curvo.
-    const alturaImagem = distancia / pe.racio / formatoImagem;
-    const s = pe.arco || 0;
-    const meiaAbertura = (larguraNoArco / 2) / m.R;
-    const lente = m.lenteNoArco(s, distancia);
-    const alvo = m.pontoNoArco(s);
-    const projetor = { x: lente.x, y: pe.altura || 0, z: lente.z };
+    // `tiro` da lente. Medi-la a partir do arco esticava a imagem para cima
+    // pelos mesmos 5,8% que a curva rouba à largura, e a imagem não é mais alta
+    // por o ecrã ser curvo.
+    const alturaImagem = tiro / pe.racio / formatoImagem;
     // Cada fatia num raio ligeiramente diferente: nas zonas de blend duas
     // fatias ocupam a mesma superfície, e à mesma distância ficavam a piscar
     // uma contra a outra. Assim vê-se também onde elas se sobrepõem.
@@ -734,8 +769,8 @@ function desenharBlendCurvo(sala, curva) {
     // quanto é que ficou de fora (ver escreverCoordenadas()) -- calar isso era
     // mostrar uma cobertura que a sala não tem.
     const desvio = fila.shiftH * (larguraNoArco / m.R);
-    const aInicio = lente.angulo - meiaAbertura + desvio;
-    const aFim = lente.angulo + meiaAbertura + desvio;
+    aInicio += desvio;
+    aFim += desvio;
     const cortadoInicio = Math.max(aInicio, -m.meioAngulo);
     const cortadoFim = Math.min(aFim, m.meioAngulo);
     luzForaDoEcra += (cortadoInicio - aInicio) * m.R + (aFim - cortadoFim) * m.R;
@@ -5819,10 +5854,23 @@ function aplicarProjetores(lista) {
     }));
   }
   guardarAjustes(ajustes);
-  const aplicou = aplicarProjetor(primeiro);   // este já chama montar() no fim
+  // O CAMPO "DISTÂNCIA" MEDE COISAS DIFERENTES NAS DUAS MONTAGENS, e tem de
+  // nascer com a que corresponde. Em arco é o tiro, igual para todas. Em linha
+  // reta é a distância da TRUSS ao ponto mais fundo do ecrã -- e aí o tiro de
+  // cada máquina é maior ou menor do que isso conforme a fatia dela. Sem esta
+  // troca, o campo nascia com o tiro da primeira máquina (10,40 m em vez dos
+  // 12 m da truss) e o 3D desenhava a fila inteira encostada ao ecrã: fatias de
+  // 9,3 m onde os Calculadores diziam 10,5 m.
+  const cabeca = (lista.curva && lista.curva.montagem === "linha" && lista.curva.trussDistancia > 0)
+    ? { ...primeiro, distancia: lista.curva.trussDistancia }
+    : primeiro;
+  const aplicou = aplicarProjetor(cabeca);   // este já chama montar() no fim
   if (aplicou && resto.length) {
     $("notaProj").innerHTML += lista.curva
-      ? ` + ${resto.length} do blend, num ecrã curvo de ${nnum(lista.curva.raio)} m de raio.`
+      ? ` + ${resto.length} do blend, num ecrã curvo de ${nnum(lista.curva.raio)} m de raio` +
+        (lista.curva.montagem === "linha"
+          ? `, com as máquinas numa linha reta de ${nnum(lista.curva.trussLargura)} m.`
+          : `, com as máquinas em arco.`)
       : ` + ${resto.length} do blend.`;
   }
   return aplicou;
