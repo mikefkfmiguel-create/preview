@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.33</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.35</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -332,6 +332,19 @@
       <label>Lente fora do eixo ↔ <input id="projLateral" type="number" value="0" min="-30" max="30" step="0.1"><i>m</i></label>
       <label>Shift vertical <input id="projShiftV" type="number" value="-25" min="-200" max="200" step="5"><i>%</i></label>
       <label>Shift horizontal <input id="projShiftH" type="number" value="0" min="-200" max="200" step="5"><i>%</i></label>
+    </div>
+    <!-- Onde fica o ECRÃ CURVO na sala. Só aparece quando o projeto traz um:
+         num ecrã plano a imagem move-se movendo o projetor (é a lente e o
+         shift que a põem no sítio), mas um ecrã curvo é uma superfície com
+         lugar próprio — nascia colado à parede da frente e centrado, sem
+         maneira nenhuma de lhe tocar. Os projetores vão atrás, porque estão
+         no arco concêntrico com ele. -->
+    <div id="curvaPosicaoWrap" style="display:none; margin-top:10px">
+      <p class="vazio" style="margin:0 0 6px">Onde fica o ecrã curvo</p>
+      <div class="campos">
+        <label>↔ <input id="curvaDx" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
+        <label>Fundo <input id="curvaDz" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
+      </div>
     </div>
     <div class="vistas" style="margin-top:10px">
       <button data-formato="1.777">16:9</button>
