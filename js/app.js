@@ -698,12 +698,20 @@ function desenharBlendCurvo(sala, curva) {
 
   ajustes.projetoresExtra.forEach((pe, i) => {
     if (!(pe.racio > 0) || !(distancia > 0)) return;
-    // Com rácio = distância ÷ largura da fatia (é assim que os Calculadores o
-    // escrevem), isto devolve a largura da fatia medida SOBRE o arco. O rácio
-    // é da LENTE e fica de cada máquina; mexer na distância com a mesma lente
-    // faz a imagem crescer, que é o que acontece na vida real.
-    const larguraNoArco = distancia / pe.racio;
-    const alturaImagem = larguraNoArco / formatoImagem;
+    // Quanto arco é que esta lente apanha daqui. NÃO é distância ÷ rácio: isso
+    // é a largura numa parede, e aqui a superfície é côncava — ver
+    // medidasDaCurva().arcoDaLente(), que é onde a conta vive, a mesma que os
+    // Calculadores usam para escolher a lente. O rácio é da LENTE e fica de
+    // cada máquina; mexer na distância com a mesma lente faz a imagem crescer,
+    // que é o que acontece na vida real.
+    const larguraNoArco = m.arcoDaLente(pe.racio, distancia);
+    if (!(larguraNoArco > 0)) return;
+    // A ALTURA sai da conta plana, e de propósito: a curvatura é só horizontal,
+    // e no meio da fatia — onde a altura se mede — a superfície está mesmo a
+    // `distancia` da lente. Medi-la a partir do arco esticava a imagem para
+    // cima pelos mesmos 5,8% que a curva rouba à largura, e a imagem não é
+    // mais alta por o ecrã ser curvo.
+    const alturaImagem = distancia / pe.racio / formatoImagem;
     const s = pe.arco || 0;
     const meiaAbertura = (larguraNoArco / 2) / m.R;
     const lente = m.lenteNoArco(s, distancia);

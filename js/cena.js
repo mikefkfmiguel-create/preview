@@ -2407,6 +2407,33 @@ export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
       const a = s / R;
       const r = R - t;
       return { x: cx + r * Math.sin(a), z: cz - r * Math.cos(a), angulo: a };
+    },
+    /**
+     * QUANTO ARCO É QUE ESTA LENTE APANHA, a `t` da superfície.
+     *
+     * Não é `t ÷ rácio`: isso é a largura numa PAREDE, e uma parede está toda à
+     * mesma distância do eixo. Numa superfície côncava as pontas do feixe
+     * afastam-se e batem mais cedo, por isso a mesma lente cobre MENOS arco do
+     * que a conta plana promete — 5,8% menos num raio de 15 m com 6 m de tiro,
+     * medido. Numa fila de quatro, 5,8% por fatia são 1,7 m de arco por cobrir:
+     * o suficiente para comer o blend todo e abrir banda preta entre imagens.
+     *
+     * A lente está a r = R − t do centro. Um raio que sai a phi do eixo bate na
+     * superfície a uma distância d dada por |L + d·v| = R, e esse ponto ocupa
+     * no círculo um ângulo asin(d·sin phi / R).
+     *
+     * A mesma conta existe do lado dos Calculadores, que é quem escolhe a
+     * lente. São duas apps separadas e a ponte leva dados, não funções — o que
+     * não pode acontecer é uma ter a conta e a outra não, que era o caso.
+     */
+    arcoDaLente(racio, t) {
+      if (!(racio > 0) || !(t > 0)) return 0;
+      const phi = Math.atan(1 / (2 * racio));
+      const r = R - t;
+      if (r <= 0) return 0;
+      const cos = Math.cos(phi);
+      const d = -r * cos + Math.sqrt(r * r * cos * cos + R * R - r * r);
+      return 2 * R * Math.asin(Math.min(1, (d * Math.sin(phi)) / R));
     }
   };
 }
