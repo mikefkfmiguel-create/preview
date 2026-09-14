@@ -2178,6 +2178,43 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — o ecrã não era um ecrã, era a soma das imagens (v3.36)
+
+O mike mandou duas fotografias e uma pergunta só: **"???????"**. Na do Preview,
+um ecrã curvo de **28 m de corda** desenhado como uma ferradura quase fechada,
+enrolada à volta de si própria. Não há resposta possível a isso sem perceber o
+que a app estava a desenhar.
+
+Medido em vez de adivinhado. Com os números dele (corda 28, diâmetro 36, altura
+5,5), o arco que os Calculadores mandam é 32,08 m, e o desenho à distância
+calculada (4 m) dá exatamente isso: x de −14,01 a +14,01, flecha 6,70 m. **A
+geometria estava certa.** O que não estava era o que acontecia a seguir:
+
+| Distância escrita no Preview | Onde a "tela" ia parar |
+|---|---|
+| 4 m (a dos Calculadores) | x ±14,0 · z −24,65 a −17,95 ✓ |
+| 12 m | x ±17,8 · z até −9,34 |
+| 17,5 m | x ±18,0 · z até **0** — meia sala |
+
+A causa é uma frase: **não havia ecrã nenhum**. A superfície desenhada era a
+soma das imagens, e a largura de cada imagem sai de `distância ÷ rácio`. Desde
+a v3.34 o campo da distância mexe mesmo no desenho — o que era o que faltava —
+e a primeira coisa que o mike fez foi subi-lo. Uma imagem maior do que a tela
+não encontrava tela nenhuma onde parar: crescia sobre o cilindro até dar a
+volta.
+
+Na sala isto não acontece: o ecrã tem o tamanho que tem, e a luz que passa das
+pontas **cai ao lado e perde-se**. É o que passa a estar desenhado — cada fatia
+cortada em `±arco/2` — e o que sobra vai escrito na nota das coordenadas
+("102,51 m de imagem fora do ecrã"), porque cortar em silêncio era trocar um
+disparate visível por um erro invisível: um 3D certinho que só se desmente no
+dia da montagem.
+
+Os dois avisos do ecrã curvo (este e o da distância limitada pelo raio)
+mudaram-se para dentro da `notaDeLeitura()`, que já é a única fonte dos três
+sítios onde as coordenadas saem daqui — painel, "Copiar" e página do relatório.
+Estavam só no painel; quem imprimisse a folha não os via.
+
 ## 14 de setembro — o ecrã curvo passa a ter sítio na sala (v3.35)
 
 Reportado a meio de outra coisa: *"não consigo mudar a posição do ecrã"*. É
