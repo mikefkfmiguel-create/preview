@@ -121,10 +121,23 @@ let ajustes = ajustesGuardados();
 // Calculadores gravam); se não for JSON válido (o que o Preview grava
 // sozinho, em bruto), usa o valor tal como está — os dois lados leem-se um
 // ao outro corretamente, e qualquer um dos dois formatos continua a servir.
+// Já se disse a esta pessoa que a sincronização passou a nascer desligada? Uma
+// vez chega, e a chave é partilhada com os Calculadores: quem abrir primeiro
+// avisa, o outro fica calado.
+const CHAVE_AVISO_SINC = "mikeapps-sincronizacao-aviso-v1";
+
+/**
+ * DESLIGADA POR OMISSÃO, desde a v3.50 deste lado.
+ *
+ * Pedido: *"abre sempre dos dois lados com o sync desligado e em projeto limpo
+ * até eu abrir um"*. Antes, a ausência da chave lia-se como LIGADA -- e uma
+ * app que começa a receber e a devolver coisas sem ninguém pedir é o contrário
+ * do que se quer de manhã, no terreno.
+ */
 function sincronizacaoAutomaticaLigada() {
   let bruto;
-  try { bruto = localStorage.getItem(CHAVE_SINCRONIZACAO); } catch (_) { return true; }
-  if (bruto == null) return true;
+  try { bruto = localStorage.getItem(CHAVE_SINCRONIZACAO); } catch (_) { return false; }
+  if (bruto == null) return false;
   let valor = bruto;
   try {
     const interpretado = JSON.parse(bruto);
@@ -6698,6 +6711,24 @@ $("btSincronizar").onclick = () => {
   setTimeout(() => aviso.classList.remove("mostra"), 3000);
 };
 
+/**
+ * A MIGRAÇÃO, QUE NÃO PODE SER MUDA.
+ *
+ * Quem nunca tocou no interruptor tinha-o ligado sem saber. Virá-lo em silêncio
+ * era deixá-lo a descobrir sozinho que o 3D deixou de receber -- o defeito que
+ * esta app passa a vida a corrigir. Escreve-se o valor por extenso (deixa de
+ * haver ausência para interpretar) e diz-se, uma vez só.
+ */
+function migrarSincronizacao() {
+  try {
+    if (localStorage.getItem(CHAVE_SINCRONIZACAO) != null) return false;
+    if (localStorage.getItem(CHAVE_AVISO_SINC) === "1") return false;
+    localStorage.setItem(CHAVE_SINCRONIZACAO, JSON.stringify("desligada"));
+    localStorage.setItem(CHAVE_AVISO_SINC, "1");
+    return true;
+  } catch (_) { return false; }
+}
+
 $("btSincronizacao").onclick = () => {
   try {
     // Mesmo formato que os Calculadores usam (JSON.stringify) — ver a nota em
@@ -6709,6 +6740,11 @@ $("btSincronizacao").onclick = () => {
   atualizarBotaoSincronizacao();
 };
 atualizarBotaoSincronizacao();
+if (migrarSincronizacao()) {
+  atualizarBotaoSincronizacao();
+  dizerNaCena("A app passou a abrir com a sincronização automática DESLIGADA, " +
+    "para nada entrar nem sair sem tu pedires. O 🔗 aqui em cima liga-a.");
+}
 
 // ------------------------------------------------------------ dobrar o painel
 //
