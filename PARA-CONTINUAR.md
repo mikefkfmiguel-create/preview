@@ -2178,6 +2178,39 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — três coisas que não obedeciam ao rato (v3.45)
+
+Três queixas seguidas, todas da mesma família: a cena mostrava uma coisa e
+reagia a outra.
+
+**O boneco preso a um palco que não existe.** *"Lá anda o boneco, que não
+consigo movê-lo para onde quero."* E não conseguia mesmo. Desde a v3.32 a app
+nasce vazia — o palco vem desligado — mas as **medidas** dele continuam
+escritas nos campos, e o código lia as medidas, não a sala:
+`palco.altura > 0 && palco.profundidade > 0`. Resultado: o orador ficava
+limitado à largura de um palco invisível e pousado a 1 m de altura, em cima de
+nada. Passa a ler também o `verPalco`, nos **dois** sítios que decidem isto (o
+`montar()` e o arrasto) — a mesma pergunta feita duas vezes é a doença desta
+casa. Medido: a figura passou de y=1 · z≈−19,3 (encostada ao fundo de um palco
+fantasma) para y=0 · z=3,59.
+
+**O ecrã curvo não se agarrava.** *"E não tenho como ajustar o ecrã também."*
+Os campos da posição existem desde a v3.35, mas numa secção do painel lateral;
+carregar no pano dentro da sala não fazia nada. Agora o `ecra-curvo` é um alvo
+de arrasto como os outros, e o painel flutuante da v3.43 abre com **↔ · fundo ·
+base**. São os mesmos campos do painel lateral, não uma segunda cópia deles.
+Verificado: arrastar escreveu `curvaDx = 7,25`; escrever 3 na base pôs
+`curvaBase = 3`.
+
+**As marcas ficavam para trás.** *"O orador fica marcado se puser o palco, mas
+quando o movo fica a marca vermelha para trás."* As marcas laranja de quem tapa
+o feixe (v3.44) nascem no `montar()`, e arrastar o boneco não remonta a sala —
+mexe na figura, mede a sombra, e mais nada. A marca ficava no sítio de onde ele
+saiu. Refaz-se agora **só o grupo das marcas** a cada movimento, nos três
+caminhos de arrasto (cúpula, tampo, chão): remontar a sala inteira a cada pixel
+não responderia ao dedo. Medido: figura em x=−4,02 → 0 marcas; arrastada para
+x=5,97 → 6 marcas, uma delas ao lado dela, durante e depois do arrasto.
+
 ## 14 de setembro — quem tapa o feixe da fila do blend (v3.44)
 
 Pedido antigo, finalmente feito: *"posição de instalação dos projetores também,

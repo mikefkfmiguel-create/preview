@@ -490,7 +490,15 @@ function montar(recentrarCamara) {
   // abaixo, com as regras dela.
   const figura = (!soCupula && $("verOrador").checked) ? fazerFigura(1.75, null, true) : null;
   const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
-  const noPalco = palco.altura > 0 && palco.profundidade > 0;
+  // UM PALCO QUE NÃO ESTÁ NA SALA NÃO MANDA NO BONECO.
+  //
+  // Desde que a app nasce vazia (v3.32) o palco vem desligado, mas as MEDIDAS
+  // dele continuam escritas -- e isto lia as medidas, não a sala. O orador
+  // ficava preso ao retângulo de um palco invisível e 1 m no ar, em cima de
+  // nada. Reportado assim: *"lá anda o boneco, que não consigo movê-lo para
+  // onde quero"* -- e não conseguia mesmo: estava preso a uma coisa que ele
+  // não via e não tinha pedido.
+  const noPalco = $("verPalco").checked && palco.altura > 0 && palco.profundidade > 0;
   const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
   const x = -(medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
   if (figura) {
@@ -745,6 +753,27 @@ function esquecerBaseDoEcraAnterior() {
  * elas afectam -- que é o que decide se a montagem se aguenta ou se é preciso
  * subir as máquinas.
  */
+/**
+ * AS MARCAS ACOMPANHAM QUEM SE MEXE.
+ *
+ * Reportado: *"o orador fica marcado se puser o palco, mas quando o movo fica
+ * a marca vermelha para trás"*. E ficava: as marcas nascem no montar(), e
+ * arrastar o boneco não remonta a sala -- mexe na figura e mede a sombra, e
+ * mais nada. A marca ficava no sítio de onde ele saiu, a apontar para o
+ * passado.
+ *
+ * Refaz-se só o grupo das marcas, não a sala inteira: arrastar tem de
+ * responder ao dedo, e remontar tudo a cada pixel de movimento não responde.
+ */
+function atualizarMarcasDoBlend() {
+  if (!desenhado || !feixesDoBlend.length) return;
+  const velho = desenhado.getObjectByName("aux:tapa-feixe");
+  if (velho) desenhado.remove(velho);
+  tapamOBlend = quemTapaOFeixe(feixesDoBlend, caixasQueTapam());
+  if (tapamOBlend.tapam.length) desenhado.add(marcarQuemTapa(tapamOBlend.tapam));
+  escreverQuemTapaOBlend();
+}
+
 function escreverQuemTapaOBlend() {
   const nota = $("notaTapaBlend");
   if (!nota) return;
@@ -5569,6 +5598,7 @@ tela.addEventListener("pointermove", (e) => {
     figura.position.set(alvoX * k, 0, alvoZ * k);
     figura.updateMatrixWorld(true);
     ondeEstaNaDome = { x: figura.position.x, z: figura.position.z };
+    atualizarMarcasDoBlend();
     atualizarNotaDaCupula();
     return;
   }
@@ -5587,6 +5617,7 @@ tela.addEventListener("pointermove", (e) => {
     figura.updateMatrixWorld(true);
     ondeEsta = { x: figura.position.x, z: figura.position.z };
     medirSombra();
+    atualizarMarcasDoBlend();
     atualizarNotaDaCupula();
     return;
   }
@@ -5595,7 +5626,15 @@ tela.addEventListener("pointermove", (e) => {
 
   const sala = lerSala();
   const palco = lerPalco();
-  const noPalco = palco.altura > 0 && palco.profundidade > 0;
+  // UM PALCO QUE NÃO ESTÁ NA SALA NÃO MANDA NO BONECO.
+  //
+  // Desde que a app nasce vazia (v3.32) o palco vem desligado, mas as MEDIDAS
+  // dele continuam escritas -- e isto lia as medidas, não a sala. O orador
+  // ficava preso ao retângulo de um palco invisível e 1 m no ar, em cima de
+  // nada. Reportado assim: *"lá anda o boneco, que não consigo movê-lo para
+  // onde quero"* -- e não conseguia mesmo: estava preso a uma coisa que ele
+  // não via e não tinha pedido.
+  const noPalco = $("verPalco").checked && palco.altura > 0 && palco.profundidade > 0;
   const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
   const limiteX = (noPalco ? larguraPalco : sala.largura) / 2 - 0.4;
   const fundoZ = -sala.profundidade / 2 + 0.5;
@@ -5632,6 +5671,7 @@ tela.addEventListener("pointermove", (e) => {
   figura.updateMatrixWorld(true);
   ondeEsta = { x: figura.position.x, z: figura.position.z };
   medirSombra();
+  atualizarMarcasDoBlend();
   atualizarNotaDaCupula();
 });
 
@@ -5771,6 +5811,29 @@ const CAMPOS_PROJETOR = [
   { rotulo: "altura", chave: "altura", unidade: "m", passo: "0.05" }
 ];
 
+/**
+ * O ECRÃ CURVO, agarrável como tudo o resto.
+ *
+ * Os campos da posição dele existem desde a v3.35, mas numa secção do painel:
+ * quem estava a olhar para a sala carregava no pano e não acontecia nada.
+ * Reportado a seguir ao boneco: *"e não tenho como ajustar o ecrã também"*.
+ * Agora é um alvo como os outros -- arrasta-se, e o painel flutuante abre com
+ * o ↔, o fundo e a base. São os mesmos campos do painel lateral, não uma
+ * segunda cópia deles.
+ */
+function alvoDoEcraCurvo() {
+  return {
+    ...alvoDeCampos("curvaDx", "curvaDz"),
+    ajuste: ajusteSobreCampos({ dx: "curvaDx", dz: "curvaDz", base: "curvaBase" })
+  };
+}
+
+const CAMPOS_ECRA_CURVO = [
+  { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.25" },
+  { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.25" },
+  { rotulo: "base", chave: "base", unidade: "m", passo: "0.1" }
+];
+
 function objetosArrastaveis() {
   if (!desenhado) return [];
   const publicoAtual = lerPublico();
@@ -5786,6 +5849,8 @@ function objetosArrastaveis() {
     } else if (o.name.indexOf("dsm ") === 0) {
       const aj = ajustes.dsm[parseInt(o.name.slice(4), 10) - 1];
       if (aj) alvos.push({ obj: o, rotulo: "DSM " + o.name.slice(4), campos: CAMPOS_POSICAO, ...alvoDeAjuste(aj) });
+    } else if (o.name === "ecra-curvo") {
+      alvos.push({ obj: o, rotulo: "Ecrã curvo", campos: CAMPOS_ECRA_CURVO, ...alvoDoEcraCurvo() });
     } else if (o.name === "regie") {
       alvos.push({ obj: o, rotulo: "Régie", campos: CAMPOS_SO_XZ, ...alvoDeCampos("regieX", "regieZ") });
     } else if (o.name === "projetor-0") {
