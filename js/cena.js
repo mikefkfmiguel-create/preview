@@ -2546,6 +2546,32 @@ export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
       return 2 * R * Math.asin(Math.min(1, (d * Math.sin(phi)) / R));
     },
     /**
+     * O MESMO, MAS DE TRÁS DO PANO.
+     *
+     * Em retroprojeção a lente fica a R + t do centro e o feixe aponta para
+     * dentro. Vista dali a superfície é CONVEXA: vem ao encontro das pontas do
+     * feixe em vez de fugir delas, e a mesma lente cobre MAIS arco, não menos.
+     * O sinal da correção troca, e com ele o erro que custa dinheiro — usar a
+     * conta do frontal aqui punha imagem a transbordar para a fatia do lado.
+     * Medido com R = 15 m e 6 m de tiro, a 0,80:1: +11,0% em retro contra
+     * −6,0% em frontal.
+     *
+     * Das duas interseções do raio com o círculo conta a PRIMEIRA: a luz para
+     * na casca, não a atravessa para ir bater do outro lado.
+     */
+    arcoDaLenteAtras(racio, t) {
+      if (!(racio > 0) || !(t > 0)) return 0;
+      const phi = Math.atan(1 / (2 * racio));
+      const r = R + t;
+      const sin = Math.sin(phi);
+      const disc = R * R - r * r * sin * sin;
+      // Feixe tão aberto que a ponta passa ao lado do cilindro: apanha tudo o
+      // que há deste lado, e o limite é o ponto de tangência.
+      if (disc <= 0) return Math.PI * R;
+      const d = r * Math.cos(phi) - Math.sqrt(disc);
+      return 2 * R * Math.asin(Math.min(1, (d * sin) / R));
+    },
+    /**
      * ONDE É QUE ESTA LENTE APANHA O ECRÃ, de um sítio qualquer e virada para
      * onde quiser.
      *
@@ -2560,10 +2586,13 @@ export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
      * `de` e `para` em coordenadas da sala (x, z). Devolve os dois ângulos no
      * arco e o tiro, ou null se o feixe não bate na superfície.
      */
-    arcoEntre(de, para, racio) {
+    arcoEntre(de, para, racio, atras) {
       if (!(racio > 0)) return null;
       const L = [de.x - cx, de.z - cz];
-      if (Math.hypot(L[0], L[1]) >= R) return null;   // a lente fora da curva
+      const aoCentro = Math.hypot(L[0], L[1]);
+      // Em frontal a lente tem de estar DENTRO do círculo; em retro, fora. Cada
+      // um dos dois erros é uma montagem que não existe.
+      if (atras ? aoCentro <= R : aoCentro >= R) return null;
       const d = [para.x - de.x, para.z - de.z];
       const norma = Math.hypot(d[0], d[1]);
       if (!(norma > 0)) return null;
@@ -2575,7 +2604,9 @@ export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
         const wv = L[0] * v[0] + L[1] * v[1];
         const disc = wv * wv + R * R - (L[0] * L[0] + L[1] * L[1]);
         if (disc < 0) return null;
-        const t = -wv + Math.sqrt(disc);
+        // De fora do círculo a que conta é a primeira interseção; de dentro só
+        // há uma à frente.
+        const t = atras ? -wv - Math.sqrt(disc) : -wv + Math.sqrt(disc);
         if (!(t > 0)) return null;
         const Q = [L[0] + t * v[0], L[1] + t * v[1]];
         return Math.atan2(Q[0], -Q[1]);
