@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.40</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.41</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -350,6 +350,17 @@
              com a curva; a colocação física é sempre daqui. -->
         <label>Base <input id="curvaBase" type="number" value="0" min="-10" max="40" step="0.1"><i>m</i></label>
       </div>
+      <!-- MOVER O ECRÃ, COM OU SEM AS MÁQUINAS. Pedido direto: "preciso do
+           ecrã de projeção até para reposicionar no 3D, e forma de levar os
+           projetores com ele ou não".
+           Ligado, move-se a montagem inteira: é arrumar o rig na sala, e a
+           imagem não muda porque a geometria entre máquinas e pano é a mesma.
+           Desligado, o pano vai sozinho e as máquinas ficam onde estão -- que
+           é a pergunta interessante: onde é que o feixe passa a bater. -->
+      <label class="opcao" style="margin-top:6px">
+        <input id="curvaLevaProjetores" type="checkbox" checked> Levar os projetores com o ecrã
+      </label>
+      <p class="vazio" id="curvaLevaNota" style="margin:4px 0 0"></p>
     </div>
     <div class="vistas" style="margin-top:10px">
       <button data-formato="1.777">16:9</button>

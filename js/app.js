@@ -92,6 +92,11 @@ let distanciaDaFilaLimitada = null;
 // Quanta luz, em metros de arco, está a cair ao lado do ecrã curvo -- ver
 // desenharBlendCurvo(), onde as fatias são cortadas ao tamanho da superfície.
 let luzForaDoEcra = 0;
+// Máquinas cujo feixe já não encontra o pano nenhum -- só acontece com o ecrã
+// movido sem elas (ver desenharBlendCurvo()). Não se desenha o que não existe,
+// mas também não se cala: uma máquina que desaparece do 3D sem explicação é
+// pior do que uma máquina no sítio errado.
+let maquinasForaDoPano = 0;
 let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
@@ -337,6 +342,12 @@ function montar(recentrarCamara) {
   // Onde fica o ecrã curvo — dois campos que só fazem sentido quando há um.
   if ($("curvaPosicaoWrap")) {
     $("curvaPosicaoWrap").style.display = curvaAtivaDoBlend() ? "" : "none";
+    if ($("curvaLevaNota")) {
+      const leva = !$("curvaLevaProjetores") || $("curvaLevaProjetores").checked;
+      $("curvaLevaNota").textContent = leva
+        ? "Move-se a montagem toda: a imagem fica igual, só muda de sítio na sala."
+        : "O pano vai sozinho e as máquinas ficam onde estão — é assim que se vê onde o feixe passa a bater.";
+    }
   }
   // A secção das coordenadas aparece com projetores de cúpula OU de ecrã
   // plano -- a projeção simples e o blend contam, e é o próprio desenho deles
@@ -536,6 +547,7 @@ function montar(recentrarCamara) {
   const curvaDoBlend = curvaAtivaDoBlend();
   distanciaDaFilaLimitada = null;
   luzForaDoEcra = 0;
+  maquinasForaDoPano = 0;
   if (curvaDoBlend) {
     desenharBlendCurvo(sala, curvaDoBlend);
   } else {
@@ -660,6 +672,41 @@ function alturaDaBaseDoEcra() {
   return $("curvaBase") ? num("curvaBase") : 0;
 }
 
+/**
+ * SUBIR O PANO LEVA AS MÁQUINAS, quando se pediu que levasse.
+ *
+ * O dx/dz move o centro da curvatura e as máquinas vão atrás sozinhas, porque
+ * saem dele. A base não: a altura das lentes é um campo à parte, e sem isto
+ * subir o ecrã dois metros deixava a fila no chão — "levar os projetores com o
+ * ecrã" ligado e as máquinas a não irem.
+ *
+ * Mexe no CAMPO, e não num valor escondido, para o número continuar à vista e
+ * editável. Escrever `.value` não dispara `input`, por isso não há volta ao
+ * mesmo sítio.
+ */
+let baseDoEcraAnterior = 0;
+function acompanharBaseDoEcra() {
+  const agora = alturaDaBaseDoEcra();
+  const leva = !$("curvaLevaProjetores") || $("curvaLevaProjetores").checked;
+  if (leva && agora !== baseDoEcraAnterior && $("projAltura")) {
+    $("projAltura").value = (num("projAltura") + (agora - baseDoEcraAnterior)).toFixed(2);
+  }
+  baseDoEcraAnterior = agora;
+}
+
+/**
+ * Reaprender a base sem mexer nas lentes.
+ *
+ * Abrir um projeto guardado escreve os campos todos de uma vez, sem disparar
+ * `input` -- e se a base de lá for diferente da que cá estava, a mexida
+ * seguinte calculava a diferença contra o valor errado e atirava a fila para
+ * outro sítio de uma vez só. Depois de encher os campos, regista-se a base
+ * nova e mais nada.
+ */
+function esquecerBaseDoEcraAnterior() {
+  baseDoEcraAnterior = alturaDaBaseDoEcra();
+}
+
 function curvaAtivaDoBlend() {
   const c = ajustes.curvaDoBlend;
   if (!c || !(c.raio > 0) || !(c.arco > 0)) return null;
@@ -685,6 +732,27 @@ function desenharBlendCurvo(sala, curva) {
   const z0 = -sala.profundidade / 2 + 0.35;
   const m = medidasDaCurva(curva, z0, num("curvaDx"), num("curvaDz"));
   if (!m) return;
+
+  // ONDE O PANO ESTÁ, E ONDE AS MÁQUINAS FORAM MONTADAS: dois sítios, e desde
+  // agora podem ser diferentes.
+  //
+  // Pedido direto: *"preciso do ecrã de projeção até para reposicionar no 3D,
+  // e forma de levar os projetores com ele ou não"*. Com o interruptor ligado
+  // move-se a montagem inteira — é arrumar o rig na sala, e a imagem não muda,
+  // porque a geometria entre máquinas e pano é a mesma. Desligado, o pano vai
+  // sozinho e as máquinas ficam onde estavam: é aí que se vê o feixe a bater
+  // ao lado, que é a pergunta que faz valer a pena mover uma coisa sem a outra.
+  //
+  // `mMaquinas` é o ecrã NA POSIÇÃO DE ORIGEM — a que a montagem foi pensada.
+  // Serve só para colocar e orientar as máquinas; a luz delas bate sempre em
+  // `m`, o pano onde ele está agora.
+  const leva = !$("curvaLevaProjetores") || $("curvaLevaProjetores").checked;
+  const mMaquinas = leva ? m : medidasDaCurva(curva, z0, 0, 0);
+  if (!mMaquinas) return;
+  // Fora do sítio, o arco concêntrico deixou de o ser: a conta rápida do caso
+  // em arco assume a lente no raio e a olhar a direito, e isso já não é
+  // verdade. A geometria geral serve os dois casos e não assume nada.
+  const desalinhado = !leva;
   // O shift é o do campo, igual para toda a fila — a mesma decisão do ecrã
   // plano ("deve ser de igual sim").
   const fila = lerProjecao();
@@ -726,7 +794,17 @@ function desenharBlendCurvo(sala, curva) {
   ajustes.projetoresExtra.forEach((pe, i) => {
     if (!(pe.racio > 0) || !(distancia > 0)) return;
     const s = pe.arco || 0;
-    const alvo = m.pontoNoArco(s);
+    // A altura desta máquina: a da fila (do campo) mais o que a distingue.
+    // Um ajuste guardado antes da v3.41 só tem a altura absoluta -- lê-se essa,
+    // para um projeto antigo não saltar de sítio ao reabrir.
+    const alturaMaquina = pe.alturaOffset !== undefined
+      ? fila.altura + pe.alturaOffset
+      : (pe.altura || 0);
+    // O ALVO é o ponto do pano que esta máquina foi montada a apontar — na
+    // posição de ORIGEM. Uma máquina aparafusada não se vira sozinha quando o
+    // pano anda para o lado: continua a mandar luz para o mesmo sítio do
+    // espaço, e é lá que o desenho a tem de mandar também.
+    const alvo = mMaquinas.pontoNoArco(s);
     let projetor, aInicio, aFim, larguraNoArco, tiro;
     if (emLinha) {
       // A máquina na truss, à mesma fração do meio a que a sua fatia está no
@@ -734,10 +812,10 @@ function desenharBlendCurvo(sala, curva) {
       // `distancia` do ponto MAIS FUNDO do ecrã, que é o número que se mede na
       // sala com uma fita, e por isso as máquinas das pontas ficam mais perto
       // da sua fatia do que a do meio: são as pontas da curva que vêm à frente.
-      const fracao = m.arco > 0 ? s / (m.arco / 2) : 0;
-      const px = m.cx + fracao * (curva.trussLargura / 2);
-      const pz = m.cz - m.R + distancia;
-      projetor = { x: px, y: pe.altura || 0, z: pz };
+      const fracao = mMaquinas.arco > 0 ? s / (mMaquinas.arco / 2) : 0;
+      const px = mMaquinas.cx + fracao * (curva.trussLargura / 2);
+      const pz = mMaquinas.cz - mMaquinas.R + distancia;
+      projetor = { x: px, y: alturaMaquina, z: pz };
       // Daqui a fatia vê-se de esguelha, e o cone é simétrico: o pedaço de arco
       // que ela apanha não é simétrico em relação ao alvo. Só a geometria a
       // sério responde -- ver medidasDaCurva().arcoEntre().
@@ -755,14 +833,27 @@ function desenharBlendCurvo(sala, curva) {
       // medidasDaCurva().arcoDaLente(), a mesma conta que os Calculadores usam
       // para escolher a lente. O rácio é da LENTE e fica de cada máquina; mexer
       // na distância com a mesma lente faz a imagem crescer, como na vida real.
-      larguraNoArco = m.arcoDaLente(pe.racio, distancia);
-      if (!(larguraNoArco > 0)) return;
-      const lente = m.lenteNoArco(s, distancia);
-      projetor = { x: lente.x, y: pe.altura || 0, z: lente.z };
-      const meiaAbertura = (larguraNoArco / 2) / m.R;
-      aInicio = lente.angulo - meiaAbertura;
-      aFim = lente.angulo + meiaAbertura;
-      tiro = distancia;
+      const lente = mMaquinas.lenteNoArco(s, distancia);
+      projetor = { x: lente.x, y: alturaMaquina, z: lente.z };
+      if (desalinhado) {
+        // Com o pano fora do sítio da montagem, o arco já não é concêntrico
+        // com ele: a conta rápida (arcoDaLente) assume a lente no raio e a
+        // olhar a direito, e nenhuma das duas coisas continua verdade. A
+        // geometria geral não assume nada e serve os dois casos.
+        const apanha = m.arcoEntre({ x: lente.x, z: lente.z }, { x: alvo.x, z: alvo.z }, pe.racio);
+        if (!apanha) { maquinasForaDoPano += 1; return; }
+        aInicio = apanha.a1;
+        aFim = apanha.a2;
+        tiro = apanha.tiro;
+        larguraNoArco = (apanha.a2 - apanha.a1) * m.R;
+      } else {
+        larguraNoArco = m.arcoDaLente(pe.racio, distancia);
+        if (!(larguraNoArco > 0)) return;
+        const meiaAbertura = (larguraNoArco / 2) / m.R;
+        aInicio = lente.angulo - meiaAbertura;
+        aFim = lente.angulo + meiaAbertura;
+        tiro = distancia;
+      }
     }
     // A ALTURA sai da conta plana, e de propósito: a curvatura é só horizontal,
     // e no meio da fatia — onde a altura se mede — a superfície está mesmo a
@@ -801,7 +892,7 @@ function desenharBlendCurvo(sala, curva) {
     // e cresce com a distância — mas o pano tem a altura que tem. Uma máquina
     // montada a mais alto, ou perto de mais, atira metade da imagem para cima
     // do ecrã, e até aqui isso desenhava-se como se o ecrã crescesse.
-    const centroImagem = (pe.altura || 0) + fila.shiftV * alturaImagem;
+    const centroImagem = alturaMaquina + fila.shiftV * alturaImagem;
     const baixoImagem = centroImagem - alturaImagem / 2;
     const cimaImagem = centroImagem + alturaImagem / 2;
     const baixoEcra = alturaDaBaseDoEcra();
@@ -816,6 +907,9 @@ function desenharBlendCurvo(sala, curva) {
     // Inteiramente fora da tela, de lado ou por cima: não há fatia para
     // desenhar, mas a máquina continua a existir e a sua ficha também.
     if (cortadoFim <= cortadoInicio || cimaCortada <= baixoCortado) {
+      // Conta para o aviso: uma máquina que desaparece do 3D sem explicação é
+      // pior do que uma máquina desenhada no sítio errado.
+      maquinasForaDoPano += 1;
       montagemProjetores.push(fichaDeProjetorEm(
         "P" + (i + 1), projetor, { x: alvo.x, y: projetor.y, z: alvo.z },
         fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem));
@@ -1159,6 +1253,22 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
       nnum(curva.arco) + " m de arco" + (curva.altura > 0 ? " por " + nnum(curva.altura) + " m de altura" : "") +
       "), e o que passa das bordas cai ao lado. O desenho corta no limite do " +
       "ecrã. Para caber: menos distância, lentes de rácio maior, ou outra altura de montagem.");
+  }
+  // O PANO FOI MOVIDO SEM AS MÁQUINAS. É uma escolha legítima -- serve
+  // justamente para ver onde o feixe passa a bater -- mas quem lê as
+  // coordenadas tem de saber que descrevem uma montagem desalinhada, senão
+  // leva para a obra números que já não são os do projeto.
+  if (curva && $("curvaLevaProjetores") && !$("curvaLevaProjetores").checked &&
+      (num("curvaDx") !== 0 || num("curvaDz") !== 0)) {
+    linhas.push(forte("O ecrã foi movido sem os projetores") + ": as máquinas continuam onde a " +
+      "montagem as pôs e o pano andou " + nnum(num("curvaDx")) + " m para o lado e " +
+      nnum(num("curvaDz")) + " m em fundo. O que está desenhado é onde a luz bate agora — não é " +
+      "a montagem que os Calculadores calcularam." +
+      (maquinasForaDoPano > 0
+        ? " " + maquinasForaDoPano + (maquinasForaDoPano === 1
+            ? " máquina já não apanha o pano de todo, e por isso não está desenhada."
+            : " máquinas já não apanham o pano de todo, e por isso não estão desenhadas.")
+        : ""));
   }
   // ONDE FICA O PANO, na vertical. É o que decide se o cone bate no ecrã ou
   // acima dele, e quem monta precisa do número -- pedido direto: *"a altura a
@@ -3553,6 +3663,12 @@ function remontarDaqui(ms = 120) {
   temporizador = setTimeout(() => montar(false), ms);
 }
 
+// A base do ecrã tem de arrastar a altura das lentes ANTES do redesenho, senão
+// o primeiro desenho sai com a fila à altura antiga e só o seguinte corrige.
+if ($("curvaBase")) {
+  $("curvaBase").addEventListener("input", acompanharBaseDoEcra);
+  $("curvaBase").addEventListener("change", acompanharBaseDoEcra);
+}
 document.querySelectorAll("#painel input").forEach(campo => {
   campo.addEventListener("input", () => remontarDaqui());
   campo.addEventListener("change", () => remontarDaqui(0));
@@ -4199,7 +4315,8 @@ function estadoCompleto() {
     projecao: lerProjecao(),
     // Onde o ecrã curvo ficou na sala. Vai no ficheiro como tudo o resto: um
     // projeto reaberto tem de encontrar o ciclorama no sítio onde se deixou.
-    curvaPosicao: { dx: num("curvaDx"), dz: num("curvaDz"), base: num("curvaBase") },
+    curvaPosicao: { dx: num("curvaDx"), dz: num("curvaDz"), base: num("curvaBase"),
+                    leva: $("curvaLevaProjetores") ? $("curvaLevaProjetores").checked : true },
     projeto,
     ajustes,
     // As imagens que o mike põe nos ecrãs e nos DSM -- pedido direto: "não
@@ -4285,6 +4402,8 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("projShiftH", pj.shiftH != null ? pj.shiftH * 100 : null);
   const cp = estado.curvaPosicao || {};
   preencherCampo("curvaDx", cp.dx); preencherCampo("curvaDz", cp.dz); preencherCampo("curvaBase", cp.base);
+  preencherCheckbox("curvaLevaProjetores", cp.leva !== false);
+  esquecerBaseDoEcraAnterior();
 
   // A partir da v3.32 a app nasce VAZIA (sem palco, público, régie nem
   // orador). Um ficheiro guardado antes disso não diz que os tinha ligados --
@@ -5893,7 +6012,12 @@ function aplicarProjetores(lista) {
     ajustes.projetoresExtra = lista.map((p) => ({
       racio: p.racio, distancia: p.distancia,
       arco: p.lateral || 0,
-      altura: anchorAltura + ((p.alturaOffset || 0) - baseAltura),
+      // O OFFSET, não a altura absoluta. A altura da fila é do campo e tem de
+      // continuar a ser: congelada aqui, subir o ecrã com "levar os projetores"
+      // ligado subia o pano e deixava a fila onde estava. É a mesma decisão que
+      // já se tinha tomado para a distância e para o shift -- o campo manda, e
+      // cada máquina guarda só o que a distingue das outras.
+      alturaOffset: (p.alturaOffset || 0) - baseAltura,
       modelo: p.modelo, lente: p.lente
     }));
   } else {
@@ -5923,6 +6047,10 @@ function aplicarProjetores(lista) {
   // escrever o mesmo número duas vezes, e é o que faz o cone subir ou descer.
   if (lista.curva && lista.curva.altura > 0 && Number.isFinite(lista.curva.alturaLente)) {
     $("projAltura").value = (alturaDaBaseDoEcra() + lista.curva.alturaLente).toFixed(2);
+    // E O SHIFT que essa altura obriga, calculado do outro lado. O campo
+    // arrancava sempre a -25% e a imagem nascia meio metro abaixo do pano, com
+    // a app a dizer ao mesmo tempo, na outra aba, que o shift devia ser 0%.
+    if (Number.isFinite(lista.curva.shiftV)) $("projShiftV").value = lista.curva.shiftV;
   }
   const aplicou = aplicarProjetor(cabeca);   // este já chama montar() no fim
   if (aplicou && resto.length) {

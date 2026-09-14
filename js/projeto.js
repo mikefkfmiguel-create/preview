@@ -580,6 +580,10 @@ export function lerCurvaDoBlend(d) {
     // desenho lê como "não sei" e não como "rente ao chão".
     altura: numero(d.curva.altura, 0),
     alturaLente: numero(d.curva.alturaLente, 0),
+    // O shift que a montagem obriga, em % da altura da imagem. Vem de lá
+    // porque é lá que a grelha das filas vive. Sem isto o campo arrancava no
+    // -25% por omissão e a imagem nascia abaixo do pano.
+    shiftV: numero(d.curva.shiftV, NaN),
     montagem: emLinha ? "linha" : "arco",
     trussLargura: emLinha ? trussLargura : 0,
     trussDistancia: emLinha ? trussDistancia : 0
