@@ -85,6 +85,10 @@ let ondeEstaNaDome = null;
 // A ficha de montagem dos projetores de ecrã plano (o da projeção e os do
 // blend), enchida por quem os desenha -- ver escreverCoordenadas().
 let montagemProjetores = [];
+// Quando a distância escrita não cabe dentro do raio da curva, guarda-se aqui
+// o valor a que foi limitada -- para a nota das coordenadas o poder dizer, em
+// vez de o desenho mudar calado (ver desenharBlendCurvo()).
+let distanciaDaFilaLimitada = null;
 let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
@@ -523,6 +527,7 @@ function montar(recentrarCamara) {
   // (a primeira incluída) vivem no array, por isso desenhar também a projeção
   // plana era desenhar a primeira duas vezes, numa parede que ali não está.
   const curvaDoBlend = curvaAtivaDoBlend();
+  distanciaDaFilaLimitada = null;
   if (curvaDoBlend) {
     desenharBlendCurvo(sala, curvaDoBlend);
   } else {
@@ -665,15 +670,35 @@ function desenharBlendCurvo(sala, curva) {
   // plano ("deve ser de igual sim").
   const fila = lerProjecao();
 
+  // A DISTÂNCIA também é da fila inteira, e pela mesma razão só que mais
+  // forte: num arco concêntrico "a distância à superfície" é o raio de
+  // montagem, uma propriedade do arco e não de cada máquina — duas máquinas a
+  // distâncias diferentes já não estão no mesmo arco, e a grelha de fatias
+  // iguais que os Calculadores calcularam deixa de fazer sentido.
+  //
+  // Ficava lida do ajuste guardado e o campo "Distância" não fazia nada: o
+  // mike mexia no número e o desenho não se mexia. Reportado assim mesmo —
+  // "ao atualizar a distância dos projetores não está a desenhar".
+  //
+  // Passar do raio da curva punha a lente do OUTRO lado do centro, a projetar
+  // para trás. Os Calculadores já recusam isso na origem; aqui, onde o número
+  // se escreve à mão, limita-se e diz-se porquê (ver escreverCoordenadas()).
+  const pedida = fila.distancia > 0 ? fila.distancia : 0;
+  const maxima = m.R - 0.5;
+  distanciaDaFilaLimitada = pedida > maxima ? maxima : null;
+  const distancia = distanciaDaFilaLimitada || pedida;
+
   ajustes.projetoresExtra.forEach((pe, i) => {
-    if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
+    if (!(pe.racio > 0) || !(distancia > 0)) return;
     // Com rácio = distância ÷ largura da fatia (é assim que os Calculadores o
-    // escrevem), isto devolve a largura da fatia medida SOBRE o arco.
-    const larguraNoArco = pe.distancia / pe.racio;
+    // escrevem), isto devolve a largura da fatia medida SOBRE o arco. O rácio
+    // é da LENTE e fica de cada máquina; mexer na distância com a mesma lente
+    // faz a imagem crescer, que é o que acontece na vida real.
+    const larguraNoArco = distancia / pe.racio;
     const alturaImagem = larguraNoArco / formatoImagem;
     const s = pe.arco || 0;
     const meiaAbertura = (larguraNoArco / 2) / m.R;
-    const lente = m.lenteNoArco(s, pe.distancia);
+    const lente = m.lenteNoArco(s, distancia);
     const alvo = m.pontoNoArco(s);
     const projetor = { x: lente.x, y: pe.altura || 0, z: lente.z };
     // Cada fatia num raio ligeiramente diferente: nas zonas de blend duas
@@ -955,7 +980,18 @@ function escreverCoordenadas() {
   }
   caixa.innerHTML = html;
 
-  if (nota) nota.innerHTML = notaDeLeitura(temCupula, temPlanos, true).join(" ");
+  if (nota) {
+    const linhas = notaDeLeitura(temCupula, temPlanos, true);
+    // Um número limitado em silêncio é um número em que se confia por engano.
+    if (distanciaDaFilaLimitada) {
+      const curva = curvaAtivaDoBlend();
+      linhas.push("<b>Distância limitada a " + nnum(distanciaDaFilaLimitada) + " m</b>: " +
+        "num ecrã curvo os projetores ficam entre o centro da curvatura e a superfície, e " +
+        "o raio da curva é " + nnum(curva.raio) + " m — mais do que isso punha as máquinas do " +
+        "outro lado do centro, a projetar para trás.");
+    }
+    nota.innerHTML = linhas.join(" ");
+  }
 }
 
 /**
@@ -5361,6 +5397,12 @@ function objetosArrastaveis() {
       const i = parseInt(o.name.slice(10), 10) - 1;
       if (ajustes.passarelasExtra[i]) alvos.push({ obj: o, ...alvoDeAjuste(ajustes.passarelasExtra[i]) });
     } else if (o.name.indexOf("projetor-") === 0) {
+      // Num ecrã CURVO a posição de cada máquina não é dela: sai do arco (a
+      // fatia que lhe toca e a distância da fila). Arrastar escrevia um
+      // lateral/distância que o desenho curvo nem olha -- a caixa ia atrás do
+      // rato e voltava ao sítio no desenho seguinte, calada. Mais vale não
+      // pegar nela: quem quiser mexer mexe na distância ou na curva.
+      if (curvaAtivaDoBlend()) return;
       const i = parseInt(o.name.slice(9), 10) - 1;
       if (ajustes.projetoresExtra[i]) alvos.push({ obj: o, ...alvoDeProjetorExtra(lerSala(), ajustes.projetoresExtra[i]) });
     }

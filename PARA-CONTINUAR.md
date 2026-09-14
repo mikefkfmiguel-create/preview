@@ -2178,6 +2178,43 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — a distância do ecrã curvo não fazia nada (v3.34)
+
+Reportado poucas horas depois da v3.33: *"no 3D, ao atualizar a distância dos
+projetores não está a desenhar"*. É meu, e da mesma manhã.
+
+**O que era.** O `desenharBlendCurvo()` lia a distância do ajuste guardado
+(`pe.distancia`) e nunca olhava para o campo **Distância**. O campo estava ali,
+mexia-se, e o desenho não. Medido: com 6 → 10 m, os dois projetores ficavam
+parados em z = −5,93.
+
+**A correção, e porque é esta.** A distância passa a ser do **campo**, para a
+fila inteira — a mesma decisão do shift (*"deve ser de igual sim"*), só que
+aqui é mais forte do que uma preferência: **num arco concêntrico, "a distância
+à superfície" é o raio de montagem**, uma propriedade do arco e não de cada
+máquina. Duas máquinas a distâncias diferentes já não estão no mesmo arco, e a
+grelha de fatias iguais que os Calculadores calcularam deixa de fazer sentido.
+
+O rácio continua de cada máquina, que é o certo: é a lente. Mexer na distância
+com a mesma lente faz a imagem crescer, como na vida real.
+
+**Passar do raio.** Os Calculadores já recusam uma distância maior do que o
+raio da curva, mas aqui o número escreve-se à mão. Limita-se a R − 0,5 m e
+**diz-se porquê** na nota das coordenadas — um número limitado em silêncio é um
+número em que se confia por engano. Medido: com 20 m num raio de 15, limita a
+14,50 e escreve a razão.
+
+**Arrastar, que ficou pendurado.** Num ecrã curvo a posição de cada máquina sai
+do arco, mas as caixas continuavam arrastáveis: o arrasto escrevia um
+`lateral`/`distancia` que o desenho curvo nem olha, a caixa ia atrás do rato e
+voltava ao sítio no desenho seguinte, calada. Deixaram de se poder pegar. Quem
+quiser mexer, mexe na distância ou na curva.
+
+**O ecrã plano fica como estava**, de propósito: lá o campo move só a instância
+#0 e cada extra guarda a sua posição, porque lá os extras **são** arrastáveis e
+o arrasto é que lhes escreve a distância. Fazer o campo mandar em todos partia
+o arrasto. Fica dito porque parece incoerente ao lado do curvo, e não é.
+
 ## 14 de setembro — o ecrã curvo do blend vai ao 3D (v3.33 · Calculadores v3.62)
 
 O mike mandou duas fotografias: a aba Blending com um ciclorama de **29,55 m de
