@@ -620,7 +620,7 @@ function montar(recentrarCamara) {
       desenhado.add(desenharConesCobertura(montado, medidas, sala, palco, gente));
     }
   }
-  escreverPainelCobertura(cobertura);
+  escreverPainelCobertura(cobertura, !!(montado && montado.zonas.length));
 
   cena.add(desenhado);
   if (document.activeElement !== $("ecraL") && document.activeElement !== $("ecraA")) {
@@ -2007,12 +2007,37 @@ function desenharConesCobertura(projetoAtual, medidas, sala, palco, gente) {
   return grupo;
 }
 
-function escreverPainelCobertura(cobertura) {
+function escreverPainelCobertura(cobertura, temEcras) {
   const resumo = $("resumoCobertura");
   const lista = $("listaCoberturaBlocos");
   if (!cobertura) {
     resumo.className = "vazio";
-    resumo.textContent = "Sem ecrãs ou sem público para comparar.";
+    // QUAL DAS DUAS COISAS FALTA, e o caminho para a resolver.
+    //
+    // "Sem ecrãs ou sem público para comparar" é verdade e não serve para
+    // nada: deixa a pessoa a adivinhar qual das duas, e sem dizer onde se
+    // resolve. O mike chegou aqui com um ecrã montado e a plateia desligada,
+    // e a pergunta que fez foi mesmo essa -- *"falta gente não?"*.
+    //
+    // A plateia nasce desligada de propósito (v3.32, pedido dele: "tudo vazio
+    // e vou colocando"), e isso não muda. O que muda é a app dizer que é ela
+    // que falta, e pô-la na sala num clique -- as medidas já lá estão.
+    const temPublico = $("verPublico") && $("verPublico").checked;
+    if (temEcras && !temPublico) {
+      resumo.innerHTML = "Há ecrãs, mas não há plateia no desenho — e sem lugares não há nada " +
+        "para comparar. A plateia nasce desligada de propósito; as medidas dela já estão feitas.";
+      lista.className = "";
+      lista.innerHTML = '<button id="btPorPublico" style="width:100%">Pôr a plateia na sala</button>';
+      const bt = $("btPorPublico");
+      if (bt) bt.onclick = () => {
+        $("verPublico").checked = true;
+        $("verPublico").dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      return;
+    }
+    resumo.textContent = temPublico
+      ? "Há plateia, mas não há ecrãs montados para comparar."
+      : "Sem ecrãs e sem plateia: falta pôr os dois na sala.";
     lista.className = "vazio";
     lista.textContent = "-";
     return;

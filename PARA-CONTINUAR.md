@@ -2178,6 +2178,23 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — "falta gente não?" (v3.42)
+
+Pergunta dele, com foto: um ecrã montado na sala e a plateia por pôr. Não era
+defeito — a plateia nasce desligada desde a v3.32, a pedido dele próprio
+(*"tudo vazio e vou colocando"*), e isso não muda.
+
+O que estava mal era o sítio onde ele deu por isso. A **Cobertura da plateia**
+dizia *"Sem ecrãs ou sem público para comparar"* — verdade, e sem serventia
+nenhuma: não diz qual das duas coisas falta, nem onde se resolve. Um beco.
+
+Agora distingue os três casos e, quando o que falta é a plateia, põe lá o
+botão: *"Pôr a plateia na sala"*. As medidas dela já estão feitas — só estava
+desligada. Medido: um clique passa o painel de um beco para **840 lugares, 219
+confortáveis · 80 marginais · 541 sem cobertura**, e o contador do topo acende.
+
+A decisão de nascer vazia fica de pé. O que deixa de existir é o beco.
+
 ## 14 de setembro — mover o pano, com ou sem as máquinas (v3.41)
 
 Pedido direto: *"preciso do ecrã de projeção até para reposicionar no 3D, e
