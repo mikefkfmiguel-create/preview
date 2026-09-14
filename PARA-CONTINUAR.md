@@ -2178,6 +2178,33 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — os botões onde a mão está (v3.49)
+
+*"E visível no ecrã para mobiles."* Os botões do painel não servem no
+telemóvel: é precisamente enquanto se está a arrastar, com o painel fechado ou
+scrollado, que se faz a coisa que se quer desfazer.
+
+**↩︎ na cena**, ao lado do cadeado. Acende e apaga em sincronia com o do
+painel, porque são o mesmo botão em dois sítios.
+
+**O 🔄 passa a ser 🏠.** Já prometia *"repor a vista — útil se rodaste/afastaste
+de mais e já não vês a sala"* e fazia `vista("frente")`, que enquadra a SALA.
+Passa a fazer o "Trazer tudo à vista" inteiro, que enquadra o que EXISTE — é o
+mesmo trabalho feito melhor, e dois botões a fazerem quase a mesma coisa é a
+doença desta casa.
+
+**E o que eles fazem, dito na cena.** A nota do painel não chega a quem está a
+olhar para o 3D com o painel fechado. Um recado por cima da cena, que some
+sozinho ao fim de 4 segundos — é uma confirmação, não um aviso permanente.
+Texto único (`dizerNaCena()`) escrito nos dois lados: duas mensagens acabariam
+a discordar no dia em que uma delas mudasse.
+
+**Um atropelo apanhado a medir.** A 390 px o ↩︎ ficava **tapado** pela etiqueta
+do nome do projeto, que é centrada e crescia até por cima dele. O nome deixa de
+ser centrado em ecrã estreito e passa a ocupar o que sobra entre o ☰ e os
+botões. Medido a 360, 390 e 820 px: nome a acabar em 210/240/670, desfazer a
+começar em 218/248/678, e o cadeado a fechar dentro do ecrã nos três.
+
 ## 14 de setembro — um passo atrás, cinco vezes (v3.48)
 
 Pedido a seguir ao "trazer tudo à vista": *"podes incluir um undo também, que

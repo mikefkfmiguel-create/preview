@@ -3824,19 +3824,46 @@ function guardarAjustes(a) {
 }
 
 function atualizarBotaoDesfazer() {
-  const b = $("btDesfazer");
-  if (!b) return;
-  b.disabled = historico.length === 0;
   // Quantos passos ainda há: sem isto, carregar num botão que já não faz nada
   // parece uma app avariada em vez de uma pilha no fim.
-  b.title = historico.length
+  const titulo = historico.length
     ? "Desfazer a última alteração (" + historico.length + " de " + NIVEIS_DE_DESFAZER + " guardados)"
     : "Nada para desfazer";
+  // Os dois: o do painel e o da cena. Acendem e apagam juntos porque são o
+  // mesmo botão em dois sítios -- um para quem tem o painel aberto, outro para
+  // quem está a arrastar no telemóvel com o painel fechado.
+  ["btDesfazer", "btDesfazerTela"].forEach((id) => {
+    const b = $(id);
+    if (!b) return;
+    b.disabled = historico.length === 0;
+    b.title = titulo;
+  });
+}
+
+/**
+ * O QUE ACONTECEU, DITO NOS DOIS SÍTIOS ONDE ALGUÉM PODE ESTAR A OLHAR.
+ *
+ * A nota do painel não chega a quem está a olhar para o 3D com o painel
+ * fechado -- que no telemóvel é quase sempre. Pedido assim: *"e visível no
+ * ecrã para mobiles"*. Um texto só, escrito nos dois lados: duas mensagens
+ * acabariam a discordar no dia em que uma delas mudasse.
+ */
+let recadoAFechar = null;
+function dizerNaCena(texto) {
+  const nota = $("notaTrazerTudo");
+  if (nota) { nota.textContent = texto; nota.style.display = "block"; }
+  const recado = $("recadoTela");
+  if (!recado) return;
+  recado.textContent = texto;
+  recado.hidden = false;
+  // Some sozinho: é uma confirmação, não um aviso permanente, e a tapar a cena
+  // não pode ficar.
+  clearTimeout(recadoAFechar);
+  recadoAFechar = setTimeout(() => { recado.hidden = true; }, 4000);
 }
 
 function desfazer() {
-  const nota = $("notaTrazerTudo");
-  const dizer = (t) => { if (nota) { nota.textContent = t; nota.style.display = "block"; } };
+  const dizer = dizerNaCena;
   const anterior = historico.pop();
   if (!anterior) { dizer("Não há mais nada para desfazer."); atualizarBotaoDesfazer(); return; }
   aplicarInstantaneo(anterior);
@@ -3874,18 +3901,14 @@ function trazerTudoAVista() {
   const arrumadas = arrumarOQueFugiuDaSala();
   if (arrumadas) { guardarAjustes(ajustes); montar(); }
   enquadrarOQueExiste();
-  const nota = $("notaTrazerTudo");
-  if (nota) {
-    // Dizer o que se mexeu, e dizer quando não se mexeu nada. Um botão que age
-    // em silêncio deixa quem carregou sem saber se aconteceu alguma coisa --
-    // e neste, que existe justamente para quando já não se percebe o que se
-    // está a ver, o silêncio era o pior dos defeitos.
-    nota.textContent = arrumadas
-      ? (arrumadas === 1 ? "1 peça estava fora da sala e voltou para dentro. Câmara reenquadrada."
-                         : arrumadas + " peças estavam fora da sala e voltaram para dentro. Câmara reenquadrada.")
-      : "Câmara reenquadrada — está tudo à vista. Nenhuma peça foi movida.";
-    nota.style.display = "block";
-  }
+  // Dizer o que se mexeu, e dizer quando não se mexeu nada. Um botão que age em
+  // silêncio deixa quem carregou sem saber se aconteceu alguma coisa -- e
+  // neste, que existe justamente para quando já não se percebe o que se está a
+  // ver, o silêncio era o pior dos defeitos.
+  dizerNaCena(arrumadas
+    ? (arrumadas === 1 ? "1 peça estava fora da sala e voltou para dentro. Câmara reenquadrada."
+                       : arrumadas + " peças estavam fora da sala e voltaram para dentro. Câmara reenquadrada.")
+    : "Câmara reenquadrada — está tudo à vista. Nenhuma peça foi movida.");
 }
 
 /**
@@ -4058,7 +4081,14 @@ document.querySelectorAll(".vistas button[data-vista]").forEach(b => {
 // chega a correr (reportado: "nem abrir o exemplo abre", muito depois deste
 // ponto no ficheiro). Nunca ligar um evento a um elemento novo sem checar
 // primeiro que ele existe.
-if ($("btRecentrarVista")) $("btRecentrarVista").onclick = () => vista("frente");
+// O botão da cena fazia vista("frente"), que enquadra a SALA. Passa a fazer o
+// "Trazer tudo à vista", que enquadra o que EXISTE -- é o mesmo trabalho feito
+// melhor, e dois botões a fazerem quase a mesma coisa é a doença desta casa.
+if ($("btRecentrarVista")) $("btRecentrarVista").onclick = () => trazerTudoAVista();
+// Mesma guarda de "existe mesmo?": quem abrir a app entre o HTML antigo em
+// cache e o JS novo da rede não pode levar com um erro que mata tudo o que
+// vem a seguir no ficheiro.
+if ($("btDesfazerTela")) $("btDesfazerTela").onclick = () => desfazer();
 
 // Pavilhão ou auditório. São dois mundos: num, o chão é plano e quem está atrás
 // vê a nuca de quem está à frente; no outro, o chão sobe e por isso é que se

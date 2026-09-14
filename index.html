@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.48</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.49</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -569,8 +569,20 @@
 <main>
   <button id="btAbrir" title="Mostrar o painel (Tab)">☰</button>
   <button id="btEdicaoLivre" title="Edição livre desligada — arrastar na cena só muda a vista, nada se mexe sem querer. Clica para ligar.">🔒</button>
-  <button id="btRecentrarVista" title="Repor a vista — põe a câmara de frente para o palco outra vez. Útil se rodaste/afastaste de mais e já não vês a sala.">🔄</button>
+  <!-- Este botão já prometia "repor a vista"; passa a fazer o "Trazer tudo à
+       vista" inteiro, que é o mesmo trabalho feito melhor. Dois botões a
+       fazerem quase a mesma coisa é a doença desta casa. -->
+  <button id="btRecentrarVista" title="Trazer tudo à vista — enquadra o que existe e traz para dentro da sala as peças que ficaram de fora.">🏠</button>
+  <!-- O DESFAZER TAMBÉM NA CENA. Os botões do painel não servem no telemóvel:
+       é precisamente enquanto se está a arrastar, com o painel fechado ou
+       scrollado, que se faz a coisa que se quer desfazer. Pedido assim: *"e
+       visível no ecrã para mobiles"*. -->
+  <button id="btDesfazerTela" disabled title="Nada para desfazer">↩︎</button>
   <div id="nomeProjetoViewport" hidden></div>
+  <!-- O que os dois botões acima fizeram, dito na cena. A nota do painel não
+       chega a quem está a olhar para o 3D com o painel fechado -- e um botão
+       que age em silêncio, nestes dois, era o pior dos defeitos. -->
+  <div id="recadoTela" hidden></div>
   <canvas id="tela"></canvas>
   <!-- O painel de ajuste, ao pé da coisa que se está a mexer. Pedido direto:
        "numa situação destas, onde ajusto a posição dos elementos com números,
