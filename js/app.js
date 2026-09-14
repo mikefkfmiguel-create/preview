@@ -6,7 +6,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          projetoGuardado, guardarSala, projetorGuardado, projetorDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
          CHAVE_SINCRONIZACAO, CHAVE_AJUSTES, idPartilhaDoEndereco,
-         ajustesGuardados, guardarAjustes } from "./projeto.js";
+         ajustesGuardados, guardarAjustes as persistirAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, fazerPassarelaLivre, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
@@ -3697,6 +3697,7 @@ function vista(qual) {
   // onclick próprio -- que é precisamente o que já partiu a app uma vez (ver o
   // aviso junto à ligação dos botões).
   if (qual === "casa") { trazerTudoAVista(); return; }
+  if (qual === "desfazer") { desfazer(); return; }
   const fovQueQuer = qual === "dome" ? FOV_DENTRO_DA_CUPULA : FOV_NORMAL;
   if (camara.fov !== fovQueQuer) { camara.fov = fovQueQuer; camara.updateProjectionMatrix(); }
   // Numa sala VAZIA não se enquadra a sala: enquadra-se onde as coisas vão
@@ -3753,6 +3754,102 @@ function vista(qual) {
   }
   controlos.target.copy(alvo);
   controlos.update();
+}
+
+// --------------------------------------------------------------- desfazer
+//
+// UM PASSO ATRÁS, CINCO VEZES.
+//
+// Pedido a seguir ao "trazer tudo à vista": *"podes incluir um undo também,
+// que dá jeito -- com apenas 5 níveis chega"*. E cinco chegam mesmo: isto é
+// para desfazer o arrasto que correu mal, não para viajar no tempo.
+//
+// O PONTO DE PASSAGEM É UM SÓ. Trinta e duas linhas desta app mudam os ajustes
+// e a seguir chamam guardarAjustes(); em vez de pendurar um gancho em cada uma
+// -- e esquecer a trigésima terceira no mês que vem -- o guardarAjustes() daqui
+// embrulha o de projeto.js. Quem grava, regista.
+//
+// O instantâneo só se pode tirar DEPOIS da alteração, que é quando se sabe que
+// ela aconteceu. Por isso guarda-se sempre o estado atual à parte: quando chega
+// uma alteração nova, o que vai para a pilha é esse (que já é o ANTERIOR), e só
+// então se tira um fresco. Assim a pilha tem estados anteriores, que é o que um
+// "anular" precisa.
+const NIVEIS_DE_DESFAZER = 5;
+const historico = [];
+let estadoAnterior = null;
+
+/**
+ * O estado que um passo atrás tem de repor.
+ *
+ * Os ajustes não chegam: a régie, o ecrã curvo e o projetor guardam a posição
+ * em CAMPOS do painel e não no objeto dos ajustes (ver alvoDeCampos()). Um
+ * anular que repusesse só os ajustes desfazia metade dos arrastos e deixava a
+ * outra metade onde estava -- pior do que não ter anular nenhum.
+ */
+function instantaneo() {
+  const campos = {};
+  document.querySelectorAll("#painel input, #painel select").forEach((el) => {
+    if (!el.id) return;
+    campos[el.id] = el.type === "checkbox" ? el.checked : el.value;
+  });
+  return {
+    ajustes: JSON.stringify(ajustes),
+    campos: campos,
+    ondeEsta: ondeEsta ? { ...ondeEsta } : null,
+    ondeEstaNaDome: ondeEstaNaDome ? { ...ondeEstaNaDome } : null
+  };
+}
+
+function aplicarInstantaneo(i) {
+  ajustes = JSON.parse(i.ajustes);
+  Object.keys(i.campos).forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = i.campos[id];
+    else el.value = i.campos[id];
+  });
+  ondeEsta = i.ondeEsta ? { ...i.ondeEsta } : null;
+  ondeEstaNaDome = i.ondeEstaNaDome ? { ...i.ondeEstaNaDome } : null;
+}
+
+/** O guardarAjustes desta app: grava e, de caminho, deixa por onde voltar. */
+function guardarAjustes(a) {
+  if (estadoAnterior) {
+    historico.push(estadoAnterior);
+    while (historico.length > NIVEIS_DE_DESFAZER) historico.shift();
+  }
+  estadoAnterior = instantaneo();
+  atualizarBotaoDesfazer();
+  persistirAjustes(a);
+}
+
+function atualizarBotaoDesfazer() {
+  const b = $("btDesfazer");
+  if (!b) return;
+  b.disabled = historico.length === 0;
+  // Quantos passos ainda há: sem isto, carregar num botão que já não faz nada
+  // parece uma app avariada em vez de uma pilha no fim.
+  b.title = historico.length
+    ? "Desfazer a última alteração (" + historico.length + " de " + NIVEIS_DE_DESFAZER + " guardados)"
+    : "Nada para desfazer";
+}
+
+function desfazer() {
+  const nota = $("notaTrazerTudo");
+  const dizer = (t) => { if (nota) { nota.textContent = t; nota.style.display = "block"; } };
+  const anterior = historico.pop();
+  if (!anterior) { dizer("Não há mais nada para desfazer."); atualizarBotaoDesfazer(); return; }
+  aplicarInstantaneo(anterior);
+  // O estado reposto passa a ser o ponto de partida: sem isto, a alteração
+  // seguinte empurrava para a pilha o estado que se acabou de desfazer.
+  estadoAnterior = instantaneo();
+  persistirAjustes(ajustes);
+  montar();
+  atualizarBotaoDesfazer();
+  dizer(historico.length
+    ? "Desfeito. Ainda dá para voltar atrás mais " + historico.length +
+      (historico.length === 1 ? " vez." : " vezes.")
+    : "Desfeito. Era o último passo guardado.");
 }
 
 /**
@@ -6885,6 +6982,23 @@ addEventListener("storage", (e) => {
 
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
+// O PONTO DE PARTIDA DO HISTÓRICO. Sem isto a primeira alteração não tinha
+// estado anterior nenhum para empurrar, e o primeiro arrasto da sessão ficava
+// sem volta -- precisamente o que aconteceu ao mike com o boneco.
+estadoAnterior = instantaneo();
+atualizarBotaoDesfazer();
+
+// Ctrl+Z / Cmd+Z, para quem está ao computador. Não dispara dentro de um campo
+// de texto: aí o desfazer que a pessoa quer é o do próprio campo, e roubá-lo
+// seria trocar um passo pequeno por um grande sem ela pedir.
+document.addEventListener("keydown", (e) => {
+  if (!(e.key === "z" || e.key === "Z") || !(e.ctrlKey || e.metaKey) || e.shiftKey) return;
+  const alvo = e.target;
+  if (alvo && (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA" || alvo.isContentEditable)) return;
+  e.preventDefault();
+  desfazer();
+});
+
 window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor, aplicarProjetores,
                   caixasQueTapam, quemTapaOFeixe,
                   get feixesDoBlend() { return feixesDoBlend; },
@@ -6892,6 +7006,8 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   get montagemProjetores() { return montagemProjetores; },
                   get notaDeLeitura() { return notaDeLeitura; },
                   trazerTudoAVista, enquadrarOQueExiste, arrumarOQueFugiuDaSala, objetosArrastaveis, montar,
+                  desfazer, guardarAjustes,
+                  get historico() { return historico; },
                   get projeto() { return projeto; },
                   get desenhado() { return desenhado; },
                   get plantaCad() { return plantaCad; } };
