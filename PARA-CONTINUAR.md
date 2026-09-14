@@ -2178,6 +2178,20 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — a sincronização nasce desligada (v3.50)
+
+**Fase 1b-i do `PLANO-MENU.md`** dos Calculadores, do lado de cá. A ausência da
+chave `mikeapps-sincronizacao-v1` lia-se como LIGADA; passa a ler-se como
+desligada. Uma app que começa a receber e a devolver coisas sem ninguém pedir é
+o contrário do que se quer de manhã, no terreno.
+
+**A migração não é muda.** Quem nunca tocou no interruptor tinha-o ligado sem
+saber. À primeira vez escreve-se o valor por extenso e diz-se, uma vez só, no
+recado da cena. A chave do aviso é partilhada com os Calculadores: quem abrir
+primeiro avisa, o outro fica calado — medido nos dois sentidos.
+
+E quem já tinha ligado à mão não é tocado: continua 🔗.
+
 ## 14 de setembro — os botões onde a mão está (v3.49)
 
 *"E visível no ecrã para mobiles."* Os botões do painel não servem no
