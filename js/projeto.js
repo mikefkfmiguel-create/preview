@@ -563,5 +563,18 @@ export function lerCurvaDoBlend(d) {
   // Uma corda maior do que o diâmetro é um círculo impossível -- e mais vale
   // não desenhar nada do que desenhar uma superfície que não existe.
   if (corda > 2 * raio + 0.001) return null;
-  return { raio, corda: corda > 0 ? corda : 2 * raio * Math.sin(arco / (2 * raio)), arco };
+  // Onde ficam as máquinas. Uma carga antiga não traz isto e lê-se como "arco",
+  // que era a única montagem que existia -- e uma linha sem largura de truss
+  // também: sem esse número não há linha nenhuma a desenhar.
+  const trussLargura = numero(d.curva.trussLargura, 0);
+  const trussDistancia = numero(d.curva.trussDistancia, 0);
+  const emLinha = d.curva.montagem === "linha" && trussLargura > 0;
+  return {
+    raio,
+    corda: corda > 0 ? corda : 2 * raio * Math.sin(arco / (2 * raio)),
+    arco,
+    montagem: emLinha ? "linha" : "arco",
+    trussLargura: emLinha ? trussLargura : 0,
+    trussDistancia: emLinha ? trussDistancia : 0
+  };
 }

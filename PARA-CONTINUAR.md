@@ -2178,6 +2178,39 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — em arco, ou numa linha reta (v3.39)
+
+Pedido direto: *"os projetores poderão ser posicionados tanto em círculo a
+acompanhar como em uma linha reta"*. Par com a v3.66 dos Calculadores, que é
+quem decide a montagem.
+
+Não é a mesma montagem noutra pose, e foi por isso que levou geometria nova.
+Num arco concêntrico todas as máquinas ficam à mesma distância da superfície e
+cada uma olha a direito para a sua fatia — uma lente serve a fila toda. Numa
+linha reta as pontas da curva vêm para a frente, por isso **a máquina do meio
+fica mais longe da sua fatia do que as das pontas**, e cada uma olha para a
+dela de esguelha: o cone é simétrico, a fatia vista dali não é.
+
+`medidasDaCurva()` ganhou `arcoEntre(de, para, racio)` — onde é que esta lente
+apanha o ecrã, de um sítio qualquer e virada para onde quiser. O `arcoDaLente()`
+da v3.37 passa a ser o caso particular dela. Os dois caminhos do desenho
+separam-se só em *onde a máquina está e que pedaço de arco apanha*; cortar no
+tamanho do ecrã, desenhar e escrever a ficha é tudo partilhado.
+
+**Uma armadilha que valeu a medição:** o campo "Distância" mede coisas
+diferentes nas duas montagens. Em arco é o tiro, igual para todas; em linha
+reta é da **truss ao ponto mais fundo do ecrã**. Como o campo nascia com o tiro
+da primeira máquina (10,40 m em vez dos 12 m da truss), o 3D desenhava a fila
+encostada ao ecrã: fatias de 9,3 m onde os Calculadores diziam 10,5 m. Só
+apareceu por comparar os dois lados número a número.
+
+Verificado com as duas apps a falar (corda 28, diâmetro 36, 4 máquinas, truss
+de 14 m a 12 m): as máquinas ficam todas em z = −12,65 (linha reta), em
+x = ±4,71 e ±1,57 — os valores exactos que os Calculadores mandaram — e as
+fatias desenhadas dão 10,66 / 10,56 m contra os 10,66 / 10,57 m da tabela de
+lá. Em arco, as máquinas voltam a ficar numa curva (z de −11,60 a −12,53) e as
+fatias iguais entre si.
+
 ## 14 de setembro — a carga chegava e ficava numa gaveta fechada (v3.38)
 
 Reportado assim: *"não desenha o curvo"*. E não desenhava — mas o desenho
