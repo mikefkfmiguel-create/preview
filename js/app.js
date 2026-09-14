@@ -89,6 +89,9 @@ let montagemProjetores = [];
 // o valor a que foi limitada -- para a nota das coordenadas o poder dizer, em
 // vez de o desenho mudar calado (ver desenharBlendCurvo()).
 let distanciaDaFilaLimitada = null;
+// Quanta luz, em metros de arco, está a cair ao lado do ecrã curvo -- ver
+// desenharBlendCurvo(), onde as fatias são cortadas ao tamanho da superfície.
+let luzForaDoEcra = 0;
 let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
@@ -532,6 +535,7 @@ function montar(recentrarCamara) {
   // plana era desenhar a primeira duas vezes, numa parede que ali não está.
   const curvaDoBlend = curvaAtivaDoBlend();
   distanciaDaFilaLimitada = null;
+  luzForaDoEcra = 0;
   if (curvaDoBlend) {
     desenharBlendCurvo(sala, curvaDoBlend);
   } else {
@@ -708,14 +712,41 @@ function desenharBlendCurvo(sala, curva) {
     // Cada fatia num raio ligeiramente diferente: nas zonas de blend duas
     // fatias ocupam a mesma superfície, e à mesma distância ficavam a piscar
     // uma contra a outra. Assim vê-se também onde elas se sobrepõem.
+    // O ECRÃ TEM O TAMANHO QUE TEM.
+    //
+    // Aqui não havia ecrã nenhum: a superfície desenhada era a soma das
+    // imagens, por isso uma imagem maior do que a tela fazia a TELA crescer.
+    // Com a distância subida à mão (que desde a v3.62 mexe mesmo no desenho), a
+    // fatia passava do arco e enrolava-se à volta do cilindro -- um ecrã de
+    // corda 28 desenhado como uma ferradura quase fechada, que é o que o mike
+    // viu e a que não havia resposta possível senão "???????".
+    //
+    // Uma imagem maior do que o ecrã não aumenta o ecrã: a luz que sobra passa
+    // ao lado e perde-se. O desenho corta-a no limite da superfície e diz
+    // quanto é que ficou de fora (ver escreverCoordenadas()) -- calar isso era
+    // mostrar uma cobertura que a sala não tem.
+    const desvio = fila.shiftH * (larguraNoArco / m.R);
+    const aInicio = lente.angulo - meiaAbertura + desvio;
+    const aFim = lente.angulo + meiaAbertura + desvio;
+    const cortadoInicio = Math.max(aInicio, -m.meioAngulo);
+    const cortadoFim = Math.min(aFim, m.meioAngulo);
+    luzForaDoEcra += (cortadoInicio - aInicio) * m.R + (aFim - cortadoFim) * m.R;
+    // Inteiramente fora da tela: não há fatia para desenhar, mas a máquina
+    // continua a existir e a sua ficha também.
+    if (cortadoFim <= cortadoInicio) {
+      montagemProjetores.push(fichaDeProjetorEm(
+        "P" + (i + 1), projetor, { x: alvo.x, y: projetor.y, z: alvo.z },
+        fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem));
+      return;
+    }
     const fatia = {
       R: m.R - i * 0.004,
       cx: m.cx,
       cz: m.cz,
       altura: alturaImagem,
       y: (pe.altura || 0) + fila.shiftV * alturaImagem,
-      angInicio: lente.angulo - meiaAbertura + fila.shiftH * (larguraNoArco / m.R),
-      angFim: lente.angulo + meiaAbertura + fila.shiftH * (larguraNoArco / m.R),
+      angInicio: cortadoInicio,
+      angFim: cortadoFim,
       alvo: alvo
     };
     desenhado.add(fazerProjecaoCurva(projetor, fatia, textura, "projetor-" + i));
@@ -986,15 +1017,9 @@ function escreverCoordenadas() {
   caixa.innerHTML = html;
 
   if (nota) {
+    // Os avisos do ecrã curvo vão dentro da notaDeLeitura(), para chegarem
+    // também ao "Copiar" e à página do relatório -- ver lá.
     const linhas = notaDeLeitura(temCupula, temPlanos, true);
-    // Um número limitado em silêncio é um número em que se confia por engano.
-    if (distanciaDaFilaLimitada) {
-      const curva = curvaAtivaDoBlend();
-      linhas.push("<b>Distância limitada a " + nnum(distanciaDaFilaLimitada) + " m</b>: " +
-        "num ecrã curvo os projetores ficam entre o centro da curvatura e a superfície, e " +
-        "o raio da curva é " + nnum(curva.raio) + " m — mais do que isso punha as máquinas do " +
-        "outro lado do centro, a projetar para trás.");
-    }
     nota.innerHTML = linhas.join(" ");
   }
 }
@@ -1034,6 +1059,24 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
   linhas.push(forte("Confirma a unidade na máquina") +
     ": a documentação do WATCHOUT não diz em que unidade lê o Eye e o Target. " +
     "Estes números são metros.");
+
+  // O QUE O DESENHO TEVE DE CORRIGIR, escrito onde as coordenadas forem
+  // parar. Um número mudado em silêncio é um número em que se confia por
+  // engano -- e destes dois quem os vai montar tem de saber, porque mudam o
+  // que ele vai encontrar na sala.
+  const curva = curvaAtivaDoBlend();
+  if (curva && distanciaDaFilaLimitada) {
+    linhas.push(forte("Distância limitada a " + nnum(distanciaDaFilaLimitada) + " m") + ": " +
+      "num ecrã curvo os projetores ficam entre o centro da curvatura e a superfície, e " +
+      "o raio da curva é " + nnum(curva.raio) + " m — mais do que isso punha as máquinas do " +
+      "outro lado do centro, a projetar para trás.");
+  }
+  if (curva && luzForaDoEcra > 0.05) {
+    linhas.push(forte(nnum(luzForaDoEcra) + " m de imagem fora do ecrã") + ": a esta " +
+      "distância as lentes fazem imagens maiores do que a superfície (" + nnum(curva.arco) +
+      " m de arco), e o que passa das pontas cai ao lado. O desenho corta no limite do " +
+      "ecrã. Para caber: menos distância, ou lentes de rácio maior.");
+  }
   return linhas;
 }
 
