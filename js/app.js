@@ -12,7 +12,8 @@ import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, faze
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
          fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula,
-         medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo } from "./cena.js";
+         medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo,
+         quemTapaOFeixe, marcarQuemTapa } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -97,6 +98,11 @@ let luzForaDoEcra = 0;
 // mas também não se cala: uma máquina que desaparece do 3D sem explicação é
 // pior do que uma máquina no sítio errado.
 let maquinasForaDoPano = 0;
+// Os feixes da fila do blend, recolhidos enquanto se desenham -- ver
+// quemTapaOFeixe() em cena.js. Reposto a cada montagem, como tudo o resto.
+let feixesDoBlend = [];
+// Quantas pessoas estão no caminho da luz, e quantas máquinas apanham.
+let tapamOBlend = null;
 let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
@@ -548,6 +554,8 @@ function montar(recentrarCamara) {
   distanciaDaFilaLimitada = null;
   luzForaDoEcra = 0;
   maquinasForaDoPano = 0;
+  feixesDoBlend = [];
+  tapamOBlend = null;
   if (curvaDoBlend) {
     desenharBlendCurvo(sala, curvaDoBlend);
   } else {
@@ -571,13 +579,26 @@ function montar(recentrarCamara) {
     if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
     const larguraExtra = pe.distancia / pe.racio;
     const alturaExtra = larguraExtra / formatoImagem;
-    const projetorExtra = { x: pe.lateral || 0, y: pe.altura || 0, z: z0Proj + pe.distancia };
+    // A ALTURA É DA FILA, do campo -- o mesmo que já valia para a distância e
+    // para o shift, e que o ecrã curvo passou a fazer na v3.41. Aqui ficou
+    // congelada: guardava-se a absoluta, calculada com o âncora que estava no
+    // campo ao aplicar (4,5 m por omissão), e mexer no campo não mexia na
+    // fila. Deu para ver quando o "quem tapa o feixe" nunca encontrava
+    // ninguém: as máquinas ficavam a 4,5 m e o feixe passava por cima de toda
+    // a gente, qualquer que fosse o número escrito. Um ajuste antigo só tem a
+    // absoluta -- lê-se essa, para um projeto guardado não saltar ao reabrir.
+    const alturaExtraMaquina = pe.alturaOffset !== undefined
+      ? fila.altura + pe.alturaOffset
+      : (pe.altura || 0);
+    const projetorExtra = { x: pe.lateral || 0, y: alturaExtraMaquina, z: z0Proj + pe.distancia };
     const imagemExtra = {
       x: projetorExtra.x + fila.shiftH * larguraExtra,
       y: projetorExtra.y + fila.shiftV * alturaExtra,
       z: z0Proj, largura: larguraExtra, altura: alturaExtra
     };
-    desenhado.add(fazerProjecao(projetorExtra, imagemExtra, textura, "projetor-" + (i + 1)));
+    const grupoPlano = fazerProjecao(projetorExtra, imagemExtra, textura, "projetor-" + (i + 1));
+    if (grupoPlano.userData.feixe) feixesDoBlend.push(grupoPlano.userData.feixe);
+    desenhado.add(grupoPlano);
     montagemProjetores.push(fichaDeProjetor("P" + (i + 2), projetorExtra, z0Proj,
       fila.shiftH, fila.shiftV, larguraExtra, alturaExtra));
   });
@@ -621,6 +642,17 @@ function montar(recentrarCamara) {
     }
   }
   escreverPainelCobertura(cobertura, !!(montado && montado.zonas.length));
+
+  // QUEM TAPA O FEIXE DA FILA DO BLEND. Corre aqui, depois de os projetores e
+  // a plateia estarem os dois na cena -- antes disso não há nem feixes nem
+  // corpos para comparar. As caixas são as mesmas que a sombra do projetor
+  // único já usa (caixasQueTapam), para não haver duas ideias diferentes sobre
+  // o que é "estar à frente".
+  if (feixesDoBlend.length) {
+    tapamOBlend = quemTapaOFeixe(feixesDoBlend, caixasQueTapam());
+    if (tapamOBlend.tapam.length) desenhado.add(marcarQuemTapa(tapamOBlend.tapam));
+  }
+  escreverQuemTapaOBlend();
 
   cena.add(desenhado);
   if (document.activeElement !== $("ecraL") && document.activeElement !== $("ecraA")) {
@@ -705,6 +737,33 @@ function acompanharBaseDoEcra() {
  */
 function esquecerBaseDoEcraAnterior() {
   baseDoEcraAnterior = alturaDaBaseDoEcra();
+}
+
+/**
+ * O que a fila do blend apanha pelo caminho, escrito onde já se lê o resto da
+ * projeção. Um número só: quantas pessoas estão no feixe e quantas máquinas
+ * elas afectam -- que é o que decide se a montagem se aguenta ou se é preciso
+ * subir as máquinas.
+ */
+function escreverQuemTapaOBlend() {
+  const nota = $("notaTapaBlend");
+  if (!nota) return;
+  if (!feixesDoBlend.length) { nota.textContent = ""; nota.hidden = true; return; }
+  if (!tapamOBlend || !tapamOBlend.tapam.length) {
+    nota.hidden = false;
+    nota.className = "vazio";
+    nota.textContent = "Ninguém no caminho da luz: os " + feixesDoBlend.length +
+      " feixes chegam à tela sem apanhar nada.";
+    return;
+  }
+  const pessoas = tapamOBlend.tapam.length;
+  nota.hidden = false;
+  nota.className = "aviso-inline";
+  nota.textContent = pessoas + (pessoas === 1 ? " pessoa está" : " pessoas estão") +
+    " no caminho da luz, e " + (tapamOBlend.projetores === 1
+      ? "apanha 1 dos " + feixesDoBlend.length + " projetores."
+      : "apanham " + tapamOBlend.projetores + " dos " + feixesDoBlend.length + " projetores.") +
+    " Estão marcadas na sala.";
 }
 
 function curvaAtivaDoBlend() {
@@ -925,7 +984,9 @@ function desenharBlendCurvo(sala, curva) {
       angFim: cortadoFim,
       alvo: alvo
     };
-    desenhado.add(fazerProjecaoCurva(projetor, fatia, textura, "projetor-" + i));
+    const grupoCurvo = fazerProjecaoCurva(projetor, fatia, textura, "projetor-" + i);
+    if (grupoCurvo.userData.feixe) feixesDoBlend.push(grupoCurvo.userData.feixe);
+    desenhado.add(grupoCurvo);
     // O alvo é RADIAL e não em frente: é essa a única diferença para a ficha
     // do ecrã plano. No WATCHOUT continua a ser o Target, com o shift à parte.
     montagemProjetores.push(fichaDeProjetorEm(
@@ -6177,7 +6238,8 @@ function aplicarProjetores(lista) {
     ajustes.projetoresExtra = resto.map((p) => ({
       racio: p.racio, distancia: p.distancia,
       lateral: anchorLateral + ((p.lateral || 0) - baseLateral),
-      altura: anchorAltura + ((p.alturaOffset || 0) - baseAltura),
+      // O OFFSET, não a altura absoluta -- ver o comentário no desenho.
+      alturaOffset: (p.alturaOffset || 0) - baseAltura,
       // Sem shift próprio de propósito: toda a fila usa o do campo (ver montar()).
       modelo: p.modelo, lente: p.lente
     }));
@@ -6595,6 +6657,8 @@ addEventListener("storage", (e) => {
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
 window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor, aplicarProjetores,
+                  caixasQueTapam, quemTapaOFeixe,
+                  get feixesDoBlend() { return feixesDoBlend; },
                   get projeto() { return projeto; },
                   get desenhado() { return desenhado; },
                   get plantaCad() { return plantaCad; } };

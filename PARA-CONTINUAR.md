@@ -2178,6 +2178,50 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — quem tapa o feixe da fila do blend (v3.44)
+
+Pedido antigo, finalmente feito: *"posição de instalação dos projetores também,
+para ver onde bloqueia uma pessoa à frente"*. O projetor único já media a
+sombra e a cúpula já pintava quem a tapa; uma fila de blend não tinha nem uma
+coisa nem outra — e é onde mais faz falta, porque são máquinas montadas baixo e
+uma pessoa de pé apanha logo duas ou três.
+
+**Uma conta só, para ecrã plano e curvo.** O feixe é a pirâmide entre a lente e
+os quatro cantos da imagem — os mesmos que já se desenham no cone, agora
+guardados em `userData.feixe`. Um corpo tapa quando algum canto da caixa dele
+cai lá dentro, entre a lente e a tela. Não interessa a forma do ecrã: interessa
+por onde a luz passa. As caixas são as que a sombra do projetor único já usa
+(`caixasQueTapam`), para não haver duas ideias sobre o que é "estar à frente".
+
+Contar sem mostrar seria repetir um erro já cometido (ver v3.23), por isso quem
+tapa fica **marcado na sala** — uma caixa cor de aviso à volta de cada um — e o
+painel diz quantos são e quantas máquinas apanham.
+
+### O que isto destapou
+
+Com tudo ligado, o contador dava sempre zero. Não era da conta: era a **altura
+das máquinas do blend plano, congelada em 4,5 m**. Guardava-se a altura
+absoluta, calculada com o âncora que estava no campo ao aplicar, e mexer no
+campo não mexia na fila — o mesmo defeito que o ecrã curvo teve até à v3.41, e
+que a distância teve até à v3.34. O feixe passava por cima de toda a gente,
+qualquer que fosse o número escrito.
+
+Agora guarda-se o **offset** e a altura da fila é do campo, nas duas montagens.
+Um ajuste antigo só tem a absoluta: lê-se essa, para um projeto guardado não
+saltar ao reabrir.
+
+Medido, com 3 projetores a 20 m e 840 lugares:
+
+| Altura das lentes | No caminho da luz |
+|---|---|
+| 1,6 m | **85 pessoas**, nos 2 projetores |
+| 2,5 m | **87 pessoas** |
+| 4,5 m | ninguém |
+| 7,0 m | ninguém |
+
+Que é exactamente a pergunta que ele fez: a que altura é que as máquinas
+deixam de apanhar gente.
+
 ## 14 de setembro — o painel de ajuste vai ter com a peça (v3.43)
 
 Pedido direto: *"numa situação destas, onde ajusto a posição dos elementos com

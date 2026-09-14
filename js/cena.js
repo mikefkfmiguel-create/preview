@@ -668,6 +668,116 @@ export function pintarQuemTapa(grupoDome, figura) {
 }
 
 /**
+ * QUEM TAPA O FEIXE DOS PROJETORES DO BLEND.
+ *
+ * Pedido direto: *"posição de instalação dos projetores também, para ver onde
+ * bloqueia uma pessoa à frente"*. O projetor único já media a sombra e a
+ * cúpula já pintava quem a tapa; uma fila de blend não tinha nem uma coisa nem
+ * outra -- e é onde mais faz falta, porque são máquinas montadas baixo e uma
+ * pessoa de pé apanha logo duas ou três.
+ *
+ * A conta é a mesma para ecrã plano e para curvo, e é por isso que é uma só: o
+ * feixe é a PIRÂMIDE entre a lente e os quatro cantos da imagem -- os mesmos
+ * que já se desenham no cone (ver `userData.feixe`). Um corpo tapa quando
+ * algum canto da caixa dele cai lá dentro, entre a lente e a tela. Não
+ * interessa a forma do ecrã: interessa por onde a luz passa.
+ *
+ * Devolve as caixas que tapam e quantos projetores cada uma apanha -- quem as
+ * desenha é o app.js, que é quem tem a cena. Contar sem mostrar era repetir o
+ * erro que a sombra do projetor único já teve.
+ */
+export function quemTapaOFeixe(feixes, caixas) {
+  const vazio = { tapam: [], projetores: 0 };
+  if (!feixes || !feixes.length || !caixas || !caixas.length) return vazio;
+
+  // As quatro faces de cada pirâmide, com a normal virada para dentro.
+  // Calculadas uma vez por feixe e não uma vez por ponto: uma plateia de 800
+  // pessoas são 6400 cantos, e isto corre a cada desenho.
+  const piramides = feixes.map((f) => {
+    const L = f.lente;
+    const mx = (f.cantos[0][0] + f.cantos[2][0]) / 2 - L.x;
+    const my = (f.cantos[0][1] + f.cantos[2][1]) / 2 - L.y;
+    const mz = (f.cantos[0][2] + f.cantos[2][2]) / 2 - L.z;
+    const faces = [];
+    for (let i = 0; i < 4; i++) {
+      const a = f.cantos[i], b = f.cantos[(i + 1) % 4];
+      const u = [a[0] - L.x, a[1] - L.y, a[2] - L.z];
+      const v = [b[0] - L.x, b[1] - L.y, b[2] - L.z];
+      let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+      if (n[0] * mx + n[1] * my + n[2] * mz < 0) n = [-n[0], -n[1], -n[2]];
+      faces.push(n);
+    }
+    // Até onde o feixe vai. Quem está ATRÁS da tela não tapa nada: está do
+    // outro lado da imagem.
+    let alcance = 0;
+    for (const c of f.cantos) {
+      const d = Math.hypot(c[0] - L.x, c[1] - L.y, c[2] - L.z);
+      if (d > alcance) alcance = d;
+    }
+    return { L, faces, alcance };
+  });
+
+  const dentro = (p, x, y, z) => {
+    const dx = x - p.L.x, dy = y - p.L.y, dz = z - p.L.z;
+    const dist = Math.hypot(dx, dy, dz);
+    if (dist < 1e-6 || dist > p.alcance) return false;
+    for (const n of p.faces) {
+      if (n[0] * dx + n[1] * dy + n[2] * dz < 0) return false;
+    }
+    return true;
+  };
+
+  const apanhados = new Set();
+  const tapam = [];
+  for (const caixa of caixas) {
+    let quantos = 0;
+    for (let i = 0; i < piramides.length; i++) {
+      let toca = false;
+      for (const cx of [caixa.minX, (caixa.minX + caixa.maxX) / 2, caixa.maxX]) {
+        for (const cy of [caixa.minY, (caixa.minY + caixa.maxY) / 2, caixa.maxY]) {
+          for (const cz of [caixa.minZ, (caixa.minZ + caixa.maxZ) / 2, caixa.maxZ]) {
+            if (dentro(piramides[i], cx, cy, cz)) { toca = true; break; }
+          }
+          if (toca) break;
+        }
+        if (toca) break;
+      }
+      if (!toca) continue;
+      quantos++;
+      apanhados.add(i);
+    }
+    if (quantos) tapam.push({ caixa, projetores: quantos });
+  }
+  return { tapam, projetores: apanhados.size };
+}
+
+/**
+ * As pessoas que tapam, MARCADAS na cena.
+ *
+ * Um número no painel diz que há três pessoas no feixe; não diz quais. E a
+ * pergunta dele era "onde bloqueia" -- é uma pergunta de olhar, não de ler.
+ * Uma caixa em volta de cada uma, na cor do aviso, responde de relance.
+ */
+export function marcarQuemTapa(tapam, nome = "aux:tapa-feixe") {
+  const grupo = new THREE.Group();
+  grupo.name = nome;
+  if (!tapam || !tapam.length) return grupo;
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xFF7A59, transparent: true, opacity: 0.38, depthWrite: false
+  });
+  for (const t of tapam) {
+    const c = t.caixa;
+    const larg = Math.max(0.05, c.maxX - c.minX);
+    const alt = Math.max(0.05, c.maxY - c.minY);
+    const fund = Math.max(0.05, c.maxZ - c.minZ);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(larg, alt, fund), material);
+    m.position.set((c.minX + c.maxX) / 2, (c.minY + c.maxY) / 2, (c.minZ + c.maxZ) / 2);
+    grupo.add(m);
+  }
+  return grupo;
+}
+
+/**
  * A casca só da ÁREA DE PROJEÇÃO: do zénite até onde a imagem chega, e nada
  * mais. Pedido: *"o export da cúpula passa a ter duas formas, TOTAL e ÁREA DE
  * PROJEÇÃO — para o obj pode ser importante para mapear corretamente no
@@ -2573,6 +2683,10 @@ export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0"
   }));
   cone.name = "aux:cone";
   grupo.add(cone);
+  // O FEIXE, guardado com o desenho. Quem quiser saber quem lhe passa à frente
+  // não tem de o recalcular a partir de números espalhados: a pirâmide é a
+  // lente mais estes quatro cantos, e é exactamente a que se vê desenhada.
+  grupo.userData.feixe = { lente: { x: projetor.x, y: projetor.y, z: projetor.z }, cantos: cantos };
 
   return grupo;
 }
@@ -2640,6 +2754,10 @@ export function fazerProjecao(projetor, imagem, textura, nome = "projetor-0") {
   }));
   cone.name = "aux:cone";
   grupo.add(cone);
+  // O FEIXE, guardado com o desenho. Quem quiser saber quem lhe passa à frente
+  // não tem de o recalcular a partir de números espalhados: a pirâmide é a
+  // lente mais estes quatro cantos, e é exactamente a que se vê desenhada.
+  grupo.userData.feixe = { lente: { x: projetor.x, y: projetor.y, z: projetor.z }, cantos: cantos };
 
   return grupo;
 }
