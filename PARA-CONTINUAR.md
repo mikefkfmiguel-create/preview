@@ -2178,6 +2178,84 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — o ecrã curvo do blend vai ao 3D (v3.33 · Calculadores v3.62)
+
+O mike mandou duas fotografias: a aba Blending com um ciclorama de **29,55 m de
+arco, 15 m de raio, 25 m de corda**, com *"Adicionar ao projeto"* marcado — e o
+Preview ao lado sem sinal dele. Uma palavra: *"Pois"*.
+
+**Duas coisas estavam mal, e uma era minha.**
+
+### A razão que eu tinha dado estava errada
+
+Os ecrãs curvos estavam de fora com esta justificação, escrita no código:
+*"a distância de tiro varia ao longo do arco, uma só distância partilhada seria
+inventar um número que ninguém mediu"*. É verdade para **um** projetor a cobrir
+um arco a partir de um ponto fixo. Não é o que esta aba calcula.
+
+A aba reparte o arco em fatias **iguais**, e o campo da distância diz, por
+extenso, *"a mesma para todos os projetores do blend"*. As duas coisas juntas
+só são verdade com as máquinas num **arco concêntrico** com o ecrã, cada uma a
+apontar radialmente para o meio da sua fatia. **A geometria já estava implícita
+nos números que a app mostrava** — o que faltava era mandá-la para o outro
+lado. E é a mesma receita do anel da cúpula, que já cá estava há uma semana:
+raio de montagem menor do que o da superfície, cada máquina a olhar para fora.
+
+### E o silêncio
+
+Com a caixa marcada, o `cargaDoBlend()` devolvia `null` e o
+`guardarBlendParaPreview()` desistia sem dizer nada. Meses de caixa verde a
+dizer "Adicionar ao projeto" com o 3D vazio do outro lado. Agora devolve a
+**razão**, e ela fica escrita por baixo da caixa — ali e não num toast, porque
+isto corre a cada tecla.
+
+### O que atravessa a ponte
+
+`curva: { raio, corda, arco }`, e o `lateral` de cada projetor passa a ser a
+posição **medida sobre o arco** (o mesmo número, noutra régua). A curvatura
+viaja **presa à lista** (`lista.curva`) e não devolvida à parte: pertence-lhe —
+é a superfície onde aqueles projetores apontam. Uma função separada podia ser
+chamada com uma lista e a curva de outra carga e ninguém dava por isso; assim,
+as sete chamadas que já existiam continuam a ver um array normal.
+
+### Duas coisas que só se apanharam a medir
+
+1. **O ecrã atravessava a parede.** Ancorei primeiro a *corda* em z0 (onde o
+   ecrã plano fica) e deixei o meio abaular para trás: um ciclorama de 25 m tem
+   6,71 m de flecha e ia parar fora da sala. Agora o que encosta a z0 é o
+   **ponto mais fundo**, e as pontas vêm para a frente — a superfície fica
+   sempre dentro da sala.
+2. **A superfície nascia rodada um quarto de volta.** A `CylinderGeometry` põe
+   os vértices em `(R·sin θ, R·cos θ)`: o θ dela conta a partir de **+z** e roda
+   para +x, e eu tinha assumido +x. As lentes ficavam no sítio certo e o ecrã
+   noutro lado da sala, com os feixes a apontar para o vazio. **No desenho, um
+   ecrã curvo torto ainda parece um ecrã curvo** — só apareceu ao medir a caixa
+   envolvente das fatias. O mapa certo é `θ = π − a`, e como troca o sentido, o
+   início em θ é o fim em `a`.
+
+### Medido
+
+Caso real (corda 25 m, raio 15 m, distância 6 m): as lentes ficam **todas a
+9,000 m** do centro da curvatura, que é exactamente R − 6 · as fatias cobrem o
+arco de ponta a ponta (−0,9844 a +0,9844 rad, contra um meio-ângulo de 0,9851)
+com 0,3636 rad de sobreposição, que é o blend · a caixa das fatias dá
+x −12,50 → +12,49 (a corda de 25 m, centrada) e z do fundo da sala até 6,71 m à
+frente · com 4 projetores, o blueprint do chão no 3D bate com o que os
+Calculadores desenham.
+
+Distância (20 m) maior do que o raio (15 m): recusado com a razão escrita, e
+nada vai para a ponte — a máquina ficaria do outro lado do centro da curvatura,
+a projetar para trás.
+
+Ecrã plano: curva `null` dos dois lados, projetores e alvos onde sempre
+estiveram. Sem erros de página em nenhum dos casos.
+
+**Fica por fazer:** a cobertura e a sombra não são calculadas para o ecrã
+curvo, como já não eram para os projetores extra do blend plano. E a tabela de
+coordenadas chama-lhe "Ecrã curvo" mas usa as mesmas colunas do plano — o que
+está certo, porque a distinção do WATCHOUT entre *Target* e *Lense Shift* é a
+mesma; só o "em frente" é que passou a ser radial.
+
 ## 13 de setembro — a app nasce vazia (v3.32)
 
 Regra posta pelo mike, depois de ver a cúpula dele de 8,7 m pousada no meio de

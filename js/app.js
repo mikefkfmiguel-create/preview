@@ -11,7 +11,8 @@ import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, faze
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
-         fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula } from "./cena.js";
+         fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula,
+         medidasDaCurva, fazerProjecaoCurva } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -516,6 +517,15 @@ function montar(recentrarCamara) {
   // desenhados, aqui a seguir -- por isso as coordenadas só se escrevem
   // depois da projeção e dos extras do blend.
   montagemProjetores = [];
+  // Um ecrã CURVO é outro desenho, não uma variação deste: a superfície é um
+  // cilindro, as máquinas ficam num arco e o alvo de cada uma é radial. Os
+  // dois caminhos são exclusivos -- num ecrã curvo todas as máquinas do blend
+  // (a primeira incluída) vivem no array, por isso desenhar também a projeção
+  // plana era desenhar a primeira duas vezes, numa parede que ali não está.
+  const curvaDoBlend = curvaAtivaDoBlend();
+  if (curvaDoBlend) {
+    desenharBlendCurvo(sala, curvaDoBlend);
+  } else {
   desenharProjecao(sala, palco);
   // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
   // Projetor nunca manda nada" para o Preview). Cada um guarda o SEU
@@ -546,6 +556,7 @@ function montar(recentrarCamara) {
     montagemProjetores.push(fichaDeProjetor("P" + (i + 2), projetorExtra, z0Proj,
       fila.shiftH, fila.shiftV, larguraExtra, alturaExtra));
   });
+  }
   escreverCoordenadas();
 
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
@@ -617,6 +628,73 @@ function montar(recentrarCamara) {
   desenharProjetoresExtra();
   devolverDaqui();
   if (recentrarCamara) vista("frente");
+}
+
+/**
+ * A curvatura do ecrã do blend, se este projeto tiver uma.
+ *
+ * Guardada nos ajustes porque é do projeto e não da carga: quem reabre a app
+ * amanhã tem de voltar a ver o ecrã curvo sem ir outra vez aos Calculadores.
+ */
+function curvaAtivaDoBlend() {
+  const c = ajustes.curvaDoBlend;
+  if (!c || !(c.raio > 0) || !(c.arco > 0)) return null;
+  if (!ajustes.projetoresExtra || !ajustes.projetoresExtra.length) return null;
+  return c;
+}
+
+/**
+ * O BLEND NUM ECRÃ CURVO.
+ *
+ * Esteve de fora do 3D com a razão de que "a distância de tiro varia ao longo
+ * do arco". É verdade para UM projetor a cobrir um arco a partir de um ponto
+ * fixo — mas não é o que a aba Blending calcula. Ela reparte o arco em fatias
+ * IGUAIS e diz, no campo da distância, *"a mesma para todos os projetores do
+ * blend"*: isso só é verdade com as máquinas num arco concêntrico com o ecrã,
+ * cada uma a apontar radialmente para o meio da sua fatia. A geometria estava
+ * implícita nos números que já se viam; só faltava desenhá-la.
+ *
+ * É a mesma receita do anel da cúpula, que já cá estava: um raio de montagem
+ * mais pequeno do que o da superfície, e cada máquina a olhar para fora.
+ */
+function desenharBlendCurvo(sala, curva) {
+  const z0 = -sala.profundidade / 2 + 0.35;
+  const m = medidasDaCurva(curva, z0);
+  if (!m) return;
+  // O shift é o do campo, igual para toda a fila — a mesma decisão do ecrã
+  // plano ("deve ser de igual sim").
+  const fila = lerProjecao();
+
+  ajustes.projetoresExtra.forEach((pe, i) => {
+    if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
+    // Com rácio = distância ÷ largura da fatia (é assim que os Calculadores o
+    // escrevem), isto devolve a largura da fatia medida SOBRE o arco.
+    const larguraNoArco = pe.distancia / pe.racio;
+    const alturaImagem = larguraNoArco / formatoImagem;
+    const s = pe.arco || 0;
+    const meiaAbertura = (larguraNoArco / 2) / m.R;
+    const lente = m.lenteNoArco(s, pe.distancia);
+    const alvo = m.pontoNoArco(s);
+    const projetor = { x: lente.x, y: pe.altura || 0, z: lente.z };
+    // Cada fatia num raio ligeiramente diferente: nas zonas de blend duas
+    // fatias ocupam a mesma superfície, e à mesma distância ficavam a piscar
+    // uma contra a outra. Assim vê-se também onde elas se sobrepõem.
+    const fatia = {
+      R: m.R - i * 0.004,
+      cz: m.cz,
+      altura: alturaImagem,
+      y: (pe.altura || 0) + fila.shiftV * alturaImagem,
+      angInicio: lente.angulo - meiaAbertura + fila.shiftH * (larguraNoArco / m.R),
+      angFim: lente.angulo + meiaAbertura + fila.shiftH * (larguraNoArco / m.R),
+      alvo: alvo
+    };
+    desenhado.add(fazerProjecaoCurva(projetor, fatia, textura, "projetor-" + i));
+    // O alvo é RADIAL e não em frente: é essa a única diferença para a ficha
+    // do ecrã plano. No WATCHOUT continua a ser o Target, com o shift à parte.
+    montagemProjetores.push(fichaDeProjetorEm(
+      "P" + (i + 1), projetor, { x: alvo.x, y: projetor.y, z: alvo.z },
+      fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem));
+  });
 }
 
 /**
@@ -747,19 +825,39 @@ function nsin(v) {
  * shift") e o campo Lense Shift.
  */
 function fichaDeProjetor(nome, pos, zEcra, shiftH, shiftV, largura, altura) {
+  // Ecrã plano: "em frente" é o mesmo x e y, no plano do ecrã.
+  return fichaDeProjetorEm(nome, pos, { x: pos.x, y: pos.y, z: zEcra },
+    shiftH, shiftV, largura, altura);
+}
+
+/**
+ * A mesma ficha, com o alvo dado por quem chama.
+ *
+ * Num ecrã CURVO "em frente" não é ao longo de −z, é ao longo do raio: cada
+ * máquina olha para fora, para o meio da fatia dela. Tudo o resto — o shift à
+ * parte, o centro da imagem depois do shift — é igual, porque a distinção do
+ * WATCHOUT entre o Target e o Lense Shift também é.
+ */
+function fichaDeProjetorEm(nome, pos, alvo, shiftH, shiftV, largura, altura) {
+  const dx = alvo.x - pos.x, dy = alvo.y - pos.y, dz = alvo.z - pos.z;
+  const distancia = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  // A direcção do tiro, no plano, para o shift sair perpendicular a ela --
+  // num arco, "para o lado" não é o eixo x da sala.
+  const plano = Math.hypot(dx, dz) || 1;
+  const ladoX = -dz / plano, ladoZ = dx / plano;
   return {
     nome: nome,
     pos: { x: pos.x, y: pos.y, z: pos.z },
-    alvo: { x: pos.x, y: pos.y, z: zEcra },
-    distancia: Math.abs(pos.z - zEcra),
+    alvo: { x: alvo.x, y: alvo.y, z: alvo.z },
+    distancia: distancia,
     shiftH: shiftH || 0,
     shiftV: shiftV || 0,
     // Para onde a imagem vai de facto, depois do shift — é o que se confere
     // no 3D, e não bate com o alvo sempre que houver shift.
     centroDaImagem: {
-      x: pos.x + (shiftH || 0) * largura,
-      y: pos.y + (shiftV || 0) * altura,
-      z: zEcra
+      x: alvo.x + (shiftH || 0) * largura * ladoX,
+      y: alvo.y + (shiftV || 0) * altura,
+      z: alvo.z + (shiftH || 0) * largura * ladoZ
     }
   };
 }
@@ -851,7 +949,8 @@ function escreverCoordenadas() {
             tabelaDeCoordenadas(cupula, "cupula");
   }
   if (temPlanos) {
-    html += (temCupula ? '<p class="vazio" style="margin:14px 0 6px">Ecrã plano</p>' : "") +
+    const queEcra = curvaAtivaDoBlend() ? "Ecrã curvo" : "Ecrã plano";
+    html += (temCupula ? `<p class="vazio" style="margin:14px 0 6px">${queEcra}</p>` : "") +
             tabelaDeCoordenadas(planos, "plano");
   }
   caixa.innerHTML = html;
@@ -3844,7 +3943,7 @@ function limparTudo() {
   // não era a conta da primeira fila, era isto).
   // O interruptor do depósito é feitio de trabalhar, não conteúdo do projeto:
   // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -4057,7 +4156,7 @@ async function abrirProjetoTodo(estado) {
         // Esta vem: a máquina faz parte do projeto que se gravou.
         projetor: (estado.ajustes.projetor && typeof estado.ajustes.projetor === "object") ? estado.ajustes.projetor : null
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
@@ -5591,17 +5690,37 @@ function aplicarProjetores(lista) {
   // parecem um só.
   const baseLateral = primeiro.lateral || 0;
   const baseAltura = primeiro.alturaOffset || 0;
-  ajustes.projetoresExtra = resto.map((p) => ({
-    racio: p.racio, distancia: p.distancia,
-    lateral: anchorLateral + ((p.lateral || 0) - baseLateral),
-    altura: anchorAltura + ((p.alturaOffset || 0) - baseAltura),
-    // Sem shift próprio de propósito: toda a fila usa o do campo (ver montar()).
-    modelo: p.modelo, lente: p.lente
-  }));
+
+  // NUM ECRÃ CURVO a posição não é "a tantos metros do primeiro": é o ângulo
+  // que cada máquina ocupa no arco, e esse não se mede a partir de um âncora
+  // que alguém escreveu aqui -- mede-se a partir do meio do ecrã, porque é a
+  // curva que manda. Por isso o caso curvo guarda TODAS as máquinas (a
+  // primeira incluída) com a posição delas ao longo do arco, e o lateral do
+  // campo deixa de contar: um arco concêntrico deslocado para o lado já não
+  // é concêntrico.
+  ajustes.curvaDoBlend = lista.curva || null;
+  if (lista.curva) {
+    ajustes.projetoresExtra = lista.map((p) => ({
+      racio: p.racio, distancia: p.distancia,
+      arco: p.lateral || 0,
+      altura: anchorAltura + ((p.alturaOffset || 0) - baseAltura),
+      modelo: p.modelo, lente: p.lente
+    }));
+  } else {
+    ajustes.projetoresExtra = resto.map((p) => ({
+      racio: p.racio, distancia: p.distancia,
+      lateral: anchorLateral + ((p.lateral || 0) - baseLateral),
+      altura: anchorAltura + ((p.alturaOffset || 0) - baseAltura),
+      // Sem shift próprio de propósito: toda a fila usa o do campo (ver montar()).
+      modelo: p.modelo, lente: p.lente
+    }));
+  }
   guardarAjustes(ajustes);
   const aplicou = aplicarProjetor(primeiro);   // este já chama montar() no fim
   if (aplicou && resto.length) {
-    $("notaProj").innerHTML += ` + ${resto.length} do blend.`;
+    $("notaProj").innerHTML += lista.curva
+      ? ` + ${resto.length} do blend, num ecrã curvo de ${nnum(lista.curva.raio)} m de raio.`
+      : ` + ${resto.length} do blend.`;
   }
   return aplicou;
 }

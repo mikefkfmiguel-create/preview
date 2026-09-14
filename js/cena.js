@@ -2367,6 +2367,120 @@ export function conteudoDeDataURL(url) {
 
 
 /**
+ * A GEOMETRIA DE UM ECRÃ CURVO DE BLEND.
+ *
+ * Um cilindro vertical, côncavo para a plateia — o meio do ecrã mais longe do
+ * que as pontas, como num ciclorama.
+ *
+ * O que fica encostado a z0 (onde o ecrã plano ficaria) é o PONTO MAIS FUNDO,
+ * e as pontas vêm para a frente a flecha. Ancorar a corda em z0 era o outro
+ * caminho possível, e foi o primeiro que tentei: com a corda à frente, o meio
+ * do ecrã abaula para trás e um ciclorama de 25 m com 6,7 m de flecha atravessa
+ * a parede do fundo. Um ecrã meio enterrado na parede é uma sala que não
+ * existe; assim a superfície fica sempre dentro dela.
+ *
+ * Daqui saem todas as contas do caso curvo, num sítio só — a superfície, a
+ * fatia de cada projetor e a posição de cada máquina. Já se aprendeu nesta app
+ * o que custa ter a mesma conta em dois sítios.
+ */
+export function medidasDaCurva(curva, z0) {
+  if (!curva || !(curva.raio > 0) || !(curva.arco > 0)) return null;
+  const R = curva.raio;
+  const meioAngulo = Math.min(Math.PI, curva.arco / (2 * R));
+  const flecha = R - R * Math.cos(meioAngulo);
+  // O centro da curvatura, do lado da plateia: a R do ponto mais fundo.
+  const cz = z0 + R;
+  return {
+    R: R, arco: curva.arco, corda: curva.corda, meioAngulo: meioAngulo, flecha: flecha, cz: cz,
+    /** O ponto da superfície à distância `s` do meio, medida SOBRE o arco. */
+    pontoNoArco(s) {
+      const a = s / R;
+      return { x: R * Math.sin(a), z: cz - R * Math.cos(a), angulo: a };
+    },
+    /** Onde fica a lente que serve esse ponto: a `t` da superfície, pelo raio. */
+    lenteNoArco(s, t) {
+      const a = s / R;
+      const r = R - t;
+      return { x: r * Math.sin(a), z: cz - r * Math.cos(a), angulo: a };
+    }
+  };
+}
+
+/**
+ * A projeção num ecrã CURVO: a imagem desta máquina é uma fatia do cilindro, e
+ * não um retângulo plano. O resto — a caixa do projetor, o cone da lente — é o
+ * mesmo do ecrã plano; só muda a superfície onde a luz vai bater.
+ */
+export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0") {
+  const grupo = new THREE.Group();
+  grupo.name = "projecao";
+
+  // A fatia do cilindro.
+  //
+  // A CylinderGeometry põe os vértices em (R·sin θ, R·cos θ): o θ dela conta a
+  // partir de +z e roda para +x. O nosso ângulo `a` conta do meio do ecrã (−z)
+  // e roda para +x, ou seja θ = π − a -- e como a conversão troca o sentido, o
+  // início da fatia em θ é o FIM dela em `a`.
+  //
+  // Isto já esteve errado (π/2 + a): as lentes ficavam no sítio certo e a
+  // superfície nascia rodada um quarto de volta, com os feixes a apontar para
+  // um ecrã que estava noutro lado da sala. Só se apanhou a medir a caixa das
+  // fatias — no desenho, um ecrã curvo torto ainda parece um ecrã curvo.
+  const material = textura
+    ? new THREE.MeshBasicMaterial({ map: textura, toneMapped: false, side: THREE.DoubleSide })
+    : new THREE.MeshBasicMaterial({ color: 0xEAF2FF, side: THREE.DoubleSide });
+  const abertura = fatia.angFim - fatia.angInicio;
+  const geometria = new THREE.CylinderGeometry(
+    fatia.R, fatia.R, fatia.altura, Math.max(8, Math.ceil(abertura * 24)), 1, true,
+    Math.PI - fatia.angFim, abertura);
+  const tela = new THREE.Mesh(geometria, material);
+  tela.name = "projecao-imagem";
+  tela.position.set(0, fatia.y, fatia.cz);
+  grupo.add(tela);
+
+  const contorno = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geometria),
+    new THREE.LineBasicMaterial({ color: 0x9BC4FF }));
+  contorno.name = "aux:contorno";
+  contorno.position.copy(tela.position);
+  grupo.add(contorno);
+
+  const caixa = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.18, 0.52),
+    new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
+  caixa.name = nome;
+  caixa.position.set(projetor.x, projetor.y, projetor.z);
+  // Virada para a fatia dela: sem isto, um arco de projetores parece um arco
+  // de caixas atiradas ao acaso.
+  caixa.lookAt(fatia.alvo.x, projetor.y, fatia.alvo.z);
+  grupo.add(caixa);
+
+  // O cone, até aos quatro cantos da fatia — que são pontos do cilindro.
+  const meiaA = fatia.altura / 2;
+  const p = (ang, dy) => [fatia.R * Math.sin(ang), fatia.y + dy, fatia.cz - fatia.R * Math.cos(ang)];
+  const cantos = [
+    p(fatia.angInicio, +meiaA), p(fatia.angFim, +meiaA),
+    p(fatia.angFim, -meiaA), p(fatia.angInicio, -meiaA)
+  ];
+  const vertices = [];
+  for (let i = 0; i < 4; i++) {
+    const a = cantos[i], b = cantos[(i + 1) % 4];
+    vertices.push(projetor.x, projetor.y, projetor.z, a[0], a[1], a[2], b[0], b[1], b[2]);
+  }
+  const geoCone = new THREE.BufferGeometry();
+  geoCone.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geoCone.computeVertexNormals();
+  const cone = new THREE.Mesh(geoCone, new THREE.MeshBasicMaterial({
+    color: 0x8FC2FF, transparent: true, opacity: 0.10,
+    side: THREE.DoubleSide, depthWrite: false
+  }));
+  cone.name = "aux:cone";
+  grupo.add(cone);
+
+  return grupo;
+}
+
+/**
  * A projeção: o projetor, o cone de luz e a imagem na tela.
  *
  * O tamanho da imagem não se escreve — calcula-se. Um projetor com rácio 1,4 a
