@@ -429,10 +429,14 @@ export function ajustesGuardados() {
       // Que máquina é o projetor #0 (modelo + lente), tal como veio dos
       // Calculadores. Só serve para o relatório de montagem lhe saber o nome
       // — o desenho continua a viver de rácio/distância e mais nada.
-      projetor: (dados && typeof dados.projetor === "object" && dados.projetor) || null
+      projetor: (dados && typeof dados.projetor === "object" && dados.projetor) || null,
+      // A curvatura do ecrã do blend, quando o há. É do projeto e não da
+      // carga: quem reabre a app amanhã tem de voltar a ver o ecrã curvo sem
+      // ir outra vez aos Calculadores.
+      curvaDoBlend: (dados && typeof dados.curvaDoBlend === "object" && dados.curvaDoBlend) || null
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null };
   }
 }
 
@@ -521,9 +525,43 @@ function lerProjetorItem(d) {
  */
 export function lerProjetores(d) {
   if (!d || typeof d !== "object") return [];
+  let lista;
   if (Array.isArray(d.projetores)) {
-    return d.projetores.map(lerProjetorItem).filter(Boolean);
+    lista = d.projetores.map(lerProjetorItem).filter(Boolean);
+  } else {
+    const um = lerProjetorItem(d);
+    lista = um ? [um] : [];
   }
-  const um = lerProjetorItem(d);
-  return um ? [um] : [];
+  // A curvatura viaja PRESA À LISTA, e não devolvida à parte, porque pertence
+  // à lista: é a superfície onde aqueles projetores estão a apontar. Uma
+  // função separada podia ser chamada com uma lista e a curva de outra carga,
+  // e ninguém dava por isso. Assim, quem lê a lista tem sempre a superfície
+  // certa, e as sete chamadas que já existiam continuam a ver um array normal.
+  lista.curva = lerCurvaDoBlend(d);
+  return lista;
+}
+
+/**
+ * A curvatura do ecrã do blend, quando vem.
+ *
+ * Num ecrã curvo a grelha do blend é medida AO LONGO DO ARCO: o `lateral` de
+ * cada projetor é a distância sobre a superfície a partir do meio do ecrã, e
+ * não em linha reta. Com o raio, isso enrola-se (ângulo = arco ÷ raio). Sem
+ * ele não há maneira de o fazer -- daí uma carga com `lateral` mas sem `curva`
+ * continuar a ser um ecrã plano, como sempre foi.
+ *
+ * A corda vem também, e não se calcula aqui a partir do arco: é a medida que a
+ * pessoa escreveu (o espaço que o ecrã ocupa no local) e é com ela que se sabe
+ * se cabe na sala.
+ */
+export function lerCurvaDoBlend(d) {
+  if (!d || typeof d !== "object" || !d.curva || typeof d.curva !== "object") return null;
+  const raio = numero(d.curva.raio, 0);
+  const corda = numero(d.curva.corda, 0);
+  const arco = numero(d.curva.arco, 0);
+  if (!(raio > 0) || !(arco > 0)) return null;
+  // Uma corda maior do que o diâmetro é um círculo impossível -- e mais vale
+  // não desenhar nada do que desenhar uma superfície que não existe.
+  if (corda > 2 * raio + 0.001) return null;
+  return { raio, corda: corda > 0 ? corda : 2 * raio * Math.sin(arco / (2 * raio)), arco };
 }
