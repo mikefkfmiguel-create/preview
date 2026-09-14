@@ -331,6 +331,10 @@ function montar(recentrarCamara) {
    "btVistaDome", "saidasDome"].forEach((id) => {
     if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
   });
+  // Onde fica o ecrã curvo — dois campos que só fazem sentido quando há um.
+  if ($("curvaPosicaoWrap")) {
+    $("curvaPosicaoWrap").style.display = curvaAtivaDoBlend() ? "" : "none";
+  }
   // A secção das coordenadas aparece com projetores de cúpula OU de ecrã
   // plano -- a projeção simples e o blend contam, e é o próprio desenho deles
   // que enche a tabela mais abaixo.
@@ -664,7 +668,7 @@ function curvaAtivaDoBlend() {
  */
 function desenharBlendCurvo(sala, curva) {
   const z0 = -sala.profundidade / 2 + 0.35;
-  const m = medidasDaCurva(curva, z0);
+  const m = medidasDaCurva(curva, z0, num("curvaDx"), num("curvaDz"));
   if (!m) return;
   // O shift é o do campo, igual para toda a fila — a mesma decisão do ecrã
   // plano ("deve ser de igual sim").
@@ -706,6 +710,7 @@ function desenharBlendCurvo(sala, curva) {
     // uma contra a outra. Assim vê-se também onde elas se sobrepõem.
     const fatia = {
       R: m.R - i * 0.004,
+      cx: m.cx,
       cz: m.cz,
       altura: alturaImagem,
       y: (pe.altura || 0) + fila.shiftV * alturaImagem,
@@ -4054,6 +4059,9 @@ function estadoCompleto() {
     publico: lerPublico(),
     regie: lerRegie(),
     projecao: lerProjecao(),
+    // Onde o ecrã curvo ficou na sala. Vai no ficheiro como tudo o resto: um
+    // projeto reaberto tem de encontrar o ciclorama no sítio onde se deixou.
+    curvaPosicao: { dx: num("curvaDx"), dz: num("curvaDz") },
     projeto,
     ajustes,
     // As imagens que o mike põe nos ecrãs e nos DSM -- pedido direto: "não
@@ -4137,6 +4145,8 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("projLateral", pj.lateral);
   preencherCampo("projShiftV", pj.shiftV != null ? pj.shiftV * 100 : null);
   preencherCampo("projShiftH", pj.shiftH != null ? pj.shiftH * 100 : null);
+  const cp = estado.curvaPosicao || {};
+  preencherCampo("curvaDx", cp.dx); preencherCampo("curvaDz", cp.dz);
 
   // A partir da v3.32 a app nasce VAZIA (sem palco, público, régie nem
   // orador). Um ficheiro guardado antes disso não diz que os tinha ligados --

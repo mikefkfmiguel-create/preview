@@ -2383,25 +2383,30 @@ export function conteudoDeDataURL(url) {
  * fatia de cada projetor e a posição de cada máquina. Já se aprendeu nesta app
  * o que custa ter a mesma conta em dois sítios.
  */
-export function medidasDaCurva(curva, z0) {
+export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
   if (!curva || !(curva.raio > 0) || !(curva.arco > 0)) return null;
   const R = curva.raio;
   const meioAngulo = Math.min(Math.PI, curva.arco / (2 * R));
   const flecha = R - R * Math.cos(meioAngulo);
-  // O centro da curvatura, do lado da plateia: a R do ponto mais fundo.
-  const cz = z0 + R;
+  // Onde o ecrã fica na sala. O dx/dz move a SUPERFÍCIE, e tudo o resto vai
+  // atrás -- o centro da curvatura e, com ele, o arco dos projetores. Mover só
+  // o desenho e deixar as máquinas onde estavam era desenhar uma montagem que
+  // não existe.
+  const cx = dx;
+  const cz = z0 + dz + R;   // o centro da curvatura, do lado da plateia
   return {
-    R: R, arco: curva.arco, corda: curva.corda, meioAngulo: meioAngulo, flecha: flecha, cz: cz,
+    R: R, arco: curva.arco, corda: curva.corda, meioAngulo: meioAngulo, flecha: flecha,
+    cx: cx, cz: cz,
     /** O ponto da superfície à distância `s` do meio, medida SOBRE o arco. */
     pontoNoArco(s) {
       const a = s / R;
-      return { x: R * Math.sin(a), z: cz - R * Math.cos(a), angulo: a };
+      return { x: cx + R * Math.sin(a), z: cz - R * Math.cos(a), angulo: a };
     },
     /** Onde fica a lente que serve esse ponto: a `t` da superfície, pelo raio. */
     lenteNoArco(s, t) {
       const a = s / R;
       const r = R - t;
-      return { x: r * Math.sin(a), z: cz - r * Math.cos(a), angulo: a };
+      return { x: cx + r * Math.sin(a), z: cz - r * Math.cos(a), angulo: a };
     }
   };
 }
@@ -2435,7 +2440,7 @@ export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0"
     Math.PI - fatia.angFim, abertura);
   const tela = new THREE.Mesh(geometria, material);
   tela.name = "projecao-imagem";
-  tela.position.set(0, fatia.y, fatia.cz);
+  tela.position.set(fatia.cx || 0, fatia.y, fatia.cz);
   grupo.add(tela);
 
   const contorno = new THREE.LineSegments(
@@ -2457,7 +2462,8 @@ export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0"
 
   // O cone, até aos quatro cantos da fatia — que são pontos do cilindro.
   const meiaA = fatia.altura / 2;
-  const p = (ang, dy) => [fatia.R * Math.sin(ang), fatia.y + dy, fatia.cz - fatia.R * Math.cos(ang)];
+  const p = (ang, dy) => [(fatia.cx || 0) + fatia.R * Math.sin(ang), fatia.y + dy,
+                          fatia.cz - fatia.R * Math.cos(ang)];
   const cantos = [
     p(fatia.angInicio, +meiaA), p(fatia.angFim, +meiaA),
     p(fatia.angFim, -meiaA), p(fatia.angInicio, -meiaA)

@@ -2178,6 +2178,34 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — o ecrã curvo passa a ter sítio na sala (v3.35)
+
+Reportado a meio de outra coisa: *"não consigo mudar a posição do ecrã"*. É
+meu, da v3.33: o ecrã curvo nascia com o ponto mais fundo colado à parede da
+frente e centrado em x = 0, **sem controlo nenhum**. Confirmei que não havia
+mesmo: a secção "Tamanho do ecrã" só tem largura e altura.
+
+Num ecrã **plano** isto não se nota, porque a imagem move-se movendo o
+projetor — são a lente e o shift que a põem no sítio. Um ecrã **curvo** é
+outra coisa: é uma superfície com lugar próprio na sala, e o projetor é que
+tem de ir atrás dela.
+
+Dois campos novos (**↔** e **fundo**) na secção Projeção, visíveis só quando o
+projeto traz uma curva. O `dx`/`dz` move o **centro da curvatura**, e por isso
+move a superfície e o arco dos projetores ao mesmo tempo — mover só o desenho e
+deixar as máquinas onde estavam era desenhar uma montagem que não existe.
+
+Vai no ficheiro do projeto (`curvaPosicao`): um ciclorama reaberto tem de estar
+onde se deixou.
+
+Medido, corda 25 m e raio 15: `dx = +5` move o ecrã de x [−12,49 … +12,49] para
+[−7,49 … +17,49] **e as duas lentes os mesmos 5 m**, sem tocar na
+profundidade · `dz = +4` move o ecrã e as lentes 4 m para o fundo sem tocar no
+lado. Sete verificações, todas passam.
+
+**Fica por fazer, do mesmo tipo:** a cúpula também nasce centrada e também não
+se mexe — faltam-lhe os mesmos dois campos, e agora há um padrão a seguir.
+
 ## 14 de setembro — a distância do ecrã curvo não fazia nada (v3.34)
 
 Reportado poucas horas depois da v3.33: *"no 3D, ao atualizar a distância dos
