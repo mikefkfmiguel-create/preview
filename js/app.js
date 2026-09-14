@@ -598,7 +598,12 @@ function montar(recentrarCamara) {
     const alturaExtraMaquina = pe.alturaOffset !== undefined
       ? fila.altura + pe.alturaOffset
       : (pe.altura || 0);
-    const projetorExtra = { x: pe.lateral || 0, y: alturaExtraMaquina, z: z0Proj + pe.distancia };
+    // Em retro a máquina fica ATRÁS do pano: a mesma distância medida, do
+    // outro lado. O pano está em z0Proj e a plateia em z maior.
+    const projetorExtra = {
+      x: pe.lateral || 0, y: alturaExtraMaquina,
+      z: ajustes.retroDoBlend ? z0Proj - pe.distancia : z0Proj + pe.distancia
+    };
     const imagemExtra = {
       x: projetorExtra.x + fila.shiftH * larguraExtra,
       y: projetorExtra.y + fila.shiftV * alturaExtra,
@@ -858,9 +863,18 @@ function desenharBlendCurvo(sala, curva) {
   // Passar do raio da curva punha a lente do OUTRO lado do centro, a projetar
   // para trás. Os Calculadores já recusam isso na origem; aqui, onde o número
   // se escreve à mão, limita-se e diz-se porquê (ver escreverCoordenadas()).
+  // FRONTAL OU RETRO, decidido nos Calculadores e trazido pela ponte.
+  // Perguntado a olhar para o 3D: *"frontal ou retro"* -- e até aqui as duas
+  // apps assumiam frontal em todo o lado sem o dizerem em lado nenhum. Uma
+  // carga antiga não traz o campo e lê-se como frontal.
+  const retro = curva.retro === true;
+
   const pedida = fila.distancia > 0 ? fila.distancia : 0;
+  // O tecto do raio é só do frontal: é lá que a máquina tem de caber entre o
+  // centro da curvatura e o pano. Atrás do pano não há tecto nenhum vindo do
+  // raio, e limitar ali era inventar um limite que a montagem não tem.
   const maxima = m.R - 0.5;
-  distanciaDaFilaLimitada = pedida > maxima ? maxima : null;
+  distanciaDaFilaLimitada = (!retro && pedida > maxima) ? maxima : null;
   const distancia = distanciaDaFilaLimitada || pedida;
 
   // EM ARCO OU EM LINHA RETA. Pedido direto: *"os projetores poderão ser
@@ -902,12 +916,16 @@ function desenharBlendCurvo(sala, curva) {
       // da sua fatia do que a do meio: são as pontas da curva que vêm à frente.
       const fracao = mMaquinas.arco > 0 ? s / (mMaquinas.arco / 2) : 0;
       const px = mMaquinas.cx + fracao * (curva.trussLargura / 2);
-      const pz = mMaquinas.cz - mMaquinas.R + distancia;
+      // Em retro a truss fica ATRÁS do ponto mais fundo do ecrã, não à frente
+      // dele: a fita mede a mesma distância, o sinal é que é o contrário.
+      const pz = retro
+        ? mMaquinas.cz - mMaquinas.R - distancia
+        : mMaquinas.cz - mMaquinas.R + distancia;
       projetor = { x: px, y: alturaMaquina, z: pz };
       // Daqui a fatia vê-se de esguelha, e o cone é simétrico: o pedaço de arco
       // que ela apanha não é simétrico em relação ao alvo. Só a geometria a
       // sério responde -- ver medidasDaCurva().arcoEntre().
-      const apanha = m.arcoEntre({ x: px, z: pz }, { x: alvo.x, z: alvo.z }, pe.racio);
+      const apanha = m.arcoEntre({ x: px, z: pz }, { x: alvo.x, z: alvo.z }, pe.racio, retro);
       // Sem interseção a máquina estaria fora da curva; os Calculadores recusam
       // essa montagem na origem, por isso aqui é mesmo só uma guarda.
       if (!apanha) return;
@@ -921,21 +939,26 @@ function desenharBlendCurvo(sala, curva) {
       // medidasDaCurva().arcoDaLente(), a mesma conta que os Calculadores usam
       // para escolher a lente. O rácio é da LENTE e fica de cada máquina; mexer
       // na distância com a mesma lente faz a imagem crescer, como na vida real.
-      const lente = mMaquinas.lenteNoArco(s, distancia);
+      // A lente a `distancia` da superfície: do lado de dentro do arco em
+      // frontal, do lado de fora em retro. O lenteNoArco() põe-na a R − t do
+      // centro, por isso o t negativo é exactamente "do outro lado do pano".
+      const lente = mMaquinas.lenteNoArco(s, retro ? -distancia : distancia);
       projetor = { x: lente.x, y: alturaMaquina, z: lente.z };
       if (desalinhado) {
         // Com o pano fora do sítio da montagem, o arco já não é concêntrico
         // com ele: a conta rápida (arcoDaLente) assume a lente no raio e a
         // olhar a direito, e nenhuma das duas coisas continua verdade. A
         // geometria geral não assume nada e serve os dois casos.
-        const apanha = m.arcoEntre({ x: lente.x, z: lente.z }, { x: alvo.x, z: alvo.z }, pe.racio);
+        const apanha = m.arcoEntre({ x: lente.x, z: lente.z }, { x: alvo.x, z: alvo.z }, pe.racio, retro);
         if (!apanha) { maquinasForaDoPano += 1; return; }
         aInicio = apanha.a1;
         aFim = apanha.a2;
         tiro = apanha.tiro;
         larguraNoArco = (apanha.a2 - apanha.a1) * m.R;
       } else {
-        larguraNoArco = m.arcoDaLente(pe.racio, distancia);
+        larguraNoArco = retro
+          ? m.arcoDaLenteAtras(pe.racio, distancia)
+          : m.arcoDaLente(pe.racio, distancia);
         if (!(larguraNoArco > 0)) return;
         const meiaAbertura = (larguraNoArco / 2) / m.R;
         aInicio = lente.angulo - meiaAbertura;
@@ -1331,6 +1354,20 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
   // engano -- e destes dois quem os vai montar tem de saber, porque mudam o
   // que ele vai encontrar na sala.
   const curva = curvaAtivaDoBlend();
+  // RETRO. Muda o que quem monta vai encontrar na sala, e muda uma coisa que o
+  // desenho NÃO mostra: o flip. Na sala o pano mostra a imagem direita nos dois
+  // casos -- é para isso que se inverte no media server -- por isso desenhá-la
+  // ao contrário aqui seria desenhar o erro de quem se esqueceu do flip. O que
+  // não se vê tem de ir escrito.
+  if (ajustes.retroDoBlend) {
+    linhas.push(forte("Retroprojeção") + ": as máquinas estão " + forte("atrás do pano") +
+      ", e a distância de cada uma é medida por trás — esse espaço tem de existir na sala. " +
+      "A imagem vai para o projetor " + forte("invertida na horizontal") + " (flip H no media " +
+      "server ou no projetor): no pano ela aparece direita, e é por isso que o desenho a " +
+      "mostra direita. Ninguém na plateia tapa o feixe — só quem andar atrás do ecrã." +
+      (curva ? " Num ecrã curvo visto de trás a superfície é convexa, e a mesma lente cobre " +
+        "MAIS arco do que num plano: os rácios que vieram dos Calculadores já contam com isso." : ""));
+  }
   if (curva && distanciaDaFilaLimitada) {
     linhas.push(forte("Distância limitada a " + nnum(distanciaDaFilaLimitada) + " m") + ": " +
       "num ecrã curvo os projetores ficam entre o centro da curvatura e a superfície, e " +
@@ -4353,7 +4390,7 @@ function limparTudo() {
   // não era a conta da primeira fila, era isto).
   // O interruptor do depósito é feitio de trabalhar, não conteúdo do projeto:
   // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -4574,7 +4611,7 @@ async function abrirProjetoTodo(estado) {
         // Esta vem: a máquina faz parte do projeto que se gravou.
         projetor: (estado.ajustes.projetor && typeof estado.ajustes.projetor === "object") ? estado.ajustes.projetor : null
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
@@ -6287,6 +6324,9 @@ function aplicarProjetores(lista) {
   // campo deixa de contar: um arco concêntrico deslocado para o lado já não
   // é concêntrico.
   ajustes.curvaDoBlend = lista.curva || null;
+  // De que lado do pano estão as máquinas. Guardado à parte da curva porque um
+  // ecrã PLANO em retro também existe e não tem curva nenhuma onde se pendurar.
+  ajustes.retroDoBlend = lista.retro === true;
   if (lista.curva) {
     ajustes.projetoresExtra = lista.map((p) => ({
       racio: p.racio, distancia: p.distancia,
@@ -6724,6 +6764,9 @@ addEventListener("storage", (e) => {
 window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor, aplicarProjetores,
                   caixasQueTapam, quemTapaOFeixe,
                   get feixesDoBlend() { return feixesDoBlend; },
+                  get ajustes() { return ajustes; },
+                  get montagemProjetores() { return montagemProjetores; },
+                  get notaDeLeitura() { return notaDeLeitura; },
                   get projeto() { return projeto; },
                   get desenhado() { return desenhado; },
                   get plantaCad() { return plantaCad; } };

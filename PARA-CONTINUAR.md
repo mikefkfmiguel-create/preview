@@ -2178,6 +2178,52 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — frontal ou retro (v3.46)
+
+Perguntado a olhar para o 3D: *"frontal ou retro"*. Era **frontal, sempre**, e
+não estava escrito em lado nenhum: o centro da curvatura fica do lado da
+plateia e as máquinas a `R − distância` desse centro.
+
+A escolha vem agora dos Calculadores pela ponte (`retro`, no topo da carga e
+dentro da curva — um ecrã plano não tem curva onde a pendurar), e fica no
+projeto guardado como a curva já ficava.
+
+**As máquinas passam para o outro lado.** Medido com centro do cilindro em
+z = −9,65, raio 15 e tiro 12: a do meio estava em **z = −12,65** (r = R − 12 =
+3) e passa a **z = −36,65** (r = R + 12 = 27). Simétrico ao centímetro. Vale
+para o arco (`lenteNoArco` com t negativo), para a linha reta (a truss vai
+para trás do ponto mais fundo) e para o ecrã plano.
+
+**A geometria teve de aprender a ver de fora do círculo.** De dentro há uma só
+interseção à frente; de fora há duas, e conta a **primeira** — a luz para na
+casca, não a atravessa para ir bater do outro lado. Trocar as raízes
+desenhava a imagem na parede oposta do cilindro. Daí o `arcoDaLenteAtras()` ao
+lado do `arcoDaLente()`, e o `arcoEntre()` com a guarda ao contrário (em
+frontal a lente tem de estar dentro do círculo; em retro, fora).
+
+**O tecto do raio deixa de se aplicar.** Limitar a distância a R − 0,5 em
+retro era inventar um limite que a montagem não tem.
+
+**Ninguém na plateia tapa o feixe, e isso saiu de graça.** A conta de quem
+tapa (v3.44) é geométrica: a pirâmide passa a viver atrás do pano e as caixas
+da plateia deixam de a intersectar, sem uma linha especial. Medido com o
+público ligado: frontal **8 pessoas, 2 dos 5 projetores**; retro **0 e 0**.
+
+**O que o desenho NÃO faz é inverter a imagem.** Em retro manda-se a imagem
+invertida para o projetor (flip H) precisamente para que no pano apareça
+**direita** — desenhá-la ao contrário aqui seria desenhar o erro de quem se
+esqueceu do flip. O que não se vê vai escrito, na `notaDeLeitura()`, que serve
+o painel, o "Copiar" e o relatório de uma vez. Medido: a nota do painel passa
+de 799 para 1320 caracteres e inclui a linha do retro.
+
+O `window.preview` passa a expor `ajustes`, `montagemProjetores` e
+`notaDeLeitura` — sem isso não havia como medir nada disto.
+
+Um erro meu apanhado a meio: ao acrescentar o campo aos ajustes comi o `};`
+que fechava o objeto em `ajustesGuardados()`, e a app deixou de arrancar
+("Unexpected token 'catch'"). Encontrado por bissecção, a reverter um ficheiro
+de cada vez até a app voltar a abrir.
+
 ## 14 de setembro — três coisas que não obedeciam ao rato (v3.45)
 
 Três queixas seguidas, todas da mesma família: a cena mostrava uma coisa e

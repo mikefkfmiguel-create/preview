@@ -433,10 +433,14 @@ export function ajustesGuardados() {
       // A curvatura do ecrã do blend, quando o há. É do projeto e não da
       // carga: quem reabre a app amanhã tem de voltar a ver o ecrã curvo sem
       // ir outra vez aos Calculadores.
-      curvaDoBlend: (dados && typeof dados.curvaDoBlend === "object" && dados.curvaDoBlend) || null
+      curvaDoBlend: (dados && typeof dados.curvaDoBlend === "object" && dados.curvaDoBlend) || null,
+      // Frontal ou retro. Do projeto, pela mesma razão que a curva: quem reabre
+      // amanhã tem de voltar a ver as máquinas do lado certo do pano sem ir
+      // outra vez aos Calculadores. Um projeto antigo não traz isto: frontal.
+      retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null, retroDoBlend: false };
   }
 }
 
@@ -538,6 +542,10 @@ export function lerProjetores(d) {
   // e ninguém dava por isso. Assim, quem lê a lista tem sempre a superfície
   // certa, e as sete chamadas que já existiam continuam a ver um array normal.
   lista.curva = lerCurvaDoBlend(d);
+  // E o lado do pano, preso à lista pela mesma razão -- e à parte da curva,
+  // porque um ecrã PLANO não tem curva nenhuma e a retroprojeção não é
+  // privilégio dos curvos. Uma carga antiga não traz o campo: frontal.
+  lista.retro = d.retro === true || (d.curva && d.curva.retro === true);
   return lista;
 }
 
@@ -586,6 +594,11 @@ export function lerCurvaDoBlend(d) {
     shiftV: numero(d.curva.shiftV, NaN),
     montagem: emLinha ? "linha" : "arco",
     trussLargura: emLinha ? trussLargura : 0,
-    trussDistancia: emLinha ? trussDistancia : 0
+    trussDistancia: emLinha ? trussDistancia : 0,
+    // Frontal ou retro. Vem dentro da curva e também no topo da carga (um ecrã
+    // plano não tem curva nenhuma e a retroprojeção não é privilégio dos
+    // curvos); uma carga antiga não traz nenhum dos dois e lê-se como frontal,
+    // que era o que as duas apps assumiam sem nunca o dizer.
+    retro: d.curva.retro === true || d.retro === true
   };
 }
