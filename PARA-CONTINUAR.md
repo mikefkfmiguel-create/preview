@@ -2178,6 +2178,41 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — o painel de ajuste vai ter com a peça (v3.43)
+
+Pedido direto: *"numa situação destas, onde ajusto a posição dos elementos com
+números, poderia saltar um painel de ajuste"*.
+
+Os campos já existiam — **↔, fundo, altura, rodar** — mas viviam numa lista lá
+em baixo no painel lateral. Para afinar dois centímetros do que se acabou de
+arrastar era preciso ir procurar a linha certa, numa lista que cresce com o
+projeto. O arrasto põe a peça perto; os números põem-na no sítio. Não faz
+sentido que morem em pontos opostos do ecrã.
+
+Agora, pegar numa peça na cena abre uma caixa no canto com o nome dela e os
+seus campos. Largar em vazio fecha-a.
+
+**São os mesmos campos, não uma segunda cópia deles:** a mesma `campoAjuste()`
+que a lista usa, sobre o mesmo objeto de ajustes. Escrever aqui é escrever lá —
+não há dois valores, há dois sítios a mostrar o mesmo. Nem tudo o que se
+arrasta tem objeto de ajustes próprio (a régie e o primeiro projetor saem de
+campos do painel), e para esses há um `ajusteSobreCampos()` — um objeto com
+getters/setters que dão nesses campos. O painel não precisa de saber a
+diferença.
+
+Duas coisas que só aparecem a usar:
+
+- **Os números acompanham o arrasto.** Escreve-se no `value` em vez de refazer
+  o painel, senão refazê-lo a cada movimento tirava o foco a quem estivesse a
+  escrever num campo.
+- **Ao largar, arredonda ao centímetro.** Um arrasto deixa 28,957212 m, e o
+  painel a mostrar isso faz um número que ninguém escreveu parecer uma medida.
+  Arredonda-se o valor, não só o que se mostra — mostrar 28,96 e guardar
+  28,957212 era pôr o painel a mentir por dois dígitos.
+
+Verificado: pegar numa zona abre "TV" com os quatro campos; arrastar leva-os a
+3,74 e 28,96; escrever 4 no ↔ move a peça para x = 4.
+
 ## 14 de setembro — "falta gente não?" (v3.42)
 
 Pergunta dele, com foto: um ecrã montado na sala e a plateia por pôr. Não era
