@@ -664,3 +664,7 @@ button.apontado { animation: apontar 1.1s ease-in-out 3; }
   gap: 5px;
 }
 #painelAjuste .ajuste-campo > input { padding: 4px 6px; }
+
+/* O aviso de quem tapa o feixe do blend: é uma coisa que muda a montagem, e
+   por isso não pode ter o mesmo peso visual de um "—". */
+.aviso-inline { color: #FF9C7A; font-size: 12px; }
