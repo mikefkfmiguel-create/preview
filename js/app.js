@@ -3692,6 +3692,11 @@ function salaEstaVazia() {
 }
 
 function vista(qual) {
+  // O "Trazer tudo" entra por aqui de propósito: é o mesmo grupo de botões e a
+  // mesma ligação de eventos, e assim um botão novo no HTML não precisa de um
+  // onclick próprio -- que é precisamente o que já partiu a app uma vez (ver o
+  // aviso junto à ligação dos botões).
+  if (qual === "casa") { trazerTudoAVista(); return; }
   const fovQueQuer = qual === "dome" ? FOV_DENTRO_DA_CUPULA : FOV_NORMAL;
   if (camara.fov !== fovQueQuer) { camara.fov = fovQueQuer; camara.updateProjectionMatrix(); }
   // Numa sala VAZIA não se enquadra a sala: enquadra-se onde as coisas vão
@@ -3747,6 +3752,125 @@ function vista(qual) {
     return;
   }
   controlos.target.copy(alvo);
+  controlos.update();
+}
+
+/**
+ * TRAZER TUDO À VISTA.
+ *
+ * Reportado do telemóvel: *"acabei de desaparecer com tudo enquanto estava a
+ * mover o boneco — daria jeito um 'home all' para trazer todos os objetos da
+ * sala para o ponto de origem de forma a que os consiga ver"*. Num ecrã
+ * pequeno um arrasto que devia mexer numa peça mexe na câmara, e a sala vai
+ * parar a um sítio de onde não se vê nada — sem nada de errado com o projeto.
+ *
+ * Duas coisas, por esta ordem, e nenhuma delas atira o projeto fora:
+ *
+ * 1. As peças que ficaram FORA DA SALA voltam para dentro. Só essas: arrastar
+ *    tudo para a origem seria desfazer uma montagem boa para resolver um
+ *    problema de câmara, e quem passou meia hora a colocar as coisas não quer
+ *    isso. As que estão dentro não se mexem um centímetro.
+ * 2. A câmara enquadra o que EXISTE, e não o que a sala mede — é a diferença
+ *    entre voltar a ver e continuar a olhar para o vazio ao lado.
+ */
+function trazerTudoAVista() {
+  const arrumadas = arrumarOQueFugiuDaSala();
+  if (arrumadas) { guardarAjustes(ajustes); montar(); }
+  enquadrarOQueExiste();
+  const nota = $("notaTrazerTudo");
+  if (nota) {
+    // Dizer o que se mexeu, e dizer quando não se mexeu nada. Um botão que age
+    // em silêncio deixa quem carregou sem saber se aconteceu alguma coisa --
+    // e neste, que existe justamente para quando já não se percebe o que se
+    // está a ver, o silêncio era o pior dos defeitos.
+    nota.textContent = arrumadas
+      ? (arrumadas === 1 ? "1 peça estava fora da sala e voltou para dentro. Câmara reenquadrada."
+                         : arrumadas + " peças estavam fora da sala e voltaram para dentro. Câmara reenquadrada.")
+      : "Câmara reenquadrada — está tudo à vista. Nenhuma peça foi movida.";
+    nota.style.display = "block";
+  }
+}
+
+/**
+ * As peças que saíram das paredes, de volta para dentro.
+ *
+ * Usa a MESMA lista de objetos arrastáveis que o rato usa: quem se pode mexer
+ * à mão é exactamente quem pode ter fugido, e uma segunda lista aqui acabaria
+ * a discordar dela. O `setXZ` trabalha na mesma escala do mundo que o arrasto
+ * (ver o pointermove), por isso somar um deslocamento é o mesmo que arrastar.
+ */
+function arrumarOQueFugiuDaSala() {
+  const sala = lerSala();
+  // A RÉGUA NÃO É A PAREDE. Medido num projeto de exemplo acabado de abrir,
+  // a parede dava "3 peças fora da sala" sem ninguém ter tocado em nada: os
+  // ecrãs vivem encostados ao fundo e, em retro, as máquinas ficam metros
+  // atrás do pano de propósito. Essas não fugiram -- estão onde têm de estar.
+  //
+  // Fugiu é o que está TÃO longe que já não pertence à cena: três vezes a
+  // maior medida da sala. Uma máquina 12 m atrás do ecrã fica; uma peça a
+  // 200 m volta. Entre uma coisa e outra não há dúvida nenhuma a resolver.
+  const perto = Math.max(sala.largura, sala.profundidade, 10);
+  const limite = perto * 3;
+  const limiteX = Math.max(1, sala.largura / 2);
+  const limiteZ = Math.max(1, sala.profundidade / 2);
+  const fugiu = (x, z) => Math.abs(x) > limite || Math.abs(z) > limite;
+  let mexidas = 0;
+
+  // O boneco vive fora dos ajustes (é ele que o arrasto move directamente), e
+  // por isso também fora da lista. Uma sala encolhida depois de ele ter sido
+  // colocado deixa-o do lado de fora da parede sem ninguém lhe tocar.
+  [ondeEsta, ondeEstaNaDome].forEach((onde) => {
+    if (!onde || !fugiu(onde.x, onde.z)) return;
+    onde.x = Math.min(limiteX, Math.max(-limiteX, onde.x));
+    onde.z = Math.min(limiteZ, Math.max(-limiteZ, onde.z));
+    mexidas += 1;
+  });
+
+  objetosArrastaveis().forEach((alvo) => {
+    if (!alvo.obj || !alvo.getXZ || !alvo.setXZ) return;
+    const mundo = new THREE.Vector3();
+    alvo.obj.getWorldPosition(mundo);
+    if (!fugiu(mundo.x, mundo.z)) return;
+    const dx = Math.min(limiteX, Math.max(-limiteX, mundo.x)) - mundo.x;
+    const dz = Math.min(limiteZ, Math.max(-limiteZ, mundo.z)) - mundo.z;
+    const onde = alvo.getXZ();
+    alvo.setXZ(Math.round((onde.x + dx) * 100) / 100, Math.round((onde.z + dz) * 100) / 100);
+    mexidas += 1;
+  });
+  return mexidas;
+}
+
+/**
+ * A câmara a enquadrar o que está mesmo desenhado.
+ *
+ * As vistas fixas (Frente, Lado, Cima) enquadram a SALA, que é o que se quer
+ * quase sempre. Esta enquadra a caixa do que existe: é a que serve quando
+ * alguém se perdeu, porque não assume que o que se procura está onde devia.
+ */
+function enquadrarOQueExiste() {
+  if (camara.fov !== FOV_NORMAL) { camara.fov = FOV_NORMAL; camara.updateProjectionMatrix(); }
+  const caixa = new THREE.Box3();
+  if (desenhado) caixa.expandByObject(desenhado);
+  // Sala vazia, ou tudo desligado: não há caixa nenhuma para enquadrar e a
+  // vista de frente é a resposta honesta.
+  if (caixa.isEmpty()) { vista("frente"); return; }
+
+  const centro = caixa.getCenter(new THREE.Vector3());
+  const tamanho = caixa.getSize(new THREE.Vector3());
+  const maior = Math.max(tamanho.x, tamanho.y, tamanho.z, 2);
+  // A distância que mete a caixa toda no ecrã, pelo lado mais apertado: num
+  // telemóvel ao alto quem manda é a largura, e usar só o FOV vertical deixava
+  // as pontas de fora precisamente no ecrã em que isto faz falta.
+  const meioFovV = (camara.fov * Math.PI) / 360;
+  const meioFovH = Math.atan(Math.tan(meioFovV) * camara.aspect);
+  const distancia = (maior / 2) / Math.tan(Math.min(meioFovV, meioFovH)) * 1.25;
+  // Do mesmo sítio de onde a vista "Frente" olha — de trás e um pouco acima,
+  // que é como se lê uma sala — mas à distância que faz caber tudo.
+  camara.position.set(
+    centro.x,
+    centro.y + Math.max(2, distancia * 0.35),
+    centro.z + distancia * 0.9);
+  controlos.target.copy(centro);
   controlos.update();
 }
 
@@ -6767,6 +6891,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   get ajustes() { return ajustes; },
                   get montagemProjetores() { return montagemProjetores; },
                   get notaDeLeitura() { return notaDeLeitura; },
+                  trazerTudoAVista, enquadrarOQueExiste, arrumarOQueFugiuDaSala, objetosArrastaveis, montar,
                   get projeto() { return projeto; },
                   get desenhado() { return desenhado; },
                   get plantaCad() { return plantaCad; } };
