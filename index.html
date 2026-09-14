@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.46</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.47</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -426,12 +426,18 @@
       </div>
     </details>
     <div class="vistas">
+      <!-- "Home all", pedido do telemóvel depois de um arrasto ter levado a
+           câmara para longe de tudo: *"acabei de desaparecer com tudo enquanto
+           estava a mover o boneco"*. Fica em primeiro porque é o botão de quem
+           já não sabe o que está a ver. -->
+      <button data-vista="casa" id="btTrazerTudo" class="destaque" title="Enquadra tudo o que existe e traz para dentro da sala as peças que ficaram de fora">🏠 Trazer tudo à vista</button>
       <button data-vista="frente">Frente</button>
       <button data-vista="lado">Lado</button>
       <button data-vista="cima">Cima</button>
       <button data-vista="olhos" class="destaque">Olhos da plateia</button>
       <button data-vista="dome" id="btVistaDome" style="display:none;" title="De dentro da cúpula, a olhar para cima — é de onde o público a vê">Dentro da cúpula</button>
     </div>
+    <div class="hint" id="notaTrazerTudo" style="display:none;"></div>
     <label class="opcao"><input id="verEcras" type="checkbox" checked> Ecrãs</label>
     <label class="opcao"><input id="verPlanta" type="checkbox" checked> Planta</label>
     <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>

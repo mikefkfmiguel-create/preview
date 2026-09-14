@@ -2178,6 +2178,46 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — trazer tudo à vista (v3.47)
+
+Reportado do telemóvel: *"acabei de desaparecer com tudo enquanto estava a
+mover o boneco — daria jeito um 'home all' para trazer todos os objetos da sala
+para o ponto de origem de forma a que os consiga ver"*. Num ecrã pequeno um
+arrasto que devia mexer numa peça mexe na câmara, e a sala vai parar a um sítio
+de onde não se vê nada, sem nada de errado com o projeto.
+
+Botão **🏠 Trazer tudo à vista**, o primeiro do grupo das vistas, porque é o
+botão de quem já não sabe o que está a ver. Faz duas coisas, por esta ordem:
+
+**As peças que fugiram voltam.** Só essas. Arrastar tudo para a origem seria
+desfazer uma montagem boa para resolver um problema de câmara — quem passou
+meia hora a colocar as coisas não quer isso. Usa a mesma lista de objetos
+arrastáveis que o rato usa: quem se pode mexer à mão é exactamente quem pode
+ter fugido.
+
+**A câmara enquadra o que EXISTE**, e não o que a sala mede — é a diferença
+entre voltar a ver e continuar a olhar para o vazio ao lado. A caixa sai do
+`Box3` do que está desenhado, e a distância usa o menor dos dois meios-ângulos
+(vertical e horizontal): num telemóvel ao alto quem manda é a largura, e usar
+só o FOV vertical deixava as pontas de fora precisamente no ecrã onde isto faz
+falta.
+
+**A régua não é a parede — e isso foi um erro meu, apanhado a medir.** A
+primeira versão dizia *"3 peças estavam fora da sala e voltaram para dentro"*
+num projeto de exemplo acabado de abrir, sem ninguém ter tocado em nada: os
+ecrãs vivem encostados ao fundo, e em retro as máquinas ficam metros atrás do
+pano de propósito. Essas não fugiram. "Fugiu" passou a ser o que está a mais
+de **três vezes a maior medida da sala** — uma máquina 12 m atrás do ecrã
+fica, uma peça a 250 m volta, e entre as duas não há dúvida a resolver.
+
+Medido: projeto normal → *"nenhuma peça foi movida"*, câmara de
+(320, 180, −410) para (0, 16,6, 32,4) a olhar para o centro; uma zona empurrada
+para x = 294 → volta a x = 12 (a parede) e as outras duas ficam em 0 e 6, sem
+lhes tocar.
+
+O `window.preview` passa também a expor `objetosArrastaveis` e `montar`, que
+foi como isto se mediu.
+
 ## 14 de setembro — frontal ou retro (v3.46)
 
 Perguntado a olhar para o 3D: *"frontal ou retro"*. Era **frontal, sempre**, e
