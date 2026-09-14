@@ -2178,6 +2178,41 @@ Medido, blend de 3 com células a −6/0/+6 e âncora a 0: antes 0 · 0 · +6;
 agora **0 · +6 · +12**, com os objetos da cena a coincidirem com a tabela ao
 centímetro.
 
+## 14 de setembro — a tela também tem altura (v3.40)
+
+Pedido direto: *"ter em conta a posição com a relação da altura do ecrã e o
+cone de projeção nas contas e representação no desenho"*, e logo a seguir *"a
+altura a que fica o projetor e a proximidade vão influenciar o cone de
+projeção, para ter noção visual e relatado"*. Par com a v3.67 dos Calculadores.
+
+É a **mesma falta da v3.36, virada noventa graus**. Lá o ecrã não tinha largura
+própria — a tela era a soma das imagens, e uma imagem maior fazia a tela
+crescer até dar a volta ao cilindro. Na vertical era igual: a imagem nascia à
+altura da lente, subia com o shift, crescia com a distância, e não havia pano
+nenhum onde parar. Uma máquina montada alto de mais atirava metade da imagem
+para cima do ecrã e o desenho mostrava-a lá, como se houvesse pano.
+
+- **`fazerEcraCurvo()`**: a tela como objeto, em cinzento e sem textura — é o
+  pano, não a projeção. O que se vê dela por baixo das imagens é exactamente o
+  que vai ficar por cobrir.
+- **A altura** vem dos Calculadores com a curva (é do projeto). A **base** —
+  a que altura do chão está pendurada — é um campo novo aqui, porque colocação
+  física é sempre decisão de quem olha para a sala, como o dx/dz.
+- **A imagem é cortada em cima e em baixo** no limite do pano, e o que fica de
+  fora entra na mesma conta de "imagem fora do ecrã". O cone, que já era
+  desenhado até aos quatro cantos da fatia, passa a seguir o corte — é ele que
+  dá a noção visual que o mike pediu.
+- **A altura da lente deixa de se escrever duas vezes:** vem dos Calculadores
+  medida da base do ecrã, soma-se à base daqui, e dá a altura na sala.
+- **O relatório diz a vertical**: arco por altura, base e topo em metros do
+  chão, e a que altura fica o eixo das lentes acima da base do pano.
+
+Medido, num ecrã de 32,08 m de arco por 6 m, com a lente a meia altura: com a
+base a 0 a imagem enche o pano exactamente (y de 0 a 6). Subindo a base para
+2 m sem mexer na máquina, a imagem passa a cobrir só de 2 a 6,08 m — os 2 m de
+cima ficam pretos e o resto cai por baixo do pano — e o aviso salta de 1,24 m
+para 8,93 m de imagem fora do ecrã. Com a base a 6 m, 24,93 m.
+
 ## 14 de setembro — em arco, ou numa linha reta (v3.39)
 
 Pedido direto: *"os projetores poderão ser posicionados tanto em círculo a

@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.39</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.40</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -344,6 +344,11 @@
       <div class="campos">
         <label>↔ <input id="curvaDx" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
         <label>Fundo <input id="curvaDz" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
+        <!-- A base do ecrã: a que altura do chão começa a superfície. É daqui
+             que o desenho sabe onde a tela acaba em cima e em baixo, e por isso
+             onde a imagem lhe cai fora. A ALTURA da tela vem dos Calculadores
+             com a curva; a colocação física é sempre daqui. -->
+        <label>Base <input id="curvaBase" type="number" value="0" min="-10" max="40" step="0.1"><i>m</i></label>
       </div>
     </div>
     <div class="vistas" style="margin-top:10px">

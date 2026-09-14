@@ -573,6 +573,13 @@ export function lerCurvaDoBlend(d) {
     raio,
     corda: corda > 0 ? corda : 2 * raio * Math.sin(arco / (2 * raio)),
     arco,
+    // A ALTURA do pano e a altura do eixo da lente acima da base dele. Sem a
+    // primeira o ecrã não tem tamanho na vertical e uma imagem fora do sítio
+    // não tem onde parar; sem a segunda não se sabe a que altura a máquina foi
+    // pensada. Uma carga antiga não traz nenhuma das duas -- daí o 0, que o
+    // desenho lê como "não sei" e não como "rente ao chão".
+    altura: numero(d.curva.altura, 0),
+    alturaLente: numero(d.curva.alturaLente, 0),
     montagem: emLinha ? "linha" : "arco",
     trussLargura: emLinha ? trussLargura : 0,
     trussDistancia: emLinha ? trussDistancia : 0

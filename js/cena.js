@@ -2482,6 +2482,31 @@ export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
  * não um retângulo plano. O resto — a caixa do projetor, o cone da lente — é o
  * mesmo do ecrã plano; só muda a superfície onde a luz vai bater.
  */
+/**
+ * A TELA. O objeto, não a soma das imagens.
+ *
+ * Faltava, e a falta custou duas vezes: na horizontal deu a ferradura da v3.36
+ * (uma imagem maior do que a tela fazia a TELA crescer, porque tela não havia),
+ * e na vertical dava o mesmo -- uma imagem alta de mais, ou uma máquina montada
+ * no sítio errado, aterravam onde não há pano nenhum e ninguém dava por isso.
+ *
+ * Desenhada em cinzento, sem textura: é o pano, não a projeção. O que se vê
+ * dela por baixo das imagens é exactamente o que vai ficar por cobrir.
+ */
+export function fazerEcraCurvo(m, base, altura, nome = "ecra-curvo") {
+  if (!(altura > 0)) return null;
+  const abertura = 2 * m.meioAngulo;
+  const geometria = new THREE.CylinderGeometry(
+    m.R + 0.02, m.R + 0.02, altura, Math.max(16, Math.ceil(abertura * 32)), 1, true,
+    Math.PI - m.meioAngulo, abertura);
+  const tela = new THREE.Mesh(geometria, new THREE.MeshStandardMaterial({
+    color: 0x2A3038, roughness: 0.95, metalness: 0, side: THREE.DoubleSide
+  }));
+  tela.name = nome;
+  tela.position.set(m.cx, base + altura / 2, m.cz);
+  return tela;
+}
+
 export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0") {
   const grupo = new THREE.Group();
   grupo.name = "projecao";

@@ -12,7 +12,7 @@ import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, faze
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
          fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula,
-         medidasDaCurva, fazerProjecaoCurva } from "./cena.js";
+         medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -649,6 +649,17 @@ function montar(recentrarCamara) {
  * Guardada nos ajustes porque é do projeto e não da carga: quem reabre a app
  * amanhã tem de voltar a ver o ecrã curvo sem ir outra vez aos Calculadores.
  */
+/**
+ * A que altura do chão começa o pano.
+ *
+ * A ALTURA do ecrã vem dos Calculadores (é do projeto); onde ele fica pendurado
+ * é colocação física, e isso é sempre decisão de quem está a olhar para a sala
+ * — a mesma regra do dx/dz e da altura da lente. Por omissão, assente no chão.
+ */
+function alturaDaBaseDoEcra() {
+  return $("curvaBase") ? num("curvaBase") : 0;
+}
+
 function curvaAtivaDoBlend() {
   const c = ajustes.curvaDoBlend;
   if (!c || !(c.raio > 0) || !(c.arco > 0)) return null;
@@ -704,6 +715,13 @@ function desenharBlendCurvo(sala, curva) {
   // Uma carga antiga não traz `montagem` e lê-se como "arco", que era a única
   // que existia.
   const emLinha = curva.montagem === "linha" && curva.trussLargura > 0;
+
+  // A TELA, desenhada como objeto e não como soma das imagens -- ver
+  // fazerEcraCurvo(). Vai primeiro para as imagens ficarem por cima dela.
+  if (curva.altura > 0) {
+    const tela = fazerEcraCurvo(m, alturaDaBaseDoEcra(), curva.altura);
+    if (tela) desenhado.add(tela);
+  }
 
   ajustes.projetoresExtra.forEach((pe, i) => {
     if (!(pe.racio > 0) || !(distancia > 0)) return;
@@ -774,9 +792,30 @@ function desenharBlendCurvo(sala, curva) {
     const cortadoInicio = Math.max(aInicio, -m.meioAngulo);
     const cortadoFim = Math.min(aFim, m.meioAngulo);
     luzForaDoEcra += (cortadoInicio - aInicio) * m.R + (aFim - cortadoFim) * m.R;
-    // Inteiramente fora da tela: não há fatia para desenhar, mas a máquina
-    // continua a existir e a sua ficha também.
-    if (cortadoFim <= cortadoInicio) {
+
+    // E A MESMA COISA NA VERTICAL, que faltava.
+    //
+    // Pedido direto: *"a altura a que fica o projetor e a proximidade vão
+    // influenciar o cone de projeção, para ter noção visual e relatado"*. E
+    // influenciam: a imagem nasce à altura da lente, sobe ou desce com o shift,
+    // e cresce com a distância — mas o pano tem a altura que tem. Uma máquina
+    // montada a mais alto, ou perto de mais, atira metade da imagem para cima
+    // do ecrã, e até aqui isso desenhava-se como se o ecrã crescesse.
+    const centroImagem = (pe.altura || 0) + fila.shiftV * alturaImagem;
+    const baixoImagem = centroImagem - alturaImagem / 2;
+    const cimaImagem = centroImagem + alturaImagem / 2;
+    const baixoEcra = alturaDaBaseDoEcra();
+    const cimaEcra = baixoEcra + (curva.altura > 0 ? curva.altura : alturaImagem);
+    const baixoCortado = Math.max(baixoImagem, baixoEcra);
+    const cimaCortada = Math.min(cimaImagem, cimaEcra);
+    // A conta da luz perdida é em metros de ARCO na horizontal e em metros de
+    // ALTURA na vertical; somam-se como o que são -- imagem que não bate no
+    // pano. O que interessa a quem monta é a ordem de grandeza e a razão.
+    luzForaDoEcra += (baixoCortado - baixoImagem) + (cimaImagem - cimaCortada);
+
+    // Inteiramente fora da tela, de lado ou por cima: não há fatia para
+    // desenhar, mas a máquina continua a existir e a sua ficha também.
+    if (cortadoFim <= cortadoInicio || cimaCortada <= baixoCortado) {
       montagemProjetores.push(fichaDeProjetorEm(
         "P" + (i + 1), projetor, { x: alvo.x, y: projetor.y, z: alvo.z },
         fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem));
@@ -786,8 +825,8 @@ function desenharBlendCurvo(sala, curva) {
       R: m.R - i * 0.004,
       cx: m.cx,
       cz: m.cz,
-      altura: alturaImagem,
-      y: (pe.altura || 0) + fila.shiftV * alturaImagem,
+      altura: cimaCortada - baixoCortado,
+      y: (cimaCortada + baixoCortado) / 2,
       angInicio: cortadoInicio,
       angFim: cortadoFim,
       alvo: alvo
@@ -1116,9 +1155,22 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
   }
   if (curva && luzForaDoEcra > 0.05) {
     linhas.push(forte(nnum(luzForaDoEcra) + " m de imagem fora do ecrã") + ": a esta " +
-      "distância as lentes fazem imagens maiores do que a superfície (" + nnum(curva.arco) +
-      " m de arco), e o que passa das pontas cai ao lado. O desenho corta no limite do " +
-      "ecrã. Para caber: menos distância, ou lentes de rácio maior.");
+      "distância e a esta altura as lentes fazem imagens maiores do que a superfície (" +
+      nnum(curva.arco) + " m de arco" + (curva.altura > 0 ? " por " + nnum(curva.altura) + " m de altura" : "") +
+      "), e o que passa das bordas cai ao lado. O desenho corta no limite do " +
+      "ecrã. Para caber: menos distância, lentes de rácio maior, ou outra altura de montagem.");
+  }
+  // ONDE FICA O PANO, na vertical. É o que decide se o cone bate no ecrã ou
+  // acima dele, e quem monta precisa do número -- pedido direto: *"a altura a
+  // que fica o projetor e a proximidade vão influenciar o cone de projeção,
+  // para ter noção visual e relatado"*.
+  if (curva && curva.altura > 0) {
+    const base = alturaDaBaseDoEcra();
+    linhas.push(forte("O ecrã") + ": " + nnum(curva.arco) + " m de arco por " +
+      nnum(curva.altura) + " m de altura, da base a " + nnum(base) + " m do chão ao topo a " +
+      nnum(base + curva.altura) + " m. O eixo das lentes está a " + nnum(num("projAltura")) +
+      " m, ou seja " + nnum(num("projAltura") - base) + " m acima da base do pano — é daí que " +
+      "sai o shift vertical.");
   }
   return linhas;
 }
@@ -4147,7 +4199,7 @@ function estadoCompleto() {
     projecao: lerProjecao(),
     // Onde o ecrã curvo ficou na sala. Vai no ficheiro como tudo o resto: um
     // projeto reaberto tem de encontrar o ciclorama no sítio onde se deixou.
-    curvaPosicao: { dx: num("curvaDx"), dz: num("curvaDz") },
+    curvaPosicao: { dx: num("curvaDx"), dz: num("curvaDz"), base: num("curvaBase") },
     projeto,
     ajustes,
     // As imagens que o mike põe nos ecrãs e nos DSM -- pedido direto: "não
@@ -4232,7 +4284,7 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("projShiftV", pj.shiftV != null ? pj.shiftV * 100 : null);
   preencherCampo("projShiftH", pj.shiftH != null ? pj.shiftH * 100 : null);
   const cp = estado.curvaPosicao || {};
-  preencherCampo("curvaDx", cp.dx); preencherCampo("curvaDz", cp.dz);
+  preencherCampo("curvaDx", cp.dx); preencherCampo("curvaDz", cp.dz); preencherCampo("curvaBase", cp.base);
 
   // A partir da v3.32 a app nasce VAZIA (sem palco, público, régie nem
   // orador). Um ficheiro guardado antes disso não diz que os tinha ligados --
@@ -5864,6 +5916,14 @@ function aplicarProjetores(lista) {
   const cabeca = (lista.curva && lista.curva.montagem === "linha" && lista.curva.trussDistancia > 0)
     ? { ...primeiro, distancia: lista.curva.trussDistancia }
     : primeiro;
+  // A ALTURA DA LENTE, quando os Calculadores a sabem. Era sempre "daqui", e
+  // continua a ser num ecrã plano -- lá eles não fazem ideia de onde o pano
+  // está pendurado. Num ecrã curvo passaram a saber: a altura vem medida da
+  // BASE do ecrã, e a base é daqui. Somadas, dão a altura na sala sem ninguém
+  // escrever o mesmo número duas vezes, e é o que faz o cone subir ou descer.
+  if (lista.curva && lista.curva.altura > 0 && Number.isFinite(lista.curva.alturaLente)) {
+    $("projAltura").value = (alturaDaBaseDoEcra() + lista.curva.alturaLente).toFixed(2);
+  }
   const aplicou = aplicarProjetor(cabeca);   // este já chama montar() no fim
   if (aplicou && resto.length) {
     $("notaProj").innerHTML += lista.curva
