@@ -1763,6 +1763,73 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 15 de setembro — a cena preta, e o primeiro teste automático (v3.52)
+
+> *"Abri o preview aqui no telemóvel e está ligado, nada aparece — e salta a
+> caixa de comando de posição de um ecrã blend."*
+
+**Uma linha da v3.51 apagava a app inteira.** O `recadoDasFatias()` — o recado
+das fatias escondidas da cúpula, escrito ontem — ia buscar
+`dadosDeCoordenadas().cupula.length` a direito. Num projeto **sem cúpula** o
+`cupula` vem `null`, e num projeto **com projetores** o
+`escreverCoordenadas()` já não sai pela porta do início: as duas coisas juntas
+dão um `TypeError` **a meio do `montar()`**.
+
+E o `montar()` começa por deitar fora o grupo que está na cena e só o entrega
+no fim, quatrocentas linhas abaixo. O erro caía entre as duas coisas: sala,
+palco, ecrãs, plateia, projetores — **tudo desaparecia**, e o painel continuava
+a responder como se nada fosse. Era a app a parecer vazia em vez de partida.
+
+A "caixa de comando de posição" que ele viu saltar é a **"Onde fica o ecrã
+curvo"**: essa mostra-se na linha 363, antes do ponto do erro. Por isso a única
+coisa que aparecia no ecrã era precisamente ela.
+
+Medido antes da correcção, em qualquer projeto com projeção ligada e sem
+cúpula, **no telemóvel e no computador por igual** — não era um defeito de
+telemóvel. Correcção: o mesmo `temCupula` por onde todos os outros sítios já
+passavam.
+
+### A rede de segurança
+
+Um erro no desenho não pode voltar a apagar a app em silêncio. O `montar()`
+passou a ser uma casca à volta do `desenharCena()`: se alguma coisa rebentar,
+**entrega-se o que já estava desenhado até ao ponto do erro** e escreve-se o
+que aconteceu no recado da cena. Meia cena com uma frase é melhor do que um
+ecrã preto calado.
+
+Apanhar o erro não pode ser o mesmo que escondê-lo, e por isso ele fica também
+em `window.__errosDeDesenho` — senão a rede tapava a vista ao teste feito de
+propósito para o encontrar.
+
+### `scripts/verificar-cena.mjs` — o primeiro teste automático deste projeto
+
+Até aqui não havia nenhum (está escrito no `CLAUDE.md`), e este defeito é o
+argumento. Abre a app em sete formas de projeto × dois aparelhos e falha se
+houver erro de JavaScript na página, se a rede de segurança tiver apanhado
+algum, ou se o `montar()` não tiver chegado ao fim — e esse último lê-se sem
+código de teste nenhum: a última coisa que o `montar()` faz é `guardarSala()`,
+que carimba a hora.
+
+```
+node scripts/verificar-cena.mjs
+```
+
+Provado nos dois sentidos: 14/14 a verde com a correcção, e com o defeito da
+v3.51 reposto de propósito falha exactamente nos casos certos (projeção
+simples e blend curvo, nos dois aparelhos), nomeando a função e a linha. Os
+casos com projetores exigem linhas na tabela das Coordenadas — senão um caso
+que deixasse de desenhar projetores passava a verde sem ter testado nada.
+
+### E ligar passou a fazer alguma coisa
+
+O 🔗 só virava a chave. Quem tinha um projeto à espera do outro lado ligava a
+sincronização, lia *"o que mudar nos Calculadores chega sozinho aqui"* e não
+via nada — porque "o que **mudar**" era mesmo só dali para a frente.
+
+Com a sala **vazia** traz-se logo (não há nada para estragar). Com um projeto
+já montado não se toca em nada — substituir o trabalho de alguém por causa de
+um interruptor era pior — mas diz-se que está ali à espera e qual é o botão.
+
 ## 15 de setembro — a fatia de cada projetor, uma a uma (v3.51)
 
 > *"Ligar e desligar as fatias por projetores para ver que área deve um só
