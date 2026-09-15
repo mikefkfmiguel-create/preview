@@ -1113,8 +1113,13 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
       : [p1, p2, 0, thetaDoCentro];
     const lenteCentro = new THREE.Vector3(desvio, yCentro - (h - R), 0);
     const corCentro = CORES_FATIA[i % CORES_FATIA.length];
-    fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2, lenteCentro, corCentro,
-      "dome-fatia-c" + (i + 1)));
+    // A etiqueta ("C1", "P1") é a MESMA que a ficha de montagem usa e que a
+    // tabela das coordenadas mostra. É por ela que se acende e apaga a fatia
+    // de cada projetor -- e de propósito não pelo nome do objeto, porque um
+    // projetor pode ter mais do que uma fatia (a que atravessa o pólo, mais
+    // abaixo), e apagar só a principal deixava a outra acesa.
+    fatias.add(deQuemE(fatiaDaCupula(R, f1, f2, ft1, ft2, lenteCentro, corCentro,
+      "dome-fatia-c" + (i + 1)), "C" + (i + 1)));
     fontes.push({ lente: lenteCentro, a1: f1, a2: f2, t1: ft1, t2: ft2,
                   cor: corCentro, todoOAzimute: aoCentro === 1 });
   }
@@ -1179,7 +1184,7 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         const [f1, f2, ft1, ft2] = comBlend(phiOposto - meio, phiOposto + meio, tCima, tBaixo);
         const corFatia = CORES_FATIA[cor++ % CORES_FATIA.length];
         const vertice = pos.clone().setY(pos.y - (h - R));
-        fatias.add(fatiaDaCupula(R, f1, f2, ft1, ft2, vertice, corFatia, "dome-fatia-" + k));
+        fatias.add(deQuemE(fatiaDaCupula(R, f1, f2, ft1, ft2, vertice, corFatia, "dome-fatia-" + k), "P" + k));
         fontes.push({ lente: vertice, a1: f1, a2: f2, t1: ft1, t2: ft2,
                       cor: corFatia, todoOAzimute: false });
         // ATRAVESSAR O PÓLO. Reportado: *"não está a sobrepor na cúpula, no
@@ -1194,8 +1199,10 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
         if (aoCentro === 0 && ft1 <= 0.0001 && blend > 0) {
           const passo = (tBaixo - tCima) * blend;
           if (passo > 0.01) {
-            fatias.add(fatiaDaCupula(R, f1 + Math.PI, f2 + Math.PI, 0, Math.min(thetaMax, passo),
-              vertice, corFatia, "dome-fatia-" + k + "-polo"));
+            // A MESMA etiqueta da fatia principal: é o segundo pedaço do
+            // mesmo projetor, e tem de apagar-se com ele.
+            fatias.add(deQuemE(fatiaDaCupula(R, f1 + Math.PI, f2 + Math.PI, 0, Math.min(thetaMax, passo),
+              vertice, corFatia, "dome-fatia-" + k + "-polo"), "P" + k));
           }
         }
       }
@@ -1226,6 +1233,45 @@ function fazerProjetoresDoDome(proj, a, h, R, thetaMax) {
  * exportação "só a cúpula" produz, com a origem no centro da cúpula ao nível
  * do chão.
  */
+/**
+ * Carimba numa fatia a etiqueta do projetor a que pertence ("C1", "P3"), a
+ * mesma que a ficha de montagem e a tabela das coordenadas usam. Devolve o
+ * próprio objeto, para se poder escrever `fatias.add(deQuemE(fatia, "P1"))`.
+ */
+function deQuemE(objeto, etiqueta) {
+  objeto.userData.projetor = etiqueta;
+  return objeto;
+}
+
+/**
+ * LIGAR E DESLIGAR A FATIA DE CADA PROJETOR — só a vista.
+ *
+ * Pedido: *"ligar e desligar as fatias por projetores para ver que área deve
+ * um só cobrir"*. Numa cúpula de dez, dez manchas ao mesmo tempo não deixam
+ * ver de quem é qual; apagando nove, vê-se exactamente o que o que fica tem
+ * de cobrir.
+ *
+ * É SÓ A VISTA, e isso é uma decisão, não uma limitação: as contas — quem
+ * tapa o feixe, a cobertura, a ficha de montagem, as coordenadas, o OBJ
+ * exportado — continuam todas a contar com TODOS os projetores. Se apagar uma
+ * fatia mexesse nos números, um gesto para ver melhor passava a mudar
+ * resultados por uma razão que ninguém associa, e essa é a armadilha que esta
+ * app anda a fechar em todo o lado.
+ *
+ * `escondidas` é uma lista de etiquetas ("P1", "C1"). Uma etiqueta que já não
+ * exista (a cúpula mudou de número de projetores) é simplesmente ignorada.
+ */
+export function mostrarFatiasDaCupula(grupoDome, escondidas) {
+  if (!grupoDome) return;
+  const fora = new Set(escondidas || []);
+  const fatias = grupoDome.getObjectByName("aux:dome-fatias");
+  if (!fatias) return;
+  fatias.children.forEach((f) => {
+    const dono = f.userData && f.userData.projetor;
+    f.visible = !(dono && fora.has(dono));
+  });
+}
+
 function fichaDeMontagem(nome, pos, alvo, cor) {
   const dx = alvo.x - pos.x, dy = alvo.y - pos.y, dz = alvo.z - pos.z;
   const horizontal = Math.hypot(dx, dz);

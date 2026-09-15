@@ -13,7 +13,7 @@ import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, faze
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
          fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula,
          medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo,
-         quemTapaOFeixe, marcarQuemTapa } from "./cena.js";
+         quemTapaOFeixe, marcarQuemTapa, mostrarFatiasDaCupula } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -393,6 +393,10 @@ function montar(recentrarCamara) {
     const grupoDome = fazerDome(domeParaDesenhar, $("domeSolido") && $("domeSolido").checked, textura);
     desenhado.add(grupoDome);
     domeMontado = grupoDome;
+    // As fatias apagadas uma a uma (ver mostrarFatiasDaCupula em cena.js).
+    // Reaplica-se a cada montagem porque a cúpula é desenhada de novo de cada
+    // vez, e a escolha tem de sobreviver a isso.
+    mostrarFatiasDaCupula(grupoDome, ajustes.fatiasEscondidas);
   }
 
   // Passarelas soltas (2ª, 3ª, ...) -- ao contrário da que sai do palco,
@@ -1259,9 +1263,17 @@ function dadosDeCoordenadas() {
  * A tabela de coordenadas em HTML. Serve o painel e a página do relatório
  * com o mesmo markup -- a folha de estilo é que muda de um lado para o outro.
  */
-function tabelaDeCoordenadas(quais, tipo) {
+/**
+ * `comInterruptores` só vem `true` do PAINEL. A mesma função escreve a tabela
+ * do relatório (ver fazerRelatorio), e uma folha impressa com caixas para
+ * marcar é uma folha estragada -- por isso a coluna dos interruptores é um
+ * extra pedido, e não o normal.
+ */
+function tabelaDeCoordenadas(quais, tipo, comInterruptores) {
   if (tipo === "cupula") {
+    const escondidas = new Set(ajustes.fatiasEscondidas || []);
     const linhas = quais.map((p) => `<tr>
+        ${comInterruptores ? `<td class="fatia-liga"><label title="Mostrar a fatia deste projetor na cúpula — é só a vista, as contas não mexem"><input type="checkbox" class="fatia-cb" data-projetor="${p.nome}"${escondidas.has(p.nome) ? "" : " checked"}></label><button type="button" class="fatia-so" data-projetor="${p.nome}" title="Só a fatia deste — apaga as outras todas. Outro toque traz-as de volta.">só</button></td>` : ""}
         <td><span class="quem"><span class="bolha" style="background:${p.cor}"></span>${p.nome}</span></td>
         <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
         <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
@@ -1270,6 +1282,7 @@ function tabelaDeCoordenadas(quais, tipo) {
       </tr>`).join("");
     return `<div class="coords-rolar"><table class="coords">
       <thead><tr>
+        ${comInterruptores ? '<th title="Mostrar a fatia na cúpula">Fatia</th>' : ""}
         <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th><th>Incl.</th>
       </tr></thead><tbody>${linhas}</tbody></table></div>`;
   }
@@ -1309,7 +1322,7 @@ function escreverCoordenadas() {
   let html = "";
   if (temCupula) {
     html += (temPlanos ? '<p class="vazio" style="margin:0 0 6px">Cúpula</p>' : "") +
-            tabelaDeCoordenadas(cupula, "cupula");
+            tabelaDeCoordenadas(cupula, "cupula", true);
   }
   if (temPlanos) {
     const queEcra = curvaAtivaDoBlend() ? "Ecrã curvo" : "Ecrã plano";
@@ -1324,6 +1337,9 @@ function escreverCoordenadas() {
     const linhas = notaDeLeitura(temCupula, temPlanos, true);
     nota.innerHTML = linhas.join(" ");
   }
+  // O botão "Mostrar todas" e o recado só fazem sentido com cúpula à frente.
+  if ($("btFatiasTodas")) $("btFatiasTodas").style.display = temCupula ? "" : "none";
+  recadoDasFatias();
 }
 
 /**
@@ -4654,7 +4670,7 @@ function limparTudo() {
   // não era a conta da primeira fila, era isto).
   // O interruptor do depósito é feitio de trabalhar, não conteúdo do projeto:
   // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -4864,6 +4880,7 @@ async function abrirProjetoTodo(estado) {
         passarelasExtra: Array.isArray(estado.ajustes.passarelasExtra) ? estado.ajustes.passarelasExtra : [],
         projetoresExtra: Array.isArray(estado.ajustes.projetoresExtra) ? estado.ajustes.projetoresExtra : [],
         zonasSemLeitura: Array.isArray(estado.ajustes.zonasSemLeitura) ? estado.ajustes.zonasSemLeitura : [],
+        fatiasEscondidas: Array.isArray(estado.ajustes.fatiasEscondidas) ? estado.ajustes.fatiasEscondidas : [],
         nomePorId: (estado.ajustes.nomePorId && typeof estado.ajustes.nomePorId === "object") ? estado.ajustes.nomePorId : {},
         noDeposito: Array.isArray(estado.ajustes.noDeposito) ? estado.ajustes.noDeposito : [],
         // Um ficheiro gravado antes do depósito abre com tudo montado, que é
@@ -4875,7 +4892,7 @@ async function abrirProjetoTodo(estado) {
         // Esta vem: a máquina faz parte do projeto que se gravou.
         projetor: (estado.ajustes.projetor && typeof estado.ajustes.projetor === "object") ? estado.ajustes.projetor : null
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
@@ -4979,6 +4996,75 @@ if ($("btCopiarLinkPartilha")) $("btCopiarLinkPartilha").onclick = async () => {
     setTimeout(() => { botao.textContent = original; }, 2200);
   } catch (_) { /* sem permissão -- o campo já está selecionado, copia-se à mão */ }
 };
+// AS FATIAS, UMA A UMA.
+//
+// Pedido: *"ligar e desligar as fatias por projetores para ver que área deve
+// um só cobrir"*. O "só" de cada linha é o gesto que serve mesmo esse fim --
+// apaga todas menos aquela num toque, em vez de obrigar a desmarcar nove.
+//
+// A tabela é reescrita por inteiro a cada `escreverCoordenadas()`, por isso o
+// ouvinte fica no contentor e não nas caixas: caixas novas não precisam de ser
+// religadas.
+if ($("coordsTabela")) {
+  $("coordsTabela").addEventListener("change", (e) => {
+    const cb = e.target.closest(".fatia-cb");
+    if (!cb) return;
+    const quem = cb.dataset.projetor;
+    const fora = new Set(ajustes.fatiasEscondidas || []);
+    if (cb.checked) fora.delete(quem); else fora.add(quem);
+    ajustes.fatiasEscondidas = [...fora];
+    aplicarFatias();
+  });
+  $("coordsTabela").addEventListener("click", (e) => {
+    const bt = e.target.closest(".fatia-so");
+    if (!bt) return;
+    const quem = bt.dataset.projetor;
+    const todos = dadosDeCoordenadas().cupula.map((p) => p.nome);
+    const jaSozinho = ajustes.fatiasEscondidas &&
+                      ajustes.fatiasEscondidas.length === todos.length - 1 &&
+                      !ajustes.fatiasEscondidas.includes(quem);
+    // Segundo toque no mesmo "só" traz todas de volta: é o caminho de saída
+    // sem ter de procurar outro botão.
+    ajustes.fatiasEscondidas = jaSozinho ? [] : todos.filter((n) => n !== quem);
+    escreverCoordenadas();
+    aplicarFatias();
+  });
+}
+if ($("btFatiasTodas")) $("btFatiasTodas").onclick = () => {
+  ajustes.fatiasEscondidas = [];
+  escreverCoordenadas();
+  aplicarFatias();
+};
+
+/**
+ * Aplica as fatias escondidas ao que está desenhado, guarda a escolha, e
+ * escreve o recado. NÃO remonta a cena: mudar a visibilidade de uns objetos
+ * é instantâneo, e remontar tudo para isso seria lento e apagaria a vista.
+ */
+function aplicarFatias() {
+  mostrarFatiasDaCupula(domeMontado, ajustes.fatiasEscondidas);
+  recadoDasFatias();
+  guardarAjustes(ajustes);
+  // Não é preciso pedir desenho: a cena redesenha-se em contínuo
+  // (requestAnimationFrame), por isso a mudança aparece no fotograma seguinte.
+}
+
+/**
+ * "2 de 6 fatias escondidas." Sem isto, quem apaga umas quantas e volta ao
+ * projeto uma hora depois vê uma cúpula com buracos e não faz ideia porquê --
+ * que é o defeito de sempre desta app, a esconder sem dizer.
+ */
+function recadoDasFatias() {
+  const nota = $("fatiasNota");
+  if (!nota) return;
+  const total = dadosDeCoordenadas().cupula.length;
+  const fora = (ajustes.fatiasEscondidas || []).filter((n) => n).length;
+  if (!total || !fora) { nota.hidden = true; nota.textContent = ""; return; }
+  nota.hidden = false;
+  nota.textContent = fora + (fora === 1 ? " fatia escondida" : " fatias escondidas") +
+    " de " + total + " — é só a vista: as contas, as coordenadas e o que exportas continuam com todos os projetores.";
+}
+
 if ($("btCopiarCoords")) $("btCopiarCoords").onclick = async () => {
   const texto = coordenadasEmTexto();
   const botao = $("btCopiarCoords");

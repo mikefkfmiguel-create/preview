@@ -1763,6 +1763,61 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 15 de setembro — a fatia de cada projetor, uma a uma (v3.51)
+
+> *"Ligar e desligar as fatias por projetores para ver que área deve um só
+> cobrir."*
+
+Numa cúpula de seis são seis manchas ao mesmo tempo, e não se percebe de quem
+é qual. Apagando cinco, vê-se exactamente o que a que fica tem de cobrir.
+
+**A identidade já cá estava toda** — foi por isso que isto foi pequeno. Cada
+projetor já tinha corpo próprio, cor própria (a paleta `CORES_FATIA`, feita
+precisamente porque *"num anel de dez, fatias todas da mesma cor leem-se como
+uma mancha só"*), ficha de montagem com etiqueta (C1, P1…) e **uma linha na
+tabela das Coordenadas de montagem**, já pintada com a cor dele. Não houve
+painel novo para inventar: os interruptores foram para essa tabela.
+
+**Ligar pela etiqueta, não pelo nome do objeto.** Cada fatia leva agora
+`userData.projetor`. É de propósito, e não teimosia: um projetor de anel pode
+ter **duas** fatias — a principal e a que atravessa o pólo quando há
+sobreposição — e apagar só a primeira deixava a outra acesa, com o projetor
+"desligado" a continuar a pintar por cima do zénite.
+
+**O "só" de cada linha** é o gesto que serve mesmo o pedido: apaga as outras
+todas num toque, em vez de obrigar a desmarcar cinco. Segundo toque no mesmo
+"só" traz todas de volta — o caminho de saída sem ter de procurar outro botão.
+
+### É SÓ A VISTA, e isso é uma decisão
+
+As contas — quem tapa o feixe, a cobertura, a ficha de montagem, as
+coordenadas, o OBJ e o GLB exportados — continuam todas a contar com **todos**
+os projetores, esteja a fatia à vista ou não. Se apagar uma fatia mexesse nos
+números, um gesto para *ver melhor* passava a mudar resultados por uma razão
+que ninguém associa.
+
+Decidido com o mike antes de escrever uma linha: *"sim, só a vista"*. A outra
+leitura — simular um projetor em baixo, com as contas a mudarem — fica por
+fazer, e se um dia for precisa tem de dizer alto que está a mostrar uma cúpula
+incompleta.
+
+**E diz-se quando há fatias escondidas:** *"5 fatias escondidas de 6 — é só a
+vista: as contas, as coordenadas e o que exportas continuam com todos os
+projetores."* Sem isto, quem apaga umas quantas e volta ao projeto uma hora
+depois vê uma cúpula com buracos e não faz ideia porquê.
+
+**A tabela do relatório não leva caixas.** A mesma função escreve as duas, e
+uma folha impressa com caixas para marcar é uma folha estragada — daí o
+`comInterruptores`, que só o painel pede.
+
+**Medido no Chromium**, com uma cúpula de 6 (1 zénite + 5 no anel): 6 linhas,
+6 caixas, 6 botões "só"; desmarcar uma guarda `["C1"]` e escreve o recado; o
+"só" no P2 esconde 5 e deixa 1 marcada; o segundo toque repõe as 6; a escolha
+sobrevive a recarregar **e volta a aplicar-se quando o projeto regressa** (o
+Preview abre sem projeto de propósito, é o "nascer vazio" — por isso o que
+persiste é a escolha, não o projeto); "Mostrar todas" limpa tudo e esconde o
+recado. Zero erros de consola.
+
 ## 12 de setembro — a cúpula no 3D (v3.02)
 
 Pedido, a seguir à calculadora de dome ficar feita nos Calculadores: *"como

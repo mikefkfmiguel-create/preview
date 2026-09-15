@@ -409,6 +409,9 @@ export function ajustesGuardados() {
       // para sobreviver a um "Trazer projeto" novo dos Calculadores (que
       // substitui o array de zonas inteiro, mas não os nomes).
       zonasSemLeitura: (dados && Array.isArray(dados.zonasSemLeitura)) ? dados.zonasSemLeitura : [],
+      // As fatias da cúpula apagadas uma a uma, por etiqueta de projetor
+      // ("C1", "P3"). É só a vista — nenhuma conta olha para isto.
+      fatiasEscondidas: (dados && Array.isArray(dados.fatiasEscondidas)) ? dados.fatiasEscondidas : [],
       // O último nome conhecido de cada zona, por id -- ver
       // reconciliarAjustesPorId() em app.js. É o que permite a uma zona
       // renomeada nos Calculadores levar consigo a arrumação feita aqui, sem
@@ -440,7 +443,7 @@ export function ajustesGuardados() {
       retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null, retroDoBlend: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null, retroDoBlend: false };
   }
 }
 
