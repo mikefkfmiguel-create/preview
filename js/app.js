@@ -262,7 +262,47 @@ function limpar(grupo) {
   cena.remove(grupo);
 }
 
+/**
+ * A REDE DE SEGURANÇA DO DESENHO.
+ *
+ * O montar() começa por DEITAR FORA o grupo que estava na cena e só o volta a
+ * entregar (`cena.add(desenhado)`) lá no fim, umas quatrocentas linhas
+ * abaixo. Entre uma coisa e a outra, um erro em qualquer linha deixava o ecrã
+ * PRETO -- sem sala, sem ecrãs, sem palco, sem plateia -- e sem uma palavra a
+ * dizer porquê. Foi o que a v3.51 fez em todos os projetos com projetores e
+ * sem cúpula (ver recadoDasFatias): a app parecia morta e o painel continuava
+ * a responder, que é a pior combinação possível no terreno.
+ *
+ * Aqui entrega-se o que já estava desenhado ATÉ AO PONTO DO ERRO e diz-se o
+ * que aconteceu. Meia cena com um recado é melhor do que uma cena vazia em
+ * silêncio -- e é essa a regra da casa.
+ *
+ * Isto NÃO substitui corrigir a causa: é a segunda linha de defesa, para o
+ * próximo erro não voltar a apagar a app inteira.
+ *
+ * E APANHAR O ERRO NÃO PODE SER O MESMO QUE ESCONDÊ-LO. Com este try/catch, um
+ * erro deixa de chegar ao `pageerror` do browser -- ou seja, a rede de
+ * segurança tapava a vista ao teste que existe precisamente para encontrar
+ * isto. Por isso fica registado em `window.__errosDeDesenho`, que é o que o
+ * scripts/verificar-cena.mjs vai ler.
+ */
 function montar(recentrarCamara) {
+  try {
+    desenharCena(recentrarCamara);
+  } catch (erro) {
+    if (desenhado && !desenhado.parent) cena.add(desenhado);
+    (window.__errosDeDesenho || (window.__errosDeDesenho = []))
+      .push((erro && erro.stack) || String(erro));
+    console.error("montar()", erro);
+    const aviso = $("aviso");
+    aviso.textContent = "Alguma coisa correu mal a desenhar a cena (" +
+      ((erro && erro.message) || erro) + "). O que está à vista pode estar " +
+      "incompleto — o resto do projeto não se perdeu.";
+    aviso.classList.add("mostra");
+  }
+}
+
+function desenharCena(recentrarCamara) {
   // O aviso apaga-se sempre no princípio e volta a escrever-se quem tiver
   // razão para isso. Antes a limpeza vivia dentro da verificação que só corre
   // com um projeto carregado: sem zonas, um aviso antigo ficava para sempre no
@@ -5057,7 +5097,14 @@ function aplicarFatias() {
 function recadoDasFatias() {
   const nota = $("fatiasNota");
   if (!nota) return;
-  const total = dadosDeCoordenadas().cupula.length;
+  // `cupula` vem NULL sempre que o projeto não tem cúpula -- que é o caso
+  // normal de um blend ou de uma projeção simples. Todos os outros sítios
+  // passam pelo `temCupula` de dadosDeCoordenadas() por esta razão exacta;
+  // este ia buscar o `.length` a direito e rebentava -- a meio do montar(),
+  // com a cena já limpa e o desenho novo ainda por entregar. Ver a rede de
+  // segurança em montar().
+  const { cupula, temCupula } = dadosDeCoordenadas();
+  const total = temCupula ? cupula.length : 0;
   const fora = (ajustes.fatiasEscondidas || []).filter((n) => n).length;
   if (!total || !fora) { nota.hidden = true; nota.textContent = ""; return; }
   nota.hidden = false;
@@ -6815,15 +6862,58 @@ function migrarSincronizacao() {
   } catch (_) { return false; }
 }
 
+/**
+ * LIGAR TEM DE FAZER ALGUMA COISA.
+ *
+ * O botão só virava a chave: o 🔗 acendia, o título passava a dizer "o que
+ * mudar nos Calculadores chega sozinho aqui", e o ecrã ficava exactamente na
+ * mesma. Quem tinha um projeto à espera do outro lado ligava a sincronização e
+ * não via nada — "está ligado, nada aparece" —, porque "o que MUDAR" é mesmo
+ * só o que mudar a partir dali: o que já estava guardado não é uma mudança e
+ * ninguém o vinha buscar.
+ *
+ * Com a sala VAZIA traz-se logo: não há nada para estragar, e é o que a
+ * pessoa está à espera de ver. Com um projeto já montado não se toca em nada
+ * — chegar e substituir o trabalho de alguém por causa de um interruptor era
+ * bem pior — mas diz-se que está ali à espera e qual é o botão.
+ */
+function trazerOQueEstaAEsperaAoLigar() {
+  let guardado = null;
+  try { guardado = projetoGuardado(); } catch (_) { guardado = null; }
+  const temProjetorAEspera = !!(projetorGuardado() || []).length;
+  if (!guardado && !temProjetorAEspera) return;
+
+  const salaVazia = !projeto || !Array.isArray(projeto.zonas) || !projeto.zonas.length;
+  const aviso = $("aviso");
+  if (salaVazia) {
+    if (guardado) { marcarRecebidoDeFora(); carregar(guardado, true); }
+    const veioProjetor = aplicarProjetores(projetorGuardado());
+    const trouxe = [guardado ? "o projeto" : "", veioProjetor ? "o projetor" : ""].filter(Boolean);
+    aviso.textContent = trouxe.length
+      ? "Ligado — e trouxe o que estava à espera dos Calculadores: " + trouxe.join(" e ") + "."
+      : "Ligado. O que estava guardado dos Calculadores não deu para ler — usa o 🔄 ao lado " +
+        "ou volta a mandar do outro lado.";
+  } else {
+    aviso.textContent = "Ligado. Há " +
+      [guardado ? "um projeto" : "", temProjetorAEspera ? "um projetor" : ""].filter(Boolean).join(" e ") +
+      " guardado dos Calculadores — o 🔄 ao lado traz. Não trago sozinho para não " +
+      "substituir o que já tens montado.";
+  }
+  aviso.classList.add("mostra");
+  setTimeout(() => aviso.classList.remove("mostra"), 5000);
+}
+
 $("btSincronizacao").onclick = () => {
+  const vaiLigar = !sincronizacaoAutomaticaLigada();
   try {
     // Mesmo formato que os Calculadores usam (JSON.stringify) — ver a nota em
     // sincronizacaoAutomaticaLigada() sobre porque isto tinha de ficar igual
     // dos dois lados.
     localStorage.setItem(CHAVE_SINCRONIZACAO,
-      JSON.stringify(sincronizacaoAutomaticaLigada() ? "desligada" : "ligada"));
+      JSON.stringify(vaiLigar ? "ligada" : "desligada"));
   } catch (_) {}
   atualizarBotaoSincronizacao();
+  if (vaiLigar) trazerOQueEstaAEsperaAoLigar();
 };
 atualizarBotaoSincronizacao();
 if (migrarSincronizacao()) {

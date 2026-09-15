@@ -100,6 +100,19 @@ Vale o mesmo do outro lado: os Calculadores tem a versao no cabecalho
 
 ## Provar antes de dizer que esta feito
 
-Nao ha testes automaticos. O que ha e o `#btExemplo`, que carrega um projeto de
-tres zonas: depois de mexer, abrir a app, carregar nele e **olhar** para as
-quatro vistas. Metade dos defeitos acima so se viram assim.
+**Correr sempre o `node scripts/verificar-cena.mjs` antes de publicar.** Abre a
+app em sete formas de projeto (vazia, so ecras, projecao simples, blend curvo,
+cupula, cupula + projecao, o exemplo) vezes dois aparelhos, e falha se houver
+erro de JavaScript, se a rede de seguranca do `montar()` tiver apanhado algum,
+ou se o `montar()` nao tiver chegado ao fim.
+
+Existe por uma razao concreta: a v3.51 saiu com uma linha que rebentava a meio
+do `montar()` em qualquer projeto com projetores e sem cupula. Como o
+`montar()` deita fora o grupo da cena no inicio e so o entrega no fim, o ecra
+ficava PRETO -- e o painel continuava a responder, por isso a app nao parecia
+partida, parecia vazia. Chegou assim ao telemovel do mike, no terreno.
+
+Um erro de JavaScript nao se ve a olho: ve-se so o buraco que deixa. Por isso
+o teste nao substitui olhar -- **acrescenta-se** ao `#btExemplo`, que carrega
+um projeto de tres zonas para se abrir a app e **olhar** para as quatro
+vistas. Metade dos defeitos acima so se viram assim.
