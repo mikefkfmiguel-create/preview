@@ -1763,6 +1763,42 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — o desenho, e a tradução para o WATCHOUT (v3.56)
+
+> *"Não tem o desenho e a explicação de o que é no 3D e o que é no WATCHOUT."*
+
+**A planta e o corte**, em SVG, desenhados dos MESMOS pontos que enchem a
+tabela das coordenadas. Nada é inventado nem recalculado: um desenho a
+discordar de um número na mesma folha seria pior do que não haver desenho.
+
+- **Planta:** a cúpula, o anel dos projetores e a linha de tiro de cada um, na
+  cor dele. Vê-se de um golpe que é uma cruz e que os tiros se cruzam no meio.
+- **Corte:** o perfil da cúpula, a lente à altura a que está, a mira, e onde a
+  imagem começa — que é onde o `.obj` da área de projeção corta.
+
+SVG e não imagem: fica nítido impresso, pesa uns kilobytes e segue as cores do
+tema, que a folha tem modo escuro.
+
+### A tradução para o WATCHOUT
+
+Secção nova, com os nomes que o programa usa: **Eye** ← a coluna Lente,
+**Target** ← a coluna Aponta a, Orientation e Lense Shift a 0.
+
+E a linha que paga a secção inteira: o **Width / Distance Ratio** é o
+**inverso** do throw ratio. Quando a lente é conhecida a folha escreve o
+número já convertido (ET-DLE060 0,60–0,80:1 → **1,25 a 1,67**). Escrever lá o
+número da ficha da lente a direito é dizer ao WATCHOUT que se tem uma lente
+longa, e a imagem sai duas a três vezes pequena de mais — aconteceu num show
+a sério. O throw em número vem da ponte (calculadores#351).
+
+### E a folha diz quando lhe faltam os números
+
+A primeira folha tirada depois da v3.55 saiu com as quatro linhas antigas: o
+projeto carregado tinha sido enviado por uma versão dos Calculadores anterior
+à v3.92, e a ficha não vinha. O código estava certo — o que faltava era
+**dizê-lo**. Agora há um aviso que nomeia o que falta e o que fazer (reabrir os
+Calculadores e trazer o projeto outra vez).
+
 ## 16 de setembro — a folha junta os dois lados (v3.55)
 
 > *"Leva tudo dos dois para ser completo — a calculadora dá os materiais e

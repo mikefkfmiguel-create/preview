@@ -1677,7 +1677,7 @@ async function guardarRelatorio() {
   const lugares = $("rodape") ? $("rodape").textContent.trim() : "";
   if (lugares && lugares !== "—") medidasSala.push(["Público", lugares]);
 
-  let medidasDome = null, tituloDome = "", notaDome = "";
+  let medidasDome = null, tituloDome = "", notaDome = "", desenhoDome = null, faltaFicha = false;
   if (temCupula && projeto && projeto.dome) {
     const d = projeto.dome;
     const pr = d.projetores || {};
@@ -1693,6 +1693,24 @@ async function guardarRelatorio() {
     // existe MANDA, porque diz tudo o que as quatro linhas abaixo diziam e
     // mais doze. Repetir as duas versões era pôr a mesma coisa duas vezes na
     // mesma folha, com formatos diferentes.
+    // O QUE DESENHAR: a planta e o corte saem dos MESMOS pontos que enchem a
+    // tabela das coordenadas, para nunca haver um desenho a discordar de um
+    // número na mesma folha. Só se juntam aqui; quem os desenha é o relatório.
+    desenhoDome = {
+      diametro: med ? med.diametro : (parseFloat(d.diametro) || 0),
+      raioBase: med ? med.raioBase : (parseFloat(d.diametro) || 0) / 2,
+      altura: med ? med.altura : (parseFloat(d.altura) || 0),
+      R: med ? med.R : 0,
+      cy: med ? med.cy : 0,
+      yBase: med && med.yBaseDaImagem > 0 ? med.yBaseDaImagem : 0,
+      projetores: cupula.map((p) => ({
+        nome: p.nome, cor: p.cor,
+        x: p.pos.x, y: p.pos.y, z: p.pos.z,
+        alvoX: p.alvo.x, alvoY: p.alvo.y, alvoZ: p.alvo.z,
+        inclinacao: p.inclinacao
+      }))
+    };
+
     const ficha = d.ficha;
     if (ficha && ficha.pares && ficha.pares.length) {
       medidasDome = ficha.pares.concat([baseDaImagem]);
@@ -1700,7 +1718,11 @@ async function guardarRelatorio() {
       notaDome = ficha.nota || "";
     } else {
       // Sem ficha (um projeto guardado antes da v3.92 dos Calculadores, ou uma
-      // cúpula colada à mão) fica o que sempre houve. Menos, mas nunca vazio.
+      // cúpula colada à mão) fica o que sempre houve. Menos, mas nunca vazio --
+      // e a folha DIZ que está a mostrar menos e porquê, senão quem a lê acha
+      // que é tudo o que há. Foi o que aconteceu à primeira folha tirada depois
+      // da v3.92: o projeto guardado ainda era da versão anterior.
+      faltaFicha = true;
       medidasDome = [
         ["Diâmetro", nnum(parseFloat(d.diametro) || 0) + " m"],
         ["Altura", nnum(parseFloat(d.altura) || 0) + " m"],
@@ -1737,6 +1759,12 @@ async function guardarRelatorio() {
     dome: medidasDome,
     domeTitulo: tituloDome,
     domeNota: notaDome,
+    desenhoDome: desenhoDome,
+    faltaFicha: faltaFicha,
+    // O throw ratio da lente, para a folha dizer o que se mete no campo
+    // "Width / Distance" do WATCHOUT — que é o inverso dele.
+    lenteThrow: (projeto && projeto.dome && projeto.dome.projetores &&
+                 projeto.dome.projetores.lenteThrow) || null,
     plano: medidasPlano,
     coordsCupula: temCupula ? tabelaDeCoordenadas(cupula, "cupula") : "",
     coordsPlanos: temPlanos ? tabelaDeCoordenadas(planos, "plano") : "",

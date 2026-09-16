@@ -91,6 +91,126 @@ function fichas(pares) {
     `</dl>`;
 }
 
+const n1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace(".", ",");
+const n2 = (v) => (Math.round(v * 100) / 100).toFixed(2).replace(".", ",");
+
+/**
+ * A PLANTA E O CORTE, desenhados dos MESMOS pontos que enchem a tabela.
+ *
+ * Pedido: *"não tem o desenho e a explicação de o que é no 3D e o que é no
+ * WATCHOUT"*. Uma folha de montagem com vinte números e nenhuma figura
+ * obriga quem a lê a montar a cúpula na cabeça antes de a montar na sala.
+ *
+ * Nada aqui é inventado nem recalculado: as posições e os alvos são os que o
+ * 3D colocou, os mesmos que vão na tabela ao lado. Um desenho a discordar de
+ * um número na mesma folha seria pior do que não haver desenho nenhum.
+ *
+ * SVG e não imagem: fica nítido impresso, pesa uns kilobytes, e segue as cores
+ * do tema — a folha tem modo escuro.
+ */
+function plantaDaCupula(d) {
+  if (!d || !(d.raioBase > 0) || !d.projetores.length) return "";
+  const L = 320, meio = L / 2;
+  // Tudo cabe: a maior distância ao eixo manda na escala, porque um anel de
+  // montagem pode ser MAIOR do que a cúpula (tela translúcida, geodésica com
+  // estrutura por fora) e cortá-lo era desenhar uma montagem que não é a dele.
+  const maior = d.projetores.reduce(
+    (m, p) => Math.max(m, Math.hypot(p.x, p.z), Math.hypot(p.alvoX, p.alvoZ)), d.raioBase);
+  const k = (meio - 34) / maior;
+  const px = (v) => meio + v * k;
+  // O z do 3D cresce para a frente; num papel, "para a frente" é para baixo.
+  const pz = (v) => meio + v * k;
+
+  const tiros = d.projetores.map((p) => `<line x1="${px(p.x).toFixed(1)}" y1="${pz(p.z).toFixed(1)}" ` +
+    `x2="${px(p.alvoX).toFixed(1)}" y2="${pz(p.alvoZ).toFixed(1)}" class="d-feixe" stroke="${p.cor}"/>`).join("");
+  const pontos = d.projetores.map((p) => {
+    const x = px(p.x), y = pz(p.z);
+    const fora = 1 + 13 / Math.max(0.001, Math.hypot(x - meio, y - meio));
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${p.cor}"/>` +
+      `<text x="${(meio + (x - meio) * fora).toFixed(1)}" y="${(meio + (y - meio) * fora + 3.5).toFixed(1)}" ` +
+      `class="d-txt-f" text-anchor="middle">${esc(p.nome)}</text>`;
+  }).join("");
+  const anel = Math.hypot(d.projetores[0].x, d.projetores[0].z);
+
+  return `<figure class="desenho">
+    <svg viewBox="0 0 ${L} ${L}" role="img" aria-label="Planta da cúpula com os projetores e as linhas de tiro">
+      <circle cx="${meio}" cy="${meio}" r="${(d.raioBase * k).toFixed(1)}" class="d-casca"/>
+      ${anel > 0 ? `<circle cx="${meio}" cy="${meio}" r="${(anel * k).toFixed(1)}" class="d-eixo"/>` : ""}
+      <line x1="${meio}" y1="18" x2="${meio}" y2="${L - 18}" class="d-eixo"/>
+      <line x1="18" y1="${meio}" x2="${L - 18}" y2="${meio}" class="d-eixo"/>
+      ${tiros}${pontos}
+      <text x="${meio}" y="${L - 5}" class="d-txt" text-anchor="middle">+x para a direita · +z para a frente</text>
+    </svg>
+    <figcaption>Planta, vista de cima. Cúpula de <b>${n2(d.diametro)} m</b> de base${
+      anel > 0 ? `, projetores num anel de <b>${n2(anel)} m</b> de raio` : ""}. Cada linha vai da lente ao ponto que ela aponta.</figcaption>
+  </figure>`;
+}
+
+function corteDaCupula(d) {
+  if (!d || !(d.R > 0) || !(d.raioBase > 0)) return "";
+  const W = 340, H = 250, chao = H - 52, meio = W / 2;
+  const k = (W / 2 - 26) / d.raioBase;
+  const px = (v) => meio + v * k;
+  const py = (v) => chao - v * k;
+
+  // O perfil da cúpula: o arco da esfera, da base esquerda à base direita.
+  const arco = `M ${px(-d.raioBase).toFixed(1)} ${py(0).toFixed(1)} ` +
+    `A ${(d.R * k).toFixed(1)} ${(d.R * k).toFixed(1)} 0 0 1 ${px(d.raioBase).toFixed(1)} ${py(0).toFixed(1)}`;
+
+  // Um projetor, o que está mais à direita, para o corte mostrar a mira.
+  const p = d.projetores.slice().sort((a, b) => Math.hypot(b.x, b.z) - Math.hypot(a.x, a.z))[0];
+  const raioP = p ? Math.hypot(p.x, p.z) : 0;
+  const raioA = p ? Math.hypot(p.alvoX, p.alvoZ) : 0;
+  const mira = p ? `<line x1="${px(raioP).toFixed(1)}" y1="${py(p.y).toFixed(1)}" ` +
+    `x2="${px(-raioA).toFixed(1)}" y2="${py(p.alvoY).toFixed(1)}" class="d-feixe" stroke="${p.cor}"/>` +
+    `<circle cx="${px(raioP).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="4.5" fill="${p.cor}"/>` : "";
+
+  return `<figure class="desenho">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Corte da cúpula com a altura das lentes e a mira">
+      ${d.yBase > 0 ? `<line x1="${px(-d.raioBase).toFixed(1)}" y1="${py(d.yBase).toFixed(1)}" x2="${px(d.raioBase).toFixed(1)}" y2="${py(d.yBase).toFixed(1)}" class="d-eixo"/>` : ""}
+      <path d="${arco}" class="d-casca"/>
+      <line x1="14" y1="${py(0).toFixed(1)}" x2="${W - 14}" y2="${py(0).toFixed(1)}" class="d-chao"/>
+      <line x1="${meio}" y1="${py(0).toFixed(1)}" x2="${meio}" y2="${py(d.altura).toFixed(1)}" class="d-eixo"/>
+      ${mira}
+      <text x="${meio}" y="${(py(d.altura) - 7).toFixed(1)}" class="d-txt" text-anchor="middle">zénite · ${n2(d.altura)} m</text>
+      ${d.yBase > 0 ? `<text x="${(px(-d.raioBase) + 4).toFixed(1)}" y="${(py(d.yBase) - 5).toFixed(1)}" class="d-txt">imagem começa · ${n2(d.yBase)} m</text>` : ""}
+      ${p ? `<text x="${(px(raioP) - 7).toFixed(1)}" y="${(py(p.y) - 8).toFixed(1)}" class="d-txt-f" text-anchor="end">lente ${n2(p.y)} m · ${Math.round(p.inclinacao)}°</text>` : ""}
+      <text x="${meio}" y="${H - 8}" class="d-txt" text-anchor="middle">chão · base ${n2(d.diametro)} m</text>
+    </svg>
+    <figcaption>Corte. Um projetor de cove não põe imagem abaixo do seu próprio plano — ${
+      d.yBase > 0 ? `é por isso que a imagem só começa a <b>${n2(d.yBase)} m</b>, que é a altura a que as lentes estão, e é aí que o <b>.obj da área de projeção corta</b>` : "com as lentes ao nível do chão, a imagem chega ao chão"}.</figcaption>
+  </figure>`;
+}
+
+/**
+ * O QUE É O QUÊ NO WATCHOUT.
+ *
+ * As colunas desta folha têm nomes desta casa; os campos do WATCHOUT têm os
+ * dele. Quem monta tem de traduzir os dois, e a tradução não pode viver só na
+ * cabeça de quem gerou a folha.
+ *
+ * A linha do Width / Distance é a que paga esta secção inteira: é o INVERSO do
+ * throw ratio, e escrever lá a ficha da lente a direito dá uma imagem duas a
+ * três vezes pequena de mais — visto num show a sério.
+ */
+function blocoWatchout(throw_) {
+  const linhas = [
+    ["Eye", "A coluna <b>Lente</b> da tabela — onde a máquina está."],
+    ["Target", "A coluna <b>Aponta a</b> — para onde aponta sem lens shift."],
+    ["Orientation · Roll", "<b>0</b> nos quatro. É a rotação em torno do eixo de tiro."],
+    ["Lense Shift", "<b>0</b>, salvo se desnivelares os corpos. (A grafia com “e” é a do próprio programa.)"]
+  ];
+  const wd = (throw_ && throw_.min > 0 && throw_.max > 0)
+    ? `<b>${n2(1 / throw_.max)} a ${n2(1 / throw_.min)}</b> para esta lente (throw ratio ${n2(throw_.min)}–${n2(throw_.max)}:1). `
+    : "";
+  linhas.push(["Width / Distance Ratio",
+    wd + "É o <b>inverso</b> do throw ratio, não o throw ratio. Escrever aqui o número da ficha da lente " +
+    "é dizer ao WATCHOUT que tens uma lente longa, e a imagem sai pequena de mais — é o erro mais fácil de fazer nesta página."]);
+
+  return `<dl class="campos">` + linhas.map(([k, v]) =>
+    `<div class="campo"><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("") + `</dl>`;
+}
+
 const ESTILO = `
   @page { size: A4; margin: 14mm; }
 
@@ -240,6 +360,21 @@ const ESTILO = `
   .achado p { font-size: 14px; color: var(--tinta); max-width: 64ch; }
   .achado b { color: var(--tinta); }
 
+  /* Os desenhos: dois quadros lado a lado em ecrã largo, um por cima do outro
+     em telemóvel e em papel estreito. */
+  .desenhos { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+  figure.desenho { margin: 0; background: var(--painel); border: 1px solid var(--linha);
+                   border-radius: 4px; padding: 14px; break-inside: avoid; }
+  figure.desenho svg { display: block; width: 100%; height: auto; }
+  figure.desenho figcaption { font-size: 12.5px; color: var(--apagado);
+                              padding-top: 10px; border-top: 1px solid var(--linha); margin-top: 10px; }
+  .d-casca { stroke: var(--realce); fill: none; stroke-width: 1.6; }
+  .d-chao  { stroke: var(--linha-forte); fill: none; stroke-width: 1.4; }
+  .d-eixo  { stroke: var(--linha-forte); fill: none; stroke-dasharray: 3 4; }
+  .d-feixe { fill: none; stroke-width: 1.4; opacity: .9; }
+  .d-txt   { fill: var(--apagado); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9.5px; }
+  .d-txt-f { fill: var(--tinta); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-weight: 600; }
+
   /* A linha de cabeça da cúpula, tal como a calculadora a escreve. */
   .resumo { font-size: 15.5px; font-weight: 600; letter-spacing: -.005em; }
   /* A nota de rodapé de uma secção: veio da calculadora, e é texto corrido —
@@ -312,12 +447,30 @@ export function paginaDeRelatorio(d) {
     seccao("Cúpula",
            (d.domeTitulo ? `<p class="resumo">${esc(d.domeTitulo)}</p>` : "") +
            (d.dome ? fichas(d.dome) : "") +
+           // Quando os números da calculadora não vieram, a folha DIZ-O. Sem
+           // isto, quem a lê acha que aquelas quatro linhas são tudo o que há.
+           (d.faltaFicha ? `<div class="achado"><span class="marca">!</span><div class="dizeres">
+              <p>Esta folha não traz os números da calculadora — <b>área, dome master, resolução
+              angular, aproveitamento e luz</b>. O projeto que está carregado foi enviado por uma
+              versão dos Calculadores anterior à <b>v3.92</b>.</p>
+              <p>Para os ter: abre os Calculadores, deixa a aba Dome recalcular, e no 3D carrega no
+              <b>🔄</b> para trazer o projeto outra vez. Depois gera a folha de novo.</p>
+              </div></div>` : "") +
            // As quebras de linha da nota são as do <pre> da calculadora, com
            // largura fixa. Aqui a caixa quebra sozinha, e mantê-las punha o
            // corte a meio das frases. Juntam-se em espaços.
            (d.domeNota ? `<p class="nota-fonte">${esc(d.domeNota).replace(/\s*\n\s*/g, " ")}</p>` : "") +
+           (d.desenhoDome
+             ? `<div class="desenhos">${plantaDaCupula(d.desenhoDome)}${corteDaCupula(d.desenhoDome)}</div>`
+             : "") +
            (d.coordsCupula || ""),
            d.coordsCupula ? "Coordenadas de montagem" : "Geometria"),
+    // A tradução para o programa que vai receber estes números. Só aparece com
+    // coordenadas na folha: sem elas não há nada para traduzir.
+    (d.coordsCupula || d.coordsPlanos)
+      ? seccao("Os campos, com os nomes que o programa usa",
+               blocoWatchout(d.lenteThrow), "WATCHOUT 7 · Display Properties")
+      : "",
     seccao("Ecrã plano", (d.plano ? fichas(d.plano) : "") + (d.coordsPlanos || ""),
            d.coordsPlanos ? "Coordenadas de montagem" : "Geometria"),
     // A nota de leitura chega em linhas, e cada uma fica no seu parágrafo: o
