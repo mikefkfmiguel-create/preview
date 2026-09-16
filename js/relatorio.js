@@ -195,7 +195,7 @@ function corteDaCupula(d) {
  */
 function blocoWatchout(throw_) {
   const linhas = [
-    ["Eye", "A coluna <b>Lente</b> da tabela — onde a máquina está."],
+    ["Eye", "A coluna <b>Centro da lente</b> da tabela — não o corpo da máquina, o ponto de onde a luz sai."],
     ["Target", "A coluna <b>Aponta a</b> — para onde aponta sem lens shift."],
     ["Orientation · Roll", "<b>0</b> nos quatro. É a rotação em torno do eixo de tiro."],
     ["Lense Shift", "<b>0</b>, salvo se desnivelares os corpos. (A grafia com “e” é a do próprio programa.)"]
