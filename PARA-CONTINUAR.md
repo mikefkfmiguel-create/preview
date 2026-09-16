@@ -1763,6 +1763,53 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — o centro da lente, marcado e declarado (v3.57)
+
+> *"Achas que podíamos ter o centro da lente marcada e declarada?"*
+
+**Declarada já estava** — é a coluna "Lente" das Coordenadas de montagem, que
+vai também no relatório. O que faltava era poder **vê-la**: o ponto estava
+enterrado no meio da caixa do corpo.
+
+E encontrou-se um defeito pelo caminho: **o corpo estava centrado no ponto da
+lente**, ou seja meio corpo — 26 cm — desenhado À FRENTE dela, dentro do
+próprio feixe, num sítio onde na realidade não há nada. Nos três tipos de
+projetor (cúpula, projeção plana, blend curvo), e o da projeção plana nem
+sequer se virava para o alvo.
+
+Agora: o corpo recua para trás da lente, e no ponto exacto fica uma **cruz de
+três traços com uma bola**, na cor do projetor. `aux:` — é ajuda à vista, não
+faz sombra e não entra no .obj nem no .glb.
+
+**Medido na cena a sério**, nos três tipos: o corpo fica 0,260 m atrás (metade
+da fundura) e a marca fica a **exactamente a distância de tiro** do alvo — 8,00
+na projeção plana, 12,00 no blend, 6,67 na cúpula. É isso que prova que a marca
+está no ponto certo e não ao lado dele.
+
+### Duas etiquetas não se sobrepõem
+
+Ao pôr a coordenada de cada projetor na cena, uma fila de blend de cinco dava
+uma papa ilegível: as cinco caíam quase no mesmo sítio do ecrã. **As zonas
+tinham o mesmo defeito à espera**, sempre que dois ecrãs ficassem alinhados com
+a câmara.
+
+O `desenharEtiquetas()` passa a ordenar por altura e a empurrar para baixo quem
+choca com a anterior — e só quem se cruza também na horizontal, para duas
+etiquetas em cantos opostos não se estorvarem. Não é rotulagem a sério; resolve
+o caso que acontece.
+
+E a etiqueta do projetor fica um palmo ACIMA do ponto: centrada, tapava
+exactamente a marca que anuncia.
+
+### E a porta de serviço estava fechada
+
+O `window.cena` que o comentário prometia tinha-se perdido numa edição — ficou
+a promessa sem a coisa. Reposto ao medir isto, que é uma pergunta que só a cena
+responde.
+
+A coluna passou a chamar-se **Centro da lente**, aqui e no relatório: não é o
+corpo da máquina, é o ponto de onde a luz sai.
+
 ## 16 de setembro — o desenho, e a tradução para o WATCHOUT (v3.56)
 
 > *"Não tem o desenho e a explicação de o que é no 3D e o que é no WATCHOUT."*

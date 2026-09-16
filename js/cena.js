@@ -833,15 +833,67 @@ export function fazerCascaDeProjecao(dome, inteira) {
 }
 
 /**
+ * O CENTRO DA LENTE, MARCADO.
+ *
+ * Pedido: *"achas que podíamos ter o centro da lente marcada e declarada"*. A
+ * coordenada já estava declarada — é a coluna "Lente" das Coordenadas de
+ * montagem —, mas na cena não havia como a VER: o ponto estava enterrado no
+ * meio da caixa do corpo.
+ *
+ * É este ponto que manda em tudo o resto: é dele que sai o cone, é dele que se
+ * mede a distância de tiro, e é ele que se escreve no Eye do media server.
+ *
+ * Uma cruz de três traços e uma bola — a cruz dá os eixos, a bola vê-se de
+ * longe. `aux:` porque é ajuda à vista e não geometria: não faz sombra e não
+ * entra no .obj nem no .glb.
+ */
+export function marcaDaLente(pos, cor = 0xFFD479) {
+  const g = new THREE.Group();
+  g.name = "aux:lente";
+  const b = 0.17, p = [];
+  for (const e of [[b, 0, 0], [0, b, 0], [0, 0, b]]) p.push(-e[0], -e[1], -e[2], e[0], e[1], e[2]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
+  const cruz = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: cor }));
+  cruz.name = "aux:lente-cruz";
+  g.add(cruz);
+  const bola = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8),
+    new THREE.MeshBasicMaterial({ color: cor }));
+  bola.name = "aux:lente-ponto";
+  g.add(bola);
+  g.position.copy(pos);
+  return g;
+}
+
+/** Fundura do corpo de um projetor, em metros. Uma só, para os três sítios. */
+const FUNDO_DO_CORPO = 0.52;
+
+/**
+ * O CORPO FICA ATRÁS DA LENTE, e não em cima dela.
+ *
+ * Estava centrado no ponto da lente: meio corpo — 26 cm — desenhado À FRENTE
+ * dela, dentro do próprio feixe, num sítio onde na realidade não há nada. E o
+ * ponto que interessa ficava escondido no meio da caixa.
+ *
+ * Medido, e não deduzido: com `lookAt()` numa Mesh o +z local aponta PARA o
+ * alvo (ao contrário de uma câmara), por isso é o −z que afasta. Errar o sinal
+ * metia o corpo dentro do ecrã.
+ */
+function assentarCorpo(caixa, alvo) {
+  caixa.lookAt(alvo);
+  caixa.translateZ(-FUNDO_DO_CORPO / 2);
+}
+
+/**
  * O corpo de um projetor apontado a um alvo — o mesmo corpo que a aba de
  * projeção já usa, para não haver duas ideias de "projetor" na cena.
  */
 function corpoDeProjetor(pos, alvo, nome, cor) {
   const caixa = new THREE.Mesh(
-    new THREE.BoxGeometry(0.42, 0.18, 0.52),
+    new THREE.BoxGeometry(0.42, 0.18, FUNDO_DO_CORPO),
     new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
   caixa.position.copy(pos);
-  caixa.lookAt(alvo);
+  assentarCorpo(caixa, alvo);
   caixa.name = nome;
 
   const g = new THREE.Group();
@@ -854,12 +906,17 @@ function corpoDeProjetor(pos, alvo, nome, cor) {
     const marca = new THREE.Mesh(
       new THREE.BoxGeometry(0.44, 0.05, 0.54),
       new THREE.MeshBasicMaterial({ color: cor }));
-    marca.position.copy(pos);
+    // Em cima da CAIXA e não do ponto da lente: desde que o corpo recuou para
+    // trás da lente, copiar `pos` deixava a tampa a flutuar à frente dele.
+    marca.position.copy(caixa.position);
     marca.quaternion.copy(caixa.quaternion);
     marca.translateY(0.11);
     marca.name = "aux:dome-marca";
     g.add(marca);
   }
+
+  // E o centro da lente, à vista, na cor deste projetor.
+  g.add(marcaDaLente(pos, cor != null ? cor : 0xFFD479));
 
   // Um traço curto a dizer para onde aponta: sem isto, num anel de dez, não
   // se percebe se estão virados para dentro ou para fora.
@@ -2729,14 +2786,15 @@ export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0"
   grupo.add(contorno);
 
   const caixa = new THREE.Mesh(
-    new THREE.BoxGeometry(0.42, 0.18, 0.52),
+    new THREE.BoxGeometry(0.42, 0.18, FUNDO_DO_CORPO),
     new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
   caixa.name = nome;
   caixa.position.set(projetor.x, projetor.y, projetor.z);
   // Virada para a fatia dela: sem isto, um arco de projetores parece um arco
-  // de caixas atiradas ao acaso.
-  caixa.lookAt(fatia.alvo.x, projetor.y, fatia.alvo.z);
+  // de caixas atiradas ao acaso. E assente ATRÁS da lente — ver assentarCorpo.
+  assentarCorpo(caixa, new THREE.Vector3(fatia.alvo.x, projetor.y, fatia.alvo.z));
   grupo.add(caixa);
+  grupo.add(marcaDaLente(new THREE.Vector3(projetor.x, projetor.y, projetor.z)));
 
   // O cone, até aos quatro cantos da fatia — que são pontos do cilindro.
   const meiaA = fatia.altura / 2;
@@ -2799,7 +2857,7 @@ export function fazerProjecao(projetor, imagem, textura, nome = "projetor-0") {
 
   // o projetor
   const caixa = new THREE.Mesh(
-    new THREE.BoxGeometry(0.42, 0.18, 0.52),
+    new THREE.BoxGeometry(0.42, 0.18, FUNDO_DO_CORPO),
     new THREE.MeshStandardMaterial({ color: 0x39434F, roughness: 0.7, metalness: 0.2 }));
   // "projetor-0" por omissão (instância principal); instâncias extra
   // (Fase 6, blending) passam "projetor-1", "projetor-2", ... -- mesmo
@@ -2807,7 +2865,11 @@ export function fazerProjecao(projetor, imagem, textura, nome = "projetor-0") {
   // tipos (gomo-, zona , dsm ).
   caixa.name = nome;
   caixa.position.set(projetor.x, projetor.y, projetor.z);
+  // Virado para a imagem, e assente ATRÁS da lente — ver assentarCorpo. Este
+  // era o único dos três que nem sequer se virava para o alvo.
+  assentarCorpo(caixa, new THREE.Vector3(imagem.x, projetor.y, imagem.z));
   grupo.add(caixa);
+  grupo.add(marcaDaLente(new THREE.Vector3(projetor.x, projetor.y, projetor.z)));
 
   // o cone: quatro triângulos da lente para os cantos
   const meiaL = imagem.largura / 2, meiaA = imagem.altura / 2;

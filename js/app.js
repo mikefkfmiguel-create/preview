@@ -676,6 +676,29 @@ function desenharCena(recentrarCamara) {
   }
   escreverCoordenadas();
 
+  // AS ETIQUETAS DOS PROJETORES — o centro da lente escrito ao lado da marca
+  // que o desenha na cena.
+  //
+  // Pedido: *"achas que podíamos ter o centro da lente marcada e declarada"*.
+  // Marcada é a cruz (ver marcaDaLente em cena.js); declarada, aqui e na
+  // tabela das Coordenadas. Sai de dadosDeCoordenadas(), que é o mesmo sítio
+  // de onde a tabela sai -- assim a etiqueta na cena e a linha na tabela nunca
+  // podem discordar.
+  //
+  // Debaixo do mesmo interruptor das outras medidas: numa cúpula de dez, dez
+  // coordenadas sempre à vista tapavam a cúpula.
+  if ($("verMedidas").checked) {
+    const deCoords = dadosDeCoordenadas();
+    etiquetas = etiquetas.concat(
+      [].concat(deCoords.cupula || [], deCoords.planos || []).map((p) => ({
+        // Um palmo ACIMA do ponto, e não em cima dele: uma etiqueta centrada
+        // numa zona tapa um pedaço de um rectângulo grande e não faz mal
+        // nenhum; centrada num PONTO, tapa exactamente a marca que anuncia.
+        ponto: new THREE.Vector3(p.pos.x, p.pos.y + 0.42, p.pos.z),
+        texto: p.nome + " · lente " + nsin(p.pos.x) + " · " + nsin(p.pos.y) + " · " + nsin(p.pos.z)
+      })));
+  }
+
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
   // levar um número errado para uma reunião. Mas com o público DESLIGADO não
   // cabem zero de dez, e dizer isso é só ruído: o que ali não está é porque
@@ -1324,7 +1347,7 @@ function tabelaDeCoordenadas(quais, tipo, comInterruptores) {
     return `<div class="coords-rolar"><table class="coords">
       <thead><tr>
         ${comInterruptores ? '<th title="Mostrar a fatia na cúpula">Fatia</th>' : ""}
-        <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th><th>Incl.</th>
+        <th>Projetor</th><th title="O centro da lente — é dele que sai o feixe, é dele que se mede a distância de tiro, e é ele que vai no Eye do media server">Centro da lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th><th>Incl.</th>
       </tr></thead><tbody>${linhas}</tbody></table></div>`;
   }
   // O shift só ganha coluna quando algum projetor o usa: uma coluna de zeros
@@ -1339,7 +1362,7 @@ function tabelaDeCoordenadas(quais, tipo, comInterruptores) {
     </tr>`).join("");
   return `<div class="coords-rolar"><table class="coords">
     <thead><tr>
-      <th>Projetor</th><th>Lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th>
+      <th>Projetor</th><th title="O centro da lente — é dele que sai o feixe, é dele que se mede a distância de tiro, e é ele que vai no Eye do media server">Centro da lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th>
       ${comShift ? "<th>Shift H · V</th>" : ""}
     </tr></thead><tbody>${linhas}</tbody></table></div>`;
 }
@@ -1412,7 +1435,7 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
       forte("sem recentrar nem reescalar") + " — basta o programa oferecer-se " +
       "para o encaixar na cena e as coordenadas deixam de bater certo, sem nada a avisar.");
   }
-  linhas.push("No WATCHOUT 7, a coluna " + forte("Lente") + " é o " + italico("Eye") +
+  linhas.push("No WATCHOUT 7, a coluna " + forte("Centro da lente") + " é o " + italico("Eye") +
     " e a coluna " + forte("Aponta a") + " é o " + italico("Target") +
     (temPlanos ? ", e o shift vai no campo " + italico("Lense Shift") + "." : "."));
   linhas.push(forte("Confirma a unidade na máquina") +
@@ -4124,6 +4147,7 @@ function desenharEtiquetas() {
 
   const largura = tela.clientWidth, altura = tela.clientHeight;
   const MARGEM_ETIQUETA = 4;
+  const visiveis = [];
   etiquetas.forEach((etiqueta, i) => {
     const elemento = filhos[i];
     const p = etiqueta.ponto.clone().project(camara);
@@ -4146,8 +4170,39 @@ function desenharEtiquetas() {
     const meioA = (elemento._alturaEtiqueta || 0) / 2;
     const x = (p.x * 0.5 + 0.5) * largura;
     const y = (-p.y * 0.5 + 0.5) * altura;
-    elemento.style.left = Math.min(Math.max(x, meioL + MARGEM_ETIQUETA), largura - meioL - MARGEM_ETIQUETA) + "px";
-    elemento.style.top = Math.min(Math.max(y, meioA + MARGEM_ETIQUETA), altura - meioA - MARGEM_ETIQUETA) + "px";
+    visiveis.push({
+      elemento: elemento, meioL: meioL, meioA: meioA,
+      x: Math.min(Math.max(x, meioL + MARGEM_ETIQUETA), largura - meioL - MARGEM_ETIQUETA),
+      y: Math.min(Math.max(y, meioA + MARGEM_ETIQUETA), altura - meioA - MARGEM_ETIQUETA)
+    });
+  });
+
+  // DUAS ETIQUETAS NÃO SE SOBREPÕEM.
+  //
+  // Reportado a olhar para uma fila de blend de cinco: as cinco coordenadas
+  // caíam quase no mesmo sítio do ecrã e o que se lia era uma papa. As zonas
+  // tinham o mesmo defeito à espera, sempre que dois ecrãs ficavam alinhados
+  // com a câmara -- uma etiqueta que tapa outra é pior do que etiqueta nenhuma,
+  // porque as duas deixam de se ler e nada diz que ali estão duas.
+  //
+  // Ordena-se por altura no ecrã e empurra-se para baixo quem chocar com a
+  // anterior, só o necessário. Não é um algoritmo de rotulagem a sério (essa é
+  // outra vida) -- resolve o caso que acontece: coisas lado a lado à mesma
+  // altura. Quem ficar fora da tela é limitado ao fundo, como já era.
+  visiveis.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < visiveis.length; i++) {
+    const cima = visiveis[i - 1], baixo = visiveis[i];
+    // Só empurra quem se cruza TAMBÉM na horizontal: duas etiquetas à mesma
+    // altura em cantos opostos do ecrã não se estorvam nenhuma.
+    const cruzamX = Math.abs(cima.x - baixo.x) < (cima.meioL + baixo.meioL);
+    const minimo = cima.y + cima.meioA + baixo.meioA + 2;
+    if (cruzamX && baixo.y < minimo) {
+      baixo.y = Math.min(minimo, altura - baixo.meioA - MARGEM_ETIQUETA);
+    }
+  }
+  visiveis.forEach((v) => {
+    v.elemento.style.left = v.x + "px";
+    v.elemento.style.top = v.y + "px";
   });
 }
 
@@ -7298,6 +7353,12 @@ addEventListener("storage", (e) => {
 
 // Porta de serviço: dá para espreitar a cena da consola do browser, e é por
 // aqui que se percebe o que não está a ser desenhado sem ter de adivinhar.
+//
+// O comentário estava aqui e a linha não -- perdeu-se numa edição e ficou a
+// promessa sem a coisa. Reposta ao medir onde é que o corpo do projetor fica em
+// relação à lente, que é uma pergunta que só a cena responde.
+window.cena = cena;
+
 // O PONTO DE PARTIDA DO HISTÓRICO. Sem isto a primeira alteração não tinha
 // estado anterior nenhum para empurrar, e o primeiro arrasto da sessão ficava
 // sem volta -- precisamente o que aconteceu ao mike com o boneco.
