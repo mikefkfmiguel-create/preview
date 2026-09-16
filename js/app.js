@@ -1677,20 +1677,40 @@ async function guardarRelatorio() {
   const lugares = $("rodape") ? $("rodape").textContent.trim() : "";
   if (lugares && lugares !== "—") medidasSala.push(["Público", lugares]);
 
-  let medidasDome = null;
+  let medidasDome = null, tituloDome = "", notaDome = "";
   if (temCupula && projeto && projeto.dome) {
     const d = projeto.dome;
     const pr = d.projetores || {};
     const med = medidasDaCupula(d);
-    medidasDome = [
-      ["Diâmetro", nnum(parseFloat(d.diametro) || 0) + " m"],
-      ["Altura", nnum(parseFloat(d.altura) || 0) + " m"],
-      ["Projetores", String(cupula.length)],
-      ["Montagem", NOME_DA_COLOCACAO[pr.colocacao] || pr.colocacao || ""],
-      ["Lentes a", pr.altura > 0 ? nnum(parseFloat(pr.altura)) + " m do chão" : ""],
-      ["Blend", pr.blend > 0 ? Math.round(pr.blend * 100) + " %" : ""],
-      ["Base da imagem", med && med.yBaseDaImagem > 0 ? nnum(med.yBaseDaImagem) + " m" : "chega ao chão"]
-    ];
+    // O QUE SÓ ESTE LADO SABE: onde a imagem começa. Sai da geometria da
+    // cúpula com a altura de montagem, e é a medida que decide onde o .obj da
+    // área de projeção corta -- não existe do lado da calculadora.
+    const baseDaImagem = ["Base da imagem",
+      med && med.yBaseDaImagem > 0 ? nnum(med.yBaseDaImagem) + " m" : "chega ao chão"];
+
+    // A ficha vem dos Calculadores já escrita (área, dome master, resolução
+    // angular, aproveitamento, luz) -- ver ficha em projeto.js. Quando ela
+    // existe MANDA, porque diz tudo o que as quatro linhas abaixo diziam e
+    // mais doze. Repetir as duas versões era pôr a mesma coisa duas vezes na
+    // mesma folha, com formatos diferentes.
+    const ficha = d.ficha;
+    if (ficha && ficha.pares && ficha.pares.length) {
+      medidasDome = ficha.pares.concat([baseDaImagem]);
+      tituloDome = ficha.titulo || "";
+      notaDome = ficha.nota || "";
+    } else {
+      // Sem ficha (um projeto guardado antes da v3.92 dos Calculadores, ou uma
+      // cúpula colada à mão) fica o que sempre houve. Menos, mas nunca vazio.
+      medidasDome = [
+        ["Diâmetro", nnum(parseFloat(d.diametro) || 0) + " m"],
+        ["Altura", nnum(parseFloat(d.altura) || 0) + " m"],
+        ["Projetores", String(cupula.length)],
+        ["Montagem", NOME_DA_COLOCACAO[pr.colocacao] || pr.colocacao || ""],
+        ["Lentes a", pr.altura > 0 ? nnum(parseFloat(pr.altura)) + " m do chão" : ""],
+        ["Blend", pr.blend > 0 ? Math.round(pr.blend * 100) + " %" : ""],
+        baseDaImagem
+      ];
+    }
   }
 
   let medidasPlano = null;
@@ -1715,6 +1735,8 @@ async function guardarRelatorio() {
     imagem: vistaParaRelatorio(),
     sala: medidasSala,
     dome: medidasDome,
+    domeTitulo: tituloDome,
+    domeNota: notaDome,
     plano: medidasPlano,
     coordsCupula: temCupula ? tabelaDeCoordenadas(cupula, "cupula") : "",
     coordsPlanos: temPlanos ? tabelaDeCoordenadas(planos, "plano") : "",
