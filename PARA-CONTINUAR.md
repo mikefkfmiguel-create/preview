@@ -1763,6 +1763,43 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — o relatório com o desenho da folha da cúpula (v3.54)
+
+> *"Seria bom o relatório ser uma coisa assim, mas que desse para abrir num
+> qualquer browser"* — a apontar para a folha de montagem da cúpula de 8,7 m.
+
+O relatório **já** abria em qualquer browser sem rede; o que faltava era o
+desenho. Passou a ter o mesmo: fichas de chumbo no cabeçalho, secções
+separadas por uma regra com sobrancelha em maiúsculas, tabelas em caixa
+própria com os números em monoespaçado tabular, e os avisos numa caixa
+tingida com um sinal à esquerda.
+
+**O que NÃO veio dessa folha: as fontes.** Ela vai buscar a IBM Plex ao Google
+Fonts. Aqui isso estragava a única coisa que esta página tem de garantir —
+abrir numa sala sem rede. Fica a pilha do sistema; o trabalho é feito pelo
+tamanho, pelo peso e pelo espacejamento. Medido no ficheiro gerado: **não pede
+nada à rede**.
+
+E ganhou modo escuro, que a app já tinha.
+
+### Três defeitos apanhados a olhar, não a ler
+
+1. **A folha imprimia PRETA** com o sistema em modo escuro — título branco
+   sobre branco. A regra de impressão era `:root`, a do modo escuro é
+   `:root:not([data-theme="light"])`, que é mais específica — e especificidade
+   ganha à ordem no ficheiro. Passou a listar os dois selectores. Medido nos
+   dois temas: fundo `rgb(255,255,255)`, título `rgb(19,26,32)`.
+2. **A marca era invisível.** A app manda a versão BRANCA (servia quando o
+   cabeçalho era uma barra escura). Vai agora numa chapa escura — um ficheiro
+   só, que serve papel branco, ecrã claro e ecrã escuro.
+3. **A caixa de avisos tinha um rabo enorme** de linhas vazias: o sinal à
+   esquerda atravessava `span 99` linhas de grelha. Os dizeres passaram a um
+   bloco só.
+
+E uma ficha de chumbo é para uma medida, não para uma frase: *"Sem público no
+desenho."* dava uma etiqueta do tamanho da linha. O ponto final é que
+distingue as duas — as frases descem para baixo da fita.
+
 ## 16 de setembro — o Preview passa a contar (v3.53)
 
 > *"Não tínhamos montado um analítico para ver utilização disto?"* — *"faz o
