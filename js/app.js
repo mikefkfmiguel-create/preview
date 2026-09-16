@@ -718,11 +718,19 @@ function desenharCena(recentrarCamara) {
       ponto: new THREE.Vector3(p.pos.x, p.pos.y + 0.42, p.pos.z),
       // CADA NÚMERO COM O NOME DO SEU EIXO. Três números seguidos obrigavam a
       // adivinhar qual era qual -- e adivinhar uma altura é subir a um fato de
-      // andaime pelo valor errado. As palavras são as mesmas do painel (lado,
-      // altura, fundo), para não haver um vocabulário na cena e outro nos
-      // campos que se vão mexer a seguir.
+      // andaime pelo valor errado.
+      //
+      // NA ORDEM DO PAINEL: lado, fundo, altura. A primeira versão disto saiu
+      // em x·y·z (lado, ALTURA, fundo), que é a ordem da tabela e do media
+      // server -- e a resposta foi imediata: *"lado fundo altura?????"*. Os
+      // campos que se vão mexer a seguir estão nessa ordem, e uma etiqueta que
+      // os lê por outra ordem é a app a falar duas línguas. Como cada número
+      // leva o nome, a ordem aqui não carrega informação nenhuma: é só a que
+      // dá menos trabalho a quem está a olhar para os dois ao mesmo tempo.
+      // A tabela continua em x·y·z, que é o que o WATCHOUT pede no Eye, e a
+      // nota de leitura diz qual letra é qual.
       texto: p.nome + " · lente  lado " + nsin(p.pos.x) +
-        " · altura " + nsin(p.pos.y) + " · fundo " + nsin(p.pos.z)
+        " · fundo " + nsin(p.pos.z) + " · altura " + nsin(p.pos.y)
     })));
   }
 
@@ -1483,7 +1491,10 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
     forte("x") + " é o lado (+ para a direita de quem olha para o palco), " +
       forte("y") + " é a altura acima do chão, " +
       forte("z") + " é o fundo (− para a frente, para o lado do palco). " +
-      "São estas as palavras — lado, altura, fundo — que aparecem nas etiquetas da cena."
+      "Na cena, as etiquetas dizem estes mesmos números pelo nome e pela ordem " +
+      "do painel (" + forte("lado, fundo, altura") + "); esta tabela segue a " +
+      "ordem que o media server pede no " + italico("Eye") + " (x, y, z). " +
+      "São os mesmos três números."
   ];
   if (temCupula) {
     linhas.push("É a mesma origem do .obj da cúpula: importa o objeto " +

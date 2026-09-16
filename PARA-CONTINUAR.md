@@ -1763,6 +1763,34 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — a ordem é a do painel (v3.60)
+
+> *"lado      fundo    altura?????"*
+
+A v3.59 pôs os nomes nos números, mas deixou-os na ordem **x · y · z** — que é
+`lado, ALTURA, fundo`. O painel, esse, tem os campos por outra ordem:
+`↔ | fundo | altura`. Duas ordens para as mesmas três coisas, na mesma app, e
+a resposta veio em cinco pontos de interrogação.
+
+A etiqueta passa a seguir a ordem do painel:
+
+```
+antes:  P1 · lente  lado −3,79 · altura +2,20 · fundo +0,46
+agora:  P1 · lente  lado −3,79 · fundo +0,46 · altura +2,20
+```
+
+**Como cada número leva o nome, a ordem aqui não carrega informação nenhuma** —
+é só a que dá menos trabalho a quem está a olhar para a etiqueta e para os
+campos ao mesmo tempo. A tabela continua em `x·y·z`, porque essa ordem é a que
+o media server pede no *Eye* e lá as colunas têm cabeçalho.
+
+E a nota de leitura passa a dizer isso, em vez de deixar a diferença por
+explicar: *"na cena, as etiquetas dizem estes mesmos números pelo nome e pela
+ordem do painel (lado, fundo, altura); esta tabela segue a ordem que o media
+server pede no Eye (x, y, z). São os mesmos três números."*
+
+Re-medido no blend de cinco: 319 px, zero sobreposições, cabem no telemóvel.
+
 ## 16 de setembro — cada número com o nome do seu eixo (v3.59)
 
 > *"As bolas estão bem, e a medida no ecrã. Pois das 3 que mostras na etiqueta
