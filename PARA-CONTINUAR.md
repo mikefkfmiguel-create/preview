@@ -1763,6 +1763,54 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — os centros no ecrã, e o que os números são (v3.58)
+
+> *"O que são os números — e podes marcar os centros no ecrã?"*
+
+**Os números** são o centro da lente em metros, na ordem **x · y · z**, com a
+origem no centro da sala ao nível do chão: x para os lados (0 é a linha do
+meio), y a altura do chão, z a fundura (− para a frente). É a mesma origem do
+`.obj` da cúpula, e é o que vai no *Eye* do WATCHOUT.
+
+**Os centros no ecrã** passam a estar marcados, e o número já existia no código
+sem estar à vista em lado nenhum: o `centroDaImagem`, calculado em
+`fichaDeProjetorEm()` desde sempre.
+
+**Não é o mesmo que o "Aponta a".** Esse é o eixo da lente; o lens shift empurra
+a imagem para fora dele, e num blend a −67% a diferença é dois terços da altura
+da imagem. São as duas pontas da mesma linha: a cruz na truss, o anel no pano.
+
+Ganhou coluna própria na tabela — **Centro no ecrã** — mas só quando há shift:
+sem shift é o mesmo ponto do "Aponta a", e uma segunda coluna igual à anterior
+é ruído.
+
+### As marcas saem todas de um sítio só
+
+Enquanto cada função de desenho punha a sua, havia três sítios a poder
+discordar da tabela. Agora as marcas, as etiquetas e a tabela saem todas de
+`dadosDeCoordenadas()`. E cada projetor tem **a sua cor**, a mesma na cruz, no
+anel e na bolha da tabela — sem isso, num blend de cinco não se sabe qual é
+qual (a lição do anel da cúpula).
+
+### Três coisas que só se viram a olhar
+
+1. **O anel não aparecia.** Isolado a vermelho opaco aparecia — logo era
+   contraste, não geometria: um anel claro e fino sobre a imagem projetada, que
+   é de um azul vivo. Levou uma **orla escura** por baixo e passou a ignorar o
+   teste de profundidade, que é o que uma marca quer.
+2. **O tamanho fixo não servia.** 44 cm é bom numa sala de 8 m e desaparece num
+   blend de 35. Segue agora 2,5% da distância de tiro, com tecto e chão. A
+   marca não é uma medida — é uma marca, tem de se ver.
+3. **Metade do anel ficava enterrada** na superfície. Três centímetros à frente
+   do pano, que é o que uma fita colada ali também levantaria.
+
+### E as etiquetas ainda se sobrepunham
+
+A varredura da v3.57 ordenava uma vez e depois mexia nos valores — o que
+desordenava a lista a meio, e as comparações seguintes olhavam para o vizinho
+errado. Numa fila de cinco, duas continuavam sobrepostas. Passou a reordenar em
+cada passagem, no máximo três, e pára quando nada mexe.
+
 ## 16 de setembro — o centro da lente, marcado e declarado (v3.57)
 
 > *"Achas que podíamos ter o centro da lente marcada e declarada?"*

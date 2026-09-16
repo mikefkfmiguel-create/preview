@@ -530,8 +530,83 @@ export function fazerDome(dome, solido, textura) {
 // Uma cor por fatia, para se distinguirem: num anel de dez, fatias todas da
 // mesma cor leem-se como uma mancha só. Tons frios e claros, que é o que se vê
 // contra a casca violeta e contra o chão escuro.
-const CORES_FATIA = [0x7FD1FF, 0xFFD479, 0x9BE8A8, 0xFF9FB5, 0xC5A6FF, 0x8FE8DE,
+export const CORES_FATIA = [0x7FD1FF, 0xFFD479, 0x9BE8A8, 0xFF9FB5, 0xC5A6FF, 0x8FE8DE,
                      0xFFC2F0, 0xBFD46A, 0x7FA8FF, 0xFFAE7A];
+
+/** A cor de um projetor, por ordem. A mesma paleta em toda a app. */
+export function corDoProjetor(i) {
+  return CORES_FATIA[((i % CORES_FATIA.length) + CORES_FATIA.length) % CORES_FATIA.length];
+}
+
+/**
+ * O CENTRO DA IMAGEM, MARCADO NO ECRÃ.
+ *
+ * Pedido: *"podes marcar os centros no ecrã"*, a seguir à marca do centro da
+ * lente. São as duas pontas da mesma linha — de onde a luz sai e onde ela
+ * aterra — e é o par que se usa a fitar um pano: uma na truss, outra na tela.
+ *
+ * NÃO é o mesmo que o "Aponta a": esse é o eixo da lente, e o lens shift
+ * empurra a imagem para fora dele. Com −67% de shift vertical, o centro da
+ * imagem está a dois terços da altura dela acima do eixo. O número já existia
+ * no código (`centroDaImagem`, em fichaDeProjetorEm) e não estava à vista.
+ *
+ * Um ANEL e não uma cruz, para nunca se confundir com a marca da lente: uma
+ * coisa é a máquina, outra é a mancha que ela faz.
+ */
+export function marcaNoEcra(pos, cor = 0xFFD479, olharPara, distancia) {
+  const g = new THREE.Group();
+  g.name = "aux:centro-imagem";
+
+  // O TAMANHO SEGUE A DISTÂNCIA DE TIRO. Um anel de 44 cm é bom numa sala de
+  // 8 m e desaparece num blend de 35 -- e a marca não é uma medida, é uma
+  // marca: tem de se ver. 2,5% do tiro, com tecto e chão.
+  const R = Math.min(0.80, Math.max(0.12, (distancia > 0 ? distancia : 6) * 0.025));
+
+  // UMA ORLA ESCURA POR BAIXO. Um anel claro e fino sobre a imagem projetada
+  // (que é de um azul vivo) não se via -- isolado a vermelho opaco aparecia,
+  // logo o problema era contraste e não geometria. A orla faz a marca ler-se
+  // sobre o pano branco E sobre a imagem acesa, que é onde ela vive.
+  const orla = new THREE.Mesh(
+    new THREE.RingGeometry(R * 0.60, R * 1.10, 32),
+    new THREE.MeshBasicMaterial({ color: 0x0E1418, side: THREE.DoubleSide,
+                                  transparent: true, opacity: 0.55,
+                                  depthTest: false, depthWrite: false }));
+  orla.name = "aux:centro-orla";
+  orla.renderOrder = 10;
+  g.add(orla);
+
+  const anel = new THREE.Mesh(
+    new THREE.RingGeometry(R * 0.70, R, 32),
+    new THREE.MeshBasicMaterial({ color: cor, side: THREE.DoubleSide,
+                                  depthTest: false, depthWrite: false }));
+  anel.name = "aux:centro-anel";
+  anel.renderOrder = 11;
+  g.add(anel);
+
+  const b = R * 1.5, p = [];
+  for (const e of [[b, 0, 0], [0, b, 0]]) p.push(-e[0], -e[1], 0, e[0], e[1], 0);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
+  const cruz = new THREE.LineSegments(geo,
+    new THREE.LineBasicMaterial({ color: cor, depthTest: false }));
+  cruz.name = "aux:centro-cruz";
+  cruz.renderOrder = 11;
+  g.add(cruz);
+  g.position.copy(pos);
+  if (olharPara) {
+    // TRÊS CENTÍMETROS À FRENTE DO PANO. Exactamente em cima dele, metade do
+    // anel ficava enterrada na superfície e o que se via era meia marca --
+    // visto numa vista de frente, antes de sair. Três centímetros é o que uma
+    // fita colada ali também levantaria: não mente sobre onde a marca está.
+    const d = new THREE.Vector3(olharPara.x - pos.x, olharPara.y - pos.y, olharPara.z - pos.z);
+    if (d.lengthSq() > 0) g.position.addScaledVector(d.normalize(), 0.03);
+    // E virada para a lente que a faz: assim assenta na superfície seja ela
+    // plana ou curva, sem se ter de saber aqui qual das duas é -- num arco
+    // cada anel fica tangente ao pano dele, que é o que se quer ver.
+    g.lookAt(olharPara.x, olharPara.y, olharPara.z);
+  }
+  return g;
+}
 
 /**
  * Reescreve os UV de uma calota para AZIMUTAL EQUIDISTANTE, que é como um
@@ -914,9 +989,6 @@ function corpoDeProjetor(pos, alvo, nome, cor) {
     marca.name = "aux:dome-marca";
     g.add(marca);
   }
-
-  // E o centro da lente, à vista, na cor deste projetor.
-  g.add(marcaDaLente(pos, cor != null ? cor : 0xFFD479));
 
   // Um traço curto a dizer para onde aponta: sem isto, num anel de dez, não
   // se percebe se estão virados para dentro ou para fora.
@@ -2794,7 +2866,6 @@ export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0"
   // de caixas atiradas ao acaso. E assente ATRÁS da lente — ver assentarCorpo.
   assentarCorpo(caixa, new THREE.Vector3(fatia.alvo.x, projetor.y, fatia.alvo.z));
   grupo.add(caixa);
-  grupo.add(marcaDaLente(new THREE.Vector3(projetor.x, projetor.y, projetor.z)));
 
   // O cone, até aos quatro cantos da fatia — que são pontos do cilindro.
   const meiaA = fatia.altura / 2;
@@ -2869,7 +2940,6 @@ export function fazerProjecao(projetor, imagem, textura, nome = "projetor-0") {
   // era o único dos três que nem sequer se virava para o alvo.
   assentarCorpo(caixa, new THREE.Vector3(imagem.x, projetor.y, imagem.z));
   grupo.add(caixa);
-  grupo.add(marcaDaLente(new THREE.Vector3(projetor.x, projetor.y, projetor.z)));
 
   // o cone: quatro triângulos da lente para os cantos
   const meiaL = imagem.largura / 2, meiaA = imagem.altura / 2;
