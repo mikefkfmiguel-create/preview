@@ -5428,10 +5428,33 @@ $("ficheiroProjeto").addEventListener("change", () => {
 });
 
 $("btLimpar").onclick = () => {
-  // Uma pergunta antes, porque isto deita fora trabalho: escrever as medidas de
-  // uma sala outra vez é chato, e um clique enganado num botão pequeno é fácil.
-  const temTrabalho = projeto || planta || plantaCad || textura;
-  if (temTrabalho && !confirm("Limpar tudo? O projeto, a planta e as medidas voltam ao princípio.")) return;
+  // LIMPA AS DUAS APPS, A FUNDO.
+  //
+  // Pedido a testar no telemóvel, a fazer de gestor na rua com um cliente:
+  // *"se tenho peças a entrar que posso não me lembrar, poderei ter um engano.
+  // Forma simples de limpar tudo mas a fundo, tudo vazio sem nada por omissão
+  // ao toque de um botão, que sirva para os dois sem ter de estar a limpar num
+  // e noutro"*. O que o motivou foi um DSM que apareceu num projeto onde nunca
+  // foi posto: estava guardado numa chave só dele, de outro dia.
+  //
+  // Antes isto repunha só a cena. Agora apaga também o que está guardado --
+  // dos dois lados, que partilham localStorage -- e a pergunta passa a ser
+  // feita SEMPRE, mesmo com a cena vazia: o que se apaga já não é só o que
+  // está à vista.
+  if (!confirm(
+      "Limpar tudo?\n\n" +
+      "As duas apps ficam vazias — este 3D e todas as calculadoras, com as " +
+      "zonas, o DSM, a cúpula, as TVs e o histórico de projetos.\n\n" +
+      "Ficam só o idioma, a sincronização e a contagem de uso.\n\n" +
+      "Não há volta atrás.")) return;
+  if (window.mikeappsLimpeza) {
+    window.mikeappsLimpeza.limpezaProfunda();
+    // Recarregar em vez de repor à mão: é a mesma decisão que os Calculadores
+    // tomaram e pela mesma razão -- repor cada campo em duplicado ficava
+    // sempre a arrastar-se atrás do arranque a sério.
+    location.reload();
+    return;
+  }
   limparTudo();
 };
 

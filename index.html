@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.61</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.62</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -40,7 +40,7 @@
         <p>É por aqui que um projeto <b>entra</b> e <b>sai</b>. Entra de três maneiras: <b>Trazer projeto dos Calculadores</b> (o que lá estiver marcado com “Adicionar ao projeto”), <b>Abrir projeto</b> (um ficheiro gravado antes), ou colando texto na caixa e carregando em <b>Carregar</b>.</p>
         <p><b>Guardar projeto</b> grava tudo — sala, palco, público, régie, projeção e ecrãs — num ficheiro que reabre sem rede nenhuma. É o que se leva para a obra.</p>
         <p><b>Link para ver</b> cria um endereço temporário (1 dia) só de visualização: quem o abrir roda a sala mas não edita nada.</p>
-        <p><b>Exemplo</b> carrega uma sala montada, para experimentar sem ter de escrever nada. <b>Limpar tudo</b> deita fora o projeto e repõe todas as medidas.</p>
+        <p><b>Exemplo</b> carrega uma sala montada, para experimentar sem ter de escrever nada. <b>Limpar tudo</b> deixa as <b>duas apps</b> vazias — este 3D e as calculadoras, com as zonas, o DSM, a cúpula, as TVs e o histórico. Ficam só o idioma, a sincronização e a contagem de uso.</p>
       </div>
     </details>
     <label for="nomeProjeto" class="rotulo-campo" style="margin-bottom:4px">Nome do projeto</label>
@@ -73,8 +73,14 @@
     <button id="btAnalisar" style="margin-top:8px; width:100%"
             title="Manda o texto e/ou a imagem ao assistente — a mesma IA dos Calculadores">Analisar com a IA</button>
     <div id="respostaIA" hidden></div>
+    <!-- O MESMO BOTÃO DOS DOIS LADOS. Pedido a testar no telemóvel, como quem
+         está na rua com um cliente: "forma simples de limpar tudo mas a fundo,
+         ao toque de um botão, que sirva para os dois sem ter de estar a limpar
+         num e noutro". As duas apps partilham origem e localStorage, por isso
+         isto limpa mesmo as duas — não se acrescentou um segundo botão porque
+         dois "Limpar tudo" na mesma secção seria pior do que o problema. -->
     <button id="btLimpar" style="margin-top:8px; width:100%"
-            title="Deita fora o projeto e põe todas as medidas no princípio">Limpar tudo</button>
+            title="Deixa as DUAS apps vazias: este 3D e todas as calculadoras, com as zonas, o DSM, a cúpula, as TVs e o histórico. Ficam só o idioma, a sincronização e a contagem de uso.">🗑 Limpar tudo (as duas apps)</button>
   </section>
 
   <section id="sExportar">
@@ -635,8 +641,19 @@
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js" } }
 </script>
+<!-- Antes do app.js, e como script normal (não módulo): a limpeza tem de estar
+     de pé mesmo que o motor 3D falhe a carregar. Um botão de emergência que
+     depende do que pode estar avariado não é um botão de emergência. -->
+<script src="js/limpeza.js"></script>
 <script type="module" src="js/app.js"></script>
 <script src="js/calc-widget.js"></script>
+
+<script>
+  // A LIMPEZA FICA DE PÉ MESMO COM A CENA PARTIDA: este ouvinte é ligado aqui,
+  // fora do módulo do 3D, para o caso de o app.js nem chegar a correr. O botão
+  // em si é ligado no app.js, que é quem sabe repor a cena.
+  if (window.mikeappsLimpeza) window.mikeappsLimpeza.ouvirLimpezaDeOutroSeparador();
+</script>
 
 <script>
   // Instalável e capaz de abrir sem rede. O registo é sempre relativo, porque
