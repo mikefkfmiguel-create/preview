@@ -1763,6 +1763,74 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — o Preview passa a contar (v3.53)
+
+> *"Não tínhamos montado um analítico para ver utilização disto?"* — *"faz o
+> preview."*
+
+Os Calculadores contavam desde 15/9; o 3D não. Ninguém sabia se é usado por
+três pessoas ou por trinta, **nem para que tipo de trabalho** — que é a
+pergunta que decide o que se polir a seguir.
+
+**A ficha é A MESMA dos Calculadores**, e isso é a decisão que manda em tudo o
+resto. As duas apps vivem no mesmo domínio, portanto partilham o
+`localStorage`. O número deste aparelho (`id`) e o interruptor (`ligado`)
+ficam onde já estavam, à vista das duas:
+
+- o mesmo telemóvel é o **mesmo aparelho** nas duas apps, e não dois;
+- desligar a contagem numa **desliga nas duas** — que é o que "não sai mais
+  nada daqui" quer dizer para quem carrega no interruptor;
+- "esquecer o número" esquece-o para as duas.
+
+O que é de cada app é só o que ficou por enviar e o dia do último envio, e
+esses vivem cada um no seu canto (`preview: { abas, enviadas, ultimoEnvio }`).
+**Os Calculadores não precisaram de mudar uma linha**: continuam a ler e a
+escrever exactamente os campos que sempre leram. É de propósito — são dois
+repositórios com dois service workers, vão andar desencontrados, e nenhuma
+versão pode partir a outra.
+
+### O Preview não tem abas, tem momentos
+
+`projeto`, `dome`, `blend` (ou `projecao`, com uma máquina só), `exportar`,
+`partilhar`. Os dois últimos são os que dizem se a app **chegou a produzir
+alguma coisa**, e não existiam na lista fechada do Worker — daí o
+[#349](https://github.com/mikefkfmiguel-create/calculadores/pull/349) ter ido
+à frente desta. Um nome desconhecido não dá erro: é deitado fora em silêncio.
+
+### O defeito que o teste apanhou antes de sair
+
+Copiar a regra dos Calculadores ("um envio por dia, o resto fica para amanhã")
+dava aqui uma **contagem falsa**, e só se vê com os momentos à frente: o envio
+de arranque sai 5 s depois de abrir, e **exportar e partilhar acontecem sempre
+depois disso**. Ficavam eternamente adiados — e quem usasse o Preview num dia
+só nunca veria a exportação contada de todo. A coluna que mais interessa seria
+a única a mentir.
+
+Passou a ser **uma vez por dia por momento**: guarda-se o que já foi mandado
+hoje e manda-se de novo quando houver coisa nova. O Worker junta ao que já
+tinha desse aparelho nesse dia (`contarUso`), que é precisamente para isto que
+ele foi feito. Tecto: seis momentos, portanto no máximo seis pedidos por dia —
+medido, três cliques no "Guardar" dão **um** envio.
+
+### Quem abre um "Link para ver" não é contado
+
+Um link de partilha abre com o painel escondido — logo, a secção que explica a
+contagem e o interruptor que a desliga **não existem para quem o abriu**.
+Contar aí era contar às escondidas alguém sem maneira de saber nem de recusar.
+O preço aceita-se por escrito: não se fica a saber quantos clientes abriram um
+link. A alternativa era contá-los sem lhes dizer.
+
+### `scripts/verificar-contagem.mjs`
+
+O segundo teste automático deste projeto. Mede as promessas da secção "O que
+esta app conta", uma a uma: que só saem `app`/`id`/`versão`/`abas` e mais nada;
+que os momentos chegam; que o interruptor desliga mesmo; que o link de ver não
+conta; e que a ficha dos Calculadores não é pisada. Nenhum pedido sai da
+máquina — o endereço do Worker é interceptado.
+
+Provado nos dois sentidos: 6/6 a verde, e com a regra antiga reposta de
+propósito falha exactamente nos dois casos dos momentos.
+
 ## 15 de setembro — a cena preta, e o primeiro teste automático (v3.52)
 
 > *"Abri o preview aqui no telemóvel e está ligado, nada aparece — e salta a

@@ -20,6 +20,7 @@ import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assist
 import { criarLinkPartilha, lerLinkPartilha } from "./partilha.js";
 import { prepararParaExportar, comoGLB, comoOBJ, descarregar, pesar } from "./exportar.js";
 import { paginaDeRelatorio } from "./relatorio.js";
+import { usoArranque, usoMarcar, usoDoProjeto, ligarInterruptorDeUso } from "./uso.js";
 
 const $ = (id) => document.getElementById(id);
 const tela = $("tela");
@@ -4282,6 +4283,11 @@ function projetoMontado(projetoAtual) {
  */
 function receberProjeto(projetoAtual) {
   if (!projetoAtual || !Array.isArray(projetoAtual.zonas)) return;
+  // A porta por onde TODO o projeto que chega passa (arranque, "Carregar",
+  // sincronização) -- por isso é aqui que se conta o que ele é, e não em três
+  // sítios que um dia discordariam. Um link de só ver nunca chega a contar:
+  // ver soVisualizacao() em uso.js.
+  usoDoProjeto(projetoAtual);
   if (!Array.isArray(ajustes.noDeposito)) ajustes.noDeposito = [];
   const conhecidos = (ajustes.nomePorId && typeof ajustes.nomePorId === "object") ? ajustes.nomePorId : {};
   const primeiraVez = !ajustes.depositoIniciado;
@@ -4900,6 +4906,11 @@ async function abrirProjetoTodo(estado) {
   preencherCheckbox("verPessoaDome", v.verPessoaDome);
 
   projeto = estado.projeto || null;
+  // Abrir um ficheiro gravado não passa pelo receberProjeto() (o projeto vem
+  // do ficheiro inteiro, não da ponte), por isso conta-se aqui. É também o
+  // caminho de um "Link para ver" -- e esse não conta nada, tratado dentro do
+  // uso.js e não com um if aqui, para a regra viver num sítio só.
+  usoDoProjeto(projeto);
   // "gomos" faltava aqui — ficava undefined (nem um array vazio) em vez de
   // manter os ajustes de cada gomo (largura/corredor/filas/posição). Sem
   // isto, fazerPublicoGomos()/ajustesDeGomosGarantidos() (que fazem
@@ -5011,6 +5022,10 @@ if ($("btPartilhar")) $("btPartilhar").onclick = async () => {
   botao.textContent = "A criar o link…";
   try {
     const link = await criarLinkPartilha(estadoCompleto());
+    // Só depois de o link existir mesmo: contar a intenção em vez do
+    // resultado dava um número que conta tentativas falhadas como trabalho
+    // entregue.
+    usoMarcar("partilhar");
     $("linkPartilhaTexto").value = link;
     $("resultadoPartilha").hidden = false;
     $("linkPartilhaTexto").select();
@@ -6633,6 +6648,11 @@ document.querySelectorAll("[data-saida]").forEach(b => {
 escolherSaida("png");
 
 $("btGuardar").onclick = () => {
+  // Saiu alguma coisa daqui. É o momento que diz que a app não foi só aberta
+  // -- produziu qualquer coisa que alguém levou para outro lado. Qual dos
+  // formatos foi NÃO se conta: era saber de mais sobre o trabalho de quem a
+  // usa, e a pergunta é se serviu, não para quê ao certo.
+  usoMarcar("exportar");
   if (saidaEscolhida === "png") guardarVista();
   else if (saidaEscolhida === "png-medidas") guardarImagem();
   else if (saidaEscolhida === "relatorio") guardarRelatorio();
@@ -6697,6 +6717,10 @@ function aplicarProjetor(p) {
  */
 function aplicarProjetores(lista) {
   if (!lista || !lista.length) return false;
+  // Uma máquina só é projeção; várias, ou uma curva, é um blend. A diferença
+  // interessa: são dois trabalhos diferentes, e é isso que a contagem quer
+  // saber (não quantas máquinas).
+  usoMarcar(lista.length > 1 || lista.curva ? "blend" : "projecao");
   const primeiro = lista[0], resto = lista.slice(1);
   const anchorLateral = num("projLateral"), anchorAltura = num("projAltura");
   // Os offsets do blend vêm ABSOLUTOS, medidos a partir do centro do ecrã:
@@ -7289,3 +7313,10 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
 
 montar(true);
 volta();
+
+// A contagem, no fim de tudo o resto estar de pé: é a última coisa que a app
+// faz e a primeira que se sacrifica se alguma falhar. Ver js/uso.js para o
+// que sai daqui, para o que nunca sai, e para a razão de um "Link para ver"
+// não contar nada.
+ligarInterruptorDeUso(dizerNaCena);
+usoArranque();

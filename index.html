@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.52</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.53</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -553,6 +553,29 @@
       </div>
     </details>
     <div id="listaAjustes" class="vazio">—</div>
+  </section>
+
+  <!-- A app promete que o projeto não sai daqui, e a partir da v3.53 sai um
+       número por dia. Uma app que promete uma coisa e faz outra em silêncio é
+       o defeito que ela passa a vida a corrigir, desta vez virado contra quem
+       confia nela. Daí esta secção, e daí o interruptor desligar mesmo.
+       O interruptor é O MESMO dos Calculadores (ver js/uso.js): desligar aqui
+       desliga lá, porque é o mesmo aparelho e a mesma promessa. -->
+  <section id="sContagem">
+    <h2>O que esta app conta</h2>
+    <details class="ajuda">
+      <summary>Ao certo, o que sai e o que nunca sai</summary>
+      <div class="ajuda-corpo">
+        <p><b>O que sai daqui:</b> um número aleatório gerado à primeira vez neste aparelho (não é um nome nem um email — é esta cópia da app), a versão, e os nomes do que se cá fez: <i>projeto</i>, <i>cúpula</i>, <i>blend</i>, <i>exportar</i>, <i>partilhar</i>. Uma vez por dia, no máximo.</p>
+        <p><b>O que nunca sai daqui:</b> nada do que montas. Nenhuma medida, nenhum nome de projeto, nenhum cliente, nenhuma planta, nenhuma imagem. Sem IP, sem localização, sem browser. Isto sabe <i>quantos</i>, nunca <i>quem</i> — e nem sequer chega a saber a que horas, porque a data é a do servidor.</p>
+        <p><b>Um “Link para ver” não conta nada.</b> Quem o abre tem o painel escondido, portanto não veria esta secção nem este interruptor — contá-lo era contar às escondidas alguém sem maneira de recusar.</p>
+        <p>Sem rede não há contagem nenhuma nesse dia, e a app funciona na mesma — que é o que interessa num pavilhão.</p>
+      </div>
+    </details>
+    <p class="vazio" style="margin:0 0 8px">Para se saber se vale a pena continuar a melhorar isto, a app conta <b>quantos aparelhos a usam</b> e <b>que tipo de trabalho se cá faz</b>.</p>
+    <label class="opcao"><input id="uso-ligado" type="checkbox" checked> Contar a utilização desta app</label>
+    <button id="uso-esquecer" type="button" style="margin-top:10px; width:100%"
+            title="Apaga o número deste aparelho e gera outro da próxima vez — a app passa a contar como uma instalação nova">Esquecer o número deste aparelho</button>
   </section>
 
   <footer id="rodape"></footer>
