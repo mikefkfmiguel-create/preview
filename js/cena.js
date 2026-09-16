@@ -2687,6 +2687,26 @@ export function medidasDaCurva(curva, z0, dx = 0, dz = 0) {
       const a = s / R;
       return { x: cx + R * Math.sin(a), z: cz - R * Math.cos(a), angulo: a };
     },
+    /**
+     * A MEDIDA QUE SE TIRA COM A FITA: quantos metros de pano há entre a ponta
+     * ESQUERDA e este ponto, andando pela superfície.
+     *
+     * Pedido assim: *"medida do ecrã da esquerda para a direita em metros para
+     * a posição, não preciso do resto"*. E é mesmo a única medida que serve
+     * para marcar um pano: ninguém leva um x·y·z da sala para cima de um
+     * praticável -- leva uma fita e conta a partir da ponta.
+     *
+     * Esquerda de quem OLHA para o ecrã (o +x da sala é a direita dessa
+     * pessoa), que é de onde se marca. Em retro marca-se do outro lado, e aí a
+     * conta é `total − isto`; quem estiver atrás do pano sabe-o, mas está
+     * escrito na tabela à mesma.
+     */
+    daEsquerda(ponto) {
+      const a = Math.atan2(ponto.x - cx, cz - ponto.z);
+      return (a + meioAngulo) * R;
+    },
+    /** O pano todo, medido pela superfície — o fim da fita. */
+    arcoTotal() { return 2 * meioAngulo * R; },
     /** Onde fica a lente que serve esse ponto: a `t` da superfície, pelo raio. */
     lenteNoArco(s, t) {
       const a = s / R;

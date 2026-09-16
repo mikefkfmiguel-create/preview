@@ -711,27 +711,44 @@ function desenharCena(recentrarCamara) {
   // E declarada também na cena, debaixo do mesmo interruptor das outras
   // medidas: numa cúpula de dez, dez coordenadas sempre à vista tapavam-na.
   if ($("verMedidas").checked) {
-    etiquetas = etiquetas.concat(todosOsProjetores.map((p) => ({
-      // Um palmo ACIMA do ponto, e não em cima dele: uma etiqueta centrada
-      // numa zona tapa um pedaço de um rectângulo grande e não faz mal
-      // nenhum; centrada num PONTO, tapa exactamente a marca que anuncia.
-      ponto: new THREE.Vector3(p.pos.x, p.pos.y + 0.42, p.pos.z),
-      // CADA NÚMERO COM O NOME DO SEU EIXO. Três números seguidos obrigavam a
-      // adivinhar qual era qual -- e adivinhar uma altura é subir a um fato de
-      // andaime pelo valor errado.
+    etiquetas = etiquetas.concat(todosOsProjetores.map((p) => {
+      // A MEDIDA QUE SE LEVA PARA O PANO, quando há pano para medir.
       //
-      // NA ORDEM DO PAINEL: lado, fundo, altura. A primeira versão disto saiu
-      // em x·y·z (lado, ALTURA, fundo), que é a ordem da tabela e do media
-      // server -- e a resposta foi imediata: *"lado fundo altura?????"*. Os
-      // campos que se vão mexer a seguir estão nessa ordem, e uma etiqueta que
-      // os lê por outra ordem é a app a falar duas línguas. Como cada número
-      // leva o nome, a ordem aqui não carrega informação nenhuma: é só a que
-      // dá menos trabalho a quem está a olhar para os dois ao mesmo tempo.
-      // A tabela continua em x·y·z, que é o que o WATCHOUT pede no Eye, e a
-      // nota de leitura diz qual letra é qual.
-      texto: p.nome + " · lente  lado " + nsin(p.pos.x) +
-        " · fundo " + nsin(p.pos.z) + " · altura " + nsin(p.pos.y)
-    })));
+      // Pedido assim: *"medida do ecrã da esquerda para a direita em metros
+      // para a posição, não preciso do resto — e se for shift basta H V"*.
+      // Três coordenadas de sala são o que o media server quer; quem vai
+      // marcar o ecrã quer UMA medida e a fita. As coordenadas não se perdem:
+      // continuam na tabela das Coordenadas de montagem, que é de onde se
+      // copia para o Eye.
+      //
+      // A etiqueta senta-se no ANEL e não na lente, porque é do ponto no pano
+      // que ela fala. Uma medida do ecrã a flutuar por cima da máquina era
+      // outra vez pedir para adivinhar a que ponto ela se referia.
+      if (p.noPano) {
+        const shift = (p.shiftH || p.shiftV)
+          ? " · shift H " + pct(p.shiftH) + " · V " + pct(p.shiftV)
+          : "";
+        return {
+          ponto: new THREE.Vector3(p.centroDaImagem.x,
+            p.centroDaImagem.y + 0.42, p.centroDaImagem.z),
+          texto: p.nome + " · " + nnum(p.noPano.daEsquerda) + " m da esquerda" + shift
+        };
+      }
+      // Sem pano medível (a cúpula, a projeção simples) fica o que já estava:
+      // o centro da lente, com o nome de cada eixo e pela ordem do painel
+      // (lado, fundo, altura). A ordem saiu primeiro em x·y·z e a resposta foi
+      // *"lado fundo altura?????"* -- os campos que se vão mexer a seguir
+      // estão nesta ordem, e como cada número leva o nome, a ordem aqui não
+      // carrega informação nenhuma: é só a que dá menos trabalho.
+      return {
+        // Um palmo ACIMA do ponto, e não em cima dele: uma etiqueta centrada
+        // numa zona tapa um pedaço de um rectângulo grande e não faz mal
+        // nenhum; centrada num PONTO, tapa exactamente a marca que anuncia.
+        ponto: new THREE.Vector3(p.pos.x, p.pos.y + 0.42, p.pos.z),
+        texto: p.nome + " · lente  lado " + nsin(p.pos.x) +
+          " · fundo " + nsin(p.pos.z) + " · altura " + nsin(p.pos.y)
+      };
+    }));
   }
 
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
@@ -1002,6 +1019,21 @@ function desenharBlendCurvo(sala, curva) {
   // que existia.
   const emLinha = curva.montagem === "linha" && curva.trussLargura > 0;
 
+  // A MEDIDA DO PANO, posta na ficha no mesmo sítio onde a ficha nasce.
+  //
+  // A luz bate sempre em `m` — o pano onde ele ESTÁ — e não em `mMaquinas`,
+  // que é só onde a montagem foi pensada. Medir no segundo dava um número
+  // certinho de um pano que já ninguém tem à frente.
+  const comMedidaNoPano = (ficha) => {
+    if (ficha && ficha.centroDaImagem) {
+      ficha.noPano = {
+        daEsquerda: m.daEsquerda(ficha.centroDaImagem),
+        total: m.arcoTotal()
+      };
+    }
+    return ficha;
+  };
+
   // A TELA, desenhada como objeto e não como soma das imagens -- ver
   // fazerEcraCurvo(). Vai primeiro para as imagens ficarem por cima dela.
   if (curva.altura > 0) {
@@ -1137,9 +1169,9 @@ function desenharBlendCurvo(sala, curva) {
       // Conta para o aviso: uma máquina que desaparece do 3D sem explicação é
       // pior do que uma máquina desenhada no sítio errado.
       maquinasForaDoPano += 1;
-      montagemProjetores.push(fichaDeProjetorEm(
+      montagemProjetores.push(comMedidaNoPano(fichaDeProjetorEm(
         "P" + (i + 1), projetor, { x: alvo.x, y: projetor.y, z: alvo.z },
-        fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem));
+        fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem)));
       return;
     }
     const fatia = {
@@ -1157,9 +1189,9 @@ function desenharBlendCurvo(sala, curva) {
     desenhado.add(grupoCurvo);
     // O alvo é RADIAL e não em frente: é essa a única diferença para a ficha
     // do ecrã plano. No WATCHOUT continua a ser o Target, com o shift à parte.
-    montagemProjetores.push(fichaDeProjetorEm(
+    montagemProjetores.push(comMedidaNoPano(fichaDeProjetorEm(
       "P" + (i + 1), projetor, { x: alvo.x, y: projetor.y, z: alvo.z },
-      fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem));
+      fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem)));
   });
 }
 
@@ -1271,6 +1303,32 @@ function atualizarNotaDaCupula() {
 
 /** Um número em português, com duas casas e vírgula. */
 function nnum(v) { return (Math.round(v * 100) / 100).toFixed(2).replace(".", ","); }
+
+/**
+ * A MEDIDA DA FITA, escrita: quantos metros de pano da ponta esquerda até ao
+ * meio da imagem deste projetor.
+ *
+ * Um centro que caia FORA do pano é dito, não arredondado para dentro: com o
+ * shift muito aberto ou a máquina fora do sítio, o meio da imagem pode mesmo
+ * não bater no ecrã, e escrever "0,00 m" nesse caso era mandar alguém marcar
+ * uma cruz num sítio onde não vai cair imagem nenhuma.
+ */
+/**
+ * Uma percentagem de shift, com o mesmo sinal de menos do resto da app.
+ * `Math.round()` dá um hífen de teclado e o nsin() dá "−"; ter os dois na
+ * mesma linha da tabela era pequeno e feio.
+ */
+function pct(v) {
+  const n = Math.round((v || 0) * 100);
+  return (n < 0 ? "−" : "") + Math.abs(n) + "%";
+}
+
+function medidaNoPano(p) {
+  if (!p.noPano) return "—";
+  const d = p.noPano.daEsquerda, total = p.noPano.total;
+  const fora = d < -0.005 || d > total + 0.005;
+  return nnum(d) + " m" + (fora ? " (fora do pano, que tem " + nnum(total) + " m)" : "");
+}
 
 /** O mesmo com sinal à frente, para coordenadas: +3,85 lê-se melhor que 3,85. */
 function nsin(v) {
@@ -1401,22 +1459,29 @@ function tabelaDeCoordenadas(quais, tipo, comInterruptores) {
   // O shift só ganha coluna quando algum projetor o usa: uma coluna de zeros
   // é ruído numa tabela que já é larga.
   const comShift = quais.some((p) => p.shiftH || p.shiftV);
-  // O CENTRO NO ECRÃ só ganha coluna quando há shift: sem shift é o mesmo
-  // ponto do "Aponta a", e uma segunda coluna igual à anterior é ruído. Com
-  // shift são pontos diferentes -- e a diferença é entre onde a máquina OLHA e
-  // onde a imagem CAI, que num blend a −67% é dois terços da altura dela.
+  // A MEDIDA NO PANO substituiu o "Centro no ecrã (x·y·z)".
+  //
+  // Pedido assim: *"medida do ecrã da esquerda para a direita em metros para a
+  // posição, não preciso do resto"*. As três coordenadas do centro da imagem
+  // eram certas e não serviam para nada em cima de um praticável: ninguém
+  // marca um pano com um x·y·z da sala, marca-o com uma fita a contar da
+  // ponta. As coordenadas da LENTE ficam, que essas são o Eye do media server.
+  //
+  // Só aparece onde há pano com pontas — o blend curvo. Numa cúpula não há
+  // esquerda nenhuma, e na projeção simples o "ecrã" é a própria imagem.
+  const comPano = quais.some((p) => p.noPano);
   const linhas = quais.map((p, i) => `<tr>
       <td><span class="quem"><span class="bolha" style="background:${corHex(p.cor || corDoProjetor(i))}"></span>${p.nome}</span></td>
       <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
       <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
-      ${comShift ? `<td class="n">${p.centroDaImagem ? nsin(p.centroDaImagem.x) + " · " + nsin(p.centroDaImagem.y) + " · " + nsin(p.centroDaImagem.z) : "—"}</td>` : ""}
+      ${comPano ? `<td class="n">${medidaNoPano(p)}</td>` : ""}
       <td class="n">${nnum(p.distancia)}</td>
-      ${comShift ? `<td class="n">${Math.round(p.shiftH * 100)}% · ${Math.round(p.shiftV * 100)}%</td>` : ""}
+      ${comShift ? `<td class="n">H ${pct(p.shiftH)} · V ${pct(p.shiftV)}</td>` : ""}
     </tr>`).join("");
   return `<div class="coords-rolar"><table class="coords">
     <thead><tr>
       <th>Projetor</th><th title="O centro da lente — é dele que sai o feixe, é dele que se mede a distância de tiro, e é ele que vai no Eye do media server">Centro da lente (x·y·z)</th><th title="Onde o eixo da lente bate, sem lens shift — é o Target do media server">Aponta a (x·y·z)</th>
-      ${comShift ? '<th title="Onde o MEIO DA IMAGEM cai no ecrã, já com o lens shift — é o anel marcado na cena. Não é o mesmo ponto que o Aponta a.">Centro no ecrã (x·y·z)</th>' : ""}
+      ${comPano ? '<th title="Onde o MEIO DA IMAGEM cai no pano, já com o lens shift — é o anel marcado na cena. Mede-se com a fita, pela superfície, a contar da ponta esquerda de quem olha para o ecrã.">No ecrã, da esquerda</th>' : ""}
       <th>Dist.</th>
       ${comShift ? "<th>Shift H · V</th>" : ""}
     </tr></thead><tbody>${linhas}</tbody></table></div>`;
@@ -1481,6 +1546,10 @@ function escreverCoordenadas() {
 function notaDeLeitura(temCupula, temPlanos, emHtml) {
   const forte = (t) => (emHtml ? "<b>" + t + "</b>" : t);
   const italico = (t) => (emHtml ? "<i>" + t + "</i>" : t);
+  // Lido da mesma fonte que enche a tabela, e não passado por parâmetro: a
+  // nota sai por quatro portas (painel, "Copiar", relatório, ponte) e um
+  // parâmetro a mais é uma porta a poder esquecer-se dele.
+  const temPano = (dadosDeCoordenadas().planos || []).some((p) => p.noPano);
   const linhas = [
     "Medidas em " + forte("metros") + ", origem no " +
       forte("centro da sala ao nível do chão") + ".",
@@ -1496,6 +1565,16 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
       "ordem que o media server pede no " + italico("Eye") + " (x, y, z). " +
       "São os mesmos três números."
   ];
+  if (temPano) {
+    linhas.push(forte("No ecrã, da esquerda") + " é a medida que se tira com a " +
+      "fita: metros de pano, pela superfície, da ponta esquerda até ao meio da " +
+      "imagem daquele projetor. É essa a marca que o anel mostra na cena, e é " +
+      "com ela que se marca o pano — as coordenadas de sala ficam para o media " +
+      "server. " + forte("Esquerda de quem olha para o ecrã") + "; quem marcar " +
+      "por trás conta do outro lado.");
+    linhas.push("O resto da posição vertical é o " + forte("shift") +
+      ", em H e V — a percentagem que se mete na máquina.");
+  }
   if (temCupula) {
     linhas.push("É a mesma origem do .obj da cúpula: importa o objeto " +
       forte("sem recentrar nem reescalar") + " — basta o programa oferecer-se " +
@@ -1596,9 +1675,10 @@ function coordenadasEmTexto() {
     linhas.push("ECRÃ PLANO — " + planos.length + " projetor(es), a prumo com o ecrã");
     planos.forEach((p) => linhas.push(
       p.nome.padEnd(4) + "lente " + tres(p.pos) + "   aponta a " + tres(p.alvo) +
+      (p.noPano ? "   no ecrã " + medidaNoPano(p) + " da esquerda" : "") +
       "   " + nnum(p.distancia) + " m" +
       ((p.shiftH || p.shiftV)
-        ? "   shift " + Math.round(p.shiftH * 100) + "% · " + Math.round(p.shiftV * 100) + "%"
+        ? "   shift H " + pct(p.shiftH) + " · V " + pct(p.shiftV)
         : "")));
   }
   return linhas.join("\n");

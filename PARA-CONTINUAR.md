@@ -1763,6 +1763,59 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — a medida que se tira com a fita (v3.61)
+
+> *"Medida do ecrã da esquerda para a direita em metros para a posição. Não
+> preciso do resto. E se for shift basta H V."*
+
+Três versões seguidas a discutir como escrever três coordenadas de sala, e a
+resposta era que **as coordenadas de sala não são o que se leva para o pano**.
+Ninguém marca um ciclorama com um x·y·z: leva uma fita, encosta-a à ponta
+esquerda e conta metros.
+
+A etiqueta de cada projetor do blend passa a dizer isso e mais nada:
+
+```
+antes:  P1 · lente  lado −3,79 · fundo −1,54 · altura +2,20
+agora:  P1 · 2,50 m da esquerda · shift H 0% · V −25%
+```
+
+E **senta-se no anel**, não na lente — é do ponto no pano que ela fala. Uma
+medida de ecrã a flutuar por cima da máquina era outra vez pedir para adivinhar
+a que ponto se referia.
+
+Na tabela, a coluna **Centro no ecrã (x·y·z)** deu lugar a **No ecrã, da
+esquerda**. As coordenadas da LENTE ficam intactas: essas são o *Eye* do media
+server, e é de lá que se copia. O shift passa a dizer `H 0% · V −25%` dentro da
+própria célula, em vez de dois números à espera do cabeçalho.
+
+### Onde a medida existe, e onde não
+
+Só no **blend curvo**, que é o único ecrã com pontas. Numa cúpula não há
+esquerda nenhuma; na projeção simples o "ecrã" é a própria imagem, e a medida
+seria sempre metade da largura. Nesses dois casos a etiqueta continua a dar o
+centro da lente — `lado · fundo · altura` — porque é o que lá faz sentido.
+
+A medida sai de `m` (o pano onde ele ESTÁ) e não de `mMaquinas` (onde a montagem
+foi pensada): com o ecrã movido e as máquinas quietas, medir no segundo dava um
+número certinho de um pano que já ninguém tem à frente.
+
+Um centro de imagem que caia fora do pano é dito — *"(fora do pano, que tem
+21,00 m)"* — e não arredondado para dentro. Escrever "0,00 m" era mandar alguém
+marcar uma cruz onde não vai cair imagem nenhuma.
+
+### Medido contra a geometria, não contra ele próprio
+
+Blend de cinco num arco de 21 m, raio 14, telemóvel e computador:
+
+| | |
+|---|---|
+| arco total | 21,000 m — o número do campo |
+| as cinco medidas | 2,500 · 6,500 · 10,500 · 14,500 · 18,500 |
+| a do meio | 10,500 = metade exacta do pano |
+| P1+P5 e P2+P4 | 21,000 — simétricas |
+| etiquetas | 306 px, zero sobreposições, cabem na tela de 412 px |
+
 ## 16 de setembro — a ordem é a do painel (v3.60)
 
 > *"lado      fundo    altura?????"*
