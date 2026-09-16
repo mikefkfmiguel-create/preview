@@ -100,6 +100,21 @@ Vale o mesmo do outro lado: os Calculadores tem a versao no cabecalho
 
 ## Provar antes de dizer que esta feito
 
+Dois scripts, os dois a correr antes de publicar:
+
+```
+node scripts/verificar-cena.mjs        # a cena desenha-se ate ao fim?
+node scripts/verificar-contagem.mjs    # a contagem manda o que diz que manda?
+```
+
+O segundo mede as promessas escritas na seccao "O que esta app conta": que sai
+um numero, uma versao e nomes de momentos e mais NADA; que o interruptor
+desliga mesmo; que um "Link para ver" nunca conta ninguem; e que a ficha
+partilhada com os Calculadores (mesmo dominio, mesmo localStorage) nao e
+pisada. Nenhum pedido sai da maquina -- o endereco do Worker e interceptado.
+Uma promessa que nao se mede e uma promessa que um dia se parte sem ninguem
+dar por isso.
+
 **Correr sempre o `node scripts/verificar-cena.mjs` antes de publicar.** Abre a
 app em sete formas de projeto (vazia, so ecras, projecao simples, blend curvo,
 cupula, cupula + projecao, o exemplo) vezes dois aparelhos, e falha se houver
