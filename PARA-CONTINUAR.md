@@ -1763,6 +1763,52 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — cada número com o nome do seu eixo (v3.59)
+
+> *"As bolas estão bem, e a medida no ecrã. Pois das 3 que mostras na etiqueta
+> do projetor tenho de adivinhar o que é o quê."*
+
+A v3.58 pôs as coordenadas na cena e a explicação do que elas são **na
+conversa**. A etiqueta continuou a mostrar três números seguidos:
+
+```
+P1 · lente  −3,79 · +2,20 · +0,46
+```
+
+Quem estivesse a olhar para a cena — e não para a conversa — tinha de
+adivinhar. É a **app sabe e esconde** outra vez, e das piores: adivinhar uma
+altura é subir a um andaime pelo valor errado.
+
+Agora cada número leva o nome do seu eixo:
+
+```
+P1 · lente  lado −3,79 · altura +2,20 · fundo +0,46
+```
+
+**As palavras são as do painel** — `lado`, `altura`, `fundo` — e não `x`, `y`,
+`z`. Quem lê a etiqueta vai a seguir mexer nos campos que têm esses nomes; ter
+um vocabulário na cena e outro nos campos era pedir a tradução a quem está com
+as mãos ocupadas.
+
+### E a tabela passou a dizer qual é qual
+
+A tabela dizia a **ordem** (`x·y·z`) e mais nada: nenhum sítio dizia que *x* é
+o lado. A nota de leitura — que vai na tabela, no texto que se copia e no
+relatório — ganhou a linha que faltava:
+
+> **x** é o lado (+ para a direita de quem olha para o palco), **y** é a altura
+> acima do chão, **z** é o fundo (− para a frente, para o lado do palco). São
+> estas as palavras — lado, altura, fundo — que aparecem nas etiquetas da cena.
+
+Os sinais foram confirmados no código, não de memória: o palco está sempre em
+`-profundidade/2` (daí z negativo à frente), e a vista de frente põe a câmara
+em `+z` a olhar para o palco, o que faz de `+x` a mão direita de quem olha.
+
+**Medido num blend de cinco**, telemóvel e computador: as cinco etiquetas
+passaram de 34 para ~50 caracteres (319 px), **zero sobreposições**, e cabem
+inteiras na tela do telemóvel (412 px). O empurrão das etiquetas da v3.57
+aguenta o texto mais comprido.
+
 ## 16 de setembro — os centros no ecrã, e o que os números são (v3.58)
 
 > *"O que são os números — e podes marcar os centros no ecrã?"*
