@@ -1763,6 +1763,42 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — a folha junta os dois lados (v3.55)
+
+> *"Leva tudo dos dois para ser completo — a calculadora dá os materiais e
+> alguns cálculos, o desenho mostra como, com outros. Se juntar tudo fica bem."*
+
+A secção **Cúpula** do relatório mostrava o diâmetro, a altura, quantos e o
+blend. A área, o dome master, a resolução angular, o aproveitamento e a luz
+ficavam do lado dos Calculadores, e quem levava a folha para a obra não os
+tinha.
+
+**Sem partir a regra da casa.** Os Calculadores mandam a ficha **já escrita**
+(calculadores#350) e o Preview imprime-a tal e qual. Não recalcula uma vírgula
+— recebe texto, como já recebia o nome do modelo. O `lerProjeto()` sanitiza-a
+com tectos (40 pares, 80 e 300 caracteres) porque é texto de outra app que vai
+parar a uma página; quem a imprime escapa-a na mesma.
+
+Passam a conviver na mesma secção, e é isso que o pedido queria:
+
+| vem de | o quê |
+|---|---|
+| Calculadores | área, projetores, lente, dome master, resolução angular, aproveitamento, luz |
+| Preview | **Base da imagem** (onde a imagem começa — é onde o `.obj` da área de projeção corta) e as **coordenadas de montagem** |
+
+Com a ficha presente é ela que manda: diz tudo o que as quatro linhas antigas
+diziam e mais doze, e ter as duas versões era pôr a mesma coisa duas vezes na
+mesma folha com formatos diferentes. **Sem ficha** — um projeto guardado antes
+da v3.92 dos Calculadores, ou uma cúpula colada à mão — fica o que sempre
+houve. Menos, mas nunca vazio.
+
+Medido de ponta a ponta, com as duas apps servidas da mesma origem: a aba Dome
+escreve 12 pares, atravessam a ponte, e **os 12 aparecem na folha**, mais a
+Base da imagem e a tabela das coordenadas.
+
+E a nota da calculadora vem com as quebras de linha do `<pre>` dela: aqui a
+caixa quebra sozinha, e mantê-las punha o corte a meio das frases.
+
 ## 16 de setembro — o relatório com o desenho da folha da cúpula (v3.54)
 
 > *"Seria bom o relatório ser uma coisa assim, mas que desse para abrir num

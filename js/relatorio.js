@@ -240,6 +240,12 @@ const ESTILO = `
   .achado p { font-size: 14px; color: var(--tinta); max-width: 64ch; }
   .achado b { color: var(--tinta); }
 
+  /* A linha de cabeça da cúpula, tal como a calculadora a escreve. */
+  .resumo { font-size: 15.5px; font-weight: 600; letter-spacing: -.005em; }
+  /* A nota de rodapé de uma secção: veio da calculadora, e é texto corrido —
+     não é um aviso desta folha, por isso não leva a caixa tingida. */
+  .nota-fonte { font-size: 13px; color: var(--apagado); max-width: 72ch; }
+
   ul.lista { margin: 0; padding: 0; list-style: none;
              border: 1px solid var(--linha); border-radius: 4px; background: var(--painel); overflow: hidden; }
   ul.lista li { padding: 10px 16px; border-bottom: 1px solid var(--linha); font-size: 14px; break-inside: avoid; }
@@ -298,7 +304,19 @@ export function paginaDeRelatorio(d) {
         <img src="${d.imagem}" alt="A sala como está no 3D">
         <figcaption>A sala como está no 3D, no momento em que esta folha foi gerada.</figcaption>
       </figure>` : "",
-    seccao("Cúpula", (d.dome ? fichas(d.dome) : "") + (d.coordsCupula || ""),
+    // A cúpula é a única secção com DUAS origens na mesma folha: as linhas de
+    // cima vêm da calculadora já escritas (área, dome master, resolução
+    // angular, aproveitamento, luz) e a tabela vem de quem colocou os
+    // projetores aqui no 3D. É o que o pedido queria — "a calculadora dá os
+    // materiais e alguns cálculos, o desenho mostra como, com outros".
+    seccao("Cúpula",
+           (d.domeTitulo ? `<p class="resumo">${esc(d.domeTitulo)}</p>` : "") +
+           (d.dome ? fichas(d.dome) : "") +
+           // As quebras de linha da nota são as do <pre> da calculadora, com
+           // largura fixa. Aqui a caixa quebra sozinha, e mantê-las punha o
+           // corte a meio das frases. Juntam-se em espaços.
+           (d.domeNota ? `<p class="nota-fonte">${esc(d.domeNota).replace(/\s*\n\s*/g, " ")}</p>` : "") +
+           (d.coordsCupula || ""),
            d.coordsCupula ? "Coordenadas de montagem" : "Geometria"),
     seccao("Ecrã plano", (d.plano ? fichas(d.plano) : "") + (d.coordsPlanos || ""),
            d.coordsPlanos ? "Coordenadas de montagem" : "Geometria"),

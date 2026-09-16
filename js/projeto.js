@@ -163,8 +163,29 @@ export function lerProjeto(bruto) {
   // calculadora: uma cove real decide-se na obra, com a lente na mão.
   const domeBruto = dados.dome;
   const projBruto = domeBruto && domeBruto.projetores;
+  const fichaDaCupula = (bruto) => {
+    if (!bruto || typeof bruto !== "object") return null;
+    const texto = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
+    const pares = Array.isArray(bruto.pares)
+      ? bruto.pares
+          .slice(0, 40)
+          .filter((p) => Array.isArray(p) && typeof p[0] === "string" && typeof p[1] === "string")
+          .map((p) => [texto(p[0], 80), texto(p[1], 300)])
+      : [];
+    if (!pares.length) return null;
+    return { titulo: texto(bruto.titulo, 200), pares: pares, nota: texto(bruto.nota, 600) };
+  };
   const dome = (domeBruto && numero(domeBruto.diametro, 0) > 0)
     ? {
+        // A FICHA DA ABA DOME, já escrita do lado de lá: área, dome master,
+        // resolução angular, aproveitamento, luz. Atravessa como TEXTO e nada
+        // mais -- nenhuma conta deste lado lhe toca, e o desenho nem olha para
+        // ela. Serve o relatório de montagem, que passa a poder mostrar os
+        // números da calculadora ao lado das coordenadas que o 3D calculou.
+        //
+        // Sanitizada com tectos: é texto vindo de outra app e vai parar a uma
+        // página. Quem a imprime escapa-a na mesma (ver esc() em relatorio.js).
+        ficha: fichaDaCupula(domeBruto.ficha),
         diametro: numero(domeBruto.diametro, 0),
         altura: numero(domeBruto.altura, 0) > 0
           ? numero(domeBruto.altura, 0)
