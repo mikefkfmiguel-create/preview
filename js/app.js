@@ -716,7 +716,13 @@ function desenharCena(recentrarCamara) {
       // numa zona tapa um pedaço de um rectângulo grande e não faz mal
       // nenhum; centrada num PONTO, tapa exactamente a marca que anuncia.
       ponto: new THREE.Vector3(p.pos.x, p.pos.y + 0.42, p.pos.z),
-      texto: p.nome + " · lente " + nsin(p.pos.x) + " · " + nsin(p.pos.y) + " · " + nsin(p.pos.z)
+      // CADA NÚMERO COM O NOME DO SEU EIXO. Três números seguidos obrigavam a
+      // adivinhar qual era qual -- e adivinhar uma altura é subir a um fato de
+      // andaime pelo valor errado. As palavras são as mesmas do painel (lado,
+      // altura, fundo), para não haver um vocabulário na cena e outro nos
+      // campos que se vão mexer a seguir.
+      texto: p.nome + " · lente  lado " + nsin(p.pos.x) +
+        " · altura " + nsin(p.pos.y) + " · fundo " + nsin(p.pos.z)
     })));
   }
 
@@ -1469,7 +1475,15 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
   const italico = (t) => (emHtml ? "<i>" + t + "</i>" : t);
   const linhas = [
     "Medidas em " + forte("metros") + ", origem no " +
-      forte("centro da sala ao nível do chão") + "."
+      forte("centro da sala ao nível do chão") + ".",
+    // QUAL É QUAL, escrito. A tabela dizia a ORDEM ("x·y·z") e mais nada: quem
+    // a levava para a truss tinha de adivinhar o que era o quê, e na cena as
+    // etiquetas dizem "lado/altura/fundo". Ou os dois sítios falam a mesma
+    // língua, ou são duas leituras a discordar em silêncio.
+    forte("x") + " é o lado (+ para a direita de quem olha para o palco), " +
+      forte("y") + " é a altura acima do chão, " +
+      forte("z") + " é o fundo (− para a frente, para o lado do palco). " +
+      "São estas as palavras — lado, altura, fundo — que aparecem nas etiquetas da cena."
   ];
   if (temCupula) {
     linhas.push("É a mesma origem do .obj da cúpula: importa o objeto " +
