@@ -13,7 +13,8 @@ import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, faze
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
          fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula,
          medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo,
-         quemTapaOFeixe, marcarQuemTapa, mostrarFatiasDaCupula } from "./cena.js";
+         quemTapaOFeixe, marcarQuemTapa, mostrarFatiasDaCupula,
+         marcaDaLente, marcaNoEcra, corDoProjetor } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
@@ -676,27 +677,47 @@ function desenharCena(recentrarCamara) {
   }
   escreverCoordenadas();
 
-  // AS ETIQUETAS DOS PROJETORES — o centro da lente escrito ao lado da marca
-  // que o desenha na cena.
+  // AS DUAS PONTAS DE CADA FEIXE, MARCADAS E DECLARADAS.
   //
-  // Pedido: *"achas que podíamos ter o centro da lente marcada e declarada"*.
-  // Marcada é a cruz (ver marcaDaLente em cena.js); declarada, aqui e na
-  // tabela das Coordenadas. Sai de dadosDeCoordenadas(), que é o mesmo sítio
-  // de onde a tabela sai -- assim a etiqueta na cena e a linha na tabela nunca
-  // podem discordar.
+  // Pedidos: *"achas que podíamos ter o centro da lente marcada e declarada"* e
+  // *"podes marcar os centros no ecrã"*. São as duas pontas da mesma linha — de
+  // onde a luz sai (cruz, na truss) e onde ela aterra (anel, no pano) —, e é o
+  // par que se usa a fitar um ecrã.
   //
-  // Debaixo do mesmo interruptor das outras medidas: numa cúpula de dez, dez
-  // coordenadas sempre à vista tapavam a cúpula.
+  // O ANEL NÃO ESTÁ NO "APONTA A". Esse é o eixo da lente; o lens shift empurra
+  // a imagem para fora dele, e num blend com −67% de shift vertical a diferença
+  // é dois terços da altura da imagem. O ponto certo é o `centroDaImagem`, que
+  // já era calculado em fichaDeProjetorEm() e não estava à vista em lado nenhum.
+  //
+  // TUDO NUM SÍTIO SÓ, e de propósito: as marcas, as etiquetas e a tabela saem
+  // todas de dadosDeCoordenadas(). Enquanto cada função de desenho punha a sua
+  // marca, havia três sítios a poder discordar da tabela.
+  const deCoords = dadosDeCoordenadas();
+  const todosOsProjetores = [].concat(deCoords.cupula || [], deCoords.planos || []);
+  todosOsProjetores.forEach((p, i) => {
+    // A cor liga as três coisas do mesmo projetor: a cruz na truss, o anel no
+    // pano e a linha da tabela. Sem ela, num blend de cinco não se sabe qual é
+    // qual -- foi a lição do anel da cúpula ("fatias todas da mesma cor leem-se
+    // como uma mancha só").
+    const cor = p.cor || corDoProjetor(i);
+    desenhado.add(marcaDaLente(new THREE.Vector3(p.pos.x, p.pos.y, p.pos.z), cor));
+    if (p.centroDaImagem) {
+      desenhado.add(marcaNoEcra(
+        new THREE.Vector3(p.centroDaImagem.x, p.centroDaImagem.y, p.centroDaImagem.z),
+        cor, p.pos, p.distancia));
+    }
+  });
+
+  // E declarada também na cena, debaixo do mesmo interruptor das outras
+  // medidas: numa cúpula de dez, dez coordenadas sempre à vista tapavam-na.
   if ($("verMedidas").checked) {
-    const deCoords = dadosDeCoordenadas();
-    etiquetas = etiquetas.concat(
-      [].concat(deCoords.cupula || [], deCoords.planos || []).map((p) => ({
-        // Um palmo ACIMA do ponto, e não em cima dele: uma etiqueta centrada
-        // numa zona tapa um pedaço de um rectângulo grande e não faz mal
-        // nenhum; centrada num PONTO, tapa exactamente a marca que anuncia.
-        ponto: new THREE.Vector3(p.pos.x, p.pos.y + 0.42, p.pos.z),
-        texto: p.nome + " · lente " + nsin(p.pos.x) + " · " + nsin(p.pos.y) + " · " + nsin(p.pos.z)
-      })));
+    etiquetas = etiquetas.concat(todosOsProjetores.map((p) => ({
+      // Um palmo ACIMA do ponto, e não em cima dele: uma etiqueta centrada
+      // numa zona tapa um pedaço de um rectângulo grande e não faz mal
+      // nenhum; centrada num PONTO, tapa exactamente a marca que anuncia.
+      ponto: new THREE.Vector3(p.pos.x, p.pos.y + 0.42, p.pos.z),
+      texto: p.nome + " · lente " + nsin(p.pos.x) + " · " + nsin(p.pos.y) + " · " + nsin(p.pos.z)
+    })));
   }
 
   // Pedir 12 filas e receber 6 sem ninguém dizer nada é a maneira certa de
@@ -1255,6 +1276,19 @@ function nsin(v) {
  * faz entre o Target ("o ponto para onde o projetor aponta quando não há lens
  * shift") e o campo Lense Shift.
  */
+/**
+ * Uma cor em texto para CSS.
+ *
+ * A ficha da cúpula já traz a cor em "#rrggbb" (fichaDeMontagem, em cena.js) e
+ * a paleta traz-na em número. Passar uma string por um `>>> 0` dava zero, ou
+ * seja preto — e uma bolha preta numa tabela de cores é um erro que ninguém
+ * lê como erro.
+ */
+function corHex(c) {
+  if (typeof c === "string") return c;
+  return "#" + (c >>> 0).toString(16).padStart(6, "0").slice(-6);
+}
+
 function fichaDeProjetor(nome, pos, zEcra, shiftH, shiftV, largura, altura) {
   // Ecrã plano: "em frente" é o mesmo x e y, no plano do ecrã.
   return fichaDeProjetorEm(nome, pos, { x: pos.x, y: pos.y, z: zEcra },
@@ -1353,16 +1387,23 @@ function tabelaDeCoordenadas(quais, tipo, comInterruptores) {
   // O shift só ganha coluna quando algum projetor o usa: uma coluna de zeros
   // é ruído numa tabela que já é larga.
   const comShift = quais.some((p) => p.shiftH || p.shiftV);
-  const linhas = quais.map((p) => `<tr>
-      <td><span class="quem"><span class="bolha" style="background:#6E8BA8"></span>${p.nome}</span></td>
+  // O CENTRO NO ECRÃ só ganha coluna quando há shift: sem shift é o mesmo
+  // ponto do "Aponta a", e uma segunda coluna igual à anterior é ruído. Com
+  // shift são pontos diferentes -- e a diferença é entre onde a máquina OLHA e
+  // onde a imagem CAI, que num blend a −67% é dois terços da altura dela.
+  const linhas = quais.map((p, i) => `<tr>
+      <td><span class="quem"><span class="bolha" style="background:${corHex(p.cor || corDoProjetor(i))}"></span>${p.nome}</span></td>
       <td class="n">${nsin(p.pos.x)} · ${nsin(p.pos.y)} · ${nsin(p.pos.z)}</td>
       <td class="n">${nsin(p.alvo.x)} · ${nsin(p.alvo.y)} · ${nsin(p.alvo.z)}</td>
+      ${comShift ? `<td class="n">${p.centroDaImagem ? nsin(p.centroDaImagem.x) + " · " + nsin(p.centroDaImagem.y) + " · " + nsin(p.centroDaImagem.z) : "—"}</td>` : ""}
       <td class="n">${nnum(p.distancia)}</td>
       ${comShift ? `<td class="n">${Math.round(p.shiftH * 100)}% · ${Math.round(p.shiftV * 100)}%</td>` : ""}
     </tr>`).join("");
   return `<div class="coords-rolar"><table class="coords">
     <thead><tr>
-      <th>Projetor</th><th title="O centro da lente — é dele que sai o feixe, é dele que se mede a distância de tiro, e é ele que vai no Eye do media server">Centro da lente (x·y·z)</th><th>Aponta a (x·y·z)</th><th>Dist.</th>
+      <th>Projetor</th><th title="O centro da lente — é dele que sai o feixe, é dele que se mede a distância de tiro, e é ele que vai no Eye do media server">Centro da lente (x·y·z)</th><th title="Onde o eixo da lente bate, sem lens shift — é o Target do media server">Aponta a (x·y·z)</th>
+      ${comShift ? '<th title="Onde o MEIO DA IMAGEM cai no ecrã, já com o lens shift — é o anel marcado na cena. Não é o mesmo ponto que o Aponta a.">Centro no ecrã (x·y·z)</th>' : ""}
+      <th>Dist.</th>
       ${comShift ? "<th>Shift H · V</th>" : ""}
     </tr></thead><tbody>${linhas}</tbody></table></div>`;
 }
@@ -4189,16 +4230,26 @@ function desenharEtiquetas() {
   // anterior, só o necessário. Não é um algoritmo de rotulagem a sério (essa é
   // outra vida) -- resolve o caso que acontece: coisas lado a lado à mesma
   // altura. Quem ficar fora da tela é limitado ao fundo, como já era.
-  visiveis.sort((a, b) => a.y - b.y);
-  for (let i = 1; i < visiveis.length; i++) {
-    const cima = visiveis[i - 1], baixo = visiveis[i];
-    // Só empurra quem se cruza TAMBÉM na horizontal: duas etiquetas à mesma
-    // altura em cantos opostos do ecrã não se estorvam nenhuma.
-    const cruzamX = Math.abs(cima.x - baixo.x) < (cima.meioL + baixo.meioL);
-    const minimo = cima.y + cima.meioA + baixo.meioA + 2;
-    if (cruzamX && baixo.y < minimo) {
-      baixo.y = Math.min(minimo, altura - baixo.meioA - MARGEM_ETIQUETA);
+  // TRÊS PASSAGENS, e a lista reordenada em cada uma. Com uma só, empurrar uma
+  // etiqueta para baixo desordenava a lista a meio da varredura, e as
+  // comparações seguintes passavam a olhar para o vizinho errado -- numa fila
+  // de cinco, duas continuavam sobrepostas. Vinte etiquetas ordenadas três
+  // vezes não custa nada, e converge no caso que acontece.
+  for (let passe = 0; passe < 3; passe++) {
+    visiveis.sort((a, b) => a.y - b.y);
+    let mexeu = false;
+    for (let i = 1; i < visiveis.length; i++) {
+      const cima = visiveis[i - 1], baixo = visiveis[i];
+      // Só empurra quem se cruza TAMBÉM na horizontal: duas etiquetas à mesma
+      // altura em cantos opostos do ecrã não se estorvam nenhuma.
+      const cruzamX = Math.abs(cima.x - baixo.x) < (cima.meioL + baixo.meioL);
+      const minimo = cima.y + cima.meioA + baixo.meioA + 2;
+      if (cruzamX && baixo.y < minimo) {
+        baixo.y = Math.min(minimo, altura - baixo.meioA - MARGEM_ETIQUETA);
+        mexeu = true;
+      }
     }
+    if (!mexeu) break;
   }
   visiveis.forEach((v) => {
     v.elemento.style.left = v.x + "px";
