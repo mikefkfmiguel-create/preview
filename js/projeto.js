@@ -222,6 +222,14 @@ export function lerProjeto(bruto) {
               // catálogos são dos Calculadores, que é a regra da casa.
               modelo: typeof projBruto.modelo === "string" ? projBruto.modelo : null,
               lente: typeof projBruto.lente === "string" ? projBruto.lente : null,
+              // O throw ratio da lente, em número. Serve uma coisa só: a folha
+              // de montagem escrever o que se mete no campo "Width / Distance"
+              // do WATCHOUT, que é o inverso disto. Nenhum desenho lhe toca.
+              lenteThrow: (projBruto.lenteThrow &&
+                           numero(projBruto.lenteThrow.min, 0) > 0 &&
+                           numero(projBruto.lenteThrow.max, 0) > 0)
+                ? { min: numero(projBruto.lenteThrow.min, 0), max: numero(projBruto.lenteThrow.max, 0) }
+                : null,
               arranjo: Math.round(numero(projBruto.arranjo, 3))
             }
           : null
