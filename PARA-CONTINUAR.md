@@ -1763,6 +1763,66 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 16 de setembro — limpar tudo limpa as duas apps (v3.62)
+
+> *"Estou no telemóvel a testar o que poderá ser um gestor numa visita com o
+> cliente na rua a tentar dar resposta rápida. Se tenho peças a entrar que posso
+> não me lembrar, poderei ter um engano. Forma simples de limpar tudo mas a
+> fundo, tudo vazio sem nada por omissão ao toque de um botão, que sirva para os
+> dois sem ter de estar a limpar num e noutro."*
+
+O que o motivou: um projeto acabado de fazer na aba Ecrã LED apareceu neste 3D
+com um **DSM que ninguém lhe tinha posto**. Estava guardado numa chave só dele
+(`calculadores-dsm-v1`), de um dia qualquer, e ia colado a todos os projetos
+desde então — e a contar para a escolha do switcher.
+
+O **Limpar tudo** desta secção passa a apagar as duas apps a fundo. Não se
+acrescentou um botão: dois "Limpar tudo" na mesma secção seria pior do que o
+problema.
+
+### A regra é ao contrário da óbvia
+
+`js/limpeza.js` (o mesmo ficheiro nas duas apps) apaga **tudo o que tem os
+nossos prefixos, menos uma lista curta de preferências**.
+
+Enumerar o que se apaga parece mais seguro e é o contrário: uma chave nova
+criada daqui a dois meses fica de fora, ninguém dá por isso, e a limpeza volta
+a mentir — que é exactamente o que o botão antigo fazia (apagava UMA chave e
+recarregava). Com a regra invertida, uma chave nova nasce a ser apagada.
+
+**O que fica:** idioma, sincronização automática, contagem de uso, endereço do
+Worker, e as preferências de painel. Nada disso é trabalho.
+
+A contagem de uso é a que mais importa: apagá-la **voltava a ligar a contagem a
+quem a tinha desligado**. Uma limpeza de projeto nunca pode mexer numa decisão
+de privacidade.
+
+### Uma limpeza, os dois separadores
+
+As duas apps vivem na mesma origem, por isso partilham `localStorage` e uma
+limpeza de um lado apaga mesmo o outro. E quem estiver aberto no separador ao
+lado **recarrega sozinho**, por uma marca (`mikeapps-limpeza-v1`) escrita no
+fim. Sem isso a app do lado continuava a mostrar o projeto antigo e regravava-o
+ao primeiro toque — a limpeza desfazia-se sozinha, e sem ninguém ver.
+
+O ouvinte fica fora do módulo do 3D, e o `limpeza.js` carrega antes do
+`app.js`: um botão de emergência que depende do que pode estar avariado não é
+um botão de emergência.
+
+### Medido
+
+`calculadores/scripts/verificar-limpeza.mjs` enche as duas apps com 27 chaves —
+**incluindo três inventadas**, que fazem de "chave que alguém vai criar para o
+mês" — e exige que sobrem só as preferências. Quatro casos: limpar dos
+Calculadores, limpar do Preview, dizer que não à pergunta, e os dois
+separadores abertos ao mesmo tempo.
+
+Duas coisas que só o teste viu: o `confirm` das duas apps é diferente (nativo
+aqui, `<dialog>` próprio lá), e há chaves que **renascem por omissão** ao
+arrancar — a sala, que este 3D reescreve no fim de cada desenho. Renascer com o
+conteúdo por omissão está certo; o teste passou a comparar o valor, não a
+presença.
+
 ## 16 de setembro — a medida que se tira com a fita (v3.61)
 
 > *"Medida do ecrã da esquerda para a direita em metros para a posição. Não
