@@ -107,6 +107,7 @@ let feixesDoBlend = [];
 let tapamOBlend = null;
 let domeMontado = null;    // a cúpula desta montagem, para saber quem ela tapa
 let corposDoPublico = null;// uma caixa por pessoa, para a sombra
+let ultimaCobertura = null;// o último cálculo de cobertura, para os testes
 let limitesDoShift = null; // até onde a lente escolhida faz shift, se se souber
 // Onde é que um delay ou um DSM ficam de verdade na sala -- decisão só do
 // preview, guardada neste aparelho (ver CHAVE_AJUSTES em projeto.js).
@@ -924,6 +925,7 @@ function desenharCena(recentrarCamara) {
       desenhado.add(desenharConesCobertura(montado, medidas, sala, palco, gente));
     }
   }
+  ultimaCobertura = cobertura;   // porta de teste — ver window.preview
   escreverPainelCobertura(cobertura, !!(montado && montado.zonas.length));
 
   // QUEM TAPA O FEIXE DA FILA DO BLEND. Corre aqui, depois de os projetores e
@@ -2543,8 +2545,61 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
     totalLugares: n, confortaveis, marginais, semCobertura, corPorLugar,
     zonasSemCobertura: ordemZonas.filter(z => !comLugaresPorZona.get(z)).map(z => z.nome),
     blocos, piorBloco: (piorBloco && piorBloco.sem > 0) ? piorBloco : null,
-    regraLabel: regraDistancia.label
+    regraLabel: regraDistancia.label,
+    // QUE LUGARES, e não só quantos -- ver moradasSemCobertura().
+    semCoberturaOnde: moradasSemCobertura(gente, corPorLugar)
   };
+}
+
+/**
+ * OS LUGARES QUE FICAM SEM VER, PELO NOME.
+ *
+ * *"Assim serve de coordenadas"*, a olhar para a plateia com as filas em
+ * letras e os lugares numerados. E serve mesmo: até aqui a Cobertura dizia
+ * *"bloco 2: 14 lugares sem ecrã"*, que conta mas não localiza -- ninguém
+ * consegue ir à sala tirar catorze cadeiras que não sabe quais são. É a
+ * mesma conta; o que muda é dizer ONDE.
+ *
+ * Os lugares seguidos juntam-se num intervalo ("lugares 1-8") porque catorze
+ * números em fila eram outra vez uma lista para ninguém ler. E a lista de
+ * filas corta-se nas primeiras: quem tem meia plateia sem ver não precisa de
+ * as ver todas escritas, precisa de mexer no ecrã.
+ */
+const FILAS_A_LISTAR = 6;
+function moradasSemCobertura(gente, corPorLugar) {
+  if (!gente || !gente.filaPorLugar || !gente.filaPorLugar.length) return [];
+  // Agrupa por (gomo, fila) -- em "Circular" há uma fila A por gomo, e uma
+  // morada sem o gomo não encontra ninguém.
+  const porFila = new Map();
+  for (let i = 0; i < corPorLugar.length; i++) {
+    if (corPorLugar[i] !== 0) continue;                       // 0 = sem cobertura
+    const gomo = gente.gomoPorLugar ? gente.gomoPorLugar[i] : 0;
+    const fila = gente.filaPorLugar[i];
+    const chave = gomo + ":" + fila;
+    if (!porFila.has(chave)) porFila.set(chave, { gomo, fila, lugares: [] });
+    porFila.get(chave).lugares.push(gente.lugarPorLugar[i]);
+  }
+  const todas = [...porFila.values()].sort((a, b) =>
+    (a.gomo - b.gomo) || (a.fila - b.fila));
+
+  return todas.slice(0, FILAS_A_LISTAR).map((f) => {
+    const nums = f.lugares.slice().sort((a, b) => a - b);
+    // Seguidos viram intervalo; salteados ficam a vírgula. Um corredor no
+    // meio da fila parte mesmo a numeração, e essa quebra é informação: diz
+    // que o problema está de um lado do corredor e não do outro.
+    const tramos = [];
+    let ini = nums[0], ant = nums[0];
+    for (let k = 1; k <= nums.length; k++) {
+      if (k < nums.length && nums[k] === ant + 1) { ant = nums[k]; continue; }
+      tramos.push(ini === ant ? String(ini) : ini + "–" + ant);
+      ini = ant = nums[k];
+    }
+    const quais = tramos.length === 1 && !/–/.test(tramos[0])
+      ? "lugar " + tramos[0]
+      : "lugares " + tramos.join(", ");
+    return (f.gomo ? "Gomo " + f.gomo + " · " : "") + "fila " + letraDaFila(f.fila) + " " + quais;
+  }).concat(todas.length > FILAS_A_LISTAR
+    ? ["e mais " + (todas.length - FILAS_A_LISTAR) + " filas"] : []);
 }
 
 /**
@@ -2617,7 +2672,7 @@ function escreverPainelCobertura(cobertura, temEcras) {
     lista.textContent = "-";
     return;
   }
-  const { totalLugares, confortaveis, marginais, semCobertura, zonasSemCobertura, blocos, piorBloco, regraLabel } = cobertura;
+  const { totalLugares, confortaveis, marginais, semCobertura, zonasSemCobertura, blocos, piorBloco, regraLabel, semCoberturaOnde } = cobertura;
   resumo.className = "";
   resumo.innerHTML =
     `<b class="cobertura-verde">${confortaveis}</b> confortáveis · ` +
@@ -2630,6 +2685,11 @@ function escreverPainelCobertura(cobertura, temEcras) {
       : "") +
     (piorBloco
       ? `<br>Bloco ${piorBloco.bloco + 1} é o pior: ${piorBloco.sem} de ${piorBloco.total} lugares sem ecrã.`
+      : "") +
+    // QUAIS, e não só quantos. "14 lugares sem ecrã" conta mas não localiza:
+    // ninguém vai à sala tirar catorze cadeiras que não sabe quais são.
+    (semCoberturaOnde && semCoberturaOnde.length
+      ? `<br><small>Sem ver: ${semCoberturaOnde.join(" · ")}.</small>`
       : "");
 
   if (blocos.length > 1) {
@@ -7783,6 +7843,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   // das filas — para o teste medir o que a app fez, e não uma
                   // cópia da conta escrita do lado de fora.
                   get gente() { return corposDoPublico; },
+                  get ultimaCobertura() { return ultimaCobertura; },
                   letraDaFila, filaDaLetra,
                   get feixesDoBlend() { return feixesDoBlend; },
                   get ajustes() { return ajustes; },

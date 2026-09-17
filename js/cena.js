@@ -1715,6 +1715,7 @@ export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos, pa
   let zPrimeira = null, zUltima = null, larguraSentada = 0;
   const corpos = [];
   const blocoPorLugar = [];
+  const filaPorLugar = [], lugarPorLugar = [], gomoPorLugar = [];
   const gomosApertados = [];
   const gomosInfo = [];
   let olhos = null, melhorAngulo = Infinity;
@@ -1802,6 +1803,15 @@ export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos, pa
       corpos.push(dx + (x * cosA + zRel * sinA), y1, focoZ + dz + (-x * sinA + zRel * cosA), y2);
     }
     for (let b = 0; b < sub.blocoPorLugar.length; b++) blocoPorLugar.push(sub.blocoPorLugar[b] + i * 1000);
+    // A morada de cada lugar acompanha, e leva o GOMO com ela: em "Circular"
+    // há uma fila A por gomo, e "fila A, lugar 3" sem dizer de qual não chega
+    // para encontrar ninguém. O gomo vai à parte para quem escreve poder
+    // dizê-lo à frente ("Gomo 2 · fila A").
+    for (let b = 0; b < sub.filaPorLugar.length; b++) {
+      filaPorLugar.push(sub.filaPorLugar[b]);
+      lugarPorLugar.push(sub.lugarPorLugar[b]);
+      gomoPorLugar.push(i + 1);
+    }
 
     lugares += sub.lugares;
     blocos += sub.blocos;
@@ -1848,6 +1858,9 @@ export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos, pa
     grupo, olhos, lugares, filas, porFila, blocos,
     corpos: new Float32Array(corpos), largura, fundura,
     blocoPorLugar: new Int16Array(blocoPorLugar),
+    filaPorLugar: new Int16Array(filaPorLugar),
+    lugarPorLugar: new Int16Array(lugarPorLugar),
+    gomoPorLugar: new Int16Array(gomoPorLugar),
     zPrimeira, zUltima, larguraSentada, gomosApertados, gomosInfo
   };
 }
@@ -2142,6 +2155,7 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
     // lê do outro lado não tem de andar a perguntar se existem.
     return { grupo, olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1,
              corpos: new Float32Array(0), blocoPorLugar: new Int16Array(0),
+             filaPorLugar: new Int16Array(0), lugarPorLugar: new Int16Array(0),
              filasInfo: [], blocosInfo: [], cortesHorizontais: [], apertado: null,
              entreLugares: publico.entreLugares,
              largura: 0.46, fundura: 0.34 };
@@ -2284,6 +2298,16 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
   // serve para agrupar a cobertura de ecra por bloco de plateia, sem ter de
   // recalcular a posicao de cada corredor outra vez do lado de fora.
   const blocoPorLugar = [];
+  // A MORADA DE CADA LUGAR: em que fila está (0 = A) e que número tem dentro
+  // dela (1 = o primeiro da esquerda, a contar de ponta a ponta da fila). É o
+  // que deixa a Cobertura dizer "fila K, lugares 1-8" em vez de "bloco 2: 14
+  // sem ecrã" -- a mesma conta, agora a dizer ONDE.
+  //
+  // Guarda-se AQUI, onde o lugar nasce, porque cá fora já não se sabe: os
+  // lugares que caem na régie, na passarela ou fora da sala saltam-se, e a
+  // ordem deixa de dar para adivinhar a partir de um índice.
+  const filaPorLugar = [];
+  const lugarPorLugar = [];
   const zPrimeira = -sala.profundidade / 2 + palco.profundidade + publico.primeiraFila;
   let n = 0;
   let zUltima = zPrimeira;
@@ -2404,6 +2428,7 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
         }
         corpos.push(x, 1.75 * variacao + sobe, z, sobe);
         blocoPorLugar.push(bloco);
+        filaPorLugar.push(f); lugarPorLugar.push(i + 1);
         n++;
         continue;
       }
@@ -2436,6 +2461,7 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
       }
       corpos.push(x, (alturaOlhos + 0.055) * variacao + sobe + RAIO_CABECA * 1.16, z, sobe);
       blocoPorLugar.push(bloco);
+      filaPorLugar.push(f); lugarPorLugar.push(i + 1);
       n++;
     }
     if (sobe > 0.001) {
@@ -2495,6 +2521,10 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
     corpos: new Float32Array(corpos), largura: OMBROS, fundura: 0.34,
     // o bloco de cada lugar, na mesma ordem e no mesmo passo de "corpos"
     blocoPorLugar: new Int16Array(blocoPorLugar),
+    // A morada de cada lugar, na MESMA ordem: a fila (0 = A) e o número dele
+    // dentro da fila. Ver a nota onde são construídas.
+    filaPorLugar: new Int16Array(filaPorLugar),
+    lugarPorLugar: new Int16Array(lugarPorLugar),
     // COMO A PLATEIA SE CHAMA, para quem desenha as etiquetas não repetir
     // nenhuma destas contas -- repeti-las era poder chegar a outra resposta,
     // e uma etiqueta no sítio errado é pior do que etiqueta nenhuma.
