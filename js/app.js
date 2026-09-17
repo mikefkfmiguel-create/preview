@@ -5092,9 +5092,14 @@ function estadoCompleto() {
 function guardarProjetoTodo() {
   const estado = estadoCompleto();
   const blob = new Blob([JSON.stringify(estado, null, 2)], { type: "application/json" });
+  // O nome traz a extensão desta app (.pvw) -- ver js/ficheiros.js, que é o
+  // mesmo ficheiro dos dois lados para os nomes nunca divergirem. Por dentro
+  // continua a ser JSON, e o Blob mantém o tipo application/json.
   const base = (projeto && projeto.nome ? String(projeto.nome) : "projeto")
     .replace(/[^\p{L}\p{N}\- ]+/gu, "").trim() || "projeto";
-  descarregar(blob, `${base}.preview.json`);
+  descarregar(blob, window.mikeappsFicheiros
+    ? window.mikeappsFicheiros.nomeDoFicheiro("preview", base)
+    : `${base}.preview.json`);
 }
 
 function preencherCampo(id, valor) {
@@ -5108,7 +5113,12 @@ function preencherCheckbox(id, valor) {
 
 async function abrirProjetoTodo(estado) {
   if (!estado || estado.tipo !== "preview-projeto") {
-    throw new Error("Este ficheiro não é um projeto do Preview.");
+    // Recusar não chega: tem de dizer de ONDE é o ficheiro. Um ".cal" aberto
+    // aqui por engano é o caso normal, não a excepção -- as duas apps andam
+    // sempre juntas e os ficheiros vivem na mesma pasta de descargas.
+    throw new Error(window.mikeappsFicheiros
+      ? window.mikeappsFicheiros.recadoDeFicheiroErrado(estado, "preview")
+      : "Este ficheiro não é um projeto do Preview.");
   }
   const s = estado.sala || {}, p = estado.palco || {}, pu = estado.publico || {},
         r = estado.regie || {}, pj = estado.projecao || {}, pa = estado.passarela || {};
