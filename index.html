@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.64</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.65</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -299,7 +299,23 @@
       <label>Largura do corredor <input id="larguraCorredor" type="number" value="1.2" min="0.6" max="4" step="0.1"><i>m</i></label>
       <label>Sobe por fila <input id="inclinacao" type="number" value="0.12" min="0" max="0.6" step="0.01"><i>m</i></label>
     </div>
+    <!-- Lugares por fila, um número por bloco. Estes campos nascem e
+         desaparecem com o "Corredores" aqui em cima: são sempre tantos
+         quantos os blocos que ele cria. -->
+    <label class="rotulo-campo" style="margin:10px 0 4px">Lugares por fila, em cada bloco</label>
+    <div id="lugaresPorBloco" class="campos"></div>
+    <p class="vazio" style="margin:4px 0 0">Em branco = a app conta os que cabem, como fazia até agora. O bloco do meio costuma levar mais do que os dos lados.</p>
+    <div id="avisoLugares" class="vazio" hidden style="margin:6px 0 0"></div>
+
+    <!-- O corredor horizontal escolhe-se pelo NOME da fila, não por um número
+         de corredores: é assim que se aponta para a encruzilhada a olhar para
+         a plateia. -->
+    <label for="corredoresHorizontais" class="rotulo-campo" style="margin:10px 0 4px">Corredor depois da fila</label>
+    <input id="corredoresHorizontais" type="text" placeholder="ex: H, P" style="width:100%">
+    <p class="vazio" id="notaFilas" style="margin:4px 0 0">As filas chamam-se A, B, C… a contar da frente. Escreve as letras separadas por vírgula.</p>
+
     <label class="opcao"><input id="sentado" type="checkbox" checked> Sentado</label>
+    <label class="opcao"><input id="verLugaresId" type="checkbox"> Identificar filas e lugares</label>
   </section>
 
   <section id="sRegie">

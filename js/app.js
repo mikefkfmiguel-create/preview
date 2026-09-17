@@ -210,8 +210,102 @@ function lerPublico() {
     // ajustesDeGomosGarantidos() aqui e a nota em PARA-CONTINUAR.md sobre o
     // que ainda falta (palco central de verdade).
     formato: $("formatoPlateia").dataset.valor || "reto",
-    gomos: Math.max(1, Math.min(12, Math.round(num("gomos")) || 3))
+    gomos: Math.max(1, Math.min(12, Math.round(num("gomos")) || 3)),
+    // Um número de lugares por fila para cada bloco (vazio = automático, como
+    // sempre foi), e as filas depois das quais entra um corredor horizontal.
+    lugaresPorBloco: lerLugaresPorBloco(),
+    corredoresHorizontais: lerCorredoresHorizontais()
   };
+}
+
+// ------------------------------------------------- filas com nome, e cortes
+//
+// Pedido: *"marca os lugares com números e letras, para escolher a
+// encruzilhada"*. A fila A é a da frente. Depois do Z segue AA, AB... -- uma
+// sala de congressos passa dos 26 sem esforço, e "fila 27" não é um nome.
+function letraDaFila(indice) {
+  let n = Math.max(0, Math.round(indice)), nome = "";
+  do { nome = String.fromCharCode(65 + (n % 26)) + nome; n = Math.floor(n / 26) - 1; } while (n >= 0);
+  return nome;
+}
+
+/** "H" -> 7, "AA" -> 26. Aceita minúsculas e espaços, que é como se escreve. */
+function filaDaLetra(texto) {
+  const limpo = String(texto || "").trim().toUpperCase();
+  if (!/^[A-Z]+$/.test(limpo)) return null;
+  let n = 0;
+  for (const c of limpo) n = n * 26 + (c.charCodeAt(0) - 64);
+  return n - 1;
+}
+
+/**
+ * As etiquetas da plateia: a letra de cada fila nas duas pontas, e os números
+ * dos lugares nas filas onde a numeração se confere -- a primeira, e a que
+ * nasce logo a seguir a cada corredor horizontal.
+ *
+ * A altura sai do chão da plateia mais o que ela já subiu nessa fila, para as
+ * etiquetas acompanharem a inclinação em vez de ficarem todas no mesmo plano.
+ */
+function etiquetasDeLugares(gente, publico, chao) {
+  const saida = [];
+  const filas = gente.filasInfo, blocos = gente.blocosInfo;
+  const passo = gente.entreLugares || publico.entreLugares || 0.55;
+  const esquerda = blocos.length ? blocos[0].x0 : 0;
+  const direita = blocos.length ? blocos[blocos.length - 1].x1 : 0;
+  const cortes = new Set(gente.cortesHorizontais || []);
+
+  filas.forEach((fila) => {
+    const y = chao + (fila.sobe || 0) + 0.25;
+    const letra = letraDaFila(fila.indice);
+    // Nas duas pontas: de um lado ou do outro da sala, a fila tem sempre nome
+    // à vista -- e as duas pontas são o que uma planta impressa também leva.
+    saida.push({ texto: letra, ponto: new THREE.Vector3(esquerda - passo, y, fila.z) });
+    saida.push({ texto: letra, ponto: new THREE.Vector3(direita + passo, y, fila.z) });
+  });
+
+  // As filas que levam números: a primeira de todas, e a primeira depois de
+  // cada corredor. É onde alguém em pé no corredor consegue mesmo conferir.
+  const comNumeros = [0];
+  cortes.forEach((c) => { if (c + 1 < filas.length) comNumeros.push(c + 1); });
+  comNumeros.forEach((iFila) => {
+    const fila = filas[iFila];
+    if (!fila) return;
+    const y = chao + (fila.sobe || 0) + 0.25;
+    blocos.forEach((b) => {
+      // O primeiro e o último lugar do bloco chegam: com estes dois na ponta,
+      // os do meio contam-se com o dedo. Marcar os 20 de um bloco era voltar
+      // a encher o ecrã de números.
+      const ultimo = b.primeiroLugar + b.lugares - 1;
+      saida.push({ texto: String(b.primeiroLugar),
+                   ponto: new THREE.Vector3(b.x0 + passo * 0.5, y, fila.z) });
+      if (b.lugares > 1) {
+        saida.push({ texto: String(ultimo),
+                     ponto: new THREE.Vector3(b.x1 - passo * 0.5, y, fila.z) });
+      }
+    });
+  });
+  return saida;
+}
+
+function lerLugaresPorBloco() {
+  const caixa = $("lugaresPorBloco");
+  if (!caixa) return [];
+  return [...caixa.querySelectorAll("input")].map((el) => {
+    const v = Math.round(Number(el.value));
+    return v > 0 ? v : null;         // null = automático, pela largura
+  });
+}
+
+/**
+ * "H, P" -> [7, 15]. O campo fala em letras porque é assim que se escolhe a
+ * encruzilhada a olhar para a plateia; por dentro guardam-se índices.
+ */
+function lerCorredoresHorizontais() {
+  const el = $("corredoresHorizontais");
+  if (!el) return [];
+  return String(el.value || "").split(/[,;\s]+/)
+    .map(filaDaLetra)
+    .filter((v) => v != null);
 }
 
 function lerRegie() {
@@ -535,6 +629,25 @@ function desenharCena(recentrarCamara) {
     })));
   }
 
+  // "IDENTIFICAR FILAS E LUGARES": fila A à frente, lugares numerados ao
+  // longo da fila. Pedido para poder escolher onde entra o corredor
+  // horizontal -- *"marca os lugares com números e letras, para escolher a
+  // encruzilhada"* -- e é o mesmo nome que serve depois para falar com quem
+  // está na sala ("fila H, lugar 12").
+  //
+  // NÃO se marcam os lugares todos. Cada etiqueta é um <span> projetado a
+  // cada frame (ver desenharEtiquetas): quatrocentas punham a cena a
+  // arrastar-se e o ecrã ilegível, que é o contrário de identificar. Marca-se
+  // o que uma planta de sala marca: a letra nas duas pontas de cada fila, e
+  // os números só na PRIMEIRA fila de cada troço -- a de cima e a que nasce
+  // logo a seguir a cada corredor horizontal, que é onde a numeração se
+  // confere a olho.
+  if ($("verPublico").checked && $("verLugaresId") && $("verLugaresId").checked
+      && gente.filasInfo && gente.filasInfo.length && gente.blocosInfo) {
+    etiquetas = etiquetas.concat(
+      etiquetasDeLugares(gente, publico, palco.altura + palco.acimaDoPalco));
+  }
+
   // Uma pessoa no palco, que é o que dá a medida a tudo o resto. Fica FORA do
   // "se houver projeto": sem zonas nenhumas ela é ainda mais precisa, porque é
   // a única coisa na cena com um tamanho que toda a gente conhece.
@@ -775,6 +888,30 @@ function desenharCena(recentrarCamara) {
       `a sala acaba antes. ` +
       `<button type="button" class="aviso-link" data-secao="sPublico">Ajustar Público</button>`;
     aviso.classList.add("mostra");
+  }
+
+  // Os lugares por fila pedidos não cabem à largura. Desenham-se à mesma (ver
+  // "apertado" em fazerPublico): encolher em silêncio dava uma lotação
+  // diferente da que está escrita no campo, e é a escrita que alguém leva
+  // para a obra. Mas cala-se, não.
+  const avisoLugares = $("avisoLugares");
+  if (avisoLugares) {
+    const ap = gente.apertado;
+    avisoLugares.hidden = !ap;
+    if (ap) {
+      avisoLugares.textContent = "Os lugares pedidos ocupam " + nnum(ap.pedida) +
+        " m e a sala só dá " + nnum(ap.disponivel) +
+        " m de largura livre — a plateia fica mais larga do que a sala.";
+    }
+  }
+  // E a nota diz as letras que existem MESMO, para "depois da fila" não ser
+  // um palpite: numa sala de 12 filas, escrever "P" não abre corredor nenhum.
+  const notaFilas = $("notaFilas");
+  if (notaFilas) {
+    notaFilas.textContent = gente.filas > 1
+      ? "As filas chamam-se A a " + letraDaFila(gente.filas - 1) +
+        ", a contar da frente. Escreve as letras separadas por vírgula."
+      : "As filas chamam-se A, B, C… a contar da frente. Escreve as letras separadas por vírgula.";
   }
   // A cobertura substitui o aviso de ângulo da v2.26: aquele só dizia "há um
   // ecrã rodado de mais"; isto diz QUEM fica sem ver nada, em que bloco, e
@@ -4423,6 +4560,38 @@ document.querySelectorAll("#painel input").forEach(campo => {
   campo.addEventListener("change", () => remontarDaqui(0));
 });
 
+// UMA CAIXA DE LUGARES POR CADA BLOCO, e tantas quantos os blocos.
+//
+// Nascem e desaparecem com o campo "Corredores" -- 2 corredores são 3 blocos.
+// O querySelectorAll ali em cima corre UMA vez, no arranque, e por isso não
+// apanha campos criados depois: cada caixa é ligada ao nascer, senão escrever
+// nela não redesenhava nada e parecia avariada.
+function desenharCaixasDeLugares() {
+  const caixa = $("lugaresPorBloco");
+  if (!caixa) return;
+  const blocos = Math.max(0, Math.min(4, Math.round(num("corredores")) || 0)) + 1;
+  const jaLa = [...caixa.querySelectorAll("input")];
+  if (jaLa.length === blocos) return;              // nada mudou, não se mexe
+  const valores = jaLa.map((el) => el.value);      // o que já estava escrito fica
+  caixa.innerHTML = "";
+  for (let b = 0; b < blocos; b++) {
+    const rotulo = document.createElement("label");
+    rotulo.textContent = blocos === 1 ? "Lugares por fila " : "Bloco " + (b + 1) + " ";
+    const campo = document.createElement("input");
+    campo.type = "number"; campo.min = "0"; campo.max = "200"; campo.step = "1";
+    campo.placeholder = "auto";
+    campo.value = valores[b] != null ? valores[b] : "";
+    campo.addEventListener("input", () => remontarDaqui());
+    campo.addEventListener("change", () => remontarDaqui(0));
+    rotulo.appendChild(campo);
+    rotulo.appendChild(document.createElement("i"));
+    caixa.appendChild(rotulo);
+  }
+}
+$("corredores").addEventListener("input", desenharCaixasDeLugares);
+$("corredores").addEventListener("change", desenharCaixasDeLugares);
+desenharCaixasDeLugares();
+
 document.querySelectorAll(".vistas button[data-vista]").forEach(b => {
   b.onclick = () => vista(b.dataset.vista);
 });
@@ -5154,6 +5323,22 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("entreFilas", pu.entreFilas); preencherCampo("entreLugares", pu.entreLugares);
   preencherCampo("corredores", pu.corredores); preencherCampo("inclinacao", pu.inclinacao);
   preencherCampo("larguraCorredor", pu.larguraCorredor); preencherCheckbox("sentado", pu.sentado);
+  // Os lugares por bloco e os corredores horizontais. As caixas por bloco são
+  // criadas a partir do "corredores" que acabou de ser reposto -- por isso
+  // desenham-se PRIMEIRO, senão havia menos caixas do que valores e o projeto
+  // reabria com blocos por preencher (o mesmo defeito do formato/gomos que a
+  // nota aqui em baixo conta).
+  if (typeof desenharCaixasDeLugares === "function") desenharCaixasDeLugares();
+  const caixasDeLugares = $("lugaresPorBloco");
+  if (caixasDeLugares && Array.isArray(pu.lugaresPorBloco)) {
+    [...caixasDeLugares.querySelectorAll("input")].forEach((el, b) => {
+      const v = pu.lugaresPorBloco[b];
+      el.value = (v && v > 0) ? v : "";
+    });
+  }
+  if ($("corredoresHorizontais") && Array.isArray(pu.corredoresHorizontais)) {
+    $("corredoresHorizontais").value = pu.corredoresHorizontais.map(letraDaFila).join(", ");
+  }
   // "formato" (Reto/Circular) e "gomos" (nº de gomos) nunca tinham sido
   // repostos aqui — um projeto guardado em Circular voltava sempre a abrir
   // em Reto, silenciosamente (reportado: "tudo o que é plateia não [volta],
@@ -7594,6 +7779,11 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   // do lado de fora -- repeti-la era testar a minha cópia da
                   // regra, e não a que a app corre.
                   segmentosDeZona, regraDeDistancia,
+                  // A plateia construída (filas, blocos, cortes) e os nomes
+                  // das filas — para o teste medir o que a app fez, e não uma
+                  // cópia da conta escrita do lado de fora.
+                  get gente() { return corposDoPublico; },
+                  letraDaFila, filaDaLetra,
                   get feixesDoBlend() { return feixesDoBlend; },
                   get ajustes() { return ajustes; },
                   get montagemProjetores() { return montagemProjetores; },
