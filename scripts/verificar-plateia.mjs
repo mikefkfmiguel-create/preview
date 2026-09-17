@@ -225,6 +225,89 @@ conferir(nosGomos.formato === "circular", "a plateia está em gomos");
 conferir(nosGomos.lugares > 0,
   "com um corredor horizontal, os gomos continuam a ter gente (" + nosGomos.lugares + " lugares)");
 
+// ---- 7. A Cobertura diz QUE lugares ficam sem ver -----------------------
+//
+// *"Assim serve de coordenadas"*. E serve: até aqui a Cobertura dizia "bloco
+// 2: 14 lugares sem ecrã", que conta mas não localiza -- ninguém vai à sala
+// tirar catorze cadeiras que não sabe quais são.
+//
+// O caso é um ecrã pequeno numa sala funda: a regra da distância corta as
+// filas de trás, e essas são as que têm de aparecer pelo nome.
+console.log("\n== a Cobertura pelo nome dos lugares ==");
+// O projeto entra pela ponte (localStorage), como vem dos Calculadores — é
+// por aí que um ecrã chega ao 3D, e não pela caixa de colagem.
+await pagina.evaluate(() => {
+  localStorage.setItem("mikeapps-sincronizacao-v1", JSON.stringify("ligada"));
+  localStorage.setItem("mikeapps-projeto-v1", JSON.stringify({
+    nome: "Cobertura", origem: "calculadores",
+    sala: { largura: 20, profundidade: 40, altura: 8 },
+    // Um ecrã PEQUENO numa sala funda: a regra da distância corta as filas de
+    // trás, e são essas que têm de aparecer pelo nome.
+    zonas: [{ nome: "Ecrã", id: "z1", x: 0, y: 0, w: 1.6, h: 0.9,
+              cor: "#2e7bff", tipo: "led" }]
+  }));
+});
+await pagina.reload({ waitUntil: "networkidle" });
+await pagina.waitForFunction(() => window.preview && window.preview.montar, null, { timeout: 30000 });
+await pagina.waitForTimeout(1200);
+
+const cobertura = await pagina.evaluate(async () => {
+  const por = (id, v) => { const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = !!v; else el.value = String(v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true })); };
+  const reto = document.querySelector('#formatoPlateia [data-forma="reto"]');
+  if (reto) reto.click();
+  await new Promise((r) => setTimeout(r, 400));
+  por("salaL", 20); por("salaP", 40); por("palcoL", 8); por("palcoP", 3);
+  por("filas", 14); por("corredores", 1); por("entreLugares", 0.5);
+  por("primeiraFila", 3); por("entreFilas", 1.0);
+  por("verPublico", true); por("verCobertura", true);
+  await new Promise((r) => setTimeout(r, 300));
+  [...document.querySelectorAll("#lugaresPorBloco input")].forEach((el) => {
+    el.value = "6"; el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  por("corredoresHorizontais", "");
+  await new Promise((r) => setTimeout(r, 1800));
+  return {
+    resumo: (document.getElementById("resumoCobertura") || {}).textContent || "",
+    onde: (window.preview.ultimaCobertura || {}).semCoberturaOnde || null
+  };
+});
+console.log("   " + cobertura.resumo.replace(/\s+/g, " ").slice(0, 300));
+conferir(/Sem ver:/.test(cobertura.resumo),
+  "o painel diz QUE lugares ficam sem ver, e não só quantos");
+conferir(/fila [A-Z]+ lugar/.test(cobertura.resumo),
+  "e diz a morada como se fala na sala: «fila N lugares 1–6»");
+// Esta passava por acaso antes de eu a apertar: /–|, / dava verdade com
+// qualquer travessão do painel, mesmo sem lista nenhuma. Agora exige o
+// feitio do intervalo colado ao "lugares".
+conferir(/lugares \d+–\d+/.test(cobertura.resumo),
+  "os lugares seguidos juntam-se num intervalo («lugares 1–12»), em vez de doze números em fila");
+
+// A conta por trás, sem o texto pelo meio.
+const moradas = await pagina.evaluate(() => {
+  const g = window.preview.gente;
+  const c = window.preview.ultimaCobertura;
+  if (!g || !c) return null;
+  // Quantos lugares a lista nomeia, contra quantos a contagem diz que há.
+  let nomeados = 0;
+  const vistos = new Set();
+  for (let i = 0; i < c.corPorLugar.length; i++) {
+    if (c.corPorLugar[i] === 0) { nomeados++; vistos.add(g.filaPorLugar[i]); }
+  }
+  return { semCobertura: c.semCobertura, nomeados, filas: vistos.size,
+           listadas: (c.semCoberturaOnde || []).length };
+});
+console.log("   " + JSON.stringify(moradas));
+if (moradas) {
+  conferir(moradas.semCobertura === moradas.nomeados,
+    "o número que o painel conta e os lugares que têm morada são os MESMOS");
+  conferir(moradas.listadas > 0 && moradas.listadas <= 7,
+    "a lista corta-se nas primeiras filas (+ «e mais N filas») — meia plateia escrita não se lê");
+}
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
