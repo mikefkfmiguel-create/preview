@@ -2327,6 +2327,9 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
   // Onde cada fila ficou, para quem desenha as etiquetas não ter de repetir
   // esta conta -- e não poder chegar a outra resposta.
   const filasInfo = [];
+  // Onde acabou o degrau da fila anterior. É o que deixa o próximo começar
+  // exactamente ali, sem vão nenhum no meio -- ver a nota no degrau.
+  let zTrasDoDegrauAnterior = null;
 
   for (let f = 0; f < publico.filas; f++) {
     const z = zPrimeira + f * publico.entreFilas + recuoDaFila(f);
@@ -2464,14 +2467,34 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
       filaPorLugar.push(f); lugarPorLugar.push(i + 1);
       n++;
     }
+    // O DEGRAU VAI ATÉ ONDE O ANTERIOR ACABOU -- e não uma fila de cada vez.
+    //
+    // Reportado com uma fotografia do telemóvel: *"olha o erro de desenho"*.
+    // Cada degrau tinha exactamente a profundidade de UMA fila, o que estava
+    // certo enquanto as filas estavam todas à mesma distância umas das outras.
+    // No dia em que passou a haver corredores horizontais (v3.65) deixou de
+    // estar: medido num caso de 1,40 m de corredor depois da fila D, o degrau
+    // da D acabava em -6,76 e o da E começava em -5,36. No meio ficava 1,40 m
+    // de NADA, com a fila D a 0,77 m de altura -- um buraco com a fundura de
+    // um degrau, exactamente onde as pessoas passam a pé.
+    //
+    // Agora cada degrau começa onde o de trás acabou. O corredor deixa de ser
+    // um vão e passa a ser o que é numa sala a sério: um patamar largo, com o
+    // degrau a subir na borda dele.
+    const trasDesteDegrau = z + publico.entreFilas * 0.6;
     if (sobe > 0.001) {
+      const frente = (zTrasDoDegrauAnterior != null)
+        ? zTrasDoDegrauAnterior
+        : z - publico.entreFilas * 0.4;
+      const fundura = Math.max(0.05, trasDesteDegrau - frente);
       const degrau = new THREE.Mesh(
-        new THREE.BoxGeometry(sala.largura - 2.0, sobe + 0.02, publico.entreFilas),
+        new THREE.BoxGeometry(sala.largura - 2.0, sobe + 0.02, fundura),
         new THREE.MeshStandardMaterial({ color: 0x1B242C, roughness: 1 }));
       degrau.name = "degrau";
-      degrau.position.set(0, (sobe + 0.02) / 2, z + publico.entreFilas * 0.1);
+      degrau.position.set(0, (sobe + 0.02) / 2, (frente + trasDesteDegrau) / 2);
       grupo.add(degrau);
     }
+    zTrasDoDegrauAnterior = trasDesteDegrau;
   }
 
   for (const malha of [troncos, ombros, cabecas, cadeiras]) {

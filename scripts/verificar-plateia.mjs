@@ -170,6 +170,51 @@ if (comCorte.zDasFilas && semCorte.zDasFilas && comCorte.zDasFilas.length > 3) {
     "e as filas ANTES do corredor não se mexem");
 }
 
+// ---- 3b. E o CHÃO acompanha o corredor ------------------------------------
+//
+// Reportado com uma fotografia do telemóvel: *"olha o erro de desenho"*. Cada
+// degrau da plateia inclinada tinha a profundidade de UMA fila -- certo
+// enquanto as filas estavam todas à mesma distância umas das outras, e errado
+// no dia em que passou a haver corredores horizontais: o degrau da fila de
+// trás começava 1,40 m mais atrás e no meio ficava um vão com a fundura de um
+// degrau. Um buraco, exactamente onde as pessoas passam a pé.
+console.log("\n== o chão por baixo do corredor ==");
+const chao = await pagina.evaluate(async () => {
+  const por = (id, v) => { const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = !!v; else el.value = String(v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true })); };
+  por("inclinacao", 0.25); por("filas", 8); por("larguraCorredor", 1.4);
+  por("corredoresHorizontais", "D");
+  await new Promise((r) => setTimeout(r, 1200));
+  const degraus = [];
+  window.preview.cena.traverse((o) => {
+    if (o.name !== "degrau") return;
+    o.geometry.computeBoundingBox();
+    const bb = o.geometry.boundingBox;
+    const prof = bb.max.z - bb.min.z;
+    degraus.push({ frente: o.position.z - prof / 2, tras: o.position.z + prof / 2,
+                   alt: bb.max.y - bb.min.y });
+  });
+  return degraus.sort((a, b) => a.frente - b.frente);
+});
+console.log("   " + chao.map((d) => d.frente.toFixed(2) + ".." + d.tras.toFixed(2)).join("  "));
+const vaos = [];
+for (let i = 1; i < chao.length; i++) {
+  if (chao[i].frente - chao[i - 1].tras > 0.01) {
+    vaos.push(chao[i - 1].tras.toFixed(2) + ".." + chao[i].frente.toFixed(2));
+  }
+}
+conferir(chao.length > 2, "a plateia inclinada tem degraus (" + chao.length + ")");
+conferir(!vaos.length,
+  "e nenhum buraco entre eles" + (vaos.length ? " — mas há em " + vaos.join(", ") : "") +
+  " — o corredor é um patamar, não um vão");
+const maisFundo = chao.reduce((m, d) => Math.max(m, d.tras - d.frente), 0);
+conferir(maisFundo > 1.4,
+  "e o degrau do corredor é mais fundo do que os outros (" + maisFundo.toFixed(2) +
+  " m): come a largura dele, em vez de a deixar a descoberto");
+
 // ---- 4. As letras ---------------------------------------------------------
 console.log("\n== as letras das filas ==");
 const letras = await pagina.evaluate(() => {
