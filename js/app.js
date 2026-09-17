@@ -2215,15 +2215,22 @@ const LIMITE_DISTANCIA_ALTURA = 8;
 // por omissão já usavam, só aplicada ao limite do standard escolhido -- não
 // inventa nenhuma proporção nova, reaproveita a que já existia.
 function regraDeDistancia(projetoAtual) {
+  const vis = window.mikeappsVisualizacao;
+  const areaPorOmissao = vis ? vis.MODO_POR_OMISSAO : "16-9";
   const std = projetoAtual && projetoAtual.standard;
   if (!std || !std.max) {
-    return { basis: "height", confortavel: CONFORTAVEL_DISTANCIA_ALTURA, limite: LIMITE_DISTANCIA_ALTURA, label: null };
+    return { basis: "height", confortavel: CONFORTAVEL_DISTANCIA_ALTURA,
+             limite: LIMITE_DISTANCIA_ALTURA, label: null, area: areaPorOmissao };
   }
   return {
     basis: std.basis,
     confortavel: std.max * (CONFORTAVEL_DISTANCIA_ALTURA / LIMITE_DISTANCIA_ALTURA),
     limite: std.max,
-    label: std.label || null
+    label: std.label || null,
+    // Quanto do ecrã é que a conta usa -- ver segmentosDeZona(). Um projeto
+    // guardado antes deste interruptor não traz nada aqui e fica com o que a
+    // app já fazia.
+    area: std.area || areaPorOmissao
   };
 }
 
@@ -2259,11 +2266,26 @@ function centroDeZona(zona, ajusteZona, ctx) {
 // posição, e a sua própria largura (usada quando o standard escolhido é
 // largura-base, ex. THX). Um ecrã normal (até ~2 larguras de 16:9) continua
 // com um único centro, exatamente como antes.
-const RACIO_SEGMENTO_COBERTURA = 16 / 9;
-function segmentosDeZona(zona) {
+// E A PARTIR DE AGORA QUEM MANDA NISTO É O INTERRUPTOR DOS CALCULADORES.
+//
+// Pedido: *"devia ter um switch para essa conta, se área total se apenas
+// 16/9 -- e medir o conforto de visualização também com essa regra aplicada
+// consoante o seletor indicar"*. Até aqui esta divisão era uma regra fixa só
+// deste ficheiro, e os Calculadores contavam sempre com a largura toda: num
+// ecrã de 20×5 um dizia 20 m e o outro 10 m, para a mesma pergunta e no mesmo
+// projeto. A regra mudou-se para js/visualizacao.js, que é o mesmo ficheiro
+// nas duas apps, e o modo escolhido vem no payload (standard.area).
+//
+// Sem escolha nenhuma (projeto antigo, ou de outra origem) fica o 16/9, que é
+// o que este ficheiro já fazia -- um projeto guardado não muda de conforto por
+// ter sido aberto num dia diferente.
+function segmentosDeZona(zona, modoDeArea) {
   if (!zona.h) return [zona];
-  const larguraSegmento = zona.h * RACIO_SEGMENTO_COBERTURA;
-  const n = Math.floor(zona.w / larguraSegmento);
+  const vis = window.mikeappsVisualizacao;
+  const modo = modoDeArea || (vis ? vis.MODO_POR_OMISSAO : "16-9");
+  if (modo === "total") return [zona];
+  const n = vis ? vis.fatiasDeEcra(zona.w, zona.h)
+                : Math.max(1, Math.floor(zona.w / (zona.h * (16 / 9))));
   if (n < 2) return [zona];
   const wSeg = zona.w / n;
   const segmentos = [];
@@ -2318,14 +2340,14 @@ function calcularCobertura(projetoAtual, medidas, sala, palco, gente) {
   // todos apontam para a MESMA zona original (zi.zona), só o ponto de vista
   // (zi.centro) e a largura usada na conta de distância (zi.segmento.w)
   // mudam por fatia. Ver segmentosDeZona().
+  const regraDistancia = regraDeDistancia(projetoAtual);
   const zonasInfo = [];
   zonasBase.forEach(zona => {
     const ajusteZona = ajustes.delays[zona.nome];
-    segmentosDeZona(zona).forEach(segmento => {
+    segmentosDeZona(zona, regraDistancia.area).forEach(segmento => {
       zonasInfo.push({ zona, segmento, centro: centroDeZona(segmento, ajusteZona, ctx), comLugares: 0 });
     });
   });
-  const regraDistancia = regraDeDistancia(projetoAtual);
 
   const n = gente.corpos.length / 4;
   const corPorLugar = new Uint8Array(n);
@@ -2411,7 +2433,7 @@ function desenharConesCobertura(projetoAtual, medidas, sala, palco, gente) {
     // Ecrã muito largo (ver segmentosDeZona()) desenha um cone por fatia --
     // senão o mapa mostrava um alcance maior do que a Cobertura está mesmo a
     // usar por baixo, e o desenho deixava de bater certo com o cálculo.
-    for (const segmento of segmentosDeZona(zona)) {
+    for (const segmento of segmentosDeZona(zona, regraDistancia.area)) {
       const centro = centroDeZona(segmento, ajusteZona, ctx);
       const alcancePlateia = fundoDaPlateia - centro.centroZ;
       const baseZona = regraDistancia.basis === "width" ? segmento.w : zona.h;
@@ -7567,6 +7589,11 @@ document.addEventListener("keydown", (e) => {
 
 window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor, aplicarProjetores,
                   caixasQueTapam, quemTapaOFeixe,
+                  // Abertas para o teste poder perguntar À FUNÇÃO A SÉRIO como
+                  // é que ela divide um ecrã largo, em vez de repetir a conta
+                  // do lado de fora -- repeti-la era testar a minha cópia da
+                  // regra, e não a que a app corre.
+                  segmentosDeZona, regraDeDistancia,
                   get feixesDoBlend() { return feixesDoBlend; },
                   get ajustes() { return ajustes; },
                   get montagemProjetores() { return montagemProjetores; },
