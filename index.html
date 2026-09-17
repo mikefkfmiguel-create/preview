@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.62</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.63</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -50,7 +50,7 @@
       <button id="btGuardarProjeto" title="Grava a sala, o palco, o público, a régie, a projeção e o projeto todo num ficheiro — para levar e reabrir sem rede nenhuma">💾 Guardar projeto</button>
       <button id="btAbrirProjeto" title="Reabre um ficheiro gravado com este botão">📂 Abrir projeto</button>
     </div>
-    <input id="ficheiroProjeto" type="file" accept="application/json" hidden>
+    <input id="ficheiroProjeto" type="file" accept=".pvw,.cal,.json,application/json" hidden>
     <button id="btPartilhar" style="margin-bottom:10px; width:100%"
             title="Cria um link temporário (1 dia) só para ver e rodar a sala em 3D — quem o abre nunca edita nada">🔗 Link para ver (só visualização)</button>
     <div id="resultadoPartilha" hidden style="margin-bottom:10px">
@@ -645,6 +645,7 @@
      de pé mesmo que o motor 3D falhe a carregar. Um botão de emergência que
      depende do que pode estar avariado não é um botão de emergência. -->
 <script src="js/limpeza.js"></script>
+<script src="js/ficheiros.js"></script>
 <script type="module" src="js/app.js"></script>
 <script src="js/calc-widget.js"></script>
 
