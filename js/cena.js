@@ -2138,8 +2138,12 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
   const grupo = new THREE.Group();
   grupo.name = "publico";
   if (!publico.filas) {
+    // Uma plateia sem filas devolve as listas VAZIAS e não em falta: quem as
+    // lê do outro lado não tem de andar a perguntar se existem.
     return { grupo, olhos: null, lugares: 0, filas: 0, porFila: 0, blocos: 1,
              corpos: new Float32Array(0), blocoPorLugar: new Int16Array(0),
+             filasInfo: [], blocosInfo: [], cortesHorizontais: [], apertado: null,
+             entreLugares: publico.entreLugares,
              largura: 0.46, fundura: 0.34 };
   }
 
@@ -2168,17 +2172,65 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
     publico.entreLugares, larguraLivre - corredores * (publico.larguraCorredor || 0));
   const blocos = corredores + 1;
   const larguraBloco = larguraSentada / blocos;
-  const porBloco = Math.max(1, Math.floor(larguraBloco / publico.entreLugares));
-  const porFila = porBloco * blocos;
+  const cabeNoBloco = Math.max(1, Math.floor(larguraBloco / publico.entreLugares));
+
+  // LUGARES POR FILA, UM NÚMERO POR BLOCO.
+  //
+  // Pedido: *"poder dar número de lugares por fila em cada bloco"*. Até aqui o
+  // número saía sempre da largura da sala a dividir pelo espaço entre lugares
+  // -- a app decidia. Numa sala a sério é ao contrário: sabe-se quantas
+  // cadeiras vão em cada bloco (o do meio costuma ser maior do que os dos
+  // lados) e é isso que manda.
+  //
+  // Vazio continua a ser o automático de sempre: quem não quer pensar nisto
+  // não passou a ter de o fazer.
+  const pedidos = Array.isArray(publico.lugaresPorBloco) ? publico.lugaresPorBloco : [];
+  const porBlocoLista = [];
+  for (let b = 0; b < blocos; b++) {
+    const pedido = Math.round(Number(pedidos[b]));
+    porBlocoLista.push(pedido > 0 ? pedido : cabeNoBloco);
+  }
+  const larguraPedida = porBlocoLista.reduce((s, n) => s + n * publico.entreLugares, 0)
+    + corredores * (publico.larguraCorredor || 0);
+  // Não cabe? Diz-se (ver "apertado" no que isto devolve) e desenha-se o que
+  // foi pedido à mesma. Encolher em silêncio dava uma lotação diferente da que
+  // está escrita no campo -- e é a escrita que alguém leva para a obra.
+  const apertado = larguraPedida > larguraLivre + 1e-6
+    ? { pedida: larguraPedida, disponivel: larguraLivre }
+    : null;
+
+  const porFila = porBlocoLista.reduce((s, n) => s + n, 0);
   const total = porFila * publico.filas;
 
-  // Onde começa cada bloco, da esquerda para a direita
+  // Onde começa cada bloco, da esquerda para a direita. O conjunto fica
+  // centrado: com blocos de tamanhos diferentes, ancorar à esquerda encostava
+  // a plateia toda a uma parede.
   const inicios = [];
-  let cursor = -larguraLivre / 2;
+  let cursor = -larguraPedida / 2;
   for (let b = 0; b < blocos; b++) {
-    const sobra = larguraBloco - porBloco * publico.entreLugares;
-    inicios.push(cursor + sobra / 2);
-    cursor += larguraBloco + (publico.larguraCorredor || 0);
+    inicios.push(cursor);
+    cursor += porBlocoLista[b] * publico.entreLugares + (publico.larguraCorredor || 0);
+  }
+
+  // CORREDORES HORIZONTAIS, ESCOLHIDOS PELO NOME DA FILA.
+  //
+  // Pedido: *"nos gomos para rodar preciso de ter corredores horizontais também
+  // além dos verticais"*, e a escolher onde: *"poder escolher onde entra o
+  // corredor, marca os lugares com números e letras, para escolher a
+  // encruzilhada"*. Por isso não é um número de corredores nem um "a cada N
+  // filas": é uma lista de filas -- "depois da fila H" -- e a encruzilhada
+  // nasce onde essa fila cruza com os corredores verticais que já existem.
+  //
+  // Guardam-se ÍNDICES (0 = fila A) e quem fala em letras é o ecrã: uma sala
+  // com 30 filas passa de Z para AA, e uma letra não é uma posição.
+  const cortes = (publico.corredoresHorizontais || [])
+    .map((v) => Math.round(Number(v)))
+    .filter((v) => Number.isFinite(v) && v >= 0);
+  /** Quanto é que a fila f já recuou por causa dos corredores antes dela. */
+  function recuoDaFila(f) {
+    let n = 0;
+    for (const c of cortes) if (c < f) n++;
+    return n * (publico.larguraCorredor || 0);
   }
 
   // Visto de tras -- que e como a plateia se ve na maior parte das vistas --
@@ -2241,8 +2293,19 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
   // passarela (um "T") e não um corredor central a direito até ao fundo.
   const zonaPass = zonaDaPassarela(sala, palco, passarela);
 
+  // De que bloco é o lugar i da fila, e o quantos-ésimo lá dentro. Com blocos
+  // de tamanhos diferentes já não dá para dividir por um número só.
+  const blocoDoLugar = [], dentroDoBloco = [];
+  for (let b = 0; b < blocos; b++) {
+    for (let k = 0; k < porBlocoLista[b]; k++) { blocoDoLugar.push(b); dentroDoBloco.push(k); }
+  }
+
+  // Onde cada fila ficou, para quem desenha as etiquetas não ter de repetir
+  // esta conta -- e não poder chegar a outra resposta.
+  const filasInfo = [];
+
   for (let f = 0; f < publico.filas; f++) {
-    const z = zPrimeira + f * publico.entreFilas;
+    const z = zPrimeira + f * publico.entreFilas + recuoDaFila(f);
     // A mesma margem dos corredores, agora atrás: "toda a volta da sala" é a
     // mesma pergunta nas quatro direções, e só a frente tem resposta própria
     // (a distância ao palco, que é a "primeira fila a" — não uma folga de
@@ -2253,9 +2316,10 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
     // altura dos teus olhos — e a vista da plateia mostrava uma nuca em vez de
     // responder à pergunta que se lhe faz.
     const sobe = f * (publico.inclinacao || 0);
+    filasInfo.push({ indice: f, z: z, sobe: sobe });
     for (let i = 0; i < porFila; i++) {
-      const bloco = Math.floor(i / porBloco);
-      const dentro = i % porBloco;
+      const bloco = blocoDoLugar[i];
+      const dentro = dentroDoBloco[i];
       // O desencontro de meio lugar é por bloco: assim ninguém fica com a
       // cabeça do da frente à frente dos olhos, que é para isso que ele serve.
       const x = inicios[bloco] + publico.entreLugares * (dentro + 0.5)
@@ -2411,19 +2475,45 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
   // De onde se olha quando se quer ver o que a plateia vê. Tem de ser um LUGAR
   // e não um ponto a meio: sentada entre filas, a câmara ficava a 45 cm da nuca
   // do vizinho da frente e não se via mais nada.
-  const filasFeitas = publico.entreFilas
-    ? Math.round((zUltima - zPrimeira) / publico.entreFilas) + 1 : 0;
+  // Quantas filas se fizeram MESMO. Isto derivava-se de (zUltima - zPrimeira)
+  // dividido pelo espaço entre filas -- uma conta que deixou de bater certo no
+  // dia em que passou a haver corredores horizontais, porque o z da última fila
+  // passou a levar a largura deles somada. Agora conta-se o que se fez, em vez
+  // de o adivinhar a partir de uma distância.
+  const filasFeitas = filasInfo.length;
   const filaDoMeio = Math.floor(filasFeitas / 2);
+  const zDoMeio = filasInfo.length
+    ? filasInfo[Math.min(filaDoMeio, filasInfo.length - 1)].z
+    : zPrimeira;
   const olhos = new THREE.Vector3(
     (filaDoMeio % 2 ? publico.entreLugares / 2 : 0) - (porFila % 2 ? 0 : publico.entreLugares / 2),
     alturaOlhos + filaDoMeio * (publico.inclinacao || 0),
-    zPrimeira + filaDoMeio * publico.entreFilas);
+    zDoMeio);
   return {
     grupo, olhos, lugares: n, filas: filasFeitas, porFila, blocos,
     // x, topo da cabeça, z e o chão debaixo dela — quatro números por pessoa
     corpos: new Float32Array(corpos), largura: OMBROS, fundura: 0.34,
     // o bloco de cada lugar, na mesma ordem e no mesmo passo de "corpos"
     blocoPorLugar: new Int16Array(blocoPorLugar),
+    // COMO A PLATEIA SE CHAMA, para quem desenha as etiquetas não repetir
+    // nenhuma destas contas -- repeti-las era poder chegar a outra resposta,
+    // e uma etiqueta no sítio errado é pior do que etiqueta nenhuma.
+    //   filasInfo  — cada fila feita: índice (0 = fila A), z e quanto subiu
+    //   blocosInfo — cada bloco: onde começa, quantos lugares, e o número do
+    //                primeiro lugar dele dentro da fila (numeração corrida da
+    //                esquerda para a direita, para "fila H, lugar 12" chegar
+    //                para encontrar UM lugar)
+    filasInfo,
+    blocosInfo: porBlocoLista.map((quantos, b) => ({
+      bloco: b, lugares: quantos, x0: inicios[b],
+      x1: inicios[b] + quantos * publico.entreLugares,
+      primeiroLugar: porBlocoLista.slice(0, b).reduce((s, q) => s + q, 0) + 1
+    })),
+    // As filas depois das quais entra um corredor, já limitadas às que existem.
+    cortesHorizontais: cortes.filter((c) => c < filasFeitas - 1).sort((a, b) => a - b),
+    // Os lugares pedidos não cabem na sala? Quem mostra isto é o painel.
+    apertado,
+    entreLugares: publico.entreLugares,
     // As distancias que interessam a quem tem de escolher o tamanho do ecra:
     // do ecra ao primeiro e ao ultimo espectador, e a largura que a plateia
     // ocupa. E o que as regras da AVIXA e da SMPTE pedem.
