@@ -7,7 +7,7 @@
 
 // O nome do cache segue a versao que aparece no painel: subindo uma, sobe a
 // outra, e quem estiver com a app aberta recebe a nova sem fazer nada.
-const CACHE = "preview-v3.68";
+const CACHE = "preview-v3.69";
 
 const TUDO = [
   "./",
@@ -22,6 +22,7 @@ const TUDO = [
   "./js/calc-widget.js",
   "./js/projeto.js",
   "./js/dxf.js",
+  "./js/dxf-saida.js",
   "./js/exportar.js",
   "./js/importar.js",
   "./js/assistente.js",

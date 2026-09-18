@@ -16,6 +16,7 @@ import { fazerCena, fazerSala, fazerPalco, frenteDoPalco, fazerPalcoExtra, fazer
          quemTapaOFeixe, marcarQuemTapa, mostrarFatiasDaCupula,
          marcaDaLente, marcaNoEcra, corDoProjetor } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
+import { comoDXF, paraPlanta, DESENHO } from "./dxf-saida.js";
 import { lerDWG, lerPDF } from "./importar.js";
 import { analisar, doQueVeioParaCa, quantosEcras, gruposDeEcras } from "./assistente.js";
 import { criarLinkPartilha, lerLinkPartilha } from "./partilha.js";
@@ -7239,6 +7240,7 @@ $("btGuardar").onclick = () => {
   if (saidaEscolhida === "png") guardarVista();
   else if (saidaEscolhida === "png-medidas") guardarImagem();
   else if (saidaEscolhida === "relatorio") guardarRelatorio();
+  else if (saidaEscolhida === "planta-dxf") guardarPlantaDXF();
   else if (saidaEscolhida === "dome-obj") exportar("obj", true);
   else if (saidaEscolhida === "dome-glb") exportar("glb", true);
   else exportar(saidaEscolhida);
@@ -7920,3 +7922,178 @@ volta();
 // não contar nada.
 ligarInterruptorDeUso(dizerNaCena);
 usoArranque();
+
+// ------------------------------------------------------ a planta em DXF
+//
+// Pedido: *"seria para exportar e enviar para a engenharia de desenho, que
+// confere e envia para o cliente"*, e logo a seguir o critério:
+// *"medidas correctas para conferência"*.
+//
+// É esse o critério. O que o desenhador medir no Vectorworks tem de dar o
+// número que a app diz -- por isso nada aqui recalcula nada. Cada peça sai das
+// MESMAS funções que desenham o 3D (frenteDoPalco, contextoDeZonas,
+// centroDeZona, a plateia já construída em corposDoPublico). Uma segunda conta
+// para o desenho era uma segunda resposta, e a conferência deixava de valer.
+//
+// Ver js/dxf-saida.js para as decisões de formato (DXF antigo, metros).
+function plantaEmDXF() {
+  const sala = lerSala(), palco = lerPalco(), publico = lerPublico();
+  const pecas = [];
+  const usadas = new Set();
+  const por = (camada, texto) => { usadas.add(camada); pecas.push(texto); };
+  const P = (x, z) => paraPlanta(x, z);
+  const m = (v) => nnum(v) + " m";
+
+  // ---- a sala ------------------------------------------------------------
+  const s = P(0, 0);
+  por("SALA", DESENHO.rectangulo("SALA", s.x, s.y, sala.largura, sala.profundidade, 0));
+  // As duas medidas da sala, cotadas por fora do contorno.
+  const foraX = -sala.largura / 2 - 1.2, foraY = sala.profundidade / 2 + 1.2;
+  por("COTAS", DESENHO.cota("COTAS", -sala.largura / 2, foraY, sala.largura / 2, foraY,
+    m(sala.largura)));
+  por("COTAS", DESENHO.cota("COTAS", foraX, -sala.profundidade / 2, foraX, sala.profundidade / 2,
+    m(sala.profundidade)));
+
+  // ---- o palco -----------------------------------------------------------
+  if ($("verPalco").checked && palco.altura > 0 && palco.profundidade > 0) {
+    const frente = frenteDoPalco(sala, palco);
+    const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
+    const centroZ = frente.z - palco.profundidade / 2;
+    const c = P(frente.x, centroZ);
+    por("PALCO", DESENHO.rectangulo("PALCO", c.x, c.y, larguraPalco, palco.profundidade, 0));
+    por("PALCO", DESENHO.texto("PALCO", c.x - larguraPalco / 2 + 0.2, c.y,
+      0.3, "PALCO " + nnum(larguraPalco) + " x " + nnum(palco.profundidade) +
+      " m · h " + nnum(palco.altura) + " m"));
+    // A boca de cena cotada em largura, e a profundidade do palco.
+    const bocaY = P(0, frente.z).y;
+    por("COTAS", DESENHO.cota("COTAS", frente.x - larguraPalco / 2, bocaY - 0.6,
+      frente.x + larguraPalco / 2, bocaY - 0.6, m(larguraPalco)));
+
+    const passarela = lerPassarela();
+    if (passarela.ligada && passarela.comprimento > 0) {
+      const zp = zonaDaPassarela(sala, palco, passarela);
+      if (zp) {
+        const cp = P(zp.dx, (zp.zMin + zp.zMax) / 2);
+        por("PALCO", DESENHO.rectangulo("PALCO", cp.x, cp.y,
+          zp.largura, zp.zMax - zp.zMin, 0));
+      }
+    }
+  }
+
+  // ---- os ecrãs ----------------------------------------------------------
+  //
+  // Em planta um ecrã é uma linha: tem largura e praticamente nenhuma
+  // espessura. Vai com a etiqueta ao lado, porque quem confere precisa de ver
+  // a medida escrita E de a poder medir.
+  const montado = projetoMontado(projeto);
+  if (montado && montado.zonas && montado.zonas.length) {
+    const medidas = totais(montado);
+    const ctx = contextoDeZonas(montado, medidas, sala, palco);
+    montado.zonas.forEach((zona) => {
+      const centro = centroDeZona(zona, ajustes.delays[zona.nome], ctx);
+      const graus = -(centro.rotacao * 180 / Math.PI);
+      const c = P(centro.centroX, centro.centroZ);
+      por("ECRAS", DESENHO.rectangulo("ECRAS", c.x, c.y, zona.w, 0.12, graus));
+      por("ECRAS", DESENHO.texto("ECRAS", c.x - zona.w / 2, c.y + 0.35, 0.28,
+        zona.nome + "  " + nnum(zona.w) + " x " + nnum(zona.h) + " m", graus));
+    });
+  }
+
+  // ---- os projetores -----------------------------------------------------
+  //
+  // A lente, e a linha até ao centro da imagem: é a linha que o desenhador
+  // mede para conferir a distância de tiro.
+  const coords = dadosDeCoordenadas();
+  [].concat(coords.cupula || [], coords.planos || []).forEach((p, i) => {
+    const c = P(p.pos.x, p.pos.z);
+    por("PROJECAO", DESENHO.circulo("PROJECAO", c.x, c.y, 0.25));
+    por("PROJECAO", DESENHO.texto("PROJECAO", c.x + 0.35, c.y + 0.1, 0.25,
+      p.nome || ("P" + (i + 1))));
+    if (p.centroDaImagem) {
+      const alvo = P(p.centroDaImagem.x, p.centroDaImagem.z);
+      por("PROJECAO", DESENHO.linha("PROJECAO", c.x, c.y, alvo.x, alvo.y));
+      if (p.distancia) {
+        por("COTAS", DESENHO.texto("COTAS", (c.x + alvo.x) / 2, (c.y + alvo.y) / 2 + 0.2,
+          0.22, m(p.distancia)));
+      }
+    }
+  });
+
+  // ---- a régie -----------------------------------------------------------
+  const regie = lerRegie();
+  if ($("verRegie") && $("verRegie").checked && regie.largura > 0) {
+    const c = P(regie.x, regie.z);
+    por("REGIE", DESENHO.rectangulo("REGIE", c.x, c.y,
+      regie.largura, regie.profundidade, -(regie.rodar || 0)));
+    por("REGIE", DESENHO.texto("REGIE", c.x - regie.largura / 2, c.y, 0.25,
+      "RÉGIE " + nnum(regie.largura) + " x " + nnum(regie.profundidade) + " m"));
+  }
+
+  // ---- a plateia ---------------------------------------------------------
+  //
+  // Bloco a bloco e fila a fila, com as letras -- é o mapa de sala que o
+  // cliente lê, e a app já sabe onde cada uma ficou (ver filasInfo/blocosInfo
+  // em fazerPublico). Não se desenha cadeira a cadeira: quatrocentos
+  // rectângulos num DXF são um ficheiro que ninguém abre com gosto, e a
+  // informação que interessa é onde estão as filas e quantos lugares levam.
+  const gente = corposDoPublico;
+  if ($("verPublico").checked && gente && gente.filasInfo && gente.filasInfo.length
+      && gente.blocosInfo && gente.blocosInfo.length) {
+    const primeira = gente.filasInfo[0], ultima = gente.filasInfo[gente.filasInfo.length - 1];
+    gente.blocosInfo.forEach((b) => {
+      // O rectângulo do bloco vai DA PRIMEIRA À ÚLTIMA FILA, sem folga
+      // nenhuma à frente nem atrás.
+      //
+      // A primeira versão punha meio lugar de folga e o desenho passou a medir
+      // 3,75 m do palco à plateia quando o campo diz 4,00 -- uma diferença de
+      // 25 cm que ninguém pediu, numa planta cujo único fim é ser conferida.
+      // Sem folga, a borda do bloco É a primeira fila, e quem mede com a fita
+      // no Vectorworks encontra o número que está escrito no campo.
+      const z0 = primeira.z, z1 = ultima.z;
+      const a = P(b.x0, z0), c = P(b.x1, z1);
+      por("PLATEIA", DESENHO.rectangulo("PLATEIA",
+        (a.x + c.x) / 2, (a.y + c.y) / 2,
+        Math.abs(c.x - a.x), Math.abs(c.y - a.y), 0));
+      por("PLATEIA", DESENHO.texto("PLATEIA", a.x + 0.1, c.y - 0.45, 0.25,
+        b.lugares + " lug/fila (" + b.primeiroLugar + "–" +
+        (b.primeiroLugar + b.lugares - 1) + ")"));
+    });
+    // Uma linha por fila, com a letra nas pontas.
+    const esquerda = gente.blocosInfo[0].x0;
+    const direita = gente.blocosInfo[gente.blocosInfo.length - 1].x1;
+    gente.filasInfo.forEach((fila) => {
+      const a = P(esquerda, fila.z), c = P(direita, fila.z);
+      por("PLATEIA", DESENHO.linha("PLATEIA", a.x, a.y, c.x, c.y));
+      const letra = letraDaFila(fila.indice);
+      por("PLATEIA", DESENHO.texto("PLATEIA", a.x - 0.55, a.y - 0.1, 0.25, letra));
+      por("PLATEIA", DESENHO.texto("PLATEIA", c.x + 0.25, c.y - 0.1, 0.25, letra));
+    });
+    // E a distância do palco à primeira fila, que é a medida que mais se
+    // confere numa planta destas.
+    if ($("verPalco").checked && palco.altura > 0) {
+      const frente = frenteDoPalco(sala, palco);
+      const xCota = gente.blocosInfo[0].x0 - 0.8;
+      por("COTAS", DESENHO.cota("COTAS", xCota, P(0, frente.z).y,
+        xCota, P(0, primeira.z).y, m(primeira.z - frente.z)));
+    }
+  }
+
+  const meia = { x: sala.largura / 2 + 2.5, y: sala.profundidade / 2 + 2.5 };
+  return comoDXF([...usadas], pecas,
+    { minX: -meia.x, minY: -meia.y, maxX: meia.x, maxY: meia.y });
+}
+
+function guardarPlantaDXF() {
+  try {
+    const texto = plantaEmDXF();
+    const base = (projeto && projeto.nome ? String(projeto.nome) : "planta")
+      .replace(/[^\p{L}\p{N}\- ]+/gu, "").trim() || "planta";
+    descarregar(new Blob([texto], { type: "application/dxf" }), base + " - planta.dxf");
+  } catch (e) {
+    const aviso = $("aviso");
+    aviso.textContent = "Não consegui escrever a planta: " + e.message;
+    aviso.classList.add("mostra");
+    setTimeout(() => aviso.classList.remove("mostra"), 4000);
+  }
+}
+window.preview.plantaEmDXF = plantaEmDXF;
