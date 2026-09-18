@@ -7,7 +7,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          CHAVE_PROJETO, CHAVE_PROJETOR, CHAVE_BRIEFING, CHAVE_DEVOLUCAO,
          CHAVE_SINCRONIZACAO, CHAVE_AJUSTES, idPartilhaDoEndereco,
          ajustesGuardados, guardarAjustes as persistirAjustes } from "./projeto.js";
-import { fazerCena, fazerSala, fazerPalco, fazerPalcoExtra, fazerPassarela, fazerPassarelaLivre, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
+import { fazerCena, fazerSala, fazerPalco, frenteDoPalco, fazerPalcoExtra, fazerPassarela, fazerPassarelaLivre, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
          padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
@@ -175,6 +175,11 @@ function lerSala() {
 function lerPalco() {
   return { largura: num("palcoL"), altura: num("palcoA"),
            profundidade: num("palcoP"), acimaDoPalco: num("ecraOffset"),
+           // Onde o palco está na sala. Até aqui nascia sempre encostado ao
+           // fundo e centrado; com uma planta por baixo é preciso pô-lo onde
+           // ela manda -- ver frenteDoPalco() em cena.js, que é de onde sai
+           // tudo o que anda agarrado a ele.
+           dx: num("palcoX"), dz: num("palcoZ"),
            // Só o desenho: o raio não entra em conta nenhuma (ecrã, ângulos,
            // cobertura continuam a usar a medida cheia do palco).
            raio: num("palcoR") };
@@ -673,12 +678,13 @@ function desenharCena(recentrarCamara) {
   // não via e não tinha pedido.
   const noPalco = $("verPalco").checked && palco.altura > 0 && palco.profundidade > 0;
   const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
-  const x = -(medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
+  const x = (noPalco ? frenteDoPalco(sala, palco).x : 0)
+    - (medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
   if (figura) {
     const fx = ondeEsta ? ondeEsta.x : x;
     const fz = ondeEsta ? ondeEsta.z
       : (noPalco
-          ? -sala.profundidade / 2 + palco.profundidade - 0.8   // à boca de cena
+          ? frenteDoPalco(sala, palco).z - 0.8   // à boca de cena
           : -sala.profundidade / 2 + 1.6);
     // Em cima de um palco extra, a altura é a dele. Sem isto a figura
     // continuava à altura do palco principal e ficava enterrada ou a
@@ -3294,7 +3300,7 @@ if ($("btAddPassarela")) $("btAddPassarela").onclick = () => {
   ajustes.passarelasExtra.push({
     largura: 1.5, comprimento: 3, altura: 0.4,
     dx,
-    dz: -sala.profundidade / 2 + palco.profundidade + 3,
+    dz: frenteDoPalco(sala, palco).z + 3,
     rot: 0
   });
   guardarAjustes(ajustes);
@@ -5377,6 +5383,10 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("palcoL", p.largura); preencherCampo("palcoA", p.altura);
   preencherCampo("palcoP", p.profundidade); preencherCampo("ecraOffset", p.acimaDoPalco);
   preencherCampo("palcoR", p.raio);
+  // Onde o palco está. Um projeto guardado antes disto existir não traz nada
+  // aqui, e preencherCampo ignora undefined -- fica no 0 de sempre, encostado
+  // ao fundo, que é exactamente como ele foi guardado.
+  preencherCampo("palcoX", p.dx); preencherCampo("palcoZ", p.dz);
   preencherCheckbox("passLigada", pa.ligada); preencherCampo("passL", pa.largura);
   preencherCampo("passC", pa.comprimento); preencherCampo("passX", pa.dx);
   preencherCampo("filas", pu.filas); preencherCampo("primeiraFila", pu.primeiraFila);
@@ -6649,7 +6659,7 @@ tela.addEventListener("pointermove", (e) => {
   const limiteX = (noPalco ? larguraPalco : sala.largura) / 2 - 0.4;
   const fundoZ = -sala.profundidade / 2 + 0.5;
   const frenteZPalco = noPalco
-    ? -sala.profundidade / 2 + palco.profundidade - 0.3
+    ? frenteDoPalco(sala, palco).z - 0.3
     : sala.profundidade / 2 - 0.5;
 
   // A passarela prolonga o palco -- sem isto o orador ficava sempre preso à
@@ -6861,6 +6871,18 @@ function objetosArrastaveis() {
       if (aj) alvos.push({ obj: o, rotulo: "DSM " + o.name.slice(4), campos: CAMPOS_POSICAO, ...alvoDeAjuste(aj) });
     } else if (o.name === "ecra-curvo") {
       alvos.push({ obj: o, rotulo: "Ecrã curvo", campos: CAMPOS_ECRA_CURVO, ...alvoDoEcraCurvo() });
+    } else if (o.name === "palco" && o.isMesh) {
+      // Só a malha: fazerPalco() devolve um grupo com o MESMO nome lá dentro,
+      // e sem isto o palco entrava duas vezes na lista de agarráveis.
+      // O PALCO PRINCIPAL, agora também à mão. Os palcos EXTRA já se
+      // arrastavam desde que existem; este nunca -- e era o único que
+      // interessava com uma planta por baixo.
+      //
+      // Os campos são um DESLOCAMENTO (0 = encostado ao fundo, centrado) e não
+      // uma coordenada do mundo como os da régie. Serve à mesma: o arrasto é
+      // todo por deltas (x0 + o que o rato andou), e um deslocamento difere de
+      // uma coordenada por uma constante -- os deltas são os mesmos.
+      alvos.push({ obj: o, rotulo: "Palco", campos: CAMPOS_SO_XZ, ...alvoDeCampos("palcoX", "palcoZ") });
     } else if (o.name === "regie") {
       alvos.push({ obj: o, rotulo: "Régie", campos: CAMPOS_SO_XZ, ...alvoDeCampos("regieX", "regieZ") });
     } else if (o.name === "projetor-0") {
@@ -7838,7 +7860,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   // é que ela divide um ecrã largo, em vez de repetir a conta
                   // do lado de fora -- repeti-la era testar a minha cópia da
                   // regra, e não a que a app corre.
-                  segmentosDeZona, regraDeDistancia,
+                  segmentosDeZona, regraDeDistancia, frenteDoPalco,
                   // A plateia construída (filas, blocos, cortes) e os nomes
                   // das filas — para o teste medir o que a app fez, e não uma
                   // cópia da conta escrita do lado de fora.

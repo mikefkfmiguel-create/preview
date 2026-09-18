@@ -190,7 +190,33 @@ function geometriaDeTampo(largura, altura, profundidade, raio, meio) {
   return geo;
 }
 
-/** O palco, encostado ao fundo. */
+/**
+ * ONDE O PALCO ESTÁ — e é daqui que sai tudo o que anda agarrado a ele.
+ *
+ * Pedido: *"eu não tinha modo de mover livre o palco... tenho uma planta e
+ * quero pô-lo no sítio certo"*. Até aqui o palco principal nascia sempre
+ * encostado ao fundo da sala e centrado à largura, sem nada que o movesse (os
+ * palcos EXTRA já se arrastavam; o principal nunca). Com uma planta por baixo,
+ * a sala está alinhada com ela e é o palco que fica no sítio errado lá dentro.
+ *
+ * O palco principal não é uma peça como as outras: é o REFERENCIAL da cena.
+ * Saem dele a primeira fila da plateia, o ponto à volta do qual os gomos
+ * rodam, onde a passarela começa, onde o orador se põe e onde os DSM assentam.
+ * Movê-lo sem mais nada era mover o palco e deixar tudo isso para trás.
+ *
+ * Por isso a posição dele vive AQUI, numa função só, e todos esses sítios a
+ * usam. Assim mover o palco move com ele o que está por cima dele ou medido a
+ * partir dele -- e o que está preso à SALA (os ecrãs, que nascem da parede do
+ * fundo, e a plateia na largura, que se centra na sala) fica onde estava.
+ */
+export function frenteDoPalco(sala, palco) {
+  return {
+    x: Number(palco.dx) || 0,
+    z: -sala.profundidade / 2 + palco.profundidade + (Number(palco.dz) || 0)
+  };
+}
+
+/** O palco. Encostado ao fundo, a não ser que lhe digam outra coisa. */
 export function fazerPalco({ largura, profundidade }, palco) {
   if (!palco.altura || !palco.profundidade) return new THREE.Group();
   const grupo = new THREE.Group();
@@ -202,7 +228,8 @@ export function fazerPalco({ largura, profundidade }, palco) {
     geometriaDeTampo(larguraPalco, palco.altura, palco.profundidade, palco.raio),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
   caixa.name = "palco";
-  caixa.position.set(0, palco.altura / 2, -profundidade / 2 + palco.profundidade / 2);
+  caixa.position.set((Number(palco.dx) || 0), palco.altura / 2,
+    -profundidade / 2 + palco.profundidade / 2 + (Number(palco.dz) || 0));
   grupo.add(caixa);
   return grupo;
 }
@@ -249,12 +276,15 @@ export function fazerPassarela(sala, palco, passarela) {
   if (!passarela || !passarela.ligada || !palco.altura || !passarela.comprimento) return grupo;
   const largura = Math.max(0.5, passarela.largura || 1.5);
   const comprimento = Math.max(0.5, passarela.comprimento || 1);
-  const zFrente = -sala.profundidade / 2 + palco.profundidade;
+  const frente = frenteDoPalco(sala, palco);
+  const zFrente = frente.z;
   const caixa = new THREE.Mesh(
     new THREE.BoxGeometry(largura, palco.altura, comprimento),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
   caixa.name = "passarela";
-  caixa.position.set(passarela.dx || 0, palco.altura / 2, zFrente + comprimento / 2);
+  // O "dx" da passarela é relativo ao palco, não à sala: ela sai da boca de
+  // cena, e um palco deslocado leva-a com ele.
+  caixa.position.set(frente.x + (passarela.dx || 0), palco.altura / 2, zFrente + comprimento / 2);
   grupo.add(caixa);
   return grupo;
 }
@@ -269,8 +299,9 @@ export function zonaDaPassarela(sala, palco, passarela) {
   if (!passarela || !passarela.ligada || !passarela.comprimento) return null;
   const largura = Math.max(0.5, passarela.largura || 1.5);
   const comprimento = Math.max(0.5, passarela.comprimento || 1);
-  const zFrente = -sala.profundidade / 2 + palco.profundidade;
-  return { dx: passarela.dx || 0, largura, zMin: zFrente, zMax: zFrente + comprimento };
+  const frente = frenteDoPalco(sala, palco);
+  return { dx: frente.x + (passarela.dx || 0), largura,
+           zMin: frente.z, zMax: frente.z + comprimento };
 }
 
 // A colocação dos projetores começou por ser um número ("arranjo"), e
@@ -1708,7 +1739,7 @@ export function fazerPublicoGomos(sala, palco, publico, regies, ajustesGomos, pa
   // O ponto focal: onde já fica a primeira fila do modo "Reto", menos a
   // distância a que ela está -- ou seja, a boca do palco. É à volta deste
   // ponto que cada gomo roda e a partir dele que dx/dz se medem.
-  const focoZ = -sala.profundidade / 2 + palco.profundidade;
+  const focoZ = frenteDoPalco(sala, palco).z;
 
   let lugares = 0, blocos = 0;
   let filas = 0, porFila = 0, largura = 0.46, fundura = 0.34;
@@ -1945,10 +1976,13 @@ export function fazerDSM(dsm, sala, palco, ajustesDsm, textura) {
   const ajustes = ajustesDsm || [];
   // Perto da frente do palco -- é aí que quem fala normalmente para, não ao
   // fundo, onde o ecrã está.
-  const z0 = -sala.profundidade / 2 + palco.profundidade * 0.7;
+  const frentePalco = frenteDoPalco(sala, palco);
+  const z0 = frentePalco.z - palco.profundidade * 0.3;
   const y0 = palco.altura + dsm.h / 2 + 0.02;
   const espaco = Math.min(2.2, palco.largura / (dsm.n + 1));
-  const inicioX = -espaco * (dsm.n - 1) / 2;
+  // Centrados no PALCO, não na sala: eles estão em cima do tampo, e um palco
+  // deslocado leva-os com ele.
+  const inicioX = frentePalco.x - espaco * (dsm.n - 1) / 2;
 
   // A face que brilha (o +Z da caixa, antes de rodar) já nasce virada para
   // a plateia -- é a direção do próprio eixo, sala adentro. Um tombo
@@ -2308,7 +2342,10 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
   // ordem deixa de dar para adivinhar a partir de um índice.
   const filaPorLugar = [];
   const lugarPorLugar = [];
-  const zPrimeira = -sala.profundidade / 2 + palco.profundidade + publico.primeiraFila;
+  // A "primeira fila a X m" é medida DO PALCO -- por isso segue-o quando ele
+  // se mexe. Na largura a plateia continua centrada na SALA, que é onde as
+  // cadeiras cabem, e não no palco.
+  const zPrimeira = frenteDoPalco(sala, palco).z + publico.primeiraFila;
   let n = 0;
   let zUltima = zPrimeira;
   // O vão da passarela -- ver zonaDaPassarela() e fazerPassarela() mais
