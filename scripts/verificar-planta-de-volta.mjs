@@ -222,6 +222,47 @@ console.log(`   Z ${comAlcado.minZ.toFixed(2)}..${comAlcado.maxZ.toFixed(2)}`);
 conferir(comAlcado.maxZ > comPlanta.maxZ + 1,
   "aparece, e fora da sala — está lá inteiro, é só não vir ligado");
 
+// ---- 6. E OS FICHEIROS QUE JÁ TINHAM SIDO EXPORTADOS ------------------
+//
+// As camadas próprias do alçado são de agora. Os DXF exportados ANTES -- os
+// que já estão na pasta de descargas e já foram para a engenharia -- levam o
+// alçado nas MESMAS camadas da planta, e neles não há nome por onde o apanhar.
+// Dizer "exporta outra vez" resolve para mim e não resolve para o ficheiro que
+// já foi enviado.
+//
+// O ficheiro antigo faz-se a partir do de agora, tirando-lhe o prefixo das
+// camadas: é exactamente o que a app escrevia antes. (Ficam entradas repetidas
+// na tabela de camadas; o leitor monta a lista pelas entidades, não pela
+// tabela, e é o que um ficheiro antigo também dava.)
+console.log("\n== um DXF exportado antes das camadas do alçado existirem ==");
+const comoEraAntes = dxf.replace(/^ALCADO-/gm, "");
+conferir(!/ALCADO-/.test(comoEraAntes), "o ficheiro de mentira não tem mesmo camadas de alçado");
+
+const antigo = await pagina.evaluate(async (texto) => {
+  const dt = new DataTransfer();
+  dt.items.add(new File([texto], "planta-antiga.dxf", { type: "application/dxf" }));
+  const input = document.getElementById("ficheiroPlanta");
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 2400));
+  return [...document.querySelectorAll("#listaCamadas .camada")].map((l) => ({
+    nome: l.querySelector(".nome").textContent,
+    visivel: l.querySelectorAll("input")[0].checked
+  }));
+}, comoEraAntes);
+console.log("   camadas: " + antigo.map((l) => l.nome + (l.visivel ? "" : " (desligada)")).join(", "));
+const apanhado = antigo.find((l) => /^AL[CÇ]ADO/i.test(l.nome));
+conferir(!!apanhado, "a app apanha o alçado pela faixa vazia, sem ele ter nome");
+conferir(apanhado && !apanhado.visivel, "e entra desligado, como no ficheiro novo");
+
+await camada("COTAS", false);
+const caixaAntiga = caixa(await desenhado());
+console.log(`   desenhado: X ${caixaAntiga.minX.toFixed(2)}..${caixaAntiga.maxX.toFixed(2)} · ` +
+            `Z ${caixaAntiga.minZ.toFixed(2)}..${caixaAntiga.maxZ.toFixed(2)}`);
+conferir(perto(caixaAntiga.minZ, -SALA.profundidade / 2, 0.02) &&
+         perto(caixaAntiga.maxZ, SALA.profundidade / 2, 0.02),
+  "e o desenho antigo também assenta na sala — quem já exportou não fica de fora");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();

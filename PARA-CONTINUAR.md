@@ -1763,6 +1763,33 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — e os DXF que já tinham sido exportados (v3.74)
+
+> *"ainda abre invertido"* — depois da v3.73.
+
+A v3.73 reconhece o alçado pelo **nome da camada** (`ALCADO-…`). Um DXF
+exportado **antes** dela não tem esse nome: leva o alçado nas mesmas camadas da
+planta, e reabri-lo dava exactamente o mesmo de antes. E esses ficheiros são os
+que já estão na pasta de descargas e já foram para a engenharia — dizer
+"exporta outra vez" resolve para mim e não resolve para o ficheiro que já foi
+enviado.
+
+Agora apanha-se sem adivinhar, com duas condições:
+
+1. o desenho tem de ser **nosso** — traz escrito `ALÇADO FRONTAL`, que é o
+   título que só esta app escreve;
+2. o alçado vive todo por baixo da planta, separado por uma faixa vazia de 4 m
+   (ver `chaoDoAlcado`). Procura-se o **maior vão vazio em Y** e corta-se aí.
+
+Os segmentos de baixo passam para uma camada `ALÇADO (desenho antigo)`, que
+aparece na lista como qualquer outra e entra desligada — daí para a frente é o
+caminho normal da v3.73.
+
+Uma nota honesta: **não reproduzi nenhuma inversão**. Medido, e fotografado na
+vista de planta, o palco vem do lado certo, com a frente para o lado certo, e
+com a medida certa. O que se reproduz é o alçado deitado no chão e o desenho
+descentrado — e é o que esta versão e a anterior corrigem.
+
 ## 18 de setembro — a planta exportada não voltava a entrar no sítio (v3.73)
 
 > *"abre invertido?"* — com uma fotografia da app com a sua própria planta DXF

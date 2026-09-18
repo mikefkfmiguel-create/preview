@@ -5377,6 +5377,70 @@ function aTrabalhar(texto) {
  * sem o dizer seria trocar um desenho estranho por um desenho incompleto, e o
  * segundo é pior: ninguém procura o que não sabe que existe.
  */
+/**
+ * OS FICHEIROS QUE JÁ FORAM EXPORTADOS ANTES DISTO.
+ *
+ * A partir da v3.73 o alçado sai em camadas próprias e reconhece-se pelo nome.
+ * Mas os DXF exportados ANTES -- os que já estão na pasta de descargas e já
+ * foram para a engenharia -- levam o alçado nas MESMAS camadas da planta, e
+ * nesses não há nome nenhum por onde o apanhar. Reabrir um desses continuava a
+ * dar o mesmo: o alçado deitado no chão à frente da plateia, e o desenho fora
+ * do sítio. Dizer "exporta outra vez" resolve para mim e não resolve para o
+ * ficheiro que já foi enviado.
+ *
+ * Como se apanha sem adivinhar:
+ *
+ *   1. o desenho tem de ser NOSSO -- o ficheiro traz escrito "ALÇADO FRONTAL",
+ *      que é o título que esta app escreve e mais ninguém;
+ *   2. e o alçado vive todo por baixo da planta, separado por uma faixa vazia
+ *      de 4 m (ver chaoDoAlcado em plantaEmDXF). Procura-se o maior vão vazio
+ *      em Y e corta-se aí.
+ *
+ * Os segmentos de baixo passam para uma camada à parte, que aparece na lista
+ * como qualquer outra -- e daí para a frente é o caminho normal: entra
+ * desligada, com o interruptor à vista de quem a quiser ver.
+ */
+function separarAlcadoDeUmDesenhoAntigo(desenho, textoBruto) {
+  if (!desenho || !desenho.pontos || !desenho.camadas) return 0;
+  if (!/AL[ÇC]ADO FRONTAL/i.test(String(textoBruto || ""))) return 0;
+  if (desenho.camadas.some((c) => /^AL[CÇ]ADO[-_ ]/i.test(String(c.nome)))) return 0;
+
+  // O Y de cada segmento, para procurar a faixa vazia.
+  const alturas = [];
+  for (let i = 0, s = 0; i < desenho.pontos.length; i += 4, s++) {
+    alturas.push({ y: Math.max(desenho.pontos[i + 1], desenho.pontos[i + 3]), s });
+  }
+  alturas.sort((a, b) => a.y - b.y);
+  let corte = null, maior = 0;
+  for (let k = 1; k < alturas.length; k++) {
+    const vao = alturas[k].y - alturas[k - 1].y;
+    if (vao > maior) { maior = vao; corte = (alturas[k].y + alturas[k - 1].y) / 2; }
+  }
+  // Em unidades do desenho: 3 m no ficheiro, seja ele em metros ou milímetros.
+  const emMetros = 3 / (metrosPorUnidade(desenho, $("plantaU") ? $("plantaU").value : "auto").fator || 1);
+  if (corte === null || maior < emMetros) return 0;
+
+  const indice = desenho.camadas.length;
+  let quantos = 0;
+  const novo = Uint16Array.from(desenho.deQuemE || []);
+  for (let i = 0, s = 0; i < desenho.pontos.length; i += 4, s++) {
+    if (Math.max(desenho.pontos[i + 1], desenho.pontos[i + 3]) < corte) {
+      novo[s] = indice; quantos++;
+    }
+  }
+  if (!quantos) return 0;
+  desenho.deQuemE = novo;
+  desenho.camadas = desenho.camadas.concat([
+    { nome: "ALÇADO (desenho antigo)", segmentos: quantos, indice }
+  ]);
+  // As contagens das outras camadas deixaram de bater certo -- refazem-se, que
+  // é por elas que a lista se ordena.
+  const contagem = new Array(desenho.camadas.length).fill(0);
+  for (const i of desenho.deQuemE) contagem[i]++;
+  desenho.camadas.forEach((c) => { c.segmentos = contagem[c.indice]; });
+  return quantos;
+}
+
 function esconderOAlcadoQueVierNoDesenho() {
   if (!plantaCad || !Array.isArray(plantaCad.camadas)) return 0;
   let quantas = 0;
@@ -5405,7 +5469,11 @@ $("ficheiroPlanta").onchange = async () => {
     } else if (/\.dxf$/i.test(ficheiro.name)) {
       // Um DXF de uma planta grande são dezenas de MB de texto: lê-se de uma
       // vez e depois já não se lhe toca mais.
-      plantaCad = lerDXF(await ficheiro.text());
+      const texto = await ficheiro.text();
+      plantaCad = lerDXF(texto);
+      // Um DXF desta app exportado ANTES da v3.73 traz o alçado misturado com
+      // a planta. Ver separarAlcadoDeUmDesenhoAntigo().
+      separarAlcadoDeUmDesenhoAntigo(plantaCad, texto);
       planta = null; plantaDataURL = null;
     } else if (/\.pdf$/i.test(ficheiro.name) || ficheiro.type === "application/pdf") {
       const pdf = await lerPDF(ficheiro, aTrabalhar);
