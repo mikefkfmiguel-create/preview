@@ -3307,14 +3307,40 @@ export function fazerPlantaCad(desenho, opcoes) {
   if (!desenho || !desenho.pontos || !desenho.pontos.length) return grupo;
 
   const f = opcoes.fator || 1;
-  const meioX = (desenho.minX + desenho.maxX) / 2;
-  const meioY = (desenho.minY + desenho.maxY) / 2;
 
   const bruto = desenho.pontos;
   const deQuemE = desenho.deQuemE;
   const escondidas = opcoes.escondidas || new Set();
   const levantadas = opcoes.levantadas || new Set();
   const altura = opcoes.altura > 0 ? opcoes.altura : 3;
+
+  // O MEIO DO DESENHO É O MEIO DO QUE SE VÊ.
+  //
+  // Era o meio da caixa de TUDO, camadas apagadas incluídas -- e uma camada
+  // apagada continuava a puxar o desenho para o lado dela. Deu por isso ao
+  // reabrir na app a planta que ela própria exporta: *"abre invertido?"*. O
+  // alçado que vai por baixo da planta nesse ficheiro entrava na conta e
+  // punha o palco 1,82 m fora do sítio, e desligar a camada não resolvia --
+  // a conta não olhava para isso.
+  //
+  // É a mesma regra que a medidasDaPlanta() já usa para pôr a sala do tamanho
+  // do desenho: quem apagou uma camada já disse que ela não faz parte.
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0, s = 0; i < bruto.length; i += 4, s++) {
+    if (deQuemE && escondidas.has(deQuemE[s])) continue;
+    if (bruto[i] < minX) minX = bruto[i];         if (bruto[i] > maxX) maxX = bruto[i];
+    if (bruto[i + 2] < minX) minX = bruto[i + 2]; if (bruto[i + 2] > maxX) maxX = bruto[i + 2];
+    if (bruto[i + 1] < minY) minY = bruto[i + 1]; if (bruto[i + 1] > maxY) maxY = bruto[i + 1];
+    if (bruto[i + 3] < minY) minY = bruto[i + 3]; if (bruto[i + 3] > maxY) maxY = bruto[i + 3];
+  }
+  // Com tudo apagado não há nada para centrar: fica a caixa do ficheiro, que
+  // pelo menos é um número.
+  if (!isFinite(minX)) {
+    minX = desenho.minX; maxX = desenho.maxX;
+    minY = desenho.minY; maxY = desenho.maxY;
+  }
+  const meioX = (minX + maxX) / 2;
+  const meioY = (minY + maxY) / 2;
 
   const noChao = [];      // as linhas deitadas
   const emPe = [];        // os triângulos das paredes levantadas
