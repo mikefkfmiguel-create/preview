@@ -9,7 +9,7 @@ import { EXEMPLO, FORMATO, lerProjeto, totais, projetoDoEndereco,
          ajustesGuardados, guardarAjustes as persistirAjustes } from "./projeto.js";
 import { fazerCena, fazerSala, fazerPalco, frenteDoPalco, fazerPalcoExtra, fazerPassarela, fazerPassarelaLivre, zonaDaPassarela, fazerZonas, fazerFigura, fazerPublico,
          fazerPublicoGomos,
-         padraoDeTeste, texturaDaMarca, texturaDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
+         padraoDeTeste, texturaDaMarca, dataURLDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
          fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula,
          medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo,
@@ -78,6 +78,10 @@ let texturasPorZona = {};
 // texturaDataURL acima (o data URL, não o objeto Texture vivo).
 let texturasPorZonaDataURL = {};
 let planta = null;         // a planta em imagem, se alguem a tiver aberto
+// O data URL dessa imagem, a par da textura -- mesma regra das imagens dos
+// ecrãs: uma THREE.Texture não sobrevive a um JSON.stringify, e é isto que
+// viaja no "Guardar projeto". Ver plantaGuardada().
+let plantaDataURL = null;
 let plantaCad = null;      // a planta em DXF, que ja vem a escala
 const camadasEscondidas = new Set();   // camadas da planta que nao se veem
 const camadasLevantadas = new Set();   // camadas que sobem do chao, como paredes
@@ -912,6 +916,25 @@ function desenharCena(recentrarCamara) {
         " m de largura livre — a plateia fica mais larga do que a sala.";
     }
   }
+  // PEÇAS DO LADO DE FORA DAS PAREDES -- ver pecasForaDasParedes().
+  //
+  // Corre a cada montagem, e por isso apanha o caso que deu origem a isto:
+  // mudar as medidas da sala e as peças com posição própria ficarem lá fora.
+  // Não lhes toca: diz, e põe o botão ao lado.
+  const foraDasParedes = pecasForaDasParedes();
+  if (foraDasParedes.length) {
+    const aviso = $("aviso");
+    const jaTem = aviso.classList.contains("mostra") ? aviso.innerHTML + " " : "";
+    const nomes = foraDasParedes.slice(0, 4).map((p) => p.rotulo).join(", ") +
+      (foraDasParedes.length > 4 ? " e mais " + (foraDasParedes.length - 4) : "");
+    aviso.innerHTML = jaTem +
+      (foraDasParedes.length === 1
+        ? "Uma peça ficou fora das paredes: " + nomes + ". "
+        : foraDasParedes.length + " peças ficaram fora das paredes: " + nomes + ". ") +
+      '<button type="button" class="aviso-link" data-arrumar="1">Trazer para dentro</button>';
+    aviso.classList.add("mostra");
+  }
+
   // E a nota diz as letras que existem MESMO, para "depois da fila" não ser
   // um palpite: numa sala de 12 filas, escrever "P" não abre corredor nenhum.
   const notaFilas = $("notaFilas");
@@ -3009,6 +3032,17 @@ $("avisoDeposito").addEventListener("click", (e) => {
   if (alvo) irParaSeccao(alvo.dataset.secao);
 });
 
+// O botão do aviso das peças fora das paredes. Só ele é que as mexe -- e diz
+// quantas mexeu, porque um botão que age em silêncio deixa quem carregou sem
+// saber se aconteceu alguma coisa.
+$("aviso").addEventListener("click", (e) => {
+  if (!e.target.closest("[data-arrumar]")) return;
+  const quantas = trazerParaDentro(pecasForaDasParedes());
+  dizerNaCena(quantas === 1
+    ? "1 peça voltou para dentro das paredes."
+    : quantas + " peças voltaram para dentro das paredes.");
+});
+
 /**
  * A SALA VAZIA.
  *
@@ -4476,6 +4510,70 @@ function arrumarOQueFugiuDaSala() {
 }
 
 /**
+ * QUEM FICOU DO LADO DE FORA DAS PAREDES.
+ *
+ * Reportado com uma fotografia: *"alterei as medidas da sala e os objetos não
+ * acompanharam, o palco 2 ficou fora"*. E ficou mesmo -- as peças com posição
+ * própria (palcos, régies e passarelas extra, os gomos, os DSM) são colocadas
+ * em coordenadas suas, não em percentagem da sala. Encolher a sala à volta
+ * delas deixa-as onde estavam, que passa a ser lá fora.
+ *
+ * A app já tinha a arrumarOQueFugiuDaSala(), mas com duas lacunas que juntas
+ * dão exactamente isto: só corre a pedido (o botão de trazer tudo à vista), e
+ * a régua dela é de propósito muito larga -- "fugiu" é estar a três vezes a
+ * maior medida da sala. Essa largura existe por boa razão (em retro as
+ * máquinas ficam metros atrás do pano e NÃO fugiram), mas um palco dois
+ * metros para lá da parede nova nunca lá cai.
+ *
+ * ENTÃO PORQUE NÃO AS TRAZER DE VOLTA SOZINHO? Porque uma peça encostada à
+ * parede, ou meio metro para lá dela, pode estar onde alguém a pôs de
+ * propósito -- e a app a mexer-lhe sem pedir seria desfazer trabalho para
+ * resolver um problema que ela nem sabe se existe. O que ela pode fazer, e
+ * não fazia, é DIZER. Com um botão ao lado, para arrumar quem quiser.
+ *
+ * Os projetores ficam de fora desta conta: em retroprojecção vivem atrás do
+ * pano, portanto fora da sala, e acusá-los todas as vezes era ensinar a
+ * ignorar o aviso.
+ */
+function pecasForaDasParedes() {
+  const sala = lerSala();
+  // Meio palmo de tolerância: uma peça encostada à parede não está fora dela,
+  // e sem esta folga o arredondamento acusava-a.
+  const limiteX = sala.largura / 2 + 0.1;
+  const limiteZ = sala.profundidade / 2 + 0.1;
+  const fora = [];
+  objetosArrastaveis().forEach((alvo) => {
+    if (!alvo.obj || !alvo.rotulo) return;
+    if (/^Projetor/.test(alvo.rotulo) || alvo.rotulo === "Ecrã curvo") return;
+    const mundo = new THREE.Vector3();
+    alvo.obj.getWorldPosition(mundo);
+    if (Math.abs(mundo.x) > limiteX || Math.abs(mundo.z) > limiteZ) {
+      fora.push({ rotulo: alvo.rotulo, alvo: alvo, x: mundo.x, z: mundo.z });
+    }
+  });
+  return fora;
+}
+
+/** Traz para dentro das paredes exactamente as peças que a lista nomeia. */
+function trazerParaDentro(lista) {
+  const sala = lerSala();
+  const limiteX = Math.max(1, sala.largura / 2);
+  const limiteZ = Math.max(1, sala.profundidade / 2);
+  let mexidas = 0;
+  lista.forEach((p) => {
+    if (!p.alvo.getXZ || !p.alvo.setXZ) return;
+    const dx = Math.min(limiteX, Math.max(-limiteX, p.x)) - p.x;
+    const dz = Math.min(limiteZ, Math.max(-limiteZ, p.z)) - p.z;
+    const onde = p.alvo.getXZ();
+    p.alvo.setXZ(Math.round((onde.x + dx) * 100) / 100,
+                 Math.round((onde.z + dz) * 100) / 100);
+    mexidas++;
+  });
+  if (mexidas) { guardarAjustes(ajustes); montar(); }
+  return mexidas;
+}
+
+/**
  * A câmara a enquadrar o que está mesmo desenhado.
  *
  * As vistas fixas (Frente, Lado, Cima) enquadram a SALA, que é o que se quer
@@ -4922,7 +5020,7 @@ document.querySelectorAll("[data-conteudo]").forEach(b => {
 
 $("btPlanta").onclick = () => $("ficheiroPlanta").click();
 $("btSemPlanta").onclick = () => {
-  planta = null; plantaCad = null;
+  planta = null; plantaDataURL = null; plantaCad = null;
   camadasEscondidas.clear(); camadasLevantadas.clear();
   camposDaPlanta();
   montar(false);
@@ -5061,6 +5159,132 @@ function medidasDaPlanta() {
 $("btMedidasDaPlanta").onclick = medidasDaPlanta;
 $("alturaParedes").addEventListener("input", () => remontarDaqui());
 
+// --------------------------------------------- a planta, dentro do ficheiro
+//
+// Reportado assim: *"o guardar não está a levar a planta da sala"*. E não
+// levava mesmo: o estadoCompleto() gravava a sala, o palco, a plateia, os
+// ecrãs e até as imagens que vão nos ecrãs -- tudo menos o desenho que está
+// por baixo de tudo isso. Reabrir um projeto obrigava a ir buscar o DXF outra
+// vez, a confirmar as unidades outra vez e a pô-lo no sítio outra vez.
+//
+// Viajam duas coisas diferentes, e faltavam as duas:
+//
+//   1. O DESENHO em si.
+//   2. ONDE ELE FICA -- rodar, deslocar, opacidade, as unidades, e que camadas
+//      estão escondidas ou levantadas. Sem isto o desenho voltava mas fora do
+//      sítio, que dá quase o mesmo trabalho que tê-lo perdido.
+//
+// POR QUE RAZÃO O CAD VAI EM BASE64 E NÃO EM NÚMEROS. Um segmento são quatro
+// números e uma planta de arquitectura traz dezenas de milhares deles. Escrito
+// em JSON, cada número gasta uma dúzia de caracteres ("-12345.678901234,") e o
+// ficheiro passava a dezenas de MB. Em Float32Array são quatro bytes, e em
+// base64 cinco e um terço. O Float32 chega e sobra para ISTO: a diferença que
+// ele introduz numa coordenada de planta é de centésimas de milímetro, e este
+// é o desenho de fundo -- a cota que a engenharia mede sai pelo DXF de
+// exportação (js/dxf-saida.js), que escreve os números da app com seis casas.
+//
+// E não se guarda o ficheiro original de propósito: um DWG teria de voltar a
+// passar pelo motor e um PDF a ser desenhado outra vez, e ambos demoram. O que
+// se guarda é o que a app já tem pronto a desenhar.
+
+function paraBase64(dados) {
+  const bytes = new Uint8Array(dados.buffer || dados);
+  let texto = "";
+  // Aos pedaços: um apply() com um milhão de argumentos estoira a pilha.
+  const passo = 0x8000;
+  for (let i = 0; i < bytes.length; i += passo) {
+    texto += String.fromCharCode.apply(null, bytes.subarray(i, i + passo));
+  }
+  return btoa(texto);
+}
+
+function deBase64(texto, Tipo) {
+  const binario = atob(texto);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return new Tipo(bytes.buffer, 0, Math.floor(bytes.length / Tipo.BYTES_PER_ELEMENT));
+}
+
+/** Uma textura a partir de um data URL já guardado. Nunca rejeita. */
+function texturaDeDataURL(url) {
+  return new Promise((ok) => {
+    new THREE.TextureLoader().load(url, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      ok(t);
+    }, undefined, () => ok(null));
+  });
+}
+
+// O que ainda cabe num link. É generoso de propósito -- uma planta de sala
+// normal fica muito abaixo disto, e quem passa daqui é quem abriu o desenho
+// inteiro de um centro de congressos, que é justamente o que não se manda por
+// link. Ver o botão "Link para ver".
+const PLANTA_QUE_CABE_NO_LINK = 1_500_000;
+
+/** O que há para guardar da planta, ou null se não houver planta nenhuma. */
+function plantaGuardada() {
+  const onde = {
+    unidades: $("plantaU") ? $("plantaU").value : "auto",
+    larguraReal: num("plantaL"), rodar: num("plantaR"),
+    x: num("plantaX"), z: num("plantaZ"), opacidade: num("plantaO"),
+    alturaParedes: num("alturaParedes"),
+    escondidas: [...camadasEscondidas], levantadas: [...camadasLevantadas]
+  };
+  if (plantaCad) {
+    return Object.assign(onde, {
+      tipo: "cad",
+      pontos: paraBase64(Float32Array.from(plantaCad.pontos)),
+      deQuemE: paraBase64(Uint16Array.from(plantaCad.deQuemE || [])),
+      camadas: plantaCad.camadas,
+      minX: plantaCad.minX, maxX: plantaCad.maxX,
+      minY: plantaCad.minY, maxY: plantaCad.maxY,
+      larguraDesenho: plantaCad.largura, fundoDesenho: plantaCad.profundidade,
+      insunits: plantaCad.insunits, blocos: plantaCad.blocos,
+      cortado: !!plantaCad.cortado
+    });
+  }
+  if (plantaDataURL) return Object.assign(onde, { tipo: "imagem", imagem: plantaDataURL });
+  return null;
+}
+
+/** O caminho de volta. Nunca rejeita: uma planta estragada não trava o resto. */
+async function reporPlanta(guardada) {
+  planta = null; plantaCad = null; plantaDataURL = null;
+  camadasEscondidas.clear(); camadasLevantadas.clear();
+  if (!guardada || typeof guardada !== "object") { camposDaPlanta(); return; }
+
+  preencherCampo("plantaL", guardada.larguraReal);
+  preencherCampo("plantaR", guardada.rodar);
+  preencherCampo("plantaX", guardada.x);
+  preencherCampo("plantaZ", guardada.z);
+  preencherCampo("plantaO", guardada.opacidade);
+  preencherCampo("alturaParedes", guardada.alturaParedes);
+  if ($("plantaU") && guardada.unidades) $("plantaU").value = guardada.unidades;
+  (Array.isArray(guardada.escondidas) ? guardada.escondidas : []).forEach(i => camadasEscondidas.add(i));
+  (Array.isArray(guardada.levantadas) ? guardada.levantadas : []).forEach(i => camadasLevantadas.add(i));
+
+  try {
+    if (guardada.tipo === "cad" && typeof guardada.pontos === "string") {
+      const pontos = deBase64(guardada.pontos, Float32Array);
+      plantaCad = {
+        pontos,
+        deQuemE: guardada.deQuemE ? deBase64(guardada.deQuemE, Uint16Array) : null,
+        camadas: Array.isArray(guardada.camadas) ? guardada.camadas : [],
+        segmentos: Math.floor(pontos.length / 4),
+        minX: guardada.minX, maxX: guardada.maxX,
+        minY: guardada.minY, maxY: guardada.maxY,
+        largura: guardada.larguraDesenho, profundidade: guardada.fundoDesenho,
+        insunits: guardada.insunits, blocos: guardada.blocos,
+        cortado: !!guardada.cortado
+      };
+    } else if (guardada.tipo === "imagem" && typeof guardada.imagem === "string") {
+      const t = await texturaDeDataURL(guardada.imagem);
+      if (t) { planta = t; plantaDataURL = guardada.imagem; }
+    }
+  } catch (_) { plantaCad = null; planta = null; plantaDataURL = null; }
+  camposDaPlanta();
+}
+
 /**
  * Um DWG disfarçado, ou um DWG assumido.
  *
@@ -5097,16 +5321,20 @@ $("ficheiroPlanta").onchange = async () => {
     if (await eDWG(ficheiro)) {
       // O DWG passa pelo motor e sai DXF; daí para a frente é tudo igual.
       plantaCad = await lerDWG(ficheiro, aTrabalhar);
-      planta = null;
+      planta = null; plantaDataURL = null;
       $("aviso").classList.remove("mostra");
     } else if (/\.dxf$/i.test(ficheiro.name)) {
       // Um DXF de uma planta grande são dezenas de MB de texto: lê-se de uma
       // vez e depois já não se lhe toca mais.
       plantaCad = lerDXF(await ficheiro.text());
-      planta = null;
+      planta = null; plantaDataURL = null;
     } else if (/\.pdf$/i.test(ficheiro.name) || ficheiro.type === "application/pdf") {
       const pdf = await lerPDF(ficheiro, aTrabalhar);
       planta = pdf.textura;
+      // A página desenhada é uma tela: o PNG dela é o que fica guardado, para
+      // não ter de se voltar a passar o PDF pelo motor ao reabrir o projeto.
+      try { plantaDataURL = pdf.textura.image.toDataURL("image/png"); }
+      catch (_) { plantaDataURL = null; }
       plantaCad = null;
       $("aviso").classList.remove("mostra");
       if (pdf.paginas > 1) {
@@ -5114,7 +5342,14 @@ $("ficheiroPlanta").onchange = async () => {
         setTimeout(() => $("aviso").classList.remove("mostra"), 4000);
       }
     } else {
-      planta = await texturaDeFicheiro(ficheiro);
+      // Lê-se o ficheiro UMA vez, para data URL, e é dele que sai a textura:
+      // assim o que se desenha e o que se guarda são a mesma coisa.
+      plantaDataURL = await dataURLDeFicheiro(ficheiro);
+      planta = await texturaDeDataURL(plantaDataURL);
+      if (!planta) {
+        plantaDataURL = null;
+        throw new Error("Isso não é uma imagem que eu saiba abrir.");
+      }
       plantaCad = null;
     }
     camposDaPlanta();
@@ -5215,6 +5450,7 @@ $("ficheiroLogoCliente").onchange = async () => {
 function limparTudo() {
   projeto = null;
   planta = null;
+  plantaDataURL = null;
   plantaCad = null;
   camadasEscondidas.clear();
   camadasLevantadas.clear();
@@ -5316,6 +5552,10 @@ function estadoCompleto() {
                     leva: $("curvaLevaProjetores") ? $("curvaLevaProjetores").checked : true },
     projeto,
     ajustes,
+    // A planta por baixo de tudo -- o desenho E onde ele ficou. Reportado
+    // como *"o guardar não está a levar a planta da sala"*: ver
+    // plantaGuardada(), que explica o que viaja e porquê.
+    planta: plantaGuardada(),
     // As imagens que o mike põe nos ecrãs e nos DSM -- pedido direto: "não
     // vão as imagens quando abro noutro device". Vivem em memória como
     // THREE.Texture (texturasPorZona/textura), que não sobrevive a um
@@ -5527,6 +5767,13 @@ async function abrirProjetoTodo(estado) {
     }
   });
 
+  // A planta -- e como as imagens, antes do montar() final, para a sala nascer
+  // já com o desenho por baixo. Um ficheiro gravado antes disto existir não
+  // traz nada aqui, e reporPlanta(null) limpa a planta que estivesse aberta:
+  // abrir um projeto é abrir aquele projeto, não deixar o desenho do anterior
+  // por baixo dele.
+  await reporPlanta(estado.planta);
+
   montar(true);
 }
 
@@ -5570,7 +5817,17 @@ if ($("btPartilhar")) $("btPartilhar").onclick = async () => {
   botao.disabled = true;
   botao.textContent = "A criar o link…";
   try {
-    const link = await criarLinkPartilha(estadoCompleto());
+    const estado = estadoCompleto();
+    // UM LINK NÃO É UM FICHEIRO. O ficheiro guardado leva a planta inteira,
+    // custe o que custar -- é para isso que ele serve. O link passa por um
+    // Worker, e uma planta de arquitectura de vários MB rebentava-o e o que
+    // se via era só "o Worker respondeu 413", sem se perceber porquê. Aqui
+    // deixa-se a planta de fora e DIZ-SE, que é a diferença entre um link
+    // mais leve e um link estragado.
+    const pesoDaPlanta = estado.planta ? JSON.stringify(estado.planta).length : 0;
+    const semPlanta = pesoDaPlanta > PLANTA_QUE_CABE_NO_LINK;
+    if (semPlanta) estado.planta = null;
+    const link = await criarLinkPartilha(estado);
     // Só depois de o link existir mesmo: contar a intenção em vez do
     // resultado dava um número que conta tentativas falhadas como trabalho
     // entregue.
@@ -5578,6 +5835,13 @@ if ($("btPartilhar")) $("btPartilhar").onclick = async () => {
     $("linkPartilhaTexto").value = link;
     $("resultadoPartilha").hidden = false;
     $("linkPartilhaTexto").select();
+    if (semPlanta) {
+      const aviso = $("aviso");
+      aviso.textContent = `O link vai sem a planta (${(pesoDaPlanta / 1e6).toFixed(1)} MB ` +
+        `de desenho, de mais para um link). O ficheiro guardado leva-a.`;
+      aviso.classList.add("mostra");
+      setTimeout(() => aviso.classList.remove("mostra"), 6000);
+    }
   } catch (e) {
     const aviso = $("aviso");
     aviso.textContent = e.message;
@@ -7874,11 +8138,16 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   get montagemProjetores() { return montagemProjetores; },
                   get notaDeLeitura() { return notaDeLeitura; },
                   trazerTudoAVista, enquadrarOQueExiste, arrumarOQueFugiuDaSala, objetosArrastaveis, montar,
+                  pecasForaDasParedes, trazerParaDentro,
                   desfazer, guardarAjustes,
                   get historico() { return historico; },
                   get projeto() { return projeto; },
                   get desenhado() { return desenhado; },
-                  get plantaCad() { return plantaCad; } };
+                  get plantaCad() { return plantaCad; },
+                  // A planta em imagem e o data URL dela -- para o teste do
+                  // "Guardar projeto" poder perguntar se ela voltou mesmo.
+                  get plantaImagem() { return planta; },
+                  get plantaDataURL() { return plantaDataURL; } };
 
 // Um projetor que venha no ENDERECO aplica-se sozinho -- alguem carregou no
 // "Ver no Preview 3D" para isto acontecer. Um projetor apenas GUARDADO nao:
