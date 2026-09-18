@@ -169,23 +169,24 @@ conferir(lido.insunits === 6, "e vê os metros no cabeçalho");
 //
 // O que o desenhador vai medir.
 console.log("\n== as medidas ==");
-// SÓ A PARTE DA PLANTA. As camadas são as mesmas nas duas vistas de propósito
-// (desligar ECRAS desliga-o na planta E no alçado), por isso medir a camada
-// inteira dava a caixa das duas juntas -- e foi exactamente o que aconteceu
-// quando o alçado entrou: a "sala" passou a medir 30 m de fundo mais a altura
-// do alçado. O corte é em Y, que é onde as duas vistas não se tocam.
-const SO_A_PLANTA = -SALA.profundidade / 2 - 2;
+// SÓ A PARTE DA PLANTA -- e agora basta pedir a camada, porque o alçado tem as
+// suas (ALCADO-PALCO, ALCADO-ECRAS…).
+//
+// Aqui havia um corte em Y para separar as duas vistas, porque elas
+// partilhavam camada e medir "PALCO" dava a caixa das duas juntas. Isso deixou
+// de ser preciso -- e deixou de ser preciso por causa de um defeito que só
+// apareceu do outro lado: com camadas partilhadas, reabrir este DXF na app
+// punha o alçado deitado no chão da sala e o desenho fora do sítio. Ver
+// scripts/verificar-planta-de-volta.mjs.
 const caixaDe = (nome) => {
   const c = lido.porCamada.find((x) => x.nome === nome);
   if (!c || !c.seg.length) return null;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, houve = false;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const [x1, y1, x2, y2] of c.seg) {
-    if (Math.min(y1, y2) < SO_A_PLANTA) continue;
-    houve = true;
     minX = Math.min(minX, x1, x2); maxX = Math.max(maxX, x1, x2);
     minY = Math.min(minY, y1, y2); maxY = Math.max(maxY, y1, y2);
   }
-  return houve ? { minX, maxX, minY, maxY, largura: maxX - minX, profundidade: maxY - minY } : null;
+  return { minX, maxX, minY, maxY, largura: maxX - minX, profundidade: maxY - minY };
 };
 
 const cSala = caixaDe("SALA");
@@ -278,30 +279,27 @@ const comAlcado = await pagina.evaluate(async () => {
   const texto = window.preview.plantaEmDXF();
   const { lerDXF } = await import("./js/dxf.js");
   const d = lerDXF(texto);
-  // O alçado vive TODO por baixo da planta -- e é isso que torna este filtro
-  // possível. A primeira versão dele usava "-P/2 - 1" e cortava o topo do ecrã
-  // ao meio, dando-lhe 0 m de altura: nessa altura os dois desenhos ainda se
-  // sobrepunham mesmo, e o teste estava a apanhar isso sem eu perceber.
-  const sala = { profundidade: 30 };
-  const limite = -sala.profundidade / 2 - 2;
+  // O alçado tem camadas suas, por isso pede-se pelo nome em vez de se cortar
+  // o desenho ao meio em Y. O corte que aqui estava era um remendo à volta de
+  // camadas partilhadas -- e camadas partilhadas eram o defeito.
   const caixa = (camada) => {
     const c = d.camadas.find((x) => x.nome === camada);
     if (!c) return null;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, houve = false;
     for (let k = 0; k < d.segmentos; k++) {
       if (d.deQuemE[k] !== c.indice) continue;
-      const ys = [d.pontos[k * 4 + 1], d.pontos[k * 4 + 3]];
-      if (Math.min(...ys) > limite) continue;         // isso é da planta
       houve = true;
       minX = Math.min(minX, d.pontos[k * 4], d.pontos[k * 4 + 2]);
       maxX = Math.max(maxX, d.pontos[k * 4], d.pontos[k * 4 + 2]);
-      minY = Math.min(minY, ...ys); maxY = Math.max(maxY, ...ys);
+      minY = Math.min(minY, d.pontos[k * 4 + 1], d.pontos[k * 4 + 3]);
+      maxY = Math.max(maxY, d.pontos[k * 4 + 1], d.pontos[k * 4 + 3]);
     }
     return houve ? { minX, maxX, minY, maxY,
                      largura: maxX - minX, altura: maxY - minY } : null;
   };
   return { temTexto: /ALÇADO FRONTAL/.test(texto),
-           palco: caixa("PALCO"), ecras: caixa("ECRAS") };
+           camadas: d.camadas.map((c) => c.nome),
+           palco: caixa("ALCADO-PALCO"), ecras: caixa("ALCADO-ECRAS") };
 });
 console.log("   " + JSON.stringify(comAlcado));
 conferir(comAlcado.temTexto, "o desenho leva um alçado, identificado");
@@ -311,6 +309,11 @@ conferir(comAlcado.ecras && bate(comAlcado.ecras.altura, ECRA.altura, 0.002),
   "e o ecrã mede os " + ECRA.altura + " m de altura que a app diz");
 conferir(comAlcado.ecras && bate(comAlcado.ecras.largura, ECRA.largura, 0.002),
   "com a mesma largura da planta — os dois desenhos alinham em X");
+// As camadas do alçado são dele: é o que deixa desligá-lo para conferir só a
+// planta, e é o que impede o alçado de entrar deitado no chão ao reabrir este
+// ficheiro na app.
+conferir(comAlcado.camadas.some((n) => /^ALCADO-/.test(n)),
+  "e vive em camadas próprias (ALCADO-…), que se desligam sem levar a planta atrás");
 
 // E agora o "se existir": sem palco e sem ecrãs, não há alçado.
 console.log("\n== uma sala sem nada com altura ==");

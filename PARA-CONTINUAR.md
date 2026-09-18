@@ -1763,6 +1763,51 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — a planta exportada não voltava a entrar no sítio (v3.73)
+
+> *"abre invertido?"* — com uma fotografia da app com a sua própria planta DXF
+> importada (37,35 × 60,95 m, 170 segmentos, camadas ECRAS/PLATEIA/COTAS/
+> PALCO/SALA: o ficheiro é mesmo dela).
+
+**Não abria invertido.** Medido: o palco vinha do lado certo e com a frente
+para o lado certo. Vinha **fora do sítio** — 1,82 m para trás e 0,67 m para o
+lado — e com um desenho a mais deitado no chão à frente da plateia. É esse
+segundo desenho, que parece um palco ao contrário, que se lê como "invertido".
+
+**Duas causas, as duas minhas.**
+
+1. **O alçado partilhava as camadas da planta**, e estava escrito no código que
+   era de propósito ("desligar ECRAS desliga-o nas duas vistas"). Estava errado
+   por duas razões: quem confere não consegue esconder o alçado para ver só a
+   planta; e ao trazer o DXF de volta para cá, o alçado entra como se fosse
+   planta.
+2. **A centragem usava a caixa de TUDO**, camadas apagadas incluídas. Com o
+   alçado lá dentro, o meio do papel deixa de ser o meio da sala — e desligar a
+   camada não resolvia, porque a conta nem olhava para isso.
+
+**O que mudou:**
+
+- o alçado passa a ter camadas suas: `ALCADO-PALCO`, `ALCADO-ECRAS`,
+  `ALCADO-PROJECAO`, `ALCADO-COTAS`, `ALCADO-SALA`, cada uma com a cor da
+  camada que lhe dá o nome (ver `corDaCamada` em `js/dxf-saida.js`);
+- a `fazerPlantaCad()` centra pelo que **se vê** — a mesma regra que a
+  `medidasDaPlanta()` já usava: quem apagou uma camada já disse que ela não faz
+  parte;
+- ao importar, as camadas de alçado entram **desligadas**, e a nota do painel
+  diz que entraram assim. Escondê-las em silêncio era trocar um desenho estranho
+  por um desenho incompleto, e o segundo é pior: ninguém procura o que não sabe
+  que existe.
+
+**Medido depois** (`scripts/verificar-planta-de-volta.mjs`, com o palco
+descentrado de propósito — com ele ao meio, espelhado e certo dão o mesmo):
+palco a `x = 3,00 · z = −5,00`, exactamente onde está na cena; o desenho assenta
+em X −10..10 e Z −7..7, que é a sala. Tudo medido no que a app **desenha**, não
+no que o ficheiro diz.
+
+E um remendo que caiu: o `verificar-planta-dxf.mjs` separava as duas vistas
+cortando o desenho em Y, porque as camadas eram partilhadas. Agora pede a camada
+pelo nome.
+
 ## 18 de setembro — um .vwx não é um desenho (v3.72)
 
 > *"como abro um ficheiro do vector no 3D? Ele não importa."*

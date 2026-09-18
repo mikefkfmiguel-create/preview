@@ -49,6 +49,23 @@ const CORES = {
   COTAS: 1        // vermelho
 };
 
+/**
+ * O ALÇADO VIVE EM CAMADAS PRÓPRIAS -- "ALCADO-PALCO", "ALCADO-ECRAS" e
+ * companhia (ver plantaEmDXF) -- e cada uma herda a cor da camada que lhe dá o
+ * nome: o palco do alçado é verde como o palco da planta.
+ *
+ * Antes partilhavam camada com a planta, e estava escrito que era de propósito
+ * (desligar ECRAS desligava-o nas duas vistas). Estava errado por duas razões,
+ * e a segunda só se viu ao reabrir o desenho: um alçado não se pode desligar
+ * sozinho para conferir só a planta; e ao trazer este DXF de volta para a app,
+ * o alçado entra como se fosse planta -- fica deitado no chão à frente da
+ * plateia, um segundo palco ao contrário, e ainda puxa o centro do desenho
+ * para fora do centro da sala.
+ */
+function corDaCamada(nome) {
+  return CORES[String(nome).replace(/^ALCADO-/, "")] || 7;
+}
+
 function par(codigo, valor) { return codigo + "\n" + valor + "\n"; }
 
 // Seis casas decimais: um milímetro são 0,001 m, e três casas a mais chegam
@@ -152,7 +169,7 @@ export function comoDXF(camadas, pecas, limites) {
   fora += par(0, "TABLE") + par(2, "LAYER") + par(70, camadas.length);
   for (const nome of camadas) {
     fora += par(0, "LAYER") + par(2, nome) + par(70, 0) +
-      par(62, CORES[nome] || 7) + par(6, "CONTINUOUS");
+      par(62, corDaCamada(nome)) + par(6, "CONTINUOUS");
   }
   fora += par(0, "ENDTAB") + par(0, "ENDSEC");
 

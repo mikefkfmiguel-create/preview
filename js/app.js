@@ -5048,6 +5048,14 @@ function camposDaPlanta() {
         "aqui que se corrige."
       : "O DXF entra à escala: as unidades vieram do próprio ficheiro. O que sobra " +
         "para mexer é só onde ele fica, porque o zero do CAD raramente é o meio da sala.";
+    // Se o desenho trouxe um alçado, ele entrou desligado — e isso diz-se.
+    const alcadas = (plantaCad.camadas || [])
+      .filter((c) => /^AL[CÇ]ADO[-_ ]/i.test(String(c.nome)) && camadasEscondidas.has(c.indice));
+    if (alcadas.length) {
+      $("notaPlanta").innerHTML += " Este desenho traz um <b>alçado</b>, e ele entrou " +
+        "<b>desligado</b>: um alçado é um desenho de pé, e deitado no chão não é planta " +
+        "de nada. Está na lista das camadas, para ligar se quiseres vê-lo.";
+    }
   } else {
     $("infoPlanta").innerHTML = "<b>DXF</b>, <b>DWG</b>, <b>PDF</b> ou imagem. O DXF e o " +
       "DWG entram à escala e não se calibram; o PDF e a imagem pedem a largura real.";
@@ -5355,6 +5363,29 @@ function aTrabalhar(texto) {
   aviso.classList.add("mostra");
 }
 
+/**
+ * O ALÇADO ENTRA DESLIGADO.
+ *
+ * A planta que esta app exporta leva um alçado frontal por baixo (ver
+ * plantaEmDXF). Trazer esse mesmo ficheiro de volta para cá punha o alçado
+ * deitado no chão, à frente da plateia, como um segundo palco ao contrário --
+ * foi o que deu o *"abre invertido?"*.
+ *
+ * Um alçado é um desenho de pé: deitado no chão não é planta de nada, em
+ * ficheiro nenhum. Por isso chega desligado -- mas desligado À VISTA, na lista
+ * das camadas, com o interruptor ao lado para quem o quiser ver. Escondê-lo
+ * sem o dizer seria trocar um desenho estranho por um desenho incompleto, e o
+ * segundo é pior: ninguém procura o que não sabe que existe.
+ */
+function esconderOAlcadoQueVierNoDesenho() {
+  if (!plantaCad || !Array.isArray(plantaCad.camadas)) return 0;
+  let quantas = 0;
+  plantaCad.camadas.forEach((c) => {
+    if (/^AL[CÇ]ADO[-_ ]/i.test(String(c.nome))) { camadasEscondidas.add(c.indice); quantas++; }
+  });
+  return quantas;
+}
+
 $("ficheiroPlanta").onchange = async () => {
   const ficheiro = $("ficheiroPlanta").files[0];
   $("ficheiroPlanta").value = "";
@@ -5400,6 +5431,7 @@ $("ficheiroPlanta").onchange = async () => {
       }
       plantaCad = null;
     }
+    esconderOAlcadoQueVierNoDesenho();
     camposDaPlanta();
     montar(false);
   } catch (e) {
@@ -8418,7 +8450,22 @@ function plantaEmDXF() {
   // É um alçado FRONTAL: olha-se para o palco, X para a direita e Y a altura
   // a sério (a altura da lente, a do ecrã acima do palco). A distância de tiro
   // não está aqui, está na planta, onde se mede.
+  // AS CAMADAS DO ALÇADO SÃO DELE, e não as da planta.
+  //
+  // Aqui estava escrito o contrário -- camadas partilhadas, para desligar
+  // ECRAS desligar o ecrã nas duas vistas. Duas coisas provaram que estava
+  // errado: quem confere não consegue esconder o alçado para ver só a planta;
+  // e ao trazer este mesmo DXF de volta para a app, o alçado entra como se
+  // fosse planta e fica deitado no chão à frente da plateia -- medido, punha
+  // o palco 1,82 m fora do sítio, porque o centro do desenho deixa de ser o
+  // centro da sala. Reportado assim: *"abre invertido?"*.
+  //
+  // Cada camada do alçado chama-se ALCADO-<a da planta> e sai com a mesma cor
+  // (ver corDaCamada em dxf-saida.js), por isso continua a ler-se como um par.
   const alcado = [];
+  const AL = { PALCO: "ALCADO-PALCO", ECRAS: "ALCADO-ECRAS",
+               PROJECAO: "ALCADO-PROJECAO", COTAS: "ALCADO-COTAS",
+               SALA: "ALCADO-SALA" };
   const porAlcado = (camada, texto) => { usadas.add(camada); alcado.push(texto); };
   const alturaDoPalco = ($("verPalco").checked && palco.altura > 0) ? palco.altura : 0;
 
@@ -8446,9 +8493,9 @@ function plantaEmDXF() {
     const frente = frenteDoPalco(sala, palco);
     const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
     const c = A(frente.x, alturaDoPalco / 2);
-    porAlcado("PALCO", DESENHO.rectangulo("PALCO", c.x, c.y, larguraPalco, alturaDoPalco, 0));
+    porAlcado(AL.PALCO, DESENHO.rectangulo(AL.PALCO, c.x, c.y, larguraPalco, alturaDoPalco, 0));
     const lado = A(frente.x + larguraPalco / 2 + 0.6, 0);
-    porAlcado("COTAS", DESENHO.cota("COTAS", lado.x, lado.y, lado.x, lado.y + alturaDoPalco,
+    porAlcado(AL.COTAS, DESENHO.cota(AL.COTAS, lado.x, lado.y, lado.x, lado.y + alturaDoPalco,
       m(alturaDoPalco)));
   }
 
@@ -8456,8 +8503,8 @@ function plantaEmDXF() {
     montadoParaAlcado.zonas.forEach((zona) => {
       const centro = centroDeZona(zona, ajustes.delays[zona.nome], ctxParaAlcado);
       const c = A(centro.centroX, centro.centroY);
-      porAlcado("ECRAS", DESENHO.rectangulo("ECRAS", c.x, c.y, zona.w, zona.h, 0));
-      porAlcado("ECRAS", DESENHO.texto("ECRAS", c.x - zona.w / 2 + 0.15, c.y, 0.28,
+      porAlcado(AL.ECRAS, DESENHO.rectangulo(AL.ECRAS, c.x, c.y, zona.w, zona.h, 0));
+      porAlcado(AL.ECRAS, DESENHO.texto(AL.ECRAS, c.x - zona.w / 2 + 0.15, c.y, 0.28,
         zona.nome + "  " + nnum(zona.w) + " x " + nnum(zona.h) + " m"));
       // A base do ecrã ao chão: é a medida que se confere num alçado, porque
       // é ela que diz se a primeira fila vê por cima das cabeças.
@@ -8465,7 +8512,7 @@ function plantaEmDXF() {
       const xCota = centro.centroX - zona.w / 2 - 0.5;
       const p0 = A(xCota, 0), p1 = A(xCota, base);
       if (base > 0.05) {
-        porAlcado("COTAS", DESENHO.cota("COTAS", p0.x, p0.y, p1.x, p1.y, m(base)));
+        porAlcado(AL.COTAS, DESENHO.cota(AL.COTAS, p0.x, p0.y, p1.x, p1.y, m(base)));
       }
     });
   }
@@ -8473,8 +8520,8 @@ function plantaEmDXF() {
   // Os projetores: a altura da lente, que é o outro número que se confere aqui.
   [].concat(coords.cupula || [], coords.planos || []).forEach((p, i) => {
     const c = A(p.pos.x, p.pos.y);
-    porAlcado("PROJECAO", DESENHO.circulo("PROJECAO", c.x, c.y, 0.25));
-    porAlcado("PROJECAO", DESENHO.texto("PROJECAO", c.x + 0.35, c.y + 0.1, 0.25,
+    porAlcado(AL.PROJECAO, DESENHO.circulo(AL.PROJECAO, c.x, c.y, 0.25));
+    porAlcado(AL.PROJECAO, DESENHO.texto(AL.PROJECAO, c.x + 0.35, c.y + 0.1, 0.25,
       (p.nome || ("P" + (i + 1))) + "  h " + nnum(p.pos.y) + " m"));
   });
 
@@ -8482,9 +8529,9 @@ function plantaEmDXF() {
   // não se acrescenta o chão nem o título só para haver um segundo desenho.
   if (alcado.length) {
     const chaoE = A(-sala.largura / 2, 0), chaoD = A(sala.largura / 2, 0);
-    por("SALA", DESENHO.linha("SALA", chaoE.x, chaoE.y, chaoD.x, chaoD.y));
+    por(AL.SALA, DESENHO.linha(AL.SALA, chaoE.x, chaoE.y, chaoD.x, chaoD.y));
     const titulo = A(-sala.largura / 2, -1.2);
-    por("COTAS", DESENHO.texto("COTAS", titulo.x, titulo.y, 0.45, "ALÇADO FRONTAL"));
+    por(AL.COTAS, DESENHO.texto(AL.COTAS, titulo.x, titulo.y, 0.45, "ALÇADO FRONTAL"));
     alcado.forEach((peca) => pecas.push(peca));
   }
 
