@@ -1763,6 +1763,48 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — a posição de um ecrã passa a ser um número só (v3.76)
+
+> *"vês o que te digo: a calculadora não actualiza a posição para dar medidas"*
+> — com três fotografias seguidas: mexer o ↔ de um ecrã aqui, ver o número
+> mudar na lista dos Calculadores, e o **desenho ficar quieto**, com as medidas
+> entre ecrãs todas iguais às de antes.
+
+**A causa.** O ↔ e a altura viviam num sítio à parte (`ajustes.delays`), como
+um ajuste só do 3D, enquanto a posição que os Calculadores desenham e medem é a
+da zona (`zona.x/y`). Dois números para a mesma coisa, e só um deles
+atravessava a ponte — por isso a nota actualizava e o desenho não.
+
+**A decisão foi dele**, e ficou por extenso: *"o 3D manda"*, e a seguir *"deve
+ser bidirecional para ajuste mais preciso"*. Ao devolver, o que foi mexido de
+lado e em altura é **comprometido** na posição da zona e o ajuste volta a zero.
+Passa a haver um número só: arrasta-se aqui por alto, escreve-se o Centro X/Y
+ao milímetro do lado de lá, e as medidas do conjunto são as da montagem.
+
+O **fundo e a rotação não se comprometem**: a folha dos Calculadores é plana e
+não tem onde os guardar. Continuam a viajar como nota por zona (e é por isso
+que a v4.07 de lá passou a escrevê-los na lista).
+
+**O sinal do Y** é o da cena, não o do papel: em `centroDeZona()`, +dy SOBE e o
+`y` da zona cresce para BAIXO. Somar nos dois mandava o ecrã para o lado
+contrário do que se arrastou.
+
+### O que a medição apanhou, e eu não tinha previsto
+
+O conjunto está **sempre centrado na sala** (`ctx.meio`). Afastar um ecrã
+alarga o conjunto, e alargá-lo recentra-o: todos deslizam metade do que se
+mexeu. Não é o compromisso a mexer no desenho — é o modelo, e é igual quando o
+número se escreve do lado dos Calculadores. A primeira versão do teste exigia
+que o ecrã movido ficasse no mesmo ponto do mundo e falhou, com razão: o que é
+invariante é a **distância entre os ecrãs**, e essa cresce exactamente o que se
+mexeu. Um desenho que desliza sozinho sem uma palavra parece um erro, por isso
+diz-se na cena, com o número.
+
+`scripts/verificar-posicao-bidirecional.mjs` mede os dois sentidos com as duas
+apps na mesma origem: mexer o ↔ aqui move a zona lá e muda as cotas; escrever o
+Centro X lá chega aqui; o ajuste fica a zero; e os dois ecrãs afastam-se
+exactamente 4,20 m.
+
 ## 18 de setembro — mexer aqui com o sync desligado passa a dizer-se (v3.75)
 
 > *"deixaram de estar em sinc: eu movo no 3D e a calculadora não actualiza para

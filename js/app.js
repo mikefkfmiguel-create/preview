@@ -6590,11 +6590,57 @@ $("ecraA").addEventListener("change", () => redimensionarEcra("altura"));
  * silêncio de propósito, como o resto da sincronização automática).
  * Devolve true se conseguiu escrever.
  */
+/**
+ * O QUE SE MEXEU DE LADO E EM ALTURA PASSA A SER A POSIÇÃO DA ZONA.
+ *
+ * Reportado com três fotografias seguidas: mexer o ↔ de um ecrã aqui, ver o
+ * número mudar na lista dos Calculadores -- e o DESENHO ficar quieto, com as
+ * medidas entre ecrãs todas iguais às de antes. *"A calculadora não actualiza
+ * a posição para dar medidas."*
+ *
+ * A causa: o ↔/altura viviam num sítio à parte (`ajustes.delays`), como um
+ * ajuste só do 3D, enquanto a posição que os Calculadores desenham e medem é a
+ * da zona (`zona.x/y`). Dois números para a mesma coisa, e só um deles
+ * atravessava a ponte.
+ *
+ * A decisão foi dele, posta por extenso: *"o 3D manda"*, e a seguir *"deve ser
+ * bidirecional para ajuste mais preciso"*. Por isso, ao devolver, o que foi
+ * mexido lateralmente e em altura é COMPROMETIDO na posição da zona e o ajuste
+ * volta a zero. Daí para a frente há um número só: arrasta-se aqui por alto, e
+ * escreve-se o Centro X/Y ao milímetro do lado de lá -- os dois escrevem no
+ * mesmo sítio, e as medidas do conjunto passam a ser as da montagem.
+ *
+ * O fundo e a rotação NÃO se comprometem: a folha dos Calculadores é plana e
+ * não tem onde os guardar. Continuam a viajar como nota por zona.
+ *
+ * O sinal do Y é o da cena, não o do papel: em centroDeZona(), +dy SOBE e o
+ * `y` da zona cresce para BAIXO. Somar nos dois era enviar o ecrã para o lado
+ * contrário do que se arrastou.
+ */
+function comprometerOQueFoiMexido() {
+  if (!projeto || !Array.isArray(projeto.zonas)) return 0;
+  let quantas = 0;
+  projeto.zonas.forEach((zona) => {
+    const a = ajustes.delays[zona.nome];
+    if (!a) return;
+    const dx = Number(a.dx) || 0, dy = Number(a.dy) || 0;
+    if (!dx && !dy) return;
+    zona.x = (Number(zona.x) || 0) + dx;
+    zona.y = (Number(zona.y) || 0) - dy;
+    a.dx = 0; a.dy = 0;
+    quantas++;
+  });
+  return quantas;
+}
+
 function devolverAosCalculadores(comAviso) {
   if (!projeto) {
     if (comAviso) $("notaEcra").textContent = "Não há projeto para devolver.";
     return false;
   }
+  // Antes de medir o que vai: o que foi arrastado passa a ser posição. Assim o
+  // total (t) e as zonas do payload já são os da montagem.
+  const comprometidas = comprometerOQueFoiMexido();
   const t = totais(projeto);
   try {
     const zonas = projeto.zonas.map((zona) => {
@@ -6638,6 +6684,35 @@ function devolverAosCalculadores(comAviso) {
         `Projeto enviado: ${zonas.length} ecrãs, ${t.largura.toFixed(2)} × ` +
         `${t.altura.toFixed(2)} m. Nos Calculadores, carrega em ` +
         `"Trazer do Preview".`;
+    }
+    // O que foi comprometido mudou a cena por dentro (a zona está no mesmo
+    // sítio, mas agora por posição própria e não por ajuste) -- redesenha-se,
+    // e diz-se, que um campo a voltar a zero sozinho parece trabalho perdido.
+    // marcarRecebidoDeFora() trava o devolver que este montar dispararia: já
+    // acabámos de devolver, e não há nada de novo para mandar.
+    if (comprometidas) {
+      guardarAjustes(ajustes);
+      marcarRecebidoDeFora();
+      const largura = totais(projeto).largura;
+      montar(false);
+      // O CONJUNTO VOLTA A CENTRAR-SE, e isso vê-se.
+      //
+      // O grupo de ecrãs está sempre centrado na sala (ctx.meio, em
+      // contextoDeZonas). Afastar um ecrã alarga o conjunto, e alargá-lo
+      // recentra-o: todos deslizam metade do que se mexeu. Não é o compromisso
+      // a mexer no desenho -- é o modelo, e é igual quando o número se escreve
+      // do lado dos Calculadores. Mas um desenho que desliza sozinho sem uma
+      // palavra parece um erro, por isso diz-se.
+      const cresceu = largura - t.largura;
+      dizerNaCena(
+        (comprometidas === 1
+          ? "O que mexeste de lado passou a ser a posição da zona"
+          : "O que mexeste de lado passou a ser a posição das zonas") +
+        " — os Calculadores já medem por aí." +
+        (Math.abs(cresceu) > 0.005
+          ? " O conjunto ficou " + nnum(Math.abs(cresceu)) + " m mais " +
+            (cresceu > 0 ? "largo" : "estreito") + " e voltou a centrar-se na sala."
+          : ""));
     }
     return true;
   } catch (e) {
