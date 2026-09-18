@@ -1763,6 +1763,49 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — o ficheiro é desta app, e fechar pergunta (v3.77 · Calculadores v4.09)
+
+> *"só falta os projetos guardados terem ícone da app, perguntar se quero
+> guardar ao fechar por segurança"*.
+
+### O ícone e o duplo clique são a mesma coisa
+
+O sistema só põe o ícone de uma app num ficheiro quando essa app o declara como
+**seu**, e quem o declara é o manifest: `file_handlers`, com o `.pvw` (e o
+`.cal` do lado de lá) e os ícones. Vale para a app **instalada** — num
+separador do browser o sistema não tem por onde saber.
+
+**Declarar sem mais nada seria pior do que não declarar:** um ficheiro aberto
+pelo sistema não entra pelo botão "Abrir projeto…", chega pela fila de arranque
+(`launchQueue`). Sem ninguém a consumi-la, o duplo clique abria a app **vazia**.
+Por isso as duas apps consomem a fila — e entram pela MESMA porta do botão, que
+dois caminhos para a mesma coisa acabam sempre por divergir.
+
+### Perguntar ao fechar
+
+O que o browser deixa fazer é dizer que **há coisas por guardar**; a caixa e o
+texto são dele. Não há como lá pôr "guardar/não guardar", e prometer um botão
+que não existe seria pior.
+
+E **só se pergunta quando há o que perder**: acabado de abrir, ou logo a seguir
+a gravar, não há. Uma pergunta ao fechar uma janela onde não se mexeu é uma
+pergunta que se aprende a despachar sem ler — e depois despacha-se também a que
+interessava.
+
+### O que o teste me ensinou
+
+O Chromium expõe `window.launchQueue` **mesmo num separador normal** (só que
+nunca lá chega ficheiro nenhum). A primeira versão do teste fazia
+`window.launchQueue = {…}` e ficou a medir nada: a atribuição não pega numa
+propriedade nativa, a app chamava a verdadeira, e o duplo registava-se a si
+próprio. Com `Object.defineProperty` a substituição é real. Ficou escrito no
+teste, porque é a espécie de engano que se repete.
+
+`scripts/verificar-ficheiro-da-app.mjs`, um em cada app: o manifest declara a
+extensão e os ícones existem mesmo; a app espera pela fila; um ficheiro
+entregue pelo sistema abre; e fechar pergunta só quando há trabalho por
+guardar.
+
 ## 18 de setembro — a posição de um ecrã passa a ser um número só (v3.76)
 
 > *"vês o que te digo: a calculadora não actualiza a posição para dar medidas"*

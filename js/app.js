@@ -4379,6 +4379,7 @@ function aplicarInstantaneo(i) {
 
 /** O guardarAjustes desta app: grava e, de caminho, deixa por onde voltar. */
 function guardarAjustes(a) {
+  marcarPorGuardar();
   if (estadoAnterior) {
     historico.push(estadoAnterior);
     while (historico.length > NIVEIS_DE_DESFAZER) historico.shift();
@@ -4726,6 +4727,9 @@ function volta() {
 
 let temporizador = null;
 function remontarDaqui(ms = 120) {
+  // Quem mexe num campo do painel passa por aqui -- é o sítio onde "há coisas
+  // por guardar" fica verdade. Ver beforeunload, mais abaixo.
+  marcarPorGuardar();
   clearTimeout(temporizador);
   temporizador = setTimeout(() => montar(false), ms);
 }
@@ -5613,6 +5617,7 @@ $("ficheiroLogoCliente").onchange = async () => {
  */
 function limparTudo() {
   projeto = null;
+  marcarGuardado();
   planta = null;
   plantaDataURL = null;
   plantaCad = null;
@@ -5753,6 +5758,8 @@ function estadoCompleto() {
 
 function guardarProjetoTodo() {
   const estado = estadoCompleto();
+  // Foi para ficheiro: deixou de haver o que perder ao fechar.
+  marcarGuardado();
   const blob = new Blob([JSON.stringify(estado, null, 2)], { type: "application/json" });
   // O nome traz a extensão desta app (.pvw) -- ver js/ficheiros.js, que é o
   // mesmo ficheiro dos dois lados para os nomes nunca divergirem. Por dentro
@@ -5939,6 +5946,8 @@ async function abrirProjetoTodo(estado) {
   await reporPlanta(estado.planta);
 
   montar(true);
+  // Acabado de abrir: o que está no ecrã É o ficheiro, não há nada por guardar.
+  marcarGuardado();
 }
 
 // Escrever aqui não passa pelo montar() inteiro (reconstruiria a cena toda
@@ -5958,6 +5967,68 @@ if ($("nomeProjeto")) $("nomeProjeto").addEventListener("input", () => {
 });
 
 $("btGuardarProjeto").onclick = guardarProjetoTodo;
+
+// ------------------------------------ abrir um .pvw com duplo clique nele
+//
+// Pedido: *"os projetos guardados terem ícone da app"*. O ícone e o duplo
+// clique são a mesma coisa vista de dois lados: o sistema só põe o ícone de
+// uma app num ficheiro quando essa app o declara como SEU. Quem o declara é o
+// manifest (`file_handlers`, com o .pvw e os ícones), e isso só vale para a
+// app INSTALADA -- num separador do browser o sistema não tem por onde saber.
+//
+// Declarar não chega: quando o sistema abre a app com um ficheiro, ele não
+// passa por "Abrir projeto…" -- chega pela fila de arranque (launchQueue). Sem
+// ninguém a consumi-la, o duplo clique abria a app VAZIA, que é pior do que
+// não ter ícone nenhum.
+//
+// Entra pela MESMA porta do botão (abrirProjetoTodo), de propósito: um
+// ficheiro aberto pelo sistema e um ficheiro escolhido à mão não podem ter
+// dois caminhos que possam vir a divergir.
+if (window.launchQueue && "setConsumer" in window.launchQueue) {
+  window.launchQueue.setConsumer(async (params) => {
+    if (!params || !params.files || !params.files.length) return;
+    try {
+      const ficheiro = await params.files[0].getFile();
+      const estado = JSON.parse(await ficheiro.text());
+      await abrirProjetoTodo(estado);
+      dizerNaCena("Aberto: " + ficheiro.name);
+    } catch (e) {
+      const aviso = $("aviso");
+      aviso.textContent = (e && e.message) ? e.message : "Não consegui abrir esse ficheiro.";
+      aviso.classList.add("mostra");
+    }
+  });
+}
+
+// ---------------------------------------------- perguntar antes de fechar
+//
+// Pedido: *"perguntar se quero guardar ao fechar, por segurança"*.
+//
+// Um projeto aqui vive na memória e no localStorage -- não num ficheiro, a não
+// ser que alguém carregue em "Guardar projeto". Fechar a janela por engano com
+// uma tarde de ajustes por gravar é o tipo de perda que não se desfaz.
+//
+// O que o browser deixa fazer é isto e mais nada: dizer que HÁ coisas por
+// guardar, e ele mostra a caixa dele ("sair do site?"). O texto é do browser,
+// não nosso -- não há maneira de lá pôr "guardar/não guardar", e prometer um
+// botão que não existe seria pior.
+//
+// E só se pergunta quando há mesmo o que perder: numa sala vazia e sem projeto
+// não há nada por guardar, e uma app que faz uma pergunta dessas ao fechar uma
+// janela vazia é uma app que se aprende a despachar sem ler.
+let porGuardar = false;
+function marcarPorGuardar() { porGuardar = true; }
+function marcarGuardado() { porGuardar = false; }
+
+window.addEventListener("beforeunload", (e) => {
+  if (!porGuardar) return;
+  if (!projeto && salaEstaVazia()) return;
+  e.preventDefault();
+  // O valor é ignorado pelos browsers de hoje, mas alguns ainda o exigem para
+  // a caixa aparecer.
+  e.returnValue = "";
+  return "";
+});
 $("btAbrirProjeto").onclick = () => $("ficheiroProjeto").click();
 
 // -------------------------------------------------------- link para partilhar
