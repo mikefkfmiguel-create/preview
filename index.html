@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.71</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.72</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -188,7 +188,13 @@
       <button id="btPlanta">Abrir planta…</button>
       <button id="btSemPlanta" title="Remover a planta da cena">Remover planta</button>
     </div>
-    <input type="file" id="ficheiroPlanta" accept="image/*,.dxf,.dwg,.pdf" hidden>
+    <!-- Os formatos fechados (.vwx, .skp, .rvt…) vão no accept de propósito,
+         ainda que a app não os saiba ler: a cinzento no seletor não se
+         escolhem, e não se escolhendo não há onde dizer porquê. Escolhidos,
+         a app explica o que são e o que exportar — ver
+         recadoDeFormatoFechado() em js/app.js. -->
+    <input type="file" id="ficheiroPlanta"
+           accept="image/*,.dxf,.dwg,.pdf,.vwx,.vwxp,.skp,.rvt,.rfa,.pln,.pla,.3dm,.dgn" hidden>
     <div id="infoPlanta" class="vazio" style="margin-top:10px"><b>DXF</b>, <b>DWG</b>,
        <b>PDF</b> ou imagem. O DXF e o DWG entram à escala e não se calibram; o PDF e a
        imagem pedem a largura real.</div>
