@@ -7985,10 +7985,15 @@ function plantaEmDXF() {
   // Em planta um ecrã é uma linha: tem largura e praticamente nenhuma
   // espessura. Vai com a etiqueta ao lado, porque quem confere precisa de ver
   // a medida escrita E de a poder medir.
+  // Guardados para o ALÇADO os usar tal e qual. Repetir o totais() e o
+  // contextoDeZonas() lá em baixo era abrir a porta a o alçado e a planta
+  // discordarem sobre onde está o mesmo ecrã.
   const montado = projetoMontado(projeto);
+  let montadoParaAlcado = null, ctxParaAlcado = null;
   if (montado && montado.zonas && montado.zonas.length) {
     const medidas = totais(montado);
     const ctx = contextoDeZonas(montado, medidas, sala, palco);
+    montadoParaAlcado = montado; ctxParaAlcado = ctx;
     montado.zonas.forEach((zona) => {
       const centro = centroDeZona(zona, ajustes.delays[zona.nome], ctx);
       const graus = -(centro.rotacao * 180 / Math.PI);
@@ -8078,10 +8083,100 @@ function plantaEmDXF() {
     }
   }
 
+  por("COTAS", DESENHO.texto("COTAS", -sala.largura / 2, sala.profundidade / 2 + 2.0,
+    0.45, "PLANTA"));
+
+  // ---- O ALÇADO, por baixo da planta -------------------------------------
+  //
+  // Pedido a seguir à planta: *"podes pôr o alçado sim"* — e logo a condição:
+  // *"se existir"*. Por isso ele só sai quando há mesmo alguma coisa com
+  // ALTURA para mostrar (um palco, ou ecrãs). Uma sala vazia levava um
+  // rectângulo em branco por baixo do desenho, e um desenho a mais é um
+  // desenho que alguém tem de perceber porque é que lá está.
+  //
+  // Fica DEBAixo da planta e alinhado em X, de propósito: assim o desenhador
+  // deixa cair uma vertical da planta para o alçado e vê o mesmo ecrã nos dois
+  // -- que é como se confere uma altura contra uma posição.
+  //
+  // É um alçado FRONTAL: olha-se para o palco, X para a direita e Y a altura
+  // a sério (a altura da lente, a do ecrã acima do palco). A distância de tiro
+  // não está aqui, está na planta, onde se mede.
+  const alcado = [];
+  const porAlcado = (camada, texto) => { usadas.add(camada); alcado.push(texto); };
+  const alturaDoPalco = ($("verPalco").checked && palco.altura > 0) ? palco.altura : 0;
+
+  // QUÃO ALTO É O ALÇADO, antes de saber onde o pôr.
+  //
+  // O alçado cresce PARA CIMA a partir do seu chão. Uma folga fixa por baixo
+  // da planta não chega: medido com um ecrã de 4,5 m a 2,5 m de altura, o topo
+  // dele subia até dentro do rectângulo da planta e os dois desenhos ficavam
+  // sobrepostos no mesmo ficheiro. Por isso mede-se primeiro a coisa mais alta
+  // que lá vai, e só depois se escolhe o sítio.
+  let maisAlto = alturaDoPalco;
+  if (montadoParaAlcado && ctxParaAlcado) {
+    montadoParaAlcado.zonas.forEach((zona) => {
+      const c = centroDeZona(zona, ajustes.delays[zona.nome], ctxParaAlcado);
+      maisAlto = Math.max(maisAlto, c.centroY + zona.h / 2);
+    });
+  }
+  [].concat(coords.cupula || [], coords.planos || []).forEach((p) => {
+    maisAlto = Math.max(maisAlto, p.pos.y + 0.5);
+  });
+  const chaoDoAlcado = -(sala.profundidade / 2) - 4 - maisAlto;
+  const A = (x, y) => ({ x: x, y: y + chaoDoAlcado });
+
+  if (alturaDoPalco > 0) {
+    const frente = frenteDoPalco(sala, palco);
+    const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
+    const c = A(frente.x, alturaDoPalco / 2);
+    porAlcado("PALCO", DESENHO.rectangulo("PALCO", c.x, c.y, larguraPalco, alturaDoPalco, 0));
+    const lado = A(frente.x + larguraPalco / 2 + 0.6, 0);
+    porAlcado("COTAS", DESENHO.cota("COTAS", lado.x, lado.y, lado.x, lado.y + alturaDoPalco,
+      m(alturaDoPalco)));
+  }
+
+  if (montadoParaAlcado && montadoParaAlcado.zonas.length) {
+    montadoParaAlcado.zonas.forEach((zona) => {
+      const centro = centroDeZona(zona, ajustes.delays[zona.nome], ctxParaAlcado);
+      const c = A(centro.centroX, centro.centroY);
+      porAlcado("ECRAS", DESENHO.rectangulo("ECRAS", c.x, c.y, zona.w, zona.h, 0));
+      porAlcado("ECRAS", DESENHO.texto("ECRAS", c.x - zona.w / 2 + 0.15, c.y, 0.28,
+        zona.nome + "  " + nnum(zona.w) + " x " + nnum(zona.h) + " m"));
+      // A base do ecrã ao chão: é a medida que se confere num alçado, porque
+      // é ela que diz se a primeira fila vê por cima das cabeças.
+      const base = centro.centroY - zona.h / 2;
+      const xCota = centro.centroX - zona.w / 2 - 0.5;
+      const p0 = A(xCota, 0), p1 = A(xCota, base);
+      if (base > 0.05) {
+        porAlcado("COTAS", DESENHO.cota("COTAS", p0.x, p0.y, p1.x, p1.y, m(base)));
+      }
+    });
+  }
+
+  // Os projetores: a altura da lente, que é o outro número que se confere aqui.
+  [].concat(coords.cupula || [], coords.planos || []).forEach((p, i) => {
+    const c = A(p.pos.x, p.pos.y);
+    porAlcado("PROJECAO", DESENHO.circulo("PROJECAO", c.x, c.y, 0.25));
+    porAlcado("PROJECAO", DESENHO.texto("PROJECAO", c.x + 0.35, c.y + 0.1, 0.25,
+      (p.nome || ("P" + (i + 1))) + "  h " + nnum(p.pos.y) + " m"));
+  });
+
+  // "Se existir": sem palco e sem ecrãs não há alçado nenhum a desenhar, e
+  // não se acrescenta o chão nem o título só para haver um segundo desenho.
+  if (alcado.length) {
+    const chaoE = A(-sala.largura / 2, 0), chaoD = A(sala.largura / 2, 0);
+    por("SALA", DESENHO.linha("SALA", chaoE.x, chaoE.y, chaoD.x, chaoD.y));
+    const titulo = A(-sala.largura / 2, -1.2);
+    por("COTAS", DESENHO.texto("COTAS", titulo.x, titulo.y, 0.45, "ALÇADO FRONTAL"));
+    alcado.forEach((peca) => pecas.push(peca));
+  }
+
   const meia = { x: sala.largura / 2 + 2.5, y: sala.profundidade / 2 + 2.5 };
+  const baixo = alcado.length ? chaoDoAlcado - 2.5 : -meia.y;
   return comoDXF([...usadas], pecas,
-    { minX: -meia.x, minY: -meia.y, maxX: meia.x, maxY: meia.y });
+    { minX: -meia.x, minY: baixo, maxX: meia.x, maxY: meia.y });
 }
+
 
 function guardarPlantaDXF() {
   try {
