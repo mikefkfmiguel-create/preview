@@ -1763,6 +1763,34 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — mexer aqui com o sync desligado passa a dizer-se (v3.75)
+
+> *"deixaram de estar em sinc: eu movo no 3D e a calculadora não actualiza para
+> me dar as medidas."*
+
+**Medido primeiro, antes de mexer em nada: a ponte está inteira.** Com a
+sincronização automática ligada, mudar o ecrã aqui (2 → 4 m) chega aos
+Calculadores sozinho, em segundos, sem se carregar em nada — e do lado de lá
+aparece *"Trazido do Preview: 1 ecrã com tamanhos e posições"*.
+
+O que estava desligado era o **interruptor** — e está desligado de propósito
+desde a v3.80 dos Calculadores, a pedido: *"abre sempre dos dois lados com o
+sync desligado e em projeto limpo até eu abrir um"*.
+
+**Nascer calado foi o que se pediu; ficar calado depois de alguém mexer não.**
+Do lado de quem mexeu, o outro lado está simplesmente errado, e não havia nada
+no ecrã que explicasse porquê — era o mesmo silêncio de sempre, noutro sítio.
+
+Agora, quando uma alteração TERIA atravessado e não atravessa, o aviso di-lo,
+com os dois caminhos ao lado: **Enviar agora** (manda só desta vez) e **Ligar
+sincronização** (liga e manda). Uma vez por sessão, não a cada ajuste: um aviso
+que aparece sempre é um aviso que se deixa de ler.
+
+`scripts/verificar-sincronizacao.mjs` mede as duas metades com as duas apps na
+mesma origem, como em produção: ligada, o que se mexe chega lá sozinho;
+desligada, a app di-lo, não manda nada às escondidas, o botão de enviar manda
+mesmo, e o aviso não se repete.
+
 ## 18 de setembro — e os DXF que já tinham sido exportados (v3.74)
 
 > *"ainda abre invertido"* — depois da v3.73.

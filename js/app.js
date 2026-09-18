@@ -3036,11 +3036,27 @@ $("avisoDeposito").addEventListener("click", (e) => {
 // quantas mexeu, porque um botão que age em silêncio deixa quem carregou sem
 // saber se aconteceu alguma coisa.
 $("aviso").addEventListener("click", (e) => {
-  if (!e.target.closest("[data-arrumar]")) return;
-  const quantas = trazerParaDentro(pecasForaDasParedes());
-  dizerNaCena(quantas === 1
-    ? "1 peça voltou para dentro das paredes."
-    : quantas + " peças voltaram para dentro das paredes.");
+  if (e.target.closest("[data-arrumar]")) {
+    const quantas = trazerParaDentro(pecasForaDasParedes());
+    dizerNaCena(quantas === 1
+      ? "1 peça voltou para dentro das paredes."
+      : quantas + " peças voltaram para dentro das paredes.");
+    return;
+  }
+  // Os dois caminhos do aviso da sincronização (ver avisarQueNaoVaiSozinho):
+  // mandar só desta vez, ou ligar a automática e deixar de ter de pensar nisso.
+  if (e.target.closest("[data-devolver-agora]")) {
+    const foi = devolverAosCalculadores(false);
+    dizerNaCena(foi
+      ? "Enviado. Nos Calculadores, o que mexeste aqui já está lá."
+      : "Não consegui enviar — não há projeto carregado.");
+    return;
+  }
+  if (e.target.closest("[data-ligar-sinc]")) {
+    if (!sincronizacaoAutomaticaLigada()) $("btSincronizacao").click();
+    devolverAosCalculadores(false);
+    dizerNaCena("Sincronização automática ligada — daqui para a frente vai sozinho.");
+  }
 });
 
 /**
@@ -6663,7 +6679,41 @@ function devolverDaqui(ms = 700) {
   clearTimeout(temporizadorDevolver);
   temporizadorDevolver = setTimeout(() => {
     if (sincronizacaoAutomaticaLigada()) devolverAosCalculadores(false);
+    else avisarQueNaoVaiSozinho();
   }, ms);
+}
+
+/**
+ * MEXER AQUI COM A SINCRONIZAÇÃO DESLIGADA -- E SABÊ-LO.
+ *
+ * Reportado assim: *"deixaram de estar em sinc: eu movo no 3D e a calculadora
+ * não actualiza para me dar as medidas"*.
+ *
+ * A ponte está inteira -- medido: com o interruptor ligado, mudar o ecrã aqui
+ * chega aos Calculadores sozinho, em segundos. O que está desligado é o
+ * interruptor, e está desligado de propósito desde a v3.80, a pedido: *"abre
+ * sempre dos dois lados com o sync desligado e em projeto limpo até eu abrir
+ * um"*. Nascer calado é o que foi pedido; ficar calado DEPOIS de alguém mexer
+ * já não é -- do lado de quem mexeu, o outro lado está simplesmente errado, e
+ * não há nada no ecrã que explique porquê.
+ *
+ * Por isso: uma vez por sessão, e só quando houve mesmo uma alteração que
+ * TERIA atravessado, diz-se -- com os dois caminhos ao lado, mandar agora ou
+ * ligar a automática. Uma vez, e não a cada ajuste: um aviso que aparece
+ * sempre é um aviso que se deixa de ler.
+ */
+let jaAvisouQueNaoVaiSozinho = false;
+function avisarQueNaoVaiSozinho() {
+  if (jaAvisouQueNaoVaiSozinho || !projeto) return;
+  jaAvisouQueNaoVaiSozinho = true;
+  const aviso = $("aviso");
+  const jaTem = aviso.classList.contains("mostra") ? aviso.innerHTML + " " : "";
+  aviso.innerHTML = jaTem +
+    "Mexeste aqui, mas a <b>sincronização automática está desligada</b> — os Calculadores " +
+    "continuam com os valores antigos. " +
+    '<button type="button" class="aviso-link" data-devolver-agora="1">Enviar agora</button> ' +
+    '<button type="button" class="aviso-link" data-ligar-sinc="1">Ligar sincronização</button>';
+  aviso.classList.add("mostra");
 }
 
 // --------------------------------------------------------- guardar a imagem
