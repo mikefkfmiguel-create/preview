@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.77</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.78</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -320,6 +320,14 @@
     <div id="lugaresPorBloco" class="campos"></div>
     <p class="vazio" style="margin:4px 0 0">Em branco = a app conta os que cabem, como fazia até agora. O bloco do meio costuma levar mais do que os dos lados.</p>
     <div id="avisoLugares" class="vazio" hidden style="margin:6px 0 0"></div>
+
+    <!-- FILAS QUE FOGEM À REGRA DO BLOCO.
+         Pedido: "se quiser ter números diferentes de lugares por fila", com o
+         caso "na imagem a fila A tem apenas 5 lugares nas margens". Escreve-se
+         como se diz: bloco(s), fila(s), lugares — uma por linha. -->
+    <label for="excecoesLugares" class="rotulo-campo" style="margin:10px 0 4px">Filas com outro número de lugares</label>
+    <textarea id="excecoesLugares" rows="2" placeholder="ex: 1,3: A = 5&#10;2: A-C = 14" style="width:100%"></textarea>
+    <p class="vazio" id="notaExcecoes" style="margin:4px 0 0">Uma por linha: <b>blocos: filas = lugares</b>. Os blocos contam-se da esquerda (1, 2, 3…) e as filas pela letra (A é a da frente). A última linha que apanhar um bloco/fila é a que manda.</p>
 
     <!-- O corredor horizontal escolhe-se pelo NOME da fila, não por um número
          de corredores: é assim que se aponta para a encruzilhada a olhar para

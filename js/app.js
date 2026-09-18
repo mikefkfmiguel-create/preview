@@ -225,7 +225,8 @@ function lerPublico() {
     // Um número de lugares por fila para cada bloco (vazio = automático, como
     // sempre foi), e as filas depois das quais entra um corredor horizontal.
     lugaresPorBloco: lerLugaresPorBloco(),
-    corredoresHorizontais: lerCorredoresHorizontais()
+    corredoresHorizontais: lerCorredoresHorizontais(),
+    excecoesDeLugares: lerExcecoesDeLugares()
   };
 }
 
@@ -311,6 +312,72 @@ function lerLugaresPorBloco() {
  * "H, P" -> [7, 15]. O campo fala em letras porque é assim que se escolhe a
  * encruzilhada a olhar para a plateia; por dentro guardam-se índices.
  */
+/**
+ * AS FILAS QUE FOGEM À REGRA DO BLOCO.
+ *
+ * Pedido a olhar para uma plateia desenhada: *"se quiser ter números
+ * diferentes de lugares por fila"*, e logo com o caso a sério: *"na imagem a
+ * fila A tem apenas 5 lugares nas margens"*.
+ *
+ * A forma foi escolha dele, entre quatro: por BLOCO e por FILA. Escreve-se
+ * como se diz -- "bloco 1 e 3, fila A: 5 lugares" -- e cada excepção vive na
+ * sua linha:
+ *
+ *     1,3: A = 5
+ *     2: A-C = 14
+ *
+ * O que se aceita é folgado de propósito, porque isto escreve-se à pressa: os
+ * blocos podem vir "1,3" ou "1-3"; as filas "A" ou "A-F"; o "=" e a palavra
+ * "bloco" são opcionais. O que NÃO se aceita é uma linha meia percebida --
+ * uma linha que não encaixe é ignorada por inteiro, e a app di-lo (ver o aviso
+ * em montar()). Adivinhar o que ali estaria era mudar a lotação de uma sala
+ * por um palpite.
+ *
+ * A ordem conta: a ÚLTIMA linha que apanhar o par bloco/fila é a que manda.
+ * Assim escreve-se a regra larga primeiro e a excepção dela a seguir, como se
+ * fala. Ver porBlocoNaFila() em js/cena.js, que é quem as aplica.
+ */
+/** Uma linha de excepção, lida. Devolve null quando não se percebe. */
+function lerUmaExcecao(linha) {
+  const limpa = String(linha || "").trim();
+  if (!limpa) return null;
+  // <blocos> : <filas> [=] <lugares>
+  const m = limpa.match(/^(?:blocos?\s*)?([\d\s,\-–]+?)\s*[:.]\s*(?:filas?\s*)?([A-Za-z]+)(?:\s*(?:-|–|a|até)\s*([A-Za-z]+))?\s*[:=]?\s*(\d+)\s*(?:lugares?)?$/);
+  if (!m) return null;
+  const blocos = [];
+  m[1].split(/[,\s]+/).forEach((pedaco) => {
+    const intervalo = pedaco.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+    if (intervalo) {
+      const a = parseInt(intervalo[1], 10), b = parseInt(intervalo[2], 10);
+      for (let k = Math.min(a, b); k <= Math.max(a, b); k++) blocos.push(k - 1);
+    } else if (/^\d+$/.test(pedaco)) {
+      blocos.push(parseInt(pedaco, 10) - 1);
+    }
+  });
+  const de = filaDaLetra(m[2]);
+  const ate = m[3] ? filaDaLetra(m[3]) : de;
+  const usaveis = blocos.filter((b) => b >= 0);
+  if (!usaveis.length || de == null || ate == null) return null;
+  return { blocos: usaveis, de: Math.min(de, ate), ate: Math.max(de, ate),
+           lugares: parseInt(m[4], 10) };
+}
+
+/** As linhas escritas no campo, como estão. */
+function linhasDeExcecoes() {
+  const el = $("excecoesLugares");
+  if (!el) return [];
+  return String(el.value || "").split(/[\n;]+/).map((l) => l.trim()).filter(Boolean);
+}
+
+function lerExcecoesDeLugares() {
+  return linhasDeExcecoes().map(lerUmaExcecao).filter(Boolean);
+}
+
+/** E as que não se perceberam, para a app as poder dizer em vez de as comer. */
+function excecoesQueNaoSePerceberam() {
+  return linhasDeExcecoes().filter((l) => !lerUmaExcecao(l));
+}
+
 function lerCorredoresHorizontais() {
   const el = $("corredoresHorizontais");
   if (!el) return [];
@@ -906,6 +973,25 @@ function desenharCena(recentrarCamara) {
   // "apertado" em fazerPublico): encolher em silêncio dava uma lotação
   // diferente da que está escrita no campo, e é a escrita que alguém leva
   // para a obra. Mas cala-se, não.
+  // AS LINHAS QUE NÃO SE PERCEBERAM DIZEM-SE.
+  //
+  // Uma excepção mal escrita ("1 A 5", sem os dois pontos) seria comida em
+  // silêncio e a plateia saía com a lotação antiga -- alguém levava esse número
+  // para a obra sem saber que a linha não pegou. Dizer qual é a linha custa uma
+  // frase e evita isso.
+  const notaExcecoes = $("notaExcecoes");
+  if (notaExcecoes) {
+    const mas = excecoesQueNaoSePerceberam();
+    notaExcecoes.innerHTML = mas.length
+      ? "Não percebi " + (mas.length === 1 ? "esta linha" : "estas linhas") + ": <b>" +
+        mas.map((l) => l.replace(/</g, "&lt;")).join("</b>, <b>") + "</b>. " +
+        "A forma é <b>blocos: filas = lugares</b> — por exemplo <b>1,3: A = 5</b>."
+      : "Uma por linha: <b>blocos: filas = lugares</b>. Os blocos contam-se da esquerda " +
+        "(1, 2, 3…) e as filas pela letra (A é a da frente). A última linha que apanhar " +
+        "um bloco/fila é a que manda.";
+    notaExcecoes.classList.toggle("aviso-texto", mas.length > 0);
+  }
+
   const avisoLugares = $("avisoLugares");
   if (avisoLugares) {
     const ap = gente.apertado;
@@ -4744,6 +4830,13 @@ document.querySelectorAll("#painel input").forEach(campo => {
   campo.addEventListener("input", () => remontarDaqui());
   campo.addEventListener("change", () => remontarDaqui(0));
 });
+// O campo das excepções é uma caixa de texto (leva várias linhas) e não entra
+// no querySelectorAll acima, que só apanha <input>. Sem isto, escrever lá não
+// redesenhava nada — e um campo que não faz nada parece avariado.
+if ($("excecoesLugares")) {
+  $("excecoesLugares").addEventListener("input", () => remontarDaqui(250));
+  $("excecoesLugares").addEventListener("change", () => remontarDaqui(0));
+}
 
 // UMA CAIXA DE LUGARES POR CADA BLOCO, e tantas quantos os blocos.
 //
@@ -5817,6 +5910,17 @@ async function abrirProjetoTodo(estado) {
       const v = pu.lugaresPorBloco[b];
       el.value = (v && v > 0) ? v : "";
     });
+  }
+  // As excepções voltam escritas como se escrevem, e não em índices: o campo é
+  // para se ler, e "1,3: A = 5" é o que lá estava.
+  if ($("excecoesLugares")) {
+    const linhas = Array.isArray(pu.excecoesDeLugares) ? pu.excecoesDeLugares : [];
+    $("excecoesLugares").value = linhas.map((e) => {
+      const blocos = (e.blocos || []).map((b) => b + 1).join(",");
+      const filas = e.de === e.ate ? letraDaFila(e.de)
+                                   : letraDaFila(e.de) + "-" + letraDaFila(e.ate);
+      return blocos + ": " + filas + " = " + e.lugares;
+    }).join("\n");
   }
   if ($("corredoresHorizontais") && Array.isArray(pu.corredoresHorizontais)) {
     $("corredoresHorizontais").value = pu.corredoresHorizontais.map(letraDaFila).join(", ");
