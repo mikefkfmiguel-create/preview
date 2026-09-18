@@ -2238,6 +2238,37 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
     const pedido = Math.round(Number(pedidos[b]));
     porBlocoLista.push(pedido > 0 ? pedido : cabeNoBloco);
   }
+  // E UMA FILA PODE FUGIR À REGRA DO BLOCO.
+  //
+  // Pedido a olhar para uma plateia desenhada: *"se quiser ter números
+  // diferentes de lugares por fila"*, e logo com o caso: *"na imagem a fila A
+  // tem apenas 5 lugares nas margens"*. Uma sala a sério é assim -- a primeira
+  // fila dos blocos laterais é curta, ou uma fila do meio perde lugares para
+  // uma passagem.
+  //
+  // As excepções são POR BLOCO E POR FILA (foi a escolha dele, entre quatro):
+  // cada uma diz "neste bloco, nestas filas, são tantos". A última que apanhar
+  // o par bloco/fila é a que manda -- assim escreve-se a regra larga primeiro
+  // e a excepção da excepção a seguir, como se fala.
+  //
+  // Os CORREDORES NÃO SE MEXEM: os blocos ficam onde a fila cheia os pôs, e a
+  // fila curta desenha-se centrada dentro do seu bloco. Recentrar cada fila
+  // pela largura dela punha os corredores em ziguezague -- e um corredor que
+  // serpenteia não é um corredor, é um erro de desenho.
+  const excecoes = Array.isArray(publico.excecoesDeLugares) ? publico.excecoesDeLugares : [];
+  function porBlocoNaFila(f) {
+    if (!excecoes.length) return porBlocoLista;
+    return porBlocoLista.map(function (base, b) {
+      let quantos = base;
+      for (const e of excecoes) {
+        if (!e || !Array.isArray(e.blocos) || e.blocos.indexOf(b) < 0) continue;
+        if (f < e.de || f > e.ate) continue;
+        quantos = Math.max(0, Math.round(Number(e.lugares) || 0));
+      }
+      return quantos;
+    });
+  }
+
   const larguraPedida = porBlocoLista.reduce((s, n) => s + n * publico.entreLugares, 0)
     + corredores * (publico.larguraCorredor || 0);
   // Não cabe? Diz-se (ver "apertado" no que isto devolve) e desenha-se o que
@@ -2248,7 +2279,14 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
     : null;
 
   const porFila = porBlocoLista.reduce((s, n) => s + n, 0);
-  const total = porFila * publico.filas;
+  // O tecto do que pode vir a ser desenhado. Com excepções, uma fila pode levar
+  // mais do que a regra do bloco -- e um InstancedMesh curto perde gente sem o
+  // dizer, que é o pior dos dois lados.
+  let total = 0;
+  for (let f = 0; f < publico.filas; f++) {
+    total += porBlocoNaFila(f).reduce((s, n) => s + n, 0);
+  }
+  total = Math.max(total, porFila);
 
   // Onde começa cada bloco, da esquerda para a direita. O conjunto fica
   // centrado: com blocos de tamanhos diferentes, ancorar à esquerda encostava
@@ -2380,13 +2418,26 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
     // altura dos teus olhos — e a vista da plateia mostrava uma nuca em vez de
     // responder à pergunta que se lhe faz.
     const sobe = f * (publico.inclinacao || 0);
-    filasInfo.push({ indice: f, z: z, sobe: sobe });
-    for (let i = 0; i < porFila; i++) {
-      const bloco = blocoDoLugar[i];
-      const dentro = dentroDoBloco[i];
+    // Quantos leva ESTA fila em cada bloco -- normalmente a regra do bloco,
+    // e a excepção quando a há. Ver porBlocoNaFila().
+    const porBlocoDaFila = porBlocoNaFila(f);
+    const porFilaDesta = porBlocoDaFila.reduce((s, n) => s + n, 0);
+    const blocoDoLugarF = [], dentroDoBlocoF = [], recuoDoBloco = [];
+    for (let b = 0; b < blocos; b++) {
+      // A fila curta fica CENTRADA no bloco dela: o corredor continua a direito
+      // e o que encolhe encolhe pelas duas pontas, como numa sala a sério.
+      recuoDoBloco.push((porBlocoLista[b] - porBlocoDaFila[b]) * publico.entreLugares / 2);
+      for (let k = 0; k < porBlocoDaFila[b]; k++) { blocoDoLugarF.push(b); dentroDoBlocoF.push(k); }
+    }
+    filasInfo.push({ indice: f, z: z, sobe: sobe, lugares: porFilaDesta,
+                     porBloco: porBlocoDaFila.slice() });
+    for (let i = 0; i < porFilaDesta; i++) {
+      const bloco = blocoDoLugarF[i];
+      const dentro = dentroDoBlocoF[i];
       // O desencontro de meio lugar é por bloco: assim ninguém fica com a
       // cabeça do da frente à frente dos olhos, que é para isso que ele serve.
-      const x = inicios[bloco] + publico.entreLugares * (dentro + 0.5)
+      const x = inicios[bloco] + recuoDoBloco[bloco]
+                + publico.entreLugares * (dentro + 0.5)
                 + (f % 2 ? publico.entreLugares / 2 : 0);
       // A mesma margem outra vez, e não um número à parte — um corredor mais
       // estreito do que 0,6 m não podia deixar gente mais perto da parede do

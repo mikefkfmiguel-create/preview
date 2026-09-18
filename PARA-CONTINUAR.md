@@ -1763,6 +1763,48 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — uma fila pode fugir à regra do bloco (v3.78)
+
+> *"se quiser ter números diferentes de lugares por fila"*, e logo com o caso a
+> sério, a apontar para a planta de um teatro: *"na imagem a fila A tem apenas
+> 5 lugares nas margens"*.
+
+Até aqui o número era **por bloco** e valia para todas as filas. Uma sala a
+sério raramente é assim: a primeira fila dos blocos laterais é curta, ou uma
+fila do meio perde lugares para uma passagem.
+
+**A forma foi escolha dele, entre quatro** (excepções por letra, leque
+automático, por bloco e fila, ou a largura a mandar): **por bloco E por fila**,
+que é o controlo fino. Escreve-se como se diz, uma por linha:
+
+    1,3: A = 5
+    2: A-C = 14
+
+A última linha que apanhar um par bloco/fila é a que manda — assim escreve-se a
+regra larga primeiro e a excepção dela a seguir, como se fala.
+
+### As duas decisões que isto obrigou a tomar
+
+**Os corredores não se mexem.** A fila curta desenha-se **centrada dentro do
+bloco dela**, e os blocos ficam onde a fila cheia os pôs. Recentrar cada fila
+pela largura dela punha os corredores em ziguezague — e um corredor que
+serpenteia não é um corredor, é um erro de desenho.
+
+**Uma linha que não se percebe é dita, não comida.** Uma excepção mal escrita
+("1 A 5", sem os dois pontos) seria ignorada em silêncio e a plateia saía com a
+lotação antiga — alguém levava esse número para a obra sem saber que a linha não
+pegou. A nota do campo passa a dizer qual é a linha e qual é a forma.
+
+`scripts/verificar-excecoes-de-lugares.mjs` guarda o caso dele (fila A com 5 nas
+margens: −14 lugares, bloco do meio intacto, fila B como estava), os corredores
+a direito, o intervalo de filas com uma linha a corrigir a anterior, a linha
+mal escrita, e apagar tudo a devolver a plateia de sempre.
+
+Uma nota do teste: a primeira versão montou uma sala de 26 m e mediu outra
+coisa — com 42 lugares e dois corredores (25,5 m) os lugares das pontas caíam
+fora das margens e as filas pares e ímpares perdiam lugares diferentes. A sala
+passou a 30 m; o que se mede é a excepção, não a sala a não dar.
+
 ## 18 de setembro — o ficheiro é desta app, e fechar pergunta (v3.77 · Calculadores v4.09)
 
 > *"só falta os projetos guardados terem ícone da app, perguntar se quero
