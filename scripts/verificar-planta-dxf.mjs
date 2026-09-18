@@ -169,15 +169,23 @@ conferir(lido.insunits === 6, "e vê os metros no cabeçalho");
 //
 // O que o desenhador vai medir.
 console.log("\n== as medidas ==");
+// SÓ A PARTE DA PLANTA. As camadas são as mesmas nas duas vistas de propósito
+// (desligar ECRAS desliga-o na planta E no alçado), por isso medir a camada
+// inteira dava a caixa das duas juntas -- e foi exactamente o que aconteceu
+// quando o alçado entrou: a "sala" passou a medir 30 m de fundo mais a altura
+// do alçado. O corte é em Y, que é onde as duas vistas não se tocam.
+const SO_A_PLANTA = -SALA.profundidade / 2 - 2;
 const caixaDe = (nome) => {
   const c = lido.porCamada.find((x) => x.nome === nome);
   if (!c || !c.seg.length) return null;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, houve = false;
   for (const [x1, y1, x2, y2] of c.seg) {
+    if (Math.min(y1, y2) < SO_A_PLANTA) continue;
+    houve = true;
     minX = Math.min(minX, x1, x2); maxX = Math.max(maxX, x1, x2);
     minY = Math.min(minY, y1, y2); maxY = Math.max(maxY, y1, y2);
   }
-  return { minX, maxX, minY, maxY, largura: maxX - minX, profundidade: maxY - minY };
+  return houve ? { minX, maxX, minY, maxY, largura: maxX - minX, profundidade: maxY - minY } : null;
 };
 
 const cSala = caixaDe("SALA");
@@ -252,6 +260,81 @@ const movido = await pagina.evaluate(async () => {
 console.log("   PALCO no desenho: y " + (movido ? movido.minY.toFixed(2) + " .. " + movido.maxY.toFixed(2) : "—"));
 conferir(movido && bate(movido.maxY, SALA.profundidade / 2 - 3, 0.002),
   "o palco no desenho está 3 m mais para dentro — a planta acompanha o que se mexeu");
+
+// ---- 6. O ALÇADO ---------------------------------------------------------
+//
+// Pedido a seguir à planta: *"podes pôr o alçado sim"*, com a condição *"se
+// existir"*. Por isso mede-se as duas coisas: que ele lá está com as alturas
+// certas, e que NÃO aparece quando não há nada com altura para mostrar.
+console.log("\n== o alçado ==");
+const comAlcado = await pagina.evaluate(async () => {
+  const por = (id, v) => { const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = !!v; else el.value = String(v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true })); };
+  por("palcoZ", 0); por("verPalco", true); por("ecraOffset", 1.5);
+  await new Promise((r) => setTimeout(r, 1500));
+  const texto = window.preview.plantaEmDXF();
+  const { lerDXF } = await import("./js/dxf.js");
+  const d = lerDXF(texto);
+  // O alçado vive TODO por baixo da planta -- e é isso que torna este filtro
+  // possível. A primeira versão dele usava "-P/2 - 1" e cortava o topo do ecrã
+  // ao meio, dando-lhe 0 m de altura: nessa altura os dois desenhos ainda se
+  // sobrepunham mesmo, e o teste estava a apanhar isso sem eu perceber.
+  const sala = { profundidade: 30 };
+  const limite = -sala.profundidade / 2 - 2;
+  const caixa = (camada) => {
+    const c = d.camadas.find((x) => x.nome === camada);
+    if (!c) return null;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, houve = false;
+    for (let k = 0; k < d.segmentos; k++) {
+      if (d.deQuemE[k] !== c.indice) continue;
+      const ys = [d.pontos[k * 4 + 1], d.pontos[k * 4 + 3]];
+      if (Math.min(...ys) > limite) continue;         // isso é da planta
+      houve = true;
+      minX = Math.min(minX, d.pontos[k * 4], d.pontos[k * 4 + 2]);
+      maxX = Math.max(maxX, d.pontos[k * 4], d.pontos[k * 4 + 2]);
+      minY = Math.min(minY, ...ys); maxY = Math.max(maxY, ...ys);
+    }
+    return houve ? { minX, maxX, minY, maxY,
+                     largura: maxX - minX, altura: maxY - minY } : null;
+  };
+  return { temTexto: /ALÇADO FRONTAL/.test(texto),
+           palco: caixa("PALCO"), ecras: caixa("ECRAS") };
+});
+console.log("   " + JSON.stringify(comAlcado));
+conferir(comAlcado.temTexto, "o desenho leva um alçado, identificado");
+conferir(comAlcado.palco && bate(comAlcado.palco.altura, PALCO.altura),
+  "o palco mede " + PALCO.altura + " m de altura no alçado");
+conferir(comAlcado.ecras && bate(comAlcado.ecras.altura, ECRA.altura, 0.002),
+  "e o ecrã mede os " + ECRA.altura + " m de altura que a app diz");
+conferir(comAlcado.ecras && bate(comAlcado.ecras.largura, ECRA.largura, 0.002),
+  "com a mesma largura da planta — os dois desenhos alinham em X");
+
+// E agora o "se existir": sem palco e sem ecrãs, não há alçado.
+console.log("\n== uma sala sem nada com altura ==");
+// Tirar o projeto do localStorage não chega: ele já está em memória. A app
+// tem de abrir de raiz sem nada, que é o estado que se quer medir.
+await pagina.evaluate(() => localStorage.removeItem("mikeapps-projeto-v1"));
+await pagina.reload({ waitUntil: "networkidle" });
+await pagina.waitForFunction(() => window.preview && window.preview.plantaEmDXF, null, { timeout: 30000 });
+await pagina.waitForTimeout(1200);
+const semAlcado = await pagina.evaluate(async () => {
+  const por = (id, v) => { const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = !!v; else el.value = String(v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true })); };
+  por("verPalco", false);
+  await new Promise((r) => setTimeout(r, 1200));
+  const texto = window.preview.plantaEmDXF();
+  return { temAlcado: /ALÇADO FRONTAL/.test(texto),
+           zonas: (window.preview.gente ? 1 : 0), tamanho: texto.length };
+});
+console.log("   " + JSON.stringify(semAlcado));
+conferir(!semAlcado.temAlcado,
+  "sem palco e sem ecrãs não sai alçado nenhum — «se existir», como foi pedido");
 
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
