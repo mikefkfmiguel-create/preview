@@ -1763,6 +1763,73 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — o guardar leva a planta, e mudar a sala já não deixa peças lá fora (v3.71)
+
+Dois relatos do mesmo dia.
+
+### *"alterei as medidas da sala e os objetos não acompanharam — o palco 2 ficou fora"*
+
+É assim por desenho, e continua a ser: as peças com posição própria (palcos,
+régies e passarelas extra, gomos, DSM) vivem em coordenadas suas e não em
+percentagem da sala. Encolher a sala à volta delas deixa-as onde estavam — que
+passa a ser do lado de fora.
+
+A `arrumarOQueFugiuDaSala()` já existia, mas com duas lacunas que juntas davam
+exactamente isto: **só corria a pedido**, no botão de trazer tudo à vista; e a
+régua dela é de propósito muito larga — "fugiu" é estar a **três vezes** a maior
+medida da sala. Essa largura existe por boa razão (em retro as máquinas ficam
+metros atrás do pano e não fugiram), mas um palco dois metros para lá da parede
+nova nunca lá caía.
+
+**O que mudou é a app DIZER**, não a app arrumar. Uma peça meio metro para lá
+da parede pode estar onde alguém a pôs de propósito, e mexer-lhe sem pedir era
+desfazer trabalho para resolver um problema que ela nem sabe se existe. O aviso
+nomeia a peça e traz um botão **"Trazer para dentro"**; quem carrega é que
+manda. Os projetores ficam de fora da conta — em retro vivem atrás do pano, e
+acusá-los todas as vezes era ensinar a ignorar o aviso.
+
+`scripts/verificar-fora-das-paredes.mjs` reproduz o caso da fotografia (sala de
+40 × 30 a passar a 40 × 20, com um palco a 11 m) e guarda as cinco coisas: com
+a sala grande não há queixa; encolhida, a app repara e diz **qual**; **não** lhe
+mexe sozinha; o botão mexe; e nenhum projetor entra na lista.
+
+### *"o guardar não está a levar a planta da sala"*
+
+Não levava mesmo. O ficheiro gravava a sala, o palco, a plateia, os ecrãs e até
+as imagens que vão nos ecrãs — tudo menos o desenho por baixo de tudo isso.
+Reabrir um projeto obrigava a ir buscar o DXF outra vez, a confirmar as
+unidades outra vez e a pô-lo no sítio outra vez.
+
+Agora viaja no `.pvw` (e no link, ver abaixo) o desenho **e** onde ele ficou:
+rodar, deslocar, opacidade, unidades e que camadas estão escondidas ou
+levantadas. Um desenho que volta fora do sítio dá quase o mesmo trabalho que
+tê-lo perdido.
+
+**O CAD vai em base64, não em números.** Um segmento são quatro números e uma
+planta traz dezenas de milhares deles; escritos em JSON cada um gasta uma dúzia
+de caracteres e o ficheiro ia a dezenas de MB. Em `Float32Array` são quatro
+bytes, cinco e um terço em base64. O Float32 chega para **isto**: erra
+centésimas de milímetro num desenho de fundo — a cota que a engenharia mede sai
+pelo DXF de exportação, com seis casas. Não se guarda o ficheiro original de
+propósito: um DWG teria de voltar a passar pelo motor e um PDF a ser desenhado
+outra vez.
+
+**O link não é o ficheiro.** O `.pvw` leva a planta custe o que custar; o link
+passa por um Worker, e uma planta de arquitectura de vários MB rebentava-o com
+um "respondeu 413" que não explica nada. Acima de 1,5 MB de desenho o link vai
+sem a planta e **diz que foi sem ela**.
+
+`scripts/verificar-planta-guardada.mjs` faz a volta toda com a **página a
+recarregar pelo meio** — sem isso estaria a medir o que ficou em memória, que
+era o que já funcionava antes. Confere o DXF e a imagem, os vértices que a cena
+tem mesmo desenhados, os campos de posição e a camada escondida.
+
+Uma nota sobre o próprio teste: a primeira planta de mentira era uma grelha de
+meio em meio metro, e a medição do tamanho deu **ao contrário** — JSON mais
+pequeno do que base64. Estava certa: números redondos escrevem-se em dois ou
+três caracteres. Planta nenhuma sai assim de um CAD, e a de mentira passou a
+ser em milímetros com decimais sujas, como o Vectorworks as exporta.
+
 ## 16 de setembro — limpar tudo limpa as duas apps (v3.62)
 
 > *"Estou no telemóvel a testar o que poderá ser um gestor numa visita com o
