@@ -1763,6 +1763,35 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 18 de setembro — um .vwx não é um desenho (v3.72)
+
+> *"como abro um ficheiro do vector no 3D? Ele não importa."*
+
+Não importava, e não era defeito: um **.vwx é o ficheiro de trabalho do
+Vectorworks**, o projeto inteiro no formato fechado dele, e só o Vectorworks o
+abre. O que atravessa para fora é o que se **exporta** — DXF, DWG ou PDF. O
+mesmo vale para o .skp, o .rvt, o .pln, o .3dm e o .dgn.
+
+**O que estava mal era a app não dizer isso, de duas maneiras.** O `.vwx` nem
+aparecia acendido no seletor (o `accept` não o listava), e quem lá chegasse à
+força — arrastando ou mudando a extensão — ouvia *"isto não parece um DXF"*,
+que manda procurar um defeito no ficheiro quando o ficheiro está bom e só não é
+para aqui.
+
+Agora os formatos fechados vão no `accept` **de propósito**, ainda que a app não
+os saiba ler: a cinzento não se escolhem, e não se escolhendo não há onde
+explicar. Escolhido, sai o recado com o nome do programa e o que exportar de lá.
+
+**O caminho do menu só vai escrito para o Vectorworks** (Ficheiro → Exportar →
+Exportar DXF/DWG, com a vista em planta), que é o que se usa cá. Para os outros
+diz-se o que é preciso sem inventar por onde — um caminho de menu errado faz
+perder mais tempo do que nenhum.
+
+E uma coisa que o teste guarda: o ficheiro recusado é recusado **antes** de se
+tocar no que está montado. Estava a limpar as camadas escondidas à cabeça da
+função, por isso um .vwx escolhido por engano ia mexer na planta que já lá
+estava a caminho de dizer que não servia.
+
 ## 18 de setembro — o guardar leva a planta, e mudar a sala já não deixa peças lá fora (v3.71)
 
 Dois relatos do mesmo dia.

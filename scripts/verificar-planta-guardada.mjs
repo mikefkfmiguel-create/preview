@@ -268,6 +268,37 @@ conferir(JSON.stringify(depois.campos) === JSON.stringify(antes.campos),
 conferir(depois.cotasVisiveis === false,
   "e a camada das cotas continua escondida — quem a apagou não a quer de volta");
 
+// ---- 3b. UM FICHEIRO DO VECTORWORKS -----------------------------------
+//
+// Reportado: *"como abro um ficheiro do vector no 3D, ele não importa"*. Um
+// .vwx é o ficheiro de trabalho do Vectorworks e nenhuma app o abre sem ser
+// ele. O que isto guarda é a app DIZER isso, e -- mais importante -- não
+// deitar fora a planta que já lá estava por causa de um ficheiro que nem
+// chegou a ser lido.
+console.log("\n== escolher um .vwx (o ficheiro do Vectorworks) ==");
+const vector = await pagina.evaluate(async () => {
+  const antes = window.preview.plantaCad ? window.preview.plantaCad.segmentos : 0;
+  const dt = new DataTransfer();
+  dt.items.add(new File(["não interessa o que está aqui dentro"], "Sala Grande.vwx"));
+  const input = document.getElementById("ficheiroPlanta");
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1200));
+  return {
+    antes,
+    aviso: (document.getElementById("aviso") || {}).textContent || "",
+    aceita: document.getElementById("ficheiroPlanta").getAttribute("accept") || "",
+    depois: window.preview.plantaCad ? window.preview.plantaCad.segmentos : 0
+  };
+});
+console.log("   aviso: " + vector.aviso);
+conferir(/Vectorworks/.test(vector.aviso) && /DXF/.test(vector.aviso),
+  "a app diz o que é o .vwx e o que exportar de lá");
+conferir(/\.vwx/.test(vector.aceita),
+  "e o seletor deixa escolhê-lo — a cinzento não havia onde dizer isto");
+conferir(vector.depois === vector.antes && vector.antes > 0,
+  "e a planta que já lá estava não se perdeu por causa dele");
+
 // ---- 4. Uma planta em IMAGEM faz a mesma volta -------------------------
 console.log("\n== e uma planta em imagem (PNG) ==");
 const imagem = await pagina.evaluate(async () => {

@@ -5054,7 +5054,9 @@ function camposDaPlanta() {
     $("notaPlanta").innerHTML = "Um PDF e uma imagem não sabem a escala a que foram " +
       "desenhados. Diz-lhes a <b>largura real</b> que cobrem e o resto sai daí — a grelha " +
       "do chão é de metro a metro, use-a para conferir. Um <b>DWG</b> ou um <b>DXF</b> " +
-      "sabem, e entram sozinhos com o tamanho certo.";
+      "sabem, e entram sozinhos com o tamanho certo. " +
+      "O ficheiro do <b>Vectorworks</b> (.vwx) não entra: lá dentro, " +
+      "Ficheiro → Exportar → Exportar DXF/DWG, e é esse DXF que vem para aqui.";
   }
 }
 
@@ -5304,6 +5306,48 @@ async function eDWG(ficheiro) {
   }
 }
 
+/**
+ * O FICHEIRO DO CAD NÃO É O DESENHO.
+ *
+ * Reportado assim: *"como abro um ficheiro do vector no 3D, ele não importa"*.
+ * Um `.vwx` é o ficheiro de trabalho do Vectorworks -- o projeto inteiro, no
+ * formato fechado dele -- e só o Vectorworks o abre. O mesmo para o `.skp` do
+ * SketchUp, o `.rvt` do Revit e os outros aqui em baixo. O que atravessa para
+ * fora de qualquer um deles é o que se EXPORTA: DXF, DWG ou PDF.
+ *
+ * Antes disto havia duas maneiras de não se perceber isso. O ficheiro nem
+ * aparecia acendido no seletor (o `accept` não o listava), e quem lá chegasse à
+ * força ouvia *"isto não parece um DXF"* -- que manda procurar um defeito no
+ * ficheiro, quando o ficheiro está bom e só não é para aqui. Agora escolhe-se,
+ * e a app diz o que ele é e onde ir buscar o que serve.
+ *
+ * O caminho do menu só vai escrito para o Vectorworks, que é o que se usa cá.
+ * Para os outros diz-se o que é preciso (exportar em DXF ou DWG) sem inventar
+ * por onde -- um caminho de menu errado faz perder mais tempo do que nenhum.
+ */
+const FORMATOS_FECHADOS = [
+  { ext: ".vwx", programa: "Vectorworks",
+    onde: "Ficheiro → Exportar → Exportar DXF/DWG, com a vista em planta" },
+  { ext: ".vwxp", programa: "Vectorworks",
+    onde: "Ficheiro → Exportar → Exportar DXF/DWG, com a vista em planta" },
+  { ext: ".skp", programa: "SketchUp" },
+  { ext: ".rvt", programa: "Revit" },
+  { ext: ".rfa", programa: "Revit" },
+  { ext: ".pln", programa: "Archicad" },
+  { ext: ".pla", programa: "Archicad" },
+  { ext: ".3dm", programa: "Rhino" },
+  { ext: ".dgn", programa: "MicroStation" }
+];
+
+function recadoDeFormatoFechado(nome) {
+  const achado = FORMATOS_FECHADOS.find((f) => String(nome).toLowerCase().endsWith(f.ext));
+  if (!achado) return null;
+  return `Um ${achado.ext} é o ficheiro de trabalho do ${achado.programa}, e só ele o abre. ` +
+    `Aqui entram DXF, DWG, PDF ou imagem — ` +
+    (achado.onde ? `no ${achado.programa}: ${achado.onde}.`
+                 : `exporta o desenho em DXF ou DWG e traz esse.`);
+}
+
 /** O que se está a fazer, enquanto se faz — carregar 10 MB demora. */
 function aTrabalhar(texto) {
   const aviso = $("aviso");
@@ -5315,9 +5359,13 @@ $("ficheiroPlanta").onchange = async () => {
   const ficheiro = $("ficheiroPlanta").files[0];
   $("ficheiroPlanta").value = "";
   if (!ficheiro) return;
-  camadasEscondidas.clear();
-  camadasLevantadas.clear();
   try {
+    // Antes de mexer no que está montado: um ficheiro que não é para aqui não
+    // pode deixar a planta que lá estava apagada a caminho do recado.
+    const recado = recadoDeFormatoFechado(ficheiro.name);
+    if (recado) throw new Error(recado);
+    camadasEscondidas.clear();
+    camadasLevantadas.clear();
     if (await eDWG(ficheiro)) {
       // O DWG passa pelo motor e sai DXF; daí para a frente é tudo igual.
       plantaCad = await lerDWG(ficheiro, aTrabalhar);
