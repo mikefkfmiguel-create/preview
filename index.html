@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.78</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.79</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -28,6 +28,9 @@
       <button id="btSincronizar" class="btn-icone" title="Vai buscar já o projeto e o projetor que os Calculadores tiverem guardados — sem esperar pelo aviso automático">🔄</button>
       <button id="btSincronizacao" class="btn-icone" title="Sincronização automática ligada — clica para desligar">🔗</button>
       <button id="btDevolver" class="btn-icone" title="Devolver projeto aos Calculadores">📤</button>
+      <!-- INSTALAR: só de dentro da app o browser deixa pedir a instalação. A
+           página de entrada liga para cá com "#instalar". Ver js/instalar.js. -->
+      <button id="btInstalar" class="btn-icone" title="Instalar esta app no computador ou no telemóvel — fica com ícone próprio e abre sem barra de browser">⤓</button>
       <button id="btFechar" class="btn-icone" title="Esconder o painel (Tab)">‹</button>
     </div>
   </header>
@@ -625,7 +628,9 @@
   <footer id="rodape"></footer>
 
   <section id="cauda">
-    <button id="btInstalar" hidden>Instalar esta app</button>
+    <!-- O botão de instalar é o ⤓ lá em cima, um só. Aqui fica o que ele não
+         cabe a dizer num ícone: o caminho à mão, onde o browser não deixa
+         pedir a instalação, e o link para levar daqui para um que deixe. -->
     <p id="comoInstalar" class="vazio" hidden></p>
     <button id="btCopiarLink" hidden>Copiar o link</button>
     <a class="ligacao" href="https://mikefkfmiguel-create.github.io/calculadores/"
@@ -682,6 +687,7 @@
 <!-- Antes do app.js, e como script normal (não módulo): a limpeza tem de estar
      de pé mesmo que o motor 3D falhe a carregar. Um botão de emergência que
      depende do que pode estar avariado não é um botão de emergência. -->
+<script src="js/instalar.js"></script>
 <script src="js/limpeza.js"></script>
 <script src="js/ficheiros.js"></script>
 <script src="js/visualizacao.js"></script>

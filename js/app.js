@@ -8369,40 +8369,34 @@ if ($("btEdicaoLivre")) $("btEdicaoLivre").onclick = () => {
 };
 atualizarBotaoEdicaoLivre();
 
-// O convite a instalar. O evento do Chrome não chega a toda a gente — no
-// iPhone não existe de todo — por isso, quando ele não vem, explica-se o
-// caminho à mão em vez de deixar a app sem forma de ser instalada.
+// O CONVITE A INSTALAR.
+//
+// O motor é o js/instalar.js — o mesmo ficheiro, igual, nas duas apps: apanha o
+// `beforeinstallprompt` onde ele existe, e onde não existe (iPhone, Firefox)
+// sabe dizer o caminho à mão. Era isso que esta função fazia por conta própria;
+// tê-lo em dois sítios era ter dois sítios para corrigir.
+//
+// O que fica aqui é o que é mesmo desta app: onde se escreve a explicação
+// (#comoInstalar), e o botão de copiar o link — que não é sobre instalar, é
+// sobre LEVAR DAQUI para um browser que instale.
 (function convite() {
-  const naApp = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  if (naApp) return;
-  const agente = navigator.userAgent;
-  const iPhone = /iPad|iPhone|iPod/.test(agente) && !window.MSStream;
-  // Quem instala aplicações é o Chromium: Chrome, Edge, Brave, Opera, e o
-  // Chrome no Android. O Firefox e o Safari de computador não o fazem de todo
-  // — mandar essa gente ao "menu do browser" é mandá-la procurar o que lá não
-  // está, e sair convencida de que a app não se instala.
-  const chromium = /Chrome\/|Chromium\/|Edg\/|OPR\//.test(agente);
-  let guardado = null;
+  const motor = window.mikeappsInstalar;
+  if (!motor || !$("btInstalar")) return;
 
-  addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    guardado = e;
-    $("btInstalar").hidden = false;
-    $("comoInstalar").hidden = true;
-    $("btCopiarLink").hidden = true;
-  });
-
-  $("btInstalar").onclick = async () => {
-    if (!guardado) return;
-    guardado.prompt();
-    await guardado.userChoice;
-    guardado = null;
-    $("btInstalar").hidden = true;
+  const dizer = (recado) => {
+    if (!recado || !$("comoInstalar")) return;
+    $("comoInstalar").textContent = recado;
+    $("comoInstalar").hidden = false;
+    dizerNaCena(recado);
   };
 
-  // O link e para levar daqui para um browser que instale -- e escrever um
-  // endereco destes a mao e o caminho mais curto para desistir.
-  $("btCopiarLink").onclick = async () => {
+  // Ligar o ⤓ do topo. É também ele que o "#instalar" da página de entrada
+  // carrega sozinho — ver js/instalar.js.
+  motor.ligarBotao("btInstalar", dizer);
+
+  // O link é para levar daqui para um browser que instale — e escrever um
+  // endereço destes à mão é o caminho mais curto para desistir.
+  if ($("btCopiarLink")) $("btCopiarLink").onclick = async () => {
     const endereco = location.href.split("#")[0];
     try {
       await navigator.clipboard.writeText(endereco);
@@ -8413,33 +8407,14 @@ atualizarBotaoEdicaoLivre();
     }
   };
 
-  if (iPhone) {
-    $("comoInstalar").textContent =
-      "Para instalar: Partilhar ⬆︎ e depois \"Adicionar ao Ecrã Principal\".";
-    $("comoInstalar").hidden = false;
-  } else if (!chromium) {
-    $("comoInstalar").innerHTML =
-      "Este browser não instala aplicações — o Firefox e o Safari de computador " +
-      "não o fazem. Abre esta página no <b>Chrome</b> ou no <b>Edge</b> e o botão de " +
-      "instalar aparece aqui.";
-    $("comoInstalar").hidden = false;
+  // Quem instala aplicações é o Chromium: Chrome, Edge, Brave, Opera, e o
+  // Chrome no Android. O Firefox e o Safari de computador não o fazem de todo
+  // — a essa gente não basta dizer o caminho: é preciso dar-lhes o link para
+  // abrirem noutro lado.
+  const chromium = /Chrome\/|Chromium\/|Edg\/|OPR\//.test(navigator.userAgent);
+  if (!motor.jaInstalada() && !chromium && $("btCopiarLink")) {
     $("btCopiarLink").hidden = false;
-  } else {
-    // Damos um momento ao browser: se o evento chegar, o botão aparece e esta
-    // explicação nunca se mostra.
-    setTimeout(() => {
-      if ($("btInstalar").hidden) {
-        $("comoInstalar").textContent =
-          "Para instalar: no menu do browser, \"Instalar aplicação\" ou \"Adicionar ao ecrã principal\".";
-        $("comoInstalar").hidden = false;
-      }
-    }, 2500);
   }
-  addEventListener("appinstalled", () => {
-    $("btInstalar").hidden = true;
-    $("comoInstalar").hidden = true;
-    $("btCopiarLink").hidden = true;
-  });
 })();
 
 // ------------------------------------------------------------------ arranque

@@ -1763,6 +1763,55 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 19 de setembro — um link que leva à instalação (v3.79 · Calculadores v4.10 · AvPlanner)
+
+> *"podemos ter um link para download aqui que force a instalar a app"* — e a
+> seguir, a explicar o que queria: *"forçaria a app a abrir nos browsers que
+> podem criar o atalho instalado nas várias plataformas"*.
+
+**O que não dá, e fica aqui escrito para não se tentar outra vez:** nenhum link
+instala nada. Não há URL, cabeçalho nem ficheiro que faça um browser instalar
+uma app web — e ainda bem, porque a alternativa era qualquer página do mundo
+poder pôr ícones no telemóvel de quem a abre. A instalação é sempre um gesto
+feito **dentro** da app.
+
+O que se fez é o mais perto disso que existe: os dois cartões da página de
+entrada (repositório `avplanner`) ganharam um **"⤓ Instalar a app"** que abre a
+app com `#instalar` no endereço, e é a app que pede a instalação mal acaba de
+carregar.
+
+**O motor é o `js/instalar.js`** — o mesmo ficheiro, igual, nas duas apps, como
+o `js/ficheiros.js` e o `js/visualizacao.js`. Apanha o `beforeinstallprompt` e
+guarda-o (sem isso é o browser a escolher a hora de o mostrar, e ele costuma
+escolher nunca); onde esse evento não existe — iPhone, iPad, Firefox — diz o
+caminho do menu **dessa** plataforma, em vez de mostrar um botão que não faz
+nada; e desaparece quando a app já está instalada.
+
+### O que isto obrigou a arrumar aqui
+
+O Preview já tinha um convite a instalar, escrito à mão no fim do
+`js/app.js`, com o botão na cauda do painel. Ficaram **dois `id="btInstalar"`**
+na página no momento em que se acrescentou o ⤓ ao topo — e dois motores a
+disputar o mesmo `beforeinstallprompt`: o primeiro a pedir gastava o evento do
+outro, e o outro rebentava a chamar `prompt()` num evento gasto.
+
+Resolveu-se por consolidação, não por renomeação: o motor passa a ser um só (o
+partilhado), o botão é um só (o ⤓ do topo, que é também o que o `#instalar`
+carrega sozinho), e a cauda do painel fica com o que é mesmo desta app — a
+explicação escrita (`#comoInstalar`) e o **"Copiar o link"**, que não é sobre
+instalar: é sobre *levar daqui* para um browser que instale, que é a única coisa
+útil a dar a quem chega no Firefox de computador.
+
+### Verificado
+
+`scripts/verificar-instalar.mjs`, o mesmo teste nas duas apps: o manifesto serve
+mesmo para instalar (display, 192, 512, `start_url`); há **um** `btInstalar` na
+página; o evento fingido é apanhado e o clique abre a caixa **uma** vez e deixa
+o pedido gasto; sem evento, o motor assume "manual" e devolve o caminho escrito
+— e com user-agent de iPhone e de Firefox devolve o caminho certo de cada um; o
+`#instalar` carrega o botão sozinho e **sem** `#instalar` ninguém leva com uma
+caixa à cara; e as duas cópias do `js/instalar.js` são byte a byte iguais.
+
 ## 18 de setembro — uma fila pode fugir à regra do bloco (v3.78)
 
 > *"se quiser ter números diferentes de lugares por fila"*, e logo com o caso a
