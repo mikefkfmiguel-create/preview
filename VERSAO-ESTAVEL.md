@@ -4,9 +4,14 @@
 
 > *"parece bem este por agora, podes dar como estável a versão"*
 
-Par: **Calculadores v4.10** (`ef6846f` no repositório `calculadores`). As duas
-apps falam uma com a outra — dar uma como estável sem a outra não quer dizer
-nada.
+Par: **Calculadores v4.11** (`3ea8468` no repositório `calculadores`),
+actualizado a 21 de setembro. As duas apps falam uma com a outra — dar uma
+como estável sem a outra não quer dizer nada, e por isso o par escreve-se aqui
+e vai sendo corrigido: o código deste lado não mudou, o companheiro dele sim.
+
+A v4.10 dos Calculadores, que era o par de ontem, levava um defeito que
+trancava a app ao abrir um projeto com várias zonas. Está corrigido na v4.11 —
+que é a que esta linha agora nomeia.
 
 ## O que "estável" quer dizer aqui
 
@@ -23,8 +28,10 @@ as verificações todas verdes no dia em que se escreveu isto.
 `fora-das-paredes` · `instalar` · `palco` · `planta-de-volta` · `planta-dxf` ·
 `planta-guardada` · `plateia` · `posicao-bidirecional` · `sincronizacao`
 
-Do outro lado, nos Calculadores v4.10, **15 verificações verdes**, e a
-verificação de tradução sem nada de novo por traduzir.
+Do outro lado, nos Calculadores v4.11, **16 verificações verdes** (uma nova,
+`abrir-sem-trancar`), e a verificação de tradução sem nada de novo por
+traduzir. As treze deste lado voltaram a correr a 21 de setembro, para o par
+ser conferido junto e não uma app de cada vez.
 
 ## O que entrou desde a última vez que ele olhou
 
