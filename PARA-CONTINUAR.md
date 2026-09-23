@@ -1763,6 +1763,64 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 23 de setembro — o eixo da rotação em grupo fugia (v3.82)
+
+> *"quando roda não está ancorado no eixo"* — e, a seguir: *"tive de desligar o
+> sincronismo pois a calculadora estava a forçá-las para o zero dela sempre"*.
+
+**Cinco tentativas de reprodução falharam antes de eu apanhar isto**, e vale a
+pena ficar escrito porquê: sem sincronismo, com sincronismo, com a calculadora
+no ecrã de entrada, com ela na aba Ecrã Complexo, e a olhar 12 segundos sem
+tocar em nada — em todas a rotação saía perfeita. Porque em todas eu tinha
+usado **peças iguais e simétricas**, e com peças iguais o defeito não aparece.
+
+Aparece com **larguras diferentes**, que é o caso dele: ecrãs de 1,5 m ao lado
+de tiras de 1,0 m.
+
+### A causa
+
+O eixo saía da **caixa que envolve o conjunto**. Duas coisas erradas nisso:
+
+1. a caixa de uma peça rodada é maior do que a peça — é alinhada com os eixos
+   da sala, não com a peça. Com larguras diferentes, o meio dessa caixa não é o
+   meio das peças, e **mexe-se** à medida que elas rodam;
+2. e a app **recentra o conjunto na sala** a cada redesenho. Rodar muda a
+   extensão do conjunto, logo o recentrar empurra tudo para o lado logo a
+   seguir. Um eixo lido da caixa ia atrás desse empurrão.
+
+Medido, com duas peças de 4,0 m e 0,5 m: **1,240 m de deriva em 90°**. Com a
+cura: **0,000 m**.
+
+### A cura
+
+O eixo passa a ser a média dos **pontos de rotação** das peças (a origem de
+cada objeto, que é onde `fazerZona` a assenta). Esse ponto não se mexe quando a
+peça roda sobre si própria, e rodar todos os pontos à volta da média deles
+devolve a mesma média — é a única definição de "centro" que não foge.
+
+Ele escolheu manter o eixo **no centro da selecção** (e não na primeira peça
+clicada, que era a outra hipótese). A cura não muda essa escolha: muda o modo
+de calcular esse centro, que estava errado.
+
+### E o campo que enganava
+
+O "rodar" do painel do grupo é relativo. Escrever −5 rodava −5; escrever −5
+**outra vez** não fazia nada, porque a diferença era zero — e ficava a
+parecer que a app tinha encravado. Agora o campo volta a zero quando se sai
+dele, por isso o mesmo número repetido roda outra vez.
+
+E um campo a meio de ser escrito deixou de ser lido como zero: apagar o campo
+para escrever outro número mandava um 0, e um 0 num campo relativo é "desfaz o
+que já aplicaste" — o conjunto dava um salto para trás a cada limpeza.
+
+### O sincronismo
+
+A segunda queixa dele — a calculadora a forçar as peças para o zero — **não foi
+reproduzida**, nem com a calculadora aberta na aba Ecrã Complexo e o 3D a
+sincronizar. O que se mediu foi que o deslocamento em X é dobrado para dentro
+do `x` da zona a cada rotação (e o Z não é, fica como ajuste). Fica por
+apanhar; se voltar a acontecer, é por aí que se começa.
+
 ## 23 de setembro — mexer em várias peças ao mesmo tempo (v3.81)
 
 > *"será que posso agrupar objetos ou selecionar vários no 3D para posicionar

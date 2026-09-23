@@ -7600,13 +7600,34 @@ function alvosSelecionados() {
   return objetosArrastaveis().filter((a) => a.obj && selecaoDeGrupo.has(a.obj.name));
 }
 
-/** O centro do conjunto: o meio da caixa que envolve tudo o que está marcado. */
+/**
+ * O centro do conjunto: a média dos PONTOS DE ROTAÇÃO das peças marcadas.
+ *
+ * Era o meio da caixa que envolve tudo, e estava errado por duas razões que só
+ * se viram a medir — reportado assim: *"quando roda não está ancorado no
+ * eixo"*.
+ *
+ *   1. a caixa de uma peça rodada é MAIOR do que a peça (é alinhada com os
+ *      eixos da sala, não com a peça). Com peças de larguras diferentes, o
+ *      meio dessa caixa não é o meio das peças, e mexe-se à medida que elas
+ *      rodam — o eixo fugia a cada passo;
+ *   2. e a app RECENTRA o conjunto na sala a cada redesenho. Rodar muda a
+ *      extensão do conjunto, logo o recentrar empurra tudo para o lado a
+ *      seguir a cada passo. Um eixo lido da caixa ia atrás desse empurrão;
+ *      medido, as peças derivavam 1,24 m ao fim de 90°.
+ *
+ * O ponto de rotação de cada peça (a origem do objeto, que é onde `fazerZona`
+ * a assenta) NÃO se mexe quando ela roda sobre si própria. A média desses
+ * pontos é, por construção, invariante à rotação do conjunto: rodar todos os
+ * pontos à volta da média deles devolve a mesma média. É a única definição de
+ * "centro" que não foge.
+ */
 function centroDoGrupo(alvos) {
-  const caixa = new THREE.Box3();
-  alvos.forEach((a) => caixa.expandByObject(a.obj));
   const c = new THREE.Vector3();
-  caixa.getCenter(c);
-  return c;
+  if (!alvos.length) return c;
+  const onde = new THREE.Vector3();
+  alvos.forEach((a) => { a.obj.getWorldPosition(onde); c.add(onde); });
+  return c.divideScalar(alvos.length);
 }
 
 /**
@@ -7686,7 +7707,11 @@ function rodarGrupo(graus) {
   const cos = Math.cos(ang), sin = Math.sin(ang);
 
   const planos = alvos.map((a) => {
-    const onde = new THREE.Box3().setFromObject(a.obj).getCenter(new THREE.Vector3());
+    // O PONTO DE ROTAÇÃO da peça, não o meio da caixa que a envolve. A caixa
+    // de uma peça já rodada é maior do que ela e está alinhada com a sala, por
+    // isso o meio dela não é o ponto em que a peça gira — e usá-lo fazia o
+    // conjunto deformar-se um pouco a cada passo.
+    const onde = a.obj.getWorldPosition(new THREE.Vector3());
     const rx = onde.x - centro.x, rz = onde.z - centro.z;
     // Sentido: o mesmo do campo "rodar" de uma peça só, para o grupo não
     // rodar ao contrário do que a seta faz quando há só uma marcada.
@@ -7725,11 +7750,23 @@ function rodarGrupo(graus) {
  */
 function comandoDeGrupo() {
   const ultimo = { dx: 0, dy: 0, dz: 0, rot: 0 };
+  const caixas = {};                 // o <input> de cada campo, quando já existe
   const alvo = {};
   const ligar = (chave, aplicar) => {
     Object.defineProperty(alvo, chave, {
       get: () => ultimo[chave],
       set: (v) => {
+        // UM CAMPO A MEIO DE SER ESCRITO NÃO É UM ZERO. Apagar o campo para
+        // escrever outro número manda cá um 0, e um 0 num campo relativo é
+        // "desfaz o que já aplicaste" — o conjunto dava um salto para trás a
+        // cada vez que se limpava o campo, mesmo que a pessoa fosse escrever
+        // logo a seguir. Um campo vazio (ou só com o sinal) não é ordem
+        // nenhuma.
+        const caixa = caixas[chave];
+        if (caixa) {
+          const bruto = String(caixa.value).trim();
+          if (bruto === "" || bruto === "-" || bruto === "+") return;
+        }
         const novo = Number(v) || 0;
         const passo = novo - ultimo[chave];
         ultimo[chave] = novo;
@@ -7741,6 +7778,23 @@ function comandoDeGrupo() {
   ligar("dz", (d) => moverGrupo(0, 0, d));
   ligar("dy", (d) => moverGrupo(0, d, 0));
   ligar("rot", (d) => rodarGrupo(d));
+
+  /**
+   * Ao sair do campo, ele volta a zero.
+   *
+   * Sem isto, escrever −5 rodava −5 e escrever −5 OUTRA VEZ não fazia nada: a
+   * diferença era zero, e a pessoa ficava a achar que a app tinha encravado.
+   * Voltando a zero, o campo quer sempre dizer a mesma coisa — "quanto mais a
+   * partir daqui" — e o mesmo número repetido roda outra vez.
+   */
+  alvo._registar = (chave, caixa) => {
+    if (!caixa) return;
+    caixas[chave] = caixa;
+    caixa.addEventListener("blur", () => {
+      ultimo[chave] = 0;
+      caixa.value = "0";
+    });
+  };
   return alvo;
 }
 
@@ -8017,15 +8071,18 @@ function abrirPainelDeGrupo() {
   const campos = document.createElement("div");
   campos.className = "campos";
   CAMPOS_GRUPO.forEach((c) => {
-    campos.append(campoAjuste(c.rotulo, comando, c.chave, c.unidade, c.passo,
-      undefined, c.min === undefined ? -500 : c.min, c.max === undefined ? 500 : c.max));
+    const campo = campoAjuste(c.rotulo, comando, c.chave, c.unidade, c.passo,
+      undefined, c.min === undefined ? -500 : c.min, c.max === undefined ? 500 : c.max);
+    comando._registar(c.chave, campo.querySelector("input"));
+    campos.append(campo);
   });
   caixa.append(campos);
 
   const dica = document.createElement("p");
   dica.className = "ajuste-grupo-dica";
-  dica.textContent = "Os números são a partir de onde cada peça está. " +
-    "Rodar gira o conjunto todo à volta do centro dele. " +
+  dica.textContent = "Os números são a partir de onde cada peça está, e voltam " +
+    "a zero quando sais do campo — escrever o mesmo outra vez roda outra vez. " +
+    "Rodar gira o conjunto à volta do meio das peças marcadas. " +
     "Shift+clique junta ou tira peças; clicar no vazio larga a selecção.";
   caixa.append(dica);
 
