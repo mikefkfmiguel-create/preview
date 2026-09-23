@@ -1763,6 +1763,60 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 23 de setembro — a folha de montagem leva o quadro dos ecrãs (v3.80)
+
+> *"podemos exportar assim com as medidas e pixel pitch, resolução dos ecrãs,
+> em separado e total? ou seja, incluir o relatório de equipamentos aqui"* — a
+> olhar para uma folha já gerada.
+
+A folha levava a sala, a cúpula, a projeção, os ajustes e o depósito, e **nada
+sobre os ecrãs**, que num projeto de ecrãs são o trabalho todo. Quem a recebia
+tinha de ir aos Calculadores buscar as medidas outra vez.
+
+Passa a ter uma secção **Ecrãs**, logo a seguir à vista: medida, área, tiles,
+resolução, pixel pitch, peso e consumo — ecrã a ecrã, e uma linha de total.
+
+### O que se decidiu, e porquê
+
+- **O pitch calcula-se, não se copia.** Medida real a dividir pelos píxeis
+  reais (8,00 m / 2048 px = 3,91 mm), que é a mesma definição que a verificação
+  do catálogo usa do outro lado. Um pitch "de catálogo" escrito à mão numa
+  folha de montagem seria um número sem ninguém a confirmá-lo — e foi
+  exactamente assim que os 15 kg/m² do Traulux passaram anos por 15 kg/módulo.
+- **Assimétrico sai com os dois números** (3,91 × 7,81). É o que distingue um
+  painel transparente; escrever só um seria escrever o errado.
+- **O que não se sabe não soma zero.** Uma saída de delay sem resolução, ou um
+  painel sem peso no catálogo, leva "—" e fica de fora do total — e um rodapé
+  diz que ficou. Somar zero é dizer que não pesa.
+- **O total dos píxeis é uma contagem, não um tamanho de tela.** Somar as
+  larguras de ecrãs separados dava um número que alguém metia num media server.
+- **Só entra o que está montado**, e quando há peças no depósito o subtítulo
+  di-lo. "O que está na sala" e "o que sai do armazém" são coisas diferentes.
+
+### O A4, que quase estragou isto
+
+Nove colunas davam **955 px** de tabela para **792 px** de caixa em A4: a
+coluna do consumo caía fora do papel. No ecrã a caixa rola; no papel não há
+como rolar, e ele imprime estas folhas. Medido antes de sair, não depois.
+
+Curado sem esconder um único número: a coluna "Tipo" só aparece quando os
+ecrãs **não** são todos do mesmo tipo (a mesma regra do "Shift H · V" na tabela
+dos projetores), a área desceu para dentro da célula da medida, e o
+espaçamento lateral aperta-se **só na impressão**. Ficou em 792 px certos.
+
+### O teste, e o que ele me ensinou duas vezes
+
+`scripts/verificar-relatorio-ecras.mjs` confere os números contra a geometria,
+o total, os "—", o depósito, e depois **carrega no botão a sério e lê o
+ficheiro descarregado**.
+
+Duas coisas que corri mal e vale a pena não repetir: o botão "Relatório
+(página)" só **escolhe** o formato — quem exporta é o "Guardar" —, e a primeira
+versão ficou à espera de uma descarga que nunca vinha. E as colunas estavam a
+ser lidas por **índice**: mal a área desceu para dentro da célula da medida, o
+teste deu dez cruzes a apontar para números que estavam certos. Passou a ler
+pelo **nome do cabeçalho**, que também aguenta a coluna "Tipo" ser opcional.
+
 ## 19 de setembro — um link que leva à instalação (v3.79 · Calculadores v4.10 · AvPlanner)
 
 > *"podemos ter um link para download aqui que force a instalar a app"* — e a

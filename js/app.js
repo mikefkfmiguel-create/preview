@@ -1689,6 +1689,114 @@ function dadosDeCoordenadas() {
  * com o mesmo markup -- a folha de estilo é que muda de um lado para o outro.
  */
 /**
+ * O QUADRO DOS ECRÃS, ecrã a ecrã e em total.
+ *
+ * Pedido a olhar para uma folha de montagem já feita: *"podemos exportar assim
+ * com as medidas e pixel pitch, resolução dos ecrãs, em separado e total? ou
+ * seja, incluir o relatório de equipamentos aqui"*.
+ *
+ * Até aqui a folha levava a sala, a cúpula, a projeção e os ajustes — e nada
+ * sobre os ecrãs que são o trabalho. Quem a recebia tinha de ir aos
+ * Calculadores buscar as medidas outra vez.
+ *
+ * NADA AQUI É INVENTADO. As medidas, os tiles, a resolução, o peso e os amps
+ * vêm todos do projeto como ele chegou dos Calculadores. A ÚNICA conta feita
+ * aqui é o pixel pitch, e é feita da medida real a dividir pelos píxeis reais
+ * (8,00 m / 2048 px = 3,91 mm), que é a mesma definição que a verificação do
+ * catálogo do outro lado usa. Um pitch "de catálogo" escrito à mão numa folha
+ * de montagem seria um número sem ninguém a confirmá-lo.
+ *
+ * Só entra o que está MONTADO. O que ficou no depósito tem a sua própria
+ * secção na folha, e somar as duas coisas no mesmo total dava uma carga que
+ * não corresponde nem ao que está na sala nem ao que sai do armazém — por
+ * isso, quando há peças por montar, o subtítulo da secção di-lo.
+ */
+function tabelaDeEcras(zonas) {
+  if (!zonas || !zonas.length) return "";
+
+  const NOME_DO_TIPO = { led: "LED", tv: "TV", projecao: "Projeção" };
+  // Há pitch quando há píxeis E medida. Uma zona de projeção não tem tile
+  // nenhum, e uma saída de delay pode vir sem resolução conhecida (res: null
+  // do lado dos Calculadores, de propósito) — nesses casos escreve-se "—" em
+  // vez de um zero que se leria como uma medida.
+  const pitchDe = (z) => {
+    if (!z.res || !(z.res.x > 0) || !(z.res.y > 0)) return null;
+    const h = (z.w * 1000) / z.res.x, v = (z.h * 1000) / z.res.y;
+    return { h, v, assimetrico: Math.abs(h - v) > 0.05 };
+  };
+  const mm = (v) => (Math.round(v * 100) / 100).toFixed(2).replace(".", ",");
+
+  // NOVE COLUNAS NÃO CABEM EM A4. Medido: a tabela dava 955 px e a caixa da
+  // folha impressa tem 792 — o consumo caía fora do papel, e no papel não há
+  // como rolar. Duas economias, nenhuma delas a esconder um número:
+  //
+  //   · a coluna "Tipo" só aparece quando os ecrãs NÃO são todos do mesmo
+  //     tipo. Uma coluna a dizer "LED" sete vezes é ruído. (É a mesma regra do
+  //     "Shift H · V" na tabela dos projetores, que só ganha coluna quando
+  //     algum projetor o usa.)
+  //   · a área desce para dentro da célula da medida, por baixo dela: continua
+  //     a ler-se, deixa de gastar uma coluna com título, padding e bordas.
+  const tipos = new Set(zonas.map((z) => z.tipo || "led"));
+  const comTipo = tipos.size > 1;
+
+  let somaArea = 0, somaTiles = 0, somaPx = 0, somaPeso = 0, somaAmp = 0;
+  let algumSemPeso = false, algumSemRes = false;
+
+  const linhas = zonas.map((z) => {
+    const area = z.w * z.h;
+    somaArea += area;
+    const tiles = (z.tiles && z.tiles.x > 0 && z.tiles.y > 0) ? z.tiles.x * z.tiles.y : 0;
+    somaTiles += tiles;
+    if (z.res && z.res.x > 0 && z.res.y > 0) somaPx += z.res.x * z.res.y; else algumSemRes = true;
+    if (z.peso > 0) somaPeso += z.peso; else algumSemPeso = true;
+    if (z.amp > 0) somaAmp += z.amp;
+
+    const p = pitchDe(z);
+    return `<tr>
+      <td><span class="quem"><span class="bolha" style="background:${z.cor || "#2E7BFF"}"></span>${z.nome}</span></td>
+      ${comTipo ? `<td>${NOME_DO_TIPO[z.tipo] || "LED"}</td>` : ""}
+      <td class="n">${nnum(z.w)} × ${nnum(z.h)} m<span class="fraco sob"> ${nnum(area)} m²</span></td>
+      <td class="n">${tiles ? `${z.tiles.x} × ${z.tiles.y} <span class="fraco">(${tiles})</span>` : "—"}</td>
+      <td class="n">${(z.res && z.res.x > 0) ? `${z.res.x} × ${z.res.y}` : "—"}</td>
+      <td class="n">${p ? (p.assimetrico ? `${mm(p.h)} × ${mm(p.v)}` : mm(p.h)) : "—"}</td>
+      <td class="n">${z.peso > 0 ? nnum(z.peso) : "—"}</td>
+      <td class="n">${z.amp > 0 ? nnum(z.amp) : "—"}</td>
+    </tr>`;
+  }).join("");
+
+  // O total dos píxeis é uma CONTAGEM, não um tamanho de tela: somar as
+  // larguras de ecrãs separados dava um número que alguém metia num media
+  // server. Por isso escreve-se "px no total" e não "2048 × 1152".
+  const total = `<tr class="total">
+      <td><b>Total</b> <span class="fraco">${zonas.length} ecrã${zonas.length === 1 ? "" : "s"}</span></td>
+      ${comTipo ? `<td class="n">—</td>` : ""}
+      <td class="n"><b>${nnum(somaArea)} m²</b></td>
+      <td class="n"><b>${somaTiles || "—"}</b></td>
+      <td class="n"><b>${somaPx ? Math.round(somaPx).toLocaleString("pt-PT") + " px" : "—"}</b>${algumSemRes ? '<span class="fraco"> ¹</span>' : ""}</td>
+      <td class="n">—</td>
+      <td class="n"><b>${somaPeso > 0 ? nnum(somaPeso) : "—"}</b>${algumSemPeso ? '<span class="fraco"> ¹</span>' : ""}</td>
+      <td class="n"><b>${somaAmp > 0 ? nnum(somaAmp) : "—"}</b></td>
+    </tr>`;
+
+  const rodape = (algumSemRes || algumSemPeso)
+    ? `<p class="nota-fonte">¹ O total deixa de fora ${
+        [algumSemRes ? "os ecrãs sem resolução conhecida" : "", algumSemPeso ? "os ecrãs sem peso no catálogo" : ""]
+          .filter(Boolean).join(" e ")
+      } — aparecem com “—” na coluna. Somar zero seria dizer que não pesam.</p>`
+    : "";
+
+  return `<div class="coords-rolar"><table class="coords ecras">
+      <thead><tr>
+        <th>Ecrã</th>${comTipo ? "<th>Tipo</th>" : ""}
+        <th>Medida <span class="fraco">· área</span></th>
+        <th title="Tiles em largura × altura, e o total entre parênteses">Tiles</th>
+        <th>Resolução</th>
+        <th title="Calculado da medida real a dividir pelos píxeis reais. Dois números quando o pitch é assimétrico (H × V), que é o que dá transparência a alguns painéis.">Pitch</th>
+        <th>Peso (kg)</th><th>Consumo (A)</th>
+      </tr></thead><tbody>${linhas}</tbody><tfoot>${total}</tfoot></table></div>${rodape}`;
+}
+
+/**
  * `comInterruptores` só vem `true` do PAINEL. A mesma função escreve a tabela
  * do relatório (ver fazerRelatorio), e uma folha impressa com caixas para
  * marcar é uma folha estragada -- por isso a coluna dos interruptores é um
@@ -2190,6 +2298,10 @@ async function guardarRelatorio() {
     lenteThrow: (projeto && projeto.dome && projeto.dome.projetores &&
                  projeto.dome.projetores.lenteThrow) || null,
     plano: medidasPlano,
+    // Os ecrãs que estão MESMO na sala. O que ficou no depósito tem secção
+    // própria mais abaixo, e o subtítulo daqui avisa que o total não o conta.
+    ecras: tabelaDeEcras(zonasMontadas(projeto)),
+    ecrasPorMontar: pecasNoDeposito().length,
     coordsCupula: temCupula ? tabelaDeCoordenadas(cupula, "cupula") : "",
     coordsPlanos: temPlanos ? tabelaDeCoordenadas(planos, "plano") : "",
     nota: notaDeLeitura(temCupula, temPlanos, true),
@@ -8562,6 +8674,10 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   get notaDeLeitura() { return notaDeLeitura; },
                   trazerTudoAVista, enquadrarOQueExiste, arrumarOQueFugiuDaSala, objetosArrastaveis, montar,
                   pecasForaDasParedes, trazerParaDentro,
+                  // O quadro dos ecrãs da folha de montagem, e quem decide o
+                  // que lá entra — para o teste medir a tabela A SÉRIO em vez
+                  // de repetir aqui fora a conta do pitch.
+                  tabelaDeEcras, zonasMontadas, chaveDeDeposito, enviarParaDeposito,
                   desfazer, guardarAjustes,
                   get historico() { return historico; },
                   get projeto() { return projeto; },

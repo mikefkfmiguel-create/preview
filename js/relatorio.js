@@ -337,6 +337,22 @@ const ESTILO = `
   .coords .quem { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; font-weight: 500; }
   .coords .bolha { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 
+  /* A LINHA DO TOTAL do quadro dos ecrãs. Traço grosso por cima e não um fundo
+     colorido: impressa a preto e branco, uma cor de fundo fica cinzento-sujo e
+     deixa de separar nada — a régua separa em qualquer papel. */
+  table.coords tfoot tr.total td {
+    border-top: 2px solid var(--tinta); border-bottom: 0;
+    padding-top: 12px; background: none;
+  }
+  table.coords tfoot { break-inside: avoid; }
+  /* Os parênteses do número de tiles e a chamada de rodapé: presentes, mas
+     sem disputar a leitura com a medida ao lado. */
+  .coords .fraco { color: var(--apagado); font-weight: 400; }
+  /* A área vive POR BAIXO da medida, na mesma célula. Em coluna própria a
+     tabela passava dos 792 px que a folha impressa tem, e o consumo caía fora
+     do papel — medido antes de sair. */
+  .coords .fraco.sob { display: block; font-size: 12px; margin-top: 2px; }
+
   /* O que estraga uma montagem vai em caixa própria. Num bloco corrido, o
      aviso das unidades e o "sem recentrar nem reescalar" passavam despercebidos
      — e são precisamente os dois que deitam a montagem a perder. */
@@ -411,6 +427,12 @@ const ESTILO = `
     h2 { font-size: 17px; }
     figure.vista { box-shadow: none; padding: 0; border: 0; }
     figure.vista img { max-height: 300px; border: 1px solid var(--linha); }
+    /* O QUADRO DOS ECRÃS APERTA-SE NO PAPEL, e só no papel. No ecrã a caixa
+       rola quando é preciso; numa folha impressa não há como rolar, e a
+       coluna do consumo — a última — caía fora da página. Medido: 797 px de
+       tabela para 792 px de caixa em A4. Só o espaçamento lateral encolhe;
+       nenhum número sai, que era a outra forma de a fazer caber. */
+    table.coords.ecras th, table.coords.ecras td { padding-left: 9px; padding-right: 9px; }
   }
 `;
 
@@ -439,6 +461,15 @@ export function paginaDeRelatorio(d) {
         <img src="${d.imagem}" alt="A sala como está no 3D">
         <figcaption>A sala como está no 3D, no momento em que esta folha foi gerada.</figcaption>
       </figure>` : "",
+    // OS ECRÃS VÊM PRIMEIRO, logo a seguir à vista. Pedido: *"incluir o
+    // relatório de equipamentos aqui"* — e num projeto de ecrãs são eles o
+    // trabalho; a cúpula e a projeção, quando existem, vêm a seguir.
+    seccao("Ecrãs", d.ecras || "",
+           d.ecras
+             ? (d.ecrasPorMontar
+                 ? `Medidas, pitch e resolução — o total conta só o que está montado (há ${d.ecrasPorMontar} por montar, mais abaixo)`
+                 : "Medidas, pitch e resolução, ecrã a ecrã e em total")
+             : ""),
     // A cúpula é a única secção com DUAS origens na mesma folha: as linhas de
     // cima vêm da calculadora já escritas (área, dome master, resolução
     // angular, aproveitamento, luz) e a tabela vem de quem colocou os
