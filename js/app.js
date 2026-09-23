@@ -3722,12 +3722,6 @@ function campoTiltDeZona(zona) {
   return campoComPasso(input, "5", -90, 90);
 }
 
-function nomeLivreDeDelay(projetoAtual) {
-  let numero = projetoAtual.zonas.filter(z => z.tipo === "tv" || z.tipo === "projecao").length + 1;
-  let nome = `Delay ${numero}`;
-  while (projetoAtual.zonas.some(z => z.nome === nome)) nome = `Delay ${++numero}`;
-  return nome;
-}
 
 /** Uma linha de zona editável: nome, tipo, medidas, posição e um botão para
  *  a tirar do projeto — tudo com o mesmo feitio de campo que o resto do
@@ -3817,27 +3811,21 @@ function linhaDeZona(zona, indice) {
   });
   leituraCampo.append(leitura, document.createTextNode(" leitura"));
 
-  let duplicar = null;
-  if (zona.tipo === "tv" || zona.tipo === "projecao") {
-    duplicar = document.createElement("button");
-    duplicar.className = "zona-remover";
-    duplicar.textContent = "⧉";
-    duplicar.title = "Duplicar este delay";
-    duplicar.onclick = () => {
-      const novoNome = nomeLivreDeDelay(projeto);
-      const copia = {
-        ...zona,
-        nome: novoNome,
-        x: (Number(zona.x) || 0) + (Number(zona.w) || 0) + 0.5
-      };
-      projeto.zonas.splice(indice + 1, 0, copia);
-      const original = ajusteDaZona(zona.nome);
-      ajustes.delays[novoNome] = { ...original };
-      guardarAjustes(ajustes);
-      projetoMudou();
-      mostrarZonas();
-    };
-  }
+  // O ⧉ era só dos delays, e um ecrã LED não se copiava — reportado assim:
+  // *"e no 3D poder fazer cópias de ecrãs e/ou grupos de objetos"*. Agora é de
+  // qualquer zona, e passa pela MESMA duplicarPecas() que o botão do 3D usa:
+  // duas cópias do "copiar" a divergirem era o defeito à espera de acontecer.
+  const duplicar = document.createElement("button");
+  duplicar.className = "zona-remover";
+  duplicar.textContent = "⧉";
+  duplicar.title = "Copiar este ecrã — a cópia sai ao lado";
+  duplicar.onclick = () => {
+    const alvo = objetosArrastaveis().find((a) => a.obj && a.obj.name === "zona " + zona.nome);
+    // Sem o objeto na cena (a peça pode estar no depósito) copia-se à mesma,
+    // pelo nome: quem carregou no botão da LISTA está a olhar para a lista.
+    duplicarPecas(alvo ? [alvo] : [{ obj: { name: "zona " + zona.nome } }]);
+    mostrarZonas();
+  };
 
   const remover = document.createElement("button");
   remover.className = "zona-remover";
@@ -3857,7 +3845,7 @@ function linhaDeZona(zona, indice) {
   guardar.onclick = () => enviarParaDeposito(chaveDeDeposito(zona));
 
   linha.append(cor, nome, tipo, med, pos, prof, rodar, tilt, leituraCampo);
-  if (duplicar) linha.append(duplicar);
+  linha.append(duplicar);
   linha.append(guardar, remover);
   return linha;
 }
@@ -7667,6 +7655,93 @@ function limparSelecao() {
   if (painelDeAjusteAberto && painelDeAjusteAberto.grupo) fecharPainelDeAjuste();
 }
 
+/**
+ * COPIAR PEÇAS.
+ *
+ * Pedido: *"e no 3D poder fazer cópias de ecrãs e/ou grupos de objetos"*.
+ * Havia um ⧉ na lista, mas só para delays (TV/projeção) e um de cada vez —
+ * um ecrã LED não se copiava, e um conjunto muito menos.
+ *
+ * A cópia leva TUDO o que a original tem: medidas, tiles, resolução, peso,
+ * consumo, cor, curvatura, e os ajustes feitos aqui (posição, rotação, tombo).
+ * Nada é inventado — é a mesma peça outra vez.
+ *
+ * O QUE MUDA NA CÓPIA, e porquê:
+ *
+ *   · um ID NOVO. O id é o que agarra os ajustes à peça certa e o que o
+ *     depósito usa como chave; duas peças com o mesmo id seriam a mesma peça
+ *     aos olhos de metade da app;
+ *   · um NOME LIVRE ("trira" → "trira 2"). O nome viaja para o Cinema 4D e
+ *     para a folha de montagem, e dois ecrãs com o mesmo nome dão uma folha
+ *     que ninguém consegue conferir;
+ *   · e sai ao LADO, não em cima. Uma cópia exactamente por baixo da original
+ *     parece que não aconteceu nada.
+ *
+ * A cópia NÃO vai para o depósito, ao contrário de uma peça nova. O depósito
+ * existe para o material que CHEGA dos Calculadores não entulhar a sala; uma
+ * cópia é um gesto deliberado de quem está a montar, e quem a pediu quer
+ * vê-la.
+ */
+function nomeLivreDeCopia(base, projetoAtual) {
+  const raiz = String(base || "Ecrã").replace(/\s+\d+$/, "");
+  let n = 2, nome = `${raiz} ${n}`;
+  while (projetoAtual.zonas.some((z) => z.nome === nome)) nome = `${raiz} ${++n}`;
+  return nome;
+}
+
+/**
+ * Duplica as zonas dadas, mantendo entre elas a mesma arrumação, e deixa as
+ * CÓPIAS marcadas — para se poderem arrastar já para onde vão, que é o
+ * movimento seguinte de quem acabou de copiar.
+ *
+ * Só zonas: um gomo de plateia, um DSM ou o palco não são material do projeto
+ * que se duplique assim, e copiá-los daqui era inventar uma regra nova para
+ * cada um deles sem ninguém a pedir.
+ */
+function duplicarPecas(alvos) {
+  if (!projeto || !alvos || !alvos.length) return 0;
+  const zonas = [];
+  alvos.forEach((a) => {
+    const nome = a.obj && a.obj.name.indexOf("zona ") === 0 ? a.obj.name.slice(5) : null;
+    const z = nome && projeto.zonas.find((x) => x.nome === nome);
+    if (z) zonas.push(z);
+  });
+  if (!zonas.length) return 0;
+
+  // O conjunto anda para o lado a largura DELE, mais meio metro: duas cópias
+  // encostadas ainda se percebem, sobrepostas não.
+  const esquerda = Math.min(...zonas.map((z) => (Number(z.x) || 0) - (Number(z.w) || 0) / 2));
+  const direita = Math.max(...zonas.map((z) => (Number(z.x) || 0) + (Number(z.w) || 0) / 2));
+  const desvio = (direita - esquerda) + 0.5;
+
+  const novos = [];
+  zonas.forEach((z) => {
+    const nome = nomeLivreDeCopia(z.nome, projeto);
+    const copia = { ...z, nome, id: novoIdZona(), x: (Number(z.x) || 0) + desvio };
+    // Os ajustes desta app (o que foi mexido AQUI) vão com ela. Sem isto uma
+    // cópia de um ecrã rodado saía direita, e não era uma cópia.
+    const original = ajustes.delays[z.nome];
+    ajustes.delays[nome] = original ? { ...original } : { dx: 0, dy: 0, dz: 0 };
+    // "Sem leitura" é uma propriedade da peça, não do sítio: um ecrã de
+    // ambiente copiado continua a ser de ambiente.
+    if (ajustes.zonasSemLeitura.includes(z.nome)) ajustes.zonasSemLeitura.push(nome);
+    projeto.zonas.push(copia);
+    novos.push(copia);
+  });
+
+  // As cópias ficam marcadas, as originais não.
+  selecaoDeGrupo.clear();
+  novos.forEach((z) => selecaoDeGrupo.add("zona " + z.nome));
+  guardarAjustes(ajustes);
+  projetoMudou();
+  if (novos.length >= 2) abrirPainelDeGrupo();
+  else { const um = alvosSelecionados()[0]; if (um) abrirPainelDeAjuste(um); }
+  dizerNaCena(novos.length === 1
+    ? `Cópia feita: ${novos[0].nome}. Ficou ao lado, já marcada — arrasta-a para onde vai.`
+    : `${novos.length} cópias feitas, ao lado das originais e já marcadas — arrasta-as para onde vão.`);
+  return novos.length;
+}
+
 /** Soma o mesmo desvio a todas as peças marcadas. */
 function moverGrupo(dx, dy, dz) {
   const alvos = alvosSelecionados();
@@ -8012,7 +8087,21 @@ function abrirPainelDeAjuste(alvo) {
   fechar.title = "Fechar";
   fechar.textContent = "×";
   fechar.addEventListener("click", fecharPainelDeAjuste);
-  topo.append(nome, fechar);
+  // O ⧉ só aparece em quem se pode mesmo copiar: uma zona do projeto. Num
+  // gomo de plateia, num DSM ou no palco, um botão que não faz nada é pior
+  // do que botão nenhum.
+  const ehZona = alvo.obj && alvo.obj.name && alvo.obj.name.indexOf("zona ") === 0;
+  if (ehZona) {
+    const copiar = document.createElement("button");
+    copiar.type = "button";
+    copiar.className = "btn-icone";
+    copiar.title = "Copiar este ecrã — a cópia sai ao lado, já marcada";
+    copiar.textContent = "⧉";
+    copiar.addEventListener("click", () => duplicarPecas([alvo]));
+    topo.append(nome, copiar, fechar);
+  } else {
+    topo.append(nome, fechar);
+  }
   caixa.append(topo);
   const campos = document.createElement("div");
   campos.className = "campos";
@@ -8053,13 +8142,19 @@ function abrirPainelDeGrupo() {
   topo.className = "ajuste-flutuante-topo";
   const nome = document.createElement("b");
   nome.textContent = alvos.length + " peças";
+  const copiar = document.createElement("button");
+  copiar.type = "button";
+  copiar.className = "btn-icone";
+  copiar.title = "Copiar estas peças — as cópias saem ao lado, já marcadas";
+  copiar.textContent = "⧉";
+  copiar.addEventListener("click", () => duplicarPecas(alvosSelecionados()));
   const fechar = document.createElement("button");
   fechar.type = "button";
   fechar.className = "btn-icone";
   fechar.title = "Largar a selecção";
   fechar.textContent = "×";
   fechar.addEventListener("click", limparSelecao);
-  topo.append(nome, fechar);
+  topo.append(nome, copiar, fechar);
   caixa.append(topo);
 
   const quem = document.createElement("p");
@@ -9039,6 +9134,8 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   // da rotação escrita do lado de fora.
                   get selecaoDeGrupo() { return selecaoDeGrupo; },
                   alvosSelecionados, centroDoGrupo, moverGrupo, rodarGrupo,
+                  duplicarPecas, nomeLivreDeCopia,
+                  abrirPainelDeAjuste,
                   marcarSelecao, limparSelecao, abrirPainelDeGrupo,
                   desfazer, guardarAjustes,
                   get historico() { return historico; },

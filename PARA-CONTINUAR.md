@@ -1763,6 +1763,59 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 23 de setembro — copiar ecrãs, e conjuntos de ecrãs (v3.83)
+
+> *"e no 3D poder fazer cópias de ecrãs e/ou grupos de objetos"*
+
+Havia um ⧉ na lista, mas **só para delays** (TV/projeção) e um de cada vez: um
+ecrã LED não se copiava, e um conjunto muito menos.
+
+Agora o ⧉ está em três sítios e é sempre a mesma função (`duplicarPecas`):
+na linha de qualquer zona da lista, no painel de uma peça na cena, e no painel
+do grupo — onde copia **o conjunto inteiro** de uma vez. Duas cópias do
+"copiar" a divergirem era o defeito à espera de acontecer.
+
+### O que a cópia leva, e o que muda
+
+Leva **tudo**: medidas, tiles, resolução, peso, consumo, cor, curvatura, e os
+ajustes feitos aqui (posição, rotação, tombo). Copiar um ecrã rodado dá um
+ecrã rodado. Nada é inventado — é a mesma peça outra vez.
+
+Muda três coisas, e cada uma por uma razão:
+
+- **id novo.** O id agarra os ajustes à peça certa e é a chave do depósito;
+  duas peças com o mesmo id seriam a mesma peça aos olhos de metade da app;
+- **nome livre** ("trira" → "trira 2"). O nome viaja para o Cinema 4D e para a
+  folha de montagem, e dois ecrãs com o mesmo nome dão uma folha que ninguém
+  consegue conferir;
+- **sai ao lado**, a largura do conjunto mais meio metro. Uma cópia
+  exactamente por baixo da original parece que não aconteceu nada.
+
+A cópia **não** vai para o depósito, ao contrário de uma peça nova. O depósito
+existe para o material que *chega* dos Calculadores não entulhar a sala; uma
+cópia é um gesto deliberado de quem está a montar, e quem a pediu quer vê-la.
+
+E as **cópias ficam marcadas**, não as originais: o movimento seguinte de quem
+acabou de copiar é arrastá-las para onde vão.
+
+### Sobrevive à volta aos Calculadores
+
+Confirmado antes de escrever a funcionalidade: `lzImportarProjetoDoPreview`
+limpa a lista e reconstrói a partir do que o 3D manda, por isso uma zona criada
+aqui aparece mesmo no Ecrã Complexo. Sem isso, isto seria uma funcionalidade
+que se desfazia na sincronização seguinte.
+
+### Duas verificações minhas que mediam o vazio
+
+Apanhadas antes de sair, e é o segundo dia seguido em que acontece:
+
+1. o teste comparava o id da cópia com o da original — mas o projeto colado não
+   tinha ids, e a comparação era contra `null`: passava sempre sem provar nada.
+   As originais passaram a ter id, e confere-se que **nenhum id se repete**;
+2. e a verificação do "⧉ só aparece em zonas" corria **sem palco na cena**,
+   dava "sem palco na cena" e passava. Agora liga-se o palco primeiro, e
+   confirma-se que ele existe antes de olhar para os botões.
+
 ## 23 de setembro — o eixo da rotação em grupo fugia (v3.82)
 
 > *"quando roda não está ancorado no eixo"* — e, a seguir: *"tive de desligar o
