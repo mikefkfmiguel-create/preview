@@ -313,6 +313,63 @@ await pagina.waitForTimeout(400);
 conferir(await pagina.evaluate(() => window.preview.selecaoDeGrupo.size) === 0,
   "e clicar no vazio larga a selecção");
 
+// ---- 7. O EIXO NÃO PODE FUGIR, com peças de tamanhos diferentes -------
+//
+// Reportado assim: *"quando roda não está ancorado no eixo"*. As três peças de
+// cima são todas iguais e simétricas — e com peças iguais o defeito não
+// aparecia. Aparece com LARGURAS DIFERENTES, que é o caso dele (ecrãs de 1,5 m
+// ao lado de tiras de 1,0 m).
+//
+// A causa era o eixo sair da CAIXA que envolve o conjunto. A caixa de uma peça
+// rodada é maior do que a peça e está alinhada com a sala, não com ela; com
+// peças de larguras diferentes o meio dessa caixa não é o meio das peças, e
+// mexe-se à medida que rodam. Medido antes da cura: 1,24 m de deriva em 90°.
+console.log("\n== o eixo com peças de larguras diferentes ==");
+await pagina.evaluate(async (p) => {
+  const caixa = document.getElementById("colagem");
+  caixa.value = JSON.stringify(p);
+  caixa.dispatchEvent(new Event("input", { bubbles: true }));
+  document.getElementById("btCarregar").click();
+  await new Promise((r) => setTimeout(r, 2300));
+}, {
+  nome: "larguras diferentes", sala: { largura: 24, profundidade: 16, altura: 8 },
+  zonas: [
+    { nome: "Larga", x: -5, y: 1.5, w: 4.0, h: 2, tiles: { x: 8, y: 4 }, res: { x: 1024, y: 512 }, peso: 40, amp: 4, tipo: "led" },
+    { nome: "Estreita", x: 4, y: 1.5, w: 0.5, h: 2, tiles: { x: 1, y: 4 }, res: { x: 128, y: 512 }, peso: 8, amp: 1, tipo: "led" }
+  ]
+});
+await pagina.evaluate(async () => {
+  window.preview.limparSelecao();
+  ["Larga", "Estreita"].forEach((n) => window.preview.selecaoDeGrupo.add("zona " + n));
+  window.preview.marcarSelecao();
+  await new Promise((r) => setTimeout(r, 400));
+});
+
+// O centro pelos PONTOS de rotação das peças: é o que tem de ficar quieto.
+const centroReal = () => pagina.evaluate(() => {
+  const T = window.preview.THREE;
+  const alvos = window.preview.alvosSelecionados();
+  const soma = new T.Vector3();
+  alvos.forEach((a) => soma.add(a.obj.getWorldPosition(new T.Vector3())));
+  soma.divideScalar(alvos.length);
+  return { x: +soma.x.toFixed(3), z: +soma.z.toFixed(3) };
+});
+
+const eixo0 = await centroReal();
+console.log("   eixo no princípio: (" + eixo0.x + ", " + eixo0.z + ")");
+for (let i = 0; i < 6; i++) {
+  await pagina.evaluate(async () => {
+    window.preview.rodarGrupo(-15);
+    await new Promise((r) => setTimeout(r, 800));
+  });
+}
+const eixo1 = await centroReal();
+const fugiu = Math.hypot(eixo1.x - eixo0.x, eixo1.z - eixo0.z);
+console.log("   eixo ao fim de -90°: (" + eixo1.x + ", " + eixo1.z + ") — fugiu " + fugiu.toFixed(3) + " m");
+conferir(fugiu < 0.02,
+  "o eixo ficou onde estava (" + fugiu.toFixed(3) + " m) — antes fugia 1,24 m em 90°");
+
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
