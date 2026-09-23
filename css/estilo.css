@@ -702,6 +702,20 @@ button.apontado { animation: apontar 1.1s ease-in-out 3; }
   margin-bottom: 8px;
 }
 .ajuste-flutuante-topo b { font-size: 13px; }
+/* O PAINEL DE VÁRIAS PEÇAS. Os nomes do que está marcado por cima dos campos,
+   e a explicação por baixo: os números aqui são deslocamentos a partir de onde
+   cada peça está, e sem o dizer alguém escrevia "2" à espera de as pôr todas
+   a 2 m do centro. */
+.ajuste-grupo-quem {
+  margin: 0 0 8px; font-size: 11.5px; line-height: 1.4;
+  color: var(--apagado, #97A3AE);
+  max-height: 3.2em; overflow: hidden;
+}
+.ajuste-grupo-dica {
+  margin: 8px 0 0; font-size: 11px; line-height: 1.45;
+  color: var(--apagado, #97A3AE);
+  border-top: 1px solid rgba(255, 255, 255, .08); padding-top: 7px;
+}
 /* Compacto: no painel lateral o rótulo fica por cima do campo, porque a
    coluna é estreita. Aqui há largura para o pôr à frente, e a altura é que
    é preciosa -- com o rótulo por cima, quatro campos não cabiam no ecrã. */

@@ -463,6 +463,12 @@ function limpar(grupo) {
 function montar(recentrarCamara) {
   try {
     desenharCena(recentrarCamara);
+    // As marcas da selecção vivem FORA do que se desenha (são filhas da cena,
+    // não do grupo `desenhado`), por isso não são varridas com ele -- mas as
+    // peças mudaram de sítio, e uma caixa à volta do sítio antigo é pior do
+    // que caixa nenhuma. Redesenham-se aqui, que é o único sítio por onde
+    // todos os caminhos de redesenho passam.
+    marcarSelecao();
   } catch (erro) {
     if (desenhado && !desenhado.parent) cena.add(desenhado);
     (window.__errosDeDesenho || (window.__errosDeDesenho = []))
@@ -7556,6 +7562,195 @@ const planoAjuste = new THREE.Plane();
 const ondeCaiuAjuste = new THREE.Vector3();
 let alvoArrasto = null;
 
+/* ==================================================================== GRUPO
+ *
+ * MEXER EM VÁRIAS PEÇAS AO MESMO TEMPO.
+ *
+ * Pedido: *"será que posso agrupar objetos ou selecionar vários no 3D para
+ * posicionar e rodar"*. Não dava: o clique escolhia UMA peça, a mais perto do
+ * apontador, e o painel flutuante era dessa peça só.
+ *
+ * Duas escolhas dele, e as duas mudam o que isto é:
+ *
+ *   · a selecção é PASSAGEIRA. Clique agarra uma, Shift+clique junta as
+ *     outras, clicar no vazio desfaz. Não há grupos com nome guardados no
+ *     projeto — seria estado novo dentro do ficheiro, mais uma coisa a poder
+ *     ficar dessincronizada na ida e volta aos Calculadores, e ele não pediu
+ *     isso;
+ *   · rodar roda o CONJUNTO COMO UM CORPO, à volta do centro dele: as peças
+ *     mudam de sítio E de ângulo, como se estivessem soldadas a uma
+ *     estrutura. É o que serve para virar um bloco de ecrãs para a plateia.
+ *     (A alternativa — cada uma a girar no seu lugar — era escrever o mesmo
+ *     número em cada peça, e isso já se fazia à mão.)
+ *
+ * A POSIÇÃO DE UMA PEÇA AQUI É UM DESVIO, não uma coordenada: `getXZ` devolve
+ * o `dx`/`dz` do ajuste, que se soma ao sítio onde o projeto a pôs. Para
+ * MOVER, isso é indiferente — soma-se o mesmo desvio a todas. Para RODAR,
+ * não: é preciso saber onde cada peça está MESMO na sala, e isso pergunta-se
+ * à geometria desenhada (Box3 do objeto), que é a única fonte que não depende
+ * de eu ter percebido bem as contas de quem a colocou.
+ */
+let selecaoDeGrupo = new Set();   // nomes dos objetos (o.name), não os alvos:
+                                  // os alvos são reconstruídos a cada arrasto.
+let marcasDeSelecao = [];
+
+/** Os alvos que estão selecionados, resolvidos agora contra a cena de agora. */
+function alvosSelecionados() {
+  if (!selecaoDeGrupo.size) return [];
+  return objetosArrastaveis().filter((a) => a.obj && selecaoDeGrupo.has(a.obj.name));
+}
+
+/** O centro do conjunto: o meio da caixa que envolve tudo o que está marcado. */
+function centroDoGrupo(alvos) {
+  const caixa = new THREE.Box3();
+  alvos.forEach((a) => caixa.expandByObject(a.obj));
+  const c = new THREE.Vector3();
+  caixa.getCenter(c);
+  return c;
+}
+
+/**
+ * As caixas de arame à volta do que está marcado.
+ *
+ * Em arame e não a pintar a peça: as peças têm materiais próprios (o LED tem
+ * textura, o palco tem cor) e mexer neles obrigava a guardar o que lá estava
+ * para o repor — um sítio a mais onde uma peça podia ficar da cor errada.
+ * Uma caixa por fora não toca em nada e vê-se contra qualquer material.
+ */
+function marcarSelecao() {
+  marcasDeSelecao.forEach((m) => {
+    if (m.parent) m.parent.remove(m);
+    if (m.geometry) m.geometry.dispose();
+    if (m.material) m.material.dispose();
+  });
+  marcasDeSelecao = [];
+  if (!selecaoDeGrupo.size || !desenhado) return;
+  alvosSelecionados().forEach((a) => {
+    const caixa = new THREE.Box3().setFromObject(a.obj);
+    if (caixa.isEmpty()) return;
+    const marca = new THREE.Box3Helper(caixa, new THREE.Color(0x4FC3F7));
+    marca.name = "marca-de-selecao";
+    // Sempre visível, mesmo com a peça à frente: quem está a escolher precisa
+    // de ver o que já escolheu, não de adivinhar o que está tapado.
+    marca.material.depthTest = false;
+    marca.material.transparent = true;
+    marca.renderOrder = 999;
+    cena.add(marca);
+    marcasDeSelecao.push(marca);
+  });
+}
+
+function limparSelecao() {
+  selecaoDeGrupo.clear();
+  marcarSelecao();
+  if (painelDeAjusteAberto && painelDeAjusteAberto.grupo) fecharPainelDeAjuste();
+}
+
+/** Soma o mesmo desvio a todas as peças marcadas. */
+function moverGrupo(dx, dy, dz) {
+  const alvos = alvosSelecionados();
+  if (!alvos.length) return;
+  alvos.forEach((a) => {
+    if (dx || dz) {
+      const p = a.getXZ();
+      a.setXZ(p.x + (dx || 0), p.z + (dz || 0));
+    }
+    // A altura só existe em quem a tem. Uma peça sem "altura" nos campos não
+    // é uma peça que fica a zero: é uma peça que não sobe, e forçar-lhe um
+    // `dy` era inventar-lhe um campo que o resto da app não lê.
+    if (dy && a.campos && a.campos.some((c) => c.chave === "dy") && a.ajuste) {
+      a.ajuste.dy = (Number(a.ajuste.dy) || 0) + dy;
+    }
+  });
+  guardarAjustes(ajustes);
+  remontarDaqui(0);
+}
+
+/**
+ * Roda o conjunto à volta do centro dele.
+ *
+ * Cada peça vai para onde iria se o bloco todo girasse, e leva o mesmo ângulo
+ * na sua própria rotação. As duas coisas juntas são o que faz um conjunto
+ * parecer soldado; só uma delas dava peças viradas mas no mesmo sítio, ou
+ * peças deslocadas mas a olhar para o lado errado.
+ *
+ * LÊ-SE TUDO ANTES DE ESCREVER SEJA O QUE FOR. Escrever uma peça obriga a
+ * redesenhar, e a partir daí as posições lidas da cena são de uma cena que já
+ * não é esta — o conjunto ia deformando-se peça a peça.
+ */
+function rodarGrupo(graus) {
+  const alvos = alvosSelecionados();
+  if (!alvos.length || !graus) return;
+  const centro = centroDoGrupo(alvos);
+  const ang = (graus * Math.PI) / 180;
+  const cos = Math.cos(ang), sin = Math.sin(ang);
+
+  const planos = alvos.map((a) => {
+    const onde = new THREE.Box3().setFromObject(a.obj).getCenter(new THREE.Vector3());
+    const rx = onde.x - centro.x, rz = onde.z - centro.z;
+    // Sentido: o mesmo do campo "rodar" de uma peça só, para o grupo não
+    // rodar ao contrário do que a seta faz quando há só uma marcada.
+    return {
+      alvo: a,
+      dx: (rx * cos + rz * sin) - rx,
+      dz: (-rx * sin + rz * cos) - rz
+    };
+  });
+
+  planos.forEach(({ alvo, dx, dz }) => {
+    const p = alvo.getXZ();
+    alvo.setXZ(p.x + dx, p.z + dz);
+    if (alvo.campos && alvo.campos.some((c) => c.chave === "rot") && alvo.ajuste) {
+      let novo = (Number(alvo.ajuste.rot) || 0) + graus;
+      // Fica entre -180 e 180, que é o intervalo que o campo aceita. Sem
+      // isto, três voltas no mesmo sentido punham o campo fora dos limites e
+      // o browser recusava o valor em silêncio.
+      while (novo > 180) novo -= 360;
+      while (novo < -180) novo += 360;
+      alvo.ajuste.rot = Math.round(novo * 100) / 100;
+    }
+  });
+  guardarAjustes(ajustes);
+  remontarDaqui(0);
+}
+
+/**
+ * O painel do grupo. Os campos são RELATIVOS — "+0,50 m" quer dizer "meio
+ * metro a partir de onde cada uma está", e não "põe todas a 0,50".
+ *
+ * Reaproveita o mesmo campoAjuste() das peças (mesmo aspeto, mesmas setas,
+ * mesmo teclado no telemóvel) através de um objeto de mentira: ele guarda o
+ * último valor escrito e, a cada mudança, manda ao grupo a DIFERENÇA. Escrever
+ * um campo de raiz para isto era ter dois widgets a envelhecer em separado.
+ */
+function comandoDeGrupo() {
+  const ultimo = { dx: 0, dy: 0, dz: 0, rot: 0 };
+  const alvo = {};
+  const ligar = (chave, aplicar) => {
+    Object.defineProperty(alvo, chave, {
+      get: () => ultimo[chave],
+      set: (v) => {
+        const novo = Number(v) || 0;
+        const passo = novo - ultimo[chave];
+        ultimo[chave] = novo;
+        if (passo) aplicar(passo);
+      }
+    });
+  };
+  ligar("dx", (d) => moverGrupo(d, 0, 0));
+  ligar("dz", (d) => moverGrupo(0, 0, d));
+  ligar("dy", (d) => moverGrupo(0, d, 0));
+  ligar("rot", (d) => rodarGrupo(d));
+  return alvo;
+}
+
+const CAMPOS_GRUPO = [
+  { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
+  { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.05" },
+  { rotulo: "altura", chave: "dy", unidade: "m", passo: "0.05" },
+  { rotulo: "rodar", chave: "rot", unidade: "°", passo: "5", min: -180, max: 180 }
+];
+
 function alvoDeAjuste(ajuste) {
   return {
     getXZ: () => ({ x: Number(ajuste.dx) || 0, z: Number(ajuste.dz) || 0 }),
@@ -7775,8 +7970,70 @@ function abrirPainelDeAjuste(alvo) {
     campos.append(campo);
   });
   caixa.append(campos);
+
+  // A DICA VIVE ONDE O GESTO FAZ FALTA. Shift+clique não se descobre sozinho,
+  // e o painel do grupo — que a explica — só aparece depois de já se saber
+  // fazê-lo. Aqui, com uma peça na mão, é o momento exacto antes de se querer
+  // a segunda.
+  const dica = document.createElement("p");
+  dica.className = "ajuste-grupo-dica";
+  dica.textContent = "Shift+clique noutra peça para mexer e rodar as duas juntas.";
+  caixa.append(dica);
+
   caixa.hidden = false;
   painelDeAjusteAberto = { alvo, inputs };
+}
+
+/**
+ * O painel de VÁRIAS peças. Mesma caixa, mesmos campos — o que muda é que os
+ * números são deslocamentos a partir de onde cada peça está, e não a posição
+ * dela. Por isso arrancam sempre a zero e a legenda di-lo.
+ */
+function abrirPainelDeGrupo() {
+  const caixa = $("painelAjuste");
+  const alvos = alvosSelecionados();
+  if (!caixa || !alvos.length) return;
+  caixa.innerHTML = "";
+
+  const topo = document.createElement("div");
+  topo.className = "ajuste-flutuante-topo";
+  const nome = document.createElement("b");
+  nome.textContent = alvos.length + " peças";
+  const fechar = document.createElement("button");
+  fechar.type = "button";
+  fechar.className = "btn-icone";
+  fechar.title = "Largar a selecção";
+  fechar.textContent = "×";
+  fechar.addEventListener("click", limparSelecao);
+  topo.append(nome, fechar);
+  caixa.append(topo);
+
+  const quem = document.createElement("p");
+  quem.className = "ajuste-grupo-quem";
+  quem.textContent = alvos.map((a) => a.rotulo).join(" · ");
+  caixa.append(quem);
+
+  const comando = comandoDeGrupo();
+  const campos = document.createElement("div");
+  campos.className = "campos";
+  CAMPOS_GRUPO.forEach((c) => {
+    campos.append(campoAjuste(c.rotulo, comando, c.chave, c.unidade, c.passo,
+      undefined, c.min === undefined ? -500 : c.min, c.max === undefined ? 500 : c.max));
+  });
+  caixa.append(campos);
+
+  const dica = document.createElement("p");
+  dica.className = "ajuste-grupo-dica";
+  dica.textContent = "Os números são a partir de onde cada peça está. " +
+    "Rodar gira o conjunto todo à volta do centro dele. " +
+    "Shift+clique junta ou tira peças; clicar no vazio larga a selecção.";
+  caixa.append(dica);
+
+  caixa.hidden = false;
+  // `grupo: true` é o que diz a fecharPainelDeAjuste e ao arrasto que esta
+  // caixa não é de uma peça — e a refrescarPainelDeAjuste que não tem campos
+  // de peça nenhuma para reescrever a meio de um arrasto.
+  painelDeAjusteAberto = { grupo: true, inputs: [] };
 }
 
 /**
@@ -7787,6 +8044,10 @@ function abrirPainelDeAjuste(alvo) {
  */
 function refrescarPainelDeAjuste() {
   if (!painelDeAjusteAberto) return;
+  // O painel do grupo não se refresca a meio de um arrasto: os campos dele
+  // são deslocamentos, e reescrevê-los com a posição de alguém era apagar o
+  // que a pessoa acabou de escrever e trocá-lo por um número de outra coisa.
+  if (painelDeAjusteAberto.grupo) return;
   const { alvo, inputs } = painelDeAjusteAberto;
   inputs.forEach(({ input, chave }) => {
     if (document.activeElement === input) return;   // não pisar quem escreve
@@ -7826,16 +8087,51 @@ tela.addEventListener("pointerdown", (e) => {
       melhor = { alvo, ponto: hits[0].point };
     }
   }
-  if (!melhor) { fecharPainelDeAjuste(); return; }
+  // CLICAR NO VAZIO LARGA TUDO. É o gesto que toda a gente já tem no dedo, e
+  // sem ele uma selecção ficava agarrada sem se perceber como a soltar.
+  if (!melhor) { limparSelecao(); fecharPainelDeAjuste(); return; }
 
-  abrirPainelDeAjuste(melhor.alvo);
+  // SHIFT JUNTA OU TIRA. Não arrasta: quem está a escolher peças não quer
+  // que a terceira escolha lhe desloque as outras duas sem querer.
+  if (e.shiftKey) {
+    const nome = melhor.alvo.obj.name;
+    if (selecaoDeGrupo.has(nome)) selecaoDeGrupo.delete(nome);
+    else selecaoDeGrupo.add(nome);
+    marcarSelecao();
+    if (selecaoDeGrupo.size >= 2) abrirPainelDeGrupo();
+    else if (selecaoDeGrupo.size === 1) abrirPainelDeAjuste(alvosSelecionados()[0]);
+    else fecharPainelDeAjuste();
+    return;
+  }
+
+  // Clique simples numa peça JÁ MARCADA: arrasta o conjunto todo. Numa peça
+  // de fora: recomeça a selecção nela, que é o que um clique simples sempre
+  // fez.
+  const dentroDaSelecao = selecaoDeGrupo.has(melhor.alvo.obj.name) && selecaoDeGrupo.size > 1;
+  if (!dentroDaSelecao) {
+    // O clique simples SEMEIA a selecção com esta peça. Sem isto o gesto
+    // normal — clicar na primeira, Shift nas outras — não funcionava: o
+    // Shift construía sempre a partir do vazio, e ficava só com a segunda.
+    // Apanhado a clicar a sério no teste; a lógica do grupo estava boa e o
+    // gesto não chegava lá.
+    selecaoDeGrupo.clear();
+    selecaoDeGrupo.add(melhor.alvo.obj.name);
+    marcarSelecao();
+    abrirPainelDeAjuste(melhor.alvo);
+  } else {
+    abrirPainelDeGrupo();
+  }
+
   controlos.enabled = false;
   tela.setPointerCapture(e.pointerId);
   planoAjuste.set(new THREE.Vector3(0, 1, 0), -melhor.ponto.y);
-  const inicial = melhor.alvo.getXZ();
+  // Um arrasto de grupo guarda o ponto de partida de CADA peça. Aplicar o
+  // mesmo desvio a todas a partir das posições de agora, a cada movimento do
+  // rato, ia acumulando erro; a partir das de quando se pegou, não.
+  const quais = dentroDaSelecao ? alvosSelecionados() : [melhor.alvo];
   alvoArrasto = {
     alvo: melhor.alvo,
-    x0: inicial.x, z0: inicial.z,
+    grupo: quais.map((a) => { const p = a.getXZ(); return { alvo: a, x0: p.x, z0: p.z }; }),
     px0: melhor.ponto.x, pz0: melhor.ponto.z
   };
   tela.style.cursor = "grabbing";
@@ -7846,9 +8142,9 @@ tela.addEventListener("pointermove", (e) => {
   porRatoAjuste(e);
   apontadorAjuste.setFromCamera(ratoAjuste, camara);
   if (!apontadorAjuste.ray.intersectPlane(planoAjuste, ondeCaiuAjuste)) return;
-  const novoX = alvoArrasto.x0 + (ondeCaiuAjuste.x - alvoArrasto.px0);
-  const novoZ = alvoArrasto.z0 + (ondeCaiuAjuste.z - alvoArrasto.pz0);
-  alvoArrasto.alvo.setXZ(novoX, novoZ);
+  const andouX = ondeCaiuAjuste.x - alvoArrasto.px0;
+  const andouZ = ondeCaiuAjuste.z - alvoArrasto.pz0;
+  alvoArrasto.grupo.forEach(({ alvo, x0, z0 }) => alvo.setXZ(x0 + andouX, z0 + andouZ));
   refrescarPainelDeAjuste();
   remontarDaqui(0);
 });
@@ -7859,8 +8155,10 @@ function largarAjuste(e) {
   // 28,957212 m, e o painel a mostrá-los faz um número que ninguém escreveu
   // parecer uma medida. Arredonda-se o VALOR, não só o que se mostra: mostrar
   // 28,96 e guardar 28,957212 era pôr o painel a mentir por dois dígitos.
-  const onde = alvoArrasto.alvo.getXZ();
-  alvoArrasto.alvo.setXZ(Math.round(onde.x * 100) / 100, Math.round(onde.z * 100) / 100);
+  alvoArrasto.grupo.forEach(({ alvo }) => {
+    const onde = alvo.getXZ();
+    alvo.setXZ(Math.round(onde.x * 100) / 100, Math.round(onde.z * 100) / 100);
+  });
   refrescarPainelDeAjuste();
   guardarAjustes(ajustes);
   alvoArrasto = null;
@@ -8470,7 +8768,8 @@ function atualizarBotaoEdicaoLivre() {
   botao.classList.toggle("ligada", ligada);
   botao.textContent = ligada ? "🔓" : "🔒";
   botao.title = ligada
-    ? "Edição livre ligada — arrastar na cena move o orador, um gomo, um delay ou um DSM. Clica para desligar."
+    ? "Edição livre ligada — arrastar na cena move o orador, um gomo, um delay ou um DSM. " +
+      "Shift+clique junta peças, para as mexer e rodar todas juntas. Clica para desligar."
     : "Edição livre desligada — arrastar na cena só muda a vista, nada se mexe sem querer. Clica para ligar.";
 }
 // Mesma guarda de "existe mesmo?" que #btRecentrarVista, pela mesma razão
@@ -8678,6 +8977,12 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   // que lá entra — para o teste medir a tabela A SÉRIO em vez
                   // de repetir aqui fora a conta do pitch.
                   tabelaDeEcras, zonasMontadas, chaveDeDeposito, enviarParaDeposito,
+                  // A selecção de várias peças — para o teste medir o que o
+                  // grupo fez às posições a sério, e não uma cópia da conta
+                  // da rotação escrita do lado de fora.
+                  get selecaoDeGrupo() { return selecaoDeGrupo; },
+                  alvosSelecionados, centroDoGrupo, moverGrupo, rodarGrupo,
+                  marcarSelecao, limparSelecao, abrirPainelDeGrupo,
                   desfazer, guardarAjustes,
                   get historico() { return historico; },
                   get projeto() { return projeto; },

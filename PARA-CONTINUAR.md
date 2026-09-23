@@ -1763,6 +1763,63 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 23 de setembro — mexer em várias peças ao mesmo tempo (v3.81)
+
+> *"será que posso agrupar objetos ou selecionar vários no 3D para posicionar
+> e rodar"*
+
+Não dava: o clique escolhia UMA peça — a mais perto do apontador — e o painel
+flutuante era dessa peça só. Do outro lado havia meia solução (as caixas
+"Sel." do Ecrã Complexo, com um deslocamento em X/Y), mas é no alçado 2D, é um
+valor escrito, e **não roda**.
+
+**Duas escolhas dele, e mudam o que isto é:**
+
+- a selecção é **passageira**. Clique agarra uma, Shift+clique junta as
+  outras, clicar no vazio larga. Não há grupos com nome guardados no projeto —
+  seria estado novo dentro do ficheiro e mais uma coisa a poder ficar
+  dessincronizada na ida e volta aos Calculadores;
+- rodar roda o **conjunto como um corpo**, à volta do centro: as peças mudam
+  de sítio **e** de ângulo, como se estivessem soldadas a uma estrutura. (A
+  outra hipótese — cada uma a girar no seu lugar — era escrever o mesmo número
+  em cada peça, e isso já se fazia à mão.)
+
+### A parte que custa
+
+A posição de uma peça aqui é um **desvio** (`dx`/`dz` do ajuste), não uma
+coordenada. Para mover isso é indiferente — soma-se o mesmo a todas. Para
+rodar não: é preciso saber onde cada peça está **mesmo** na sala, e isso
+pergunta-se à geometria desenhada (`Box3` do objeto), que é a única fonte que
+não depende de eu ter percebido bem as contas de quem a colocou.
+
+E lê-se **tudo** antes de escrever seja o que for: escrever uma peça obriga a
+redesenhar, e a partir daí as posições lidas são de uma cena que já não é
+esta — o conjunto ia-se deformando peça a peça.
+
+O painel do grupo reaproveita o mesmo `campoAjuste()` das peças (mesmo
+aspeto, mesmas setas, mesmo teclado no telemóvel) através de um objeto de
+mentira: guarda o último valor escrito e manda ao grupo a **diferença**. Os
+números são relativos — "+0,50 m" é meio metro a partir de onde cada uma
+está — e a legenda di-lo.
+
+### Dois furos apanhados a clicar a sério
+
+O teste mede primeiro pelas funções, e no fim **pelo rato**. Foi o rato que
+apanhou os dois:
+
+1. o clique simples abria o painel da peça mas **não a punha na selecção** —
+   por isso o Shift seguinte construía sempre a partir do vazio e ficava só
+   com a segunda. O gesto normal (clicar na primeira, Shift nas outras) não
+   funcionava, com a lógica do grupo toda boa;
+2. e o meu próprio teste não abria o cadeado da edição livre, porque
+   `/ligada/` também casa com "des**ligada**".
+
+### Descoberta
+
+Shift+clique não se descobre sozinho, e o painel que o explica só aparece
+depois de já se saber fazê-lo. Por isso a dica está **no painel de uma peça
+só** — o momento exacto antes de se querer a segunda — e no título do cadeado.
+
 ## 23 de setembro — a folha de montagem leva o quadro dos ecrãs (v3.80)
 
 > *"podemos exportar assim com as medidas e pixel pitch, resolução dos ecrãs,
