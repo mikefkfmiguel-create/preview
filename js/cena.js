@@ -248,9 +248,13 @@ export function fazerPalcoExtra(pe) {
   const largura = Math.max(1, pe.largura || 6);
   const altura = Math.max(0.1, pe.altura || 1);
   const profundidade = Math.max(0.5, pe.profundidade || 4);
+  // A COR É OPCIONAL, e por omissão é a de sempre. Quem a põe é a cópia: uma
+  // cópia com a cor da original, encostada a ela, é indistinguível dela — e o
+  // pedido foi *"as cópias devem surgir de cor diferente, inclusive os palcos
+  // e passarelas"*.
   const caixa = new THREE.Mesh(
     geometriaDeTampo(largura, altura, profundidade, pe.raio, pe.meio),
-    new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
+    new THREE.MeshStandardMaterial({ color: pe.cor || COR_PALCO, roughness: 0.9 }));
   caixa.position.set(0, altura / 2, 0);
   grupo.add(caixa);
   grupo.rotation.y = -(pe.rot || 0) * Math.PI / 180;
@@ -1459,9 +1463,11 @@ export function fazerPassarelaLivre(pl) {
   const largura = Math.max(0.5, pl.largura || 1.5);
   const comprimento = Math.max(0.5, pl.comprimento || 3);
   const altura = Math.max(0, pl.altura != null ? pl.altura : 1);
+  // Cor própria opcional, pela mesma razão do palco extra: é assim que uma
+  // cópia se distingue da original.
   const caixa = new THREE.Mesh(
     new THREE.BoxGeometry(largura, Math.max(0.05, altura), comprimento),
-    new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
+    new THREE.MeshStandardMaterial({ color: pl.cor || COR_PALCO, roughness: 0.9 }));
   caixa.position.set(0, altura / 2, 0);
   grupo.add(caixa);
   grupo.rotation.y = -(pl.rot || 0) * Math.PI / 180;

@@ -141,7 +141,12 @@ conferir(JSON.stringify(copia.tiles) === JSON.stringify(original.tiles), "tiles:
 conferir(JSON.stringify(copia.res) === JSON.stringify(original.res), "resolução: " + copia.res.x + "×" + copia.res.y + " px");
 conferir(copia.peso === original.peso && copia.amp === original.amp,
   "peso e consumo: " + copia.peso + " kg, " + copia.amp + " A");
-conferir(copia.cor === original.cor && copia.tipo === original.tipo, "cor e tipo");
+// A COR É A ÚNICA COISA QUE MUDA DE PROPÓSITO. Esta verificação dizia
+// "cor e tipo iguais" até 24/09, e passou a falhar no dia em que ele pediu
+// *"as cópias devem surgir de cor diferente"* — falhou com razão.
+conferir(copia.tipo === original.tipo, "tipo: " + copia.tipo);
+conferir(copia.cor && copia.cor !== original.cor,
+  "e a cor MUDA de propósito: " + original.cor + " → " + copia.cor);
 
 const ajustes = await pagina.evaluate(() => ({
   original: { ...window.preview.ajustes.delays["trira"] },
@@ -210,32 +215,57 @@ conferir(marcadas.length === 2 && marcadas.every((n) => /trira 3|tiras pequenas 
   "e ficaram marcadas as CÓPIAS, não as originais — o passo seguinte é arrastá-las");
 
 // ---- 6. O QUE NÃO É ZONA não ganha botão ------------------------------
-console.log("\n== o palco não é material que se copie ==");
-// O PALCO TEM DE EXISTIR para isto medir alguma coisa. A primeira versão
-// deste teste corria sem palco na cena, dava "sem palco na cena" e passava —
-// uma verificação que mede o vazio dá descanso a troco de nada.
+// O PALCO E A RÉGIE TÊM DE EXISTIR para estas duas verificações medirem
+// alguma coisa. Uma versão anterior deste teste corria sem palco na cena, dava
+// "sem palco na cena" e passava — é a terceira vez esta semana que uma
+// verificação minha mede o vazio, por isso confirma-se que existem.
 await pagina.evaluate(async () => {
-  const p = document.getElementById("verPalco");
-  if (p && !p.checked) { p.checked = true; p.dispatchEvent(new Event("change", { bubbles: true })); }
-  await new Promise((r) => setTimeout(r, 1600));
+  ["verPalco", "verRegie"].forEach((id) => {
+    const c = document.getElementById(id);
+    if (c && !c.checked) { c.checked = true; c.dispatchEvent(new Event("change", { bubbles: true })); }
+  });
+  await new Promise((r) => setTimeout(r, 1800));
 });
-const haPalco = await pagina.evaluate(() =>
-  !!window.preview.objetosArrastaveis().find((a) => a.obj && a.obj.name === "palco"));
-conferir(haPalco, "há um palco na cena para conferir");
 
-const semBotao = await pagina.evaluate(async () => {
-  window.preview.limparSelecao();
-  const palco = window.preview.objetosArrastaveis().find((a) => a.obj && a.obj.name === "palco");
-  if (!palco) return "sem palco na cena";
-  window.preview.abrirPainelDeAjuste(palco);
-  await new Promise((r) => setTimeout(r, 300));
-  const botoes = [...document.querySelectorAll("#painelAjuste .ajuste-flutuante-topo button")]
-    .map((b) => b.textContent);
-  return botoes.join("");
+console.log("\n== o que NÃO se pode copiar não ganha botão ==");
+// O palco JÁ se copia desde 24/09 ("inclusive os palcos e passarelas"), por
+// isso deixou de servir de exemplo. Pergunta-se à app qual é a primeira peça
+// que ela própria diz não se poder copiar, e confere-se essa — em vez de
+// escolher uma à mão e arriscar escolher outra que entretanto passou a poder.
+const naoCopiavel = await pagina.evaluate(() => {
+  const a = window.preview.objetosArrastaveis().find((x) => !window.preview.podeCopiar(x));
+  return a ? { nome: a.obj.name, rotulo: a.rotulo } : null;
 });
-console.log("   botões no painel do palco: " + semBotao);
-conferir(semBotao !== "sem palco na cena" && !semBotao.includes("⧉"),
-  "o painel do palco não tem ⧉ — um botão que não faria nada é pior do que botão nenhum");
+conferir(!!naoCopiavel, "há na cena uma peça que não se copia, para conferir" +
+  (naoCopiavel ? " (" + naoCopiavel.rotulo + ")" : " — não havia nenhuma, e isto não mediu nada"));
+
+if (naoCopiavel) {
+  const botoes = await pagina.evaluate(async (nome) => {
+    window.preview.limparSelecao();
+    const a = window.preview.objetosArrastaveis().find((x) => x.obj && x.obj.name === nome);
+    window.preview.abrirPainelDeAjuste(a);
+    await new Promise((r) => setTimeout(r, 300));
+    return [...document.querySelectorAll("#painelAjuste .ajuste-flutuante-topo button")]
+      .map((b) => b.textContent).join("");
+  }, naoCopiavel.nome);
+  console.log("   botões no painel de «" + naoCopiavel.rotulo + "»: " + botoes);
+  conferir(!botoes.includes("⧉"),
+    "não tem ⧉ — um botão que não faria nada é pior do que botão nenhum");
+}
+
+// E o contrário: o palco, que AGORA se copia, tem o botão.
+const botoesDoPalco = await pagina.evaluate(async () => {
+  window.preview.limparSelecao();
+  const a = window.preview.objetosArrastaveis().find((x) => x.obj && x.obj.name === "palco");
+  if (!a) return null;
+  window.preview.abrirPainelDeAjuste(a);
+  await new Promise((r) => setTimeout(r, 300));
+  return [...document.querySelectorAll("#painelAjuste .ajuste-flutuante-topo button")]
+    .map((b) => b.textContent).join("");
+});
+console.log("   botões no painel do palco: " + botoesDoPalco);
+conferir(!!botoesDoPalco && botoesDoPalco.includes("⧉"),
+  "e o palco TEM ⧉ — era o que ele pediu: «inclusive os palcos e passarelas»");
 
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
