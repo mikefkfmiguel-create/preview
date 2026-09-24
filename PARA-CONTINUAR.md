@@ -1763,6 +1763,61 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 24 de setembro — o laço, o Escape, e cópias de cor nova (v3.84)
+
+> *"no 3D preciso de uma forma melhor de criar e desfazer grupos para mover e
+> copiar, e as cópias devem surgir de cor diferente, inclusive os palcos e
+> passarelas"*.
+
+**Criar:** Shift + arrastar no vazio desenha um rectângulo e marca tudo o que
+lá couber. Marcar peça a peça com Shift+clique era sofrível com duas e
+trabalho a sério com sete — e numa sala cheia acertar em cada uma custa.
+
+Com Shift e não à seca, de propósito: arrastar no vazio **sem** Shift roda a
+câmara, que é o gesto mais usado desta app inteira. Tirá-lo para pôr um laço
+era trocar o que se faz a toda a hora pelo que se faz às vezes.
+
+O que conta como "dentro" é o **ponto de rotação** de cada peça projectado no
+ecrã, não a caixa dela: pela caixa, um ecrã grande meio de fora entrava por um
+canto que mal se vê.
+
+**Desfazer:** a tecla **Escape**. Clicar no vazio já largava, mas numa sala
+cheia o vazio é difícil de acertar, e com o painel do grupo aberto por cima
+mais ainda. (No meio de um campo de texto o Escape não mexe na selecção: ali
+serve para desfazer o que se escreveu.)
+
+### Cópias de cor nova
+
+A cor sai da paleta da app e é **a primeira que ainda não está em uso**. Uma
+cor fixa de "cópia" resolvia a primeira e falhava a terceira: três cópias
+todas iguais voltavam ao problema de origem.
+
+Nas zonas apaga-se o `colorOverride` que veio dos Calculadores — deixá-lo
+fazia a cor nova ser ignorada do outro lado.
+
+### Palcos e passarelas
+
+`duplicarPecas` deixou de ser só de zonas. Palcos extra, passarelas e régies
+vivem em listas dos ajustes (nascem aqui, não vêm dos Calculadores) e copiar
+um é acrescentar outro à lista dele. O **palco principal** também se copia: dá
+um palco extra com as medidas dele, e o principal fica onde está — e a posição
+sai da cena, porque o `dx`/`dz` do principal é um desvio e o de um extra é
+absoluto.
+
+Palcos e passarelas ganharam `cor` opcional (por omissão, a de sempre).
+
+### Duas asserções minhas que ficaram velhas no mesmo dia
+
+O teste dizia "cópia com a mesma cor e tipo" e "o palco não tem ⧉". As duas
+falharam — **com razão**: hoje a cor muda de propósito e o palco copia-se. Em
+vez de as remendar, passaram a medir a intenção nova, e a do botão passou a
+**perguntar à app** qual é a primeira peça que ela própria diz não se poder
+copiar, em vez de escolher uma à mão que amanhã pode passar a copiar-se.
+
+E foi preciso repor o passo que liga o palco e a régie antes dessas
+verificações: sem eles na cena, davam "não havia nenhuma" e passavam. É a
+terceira vez esta semana.
+
 ## 23 de setembro — copiar ecrãs, e conjuntos de ecrãs (v3.83)
 
 > *"e no 3D poder fazer cópias de ecrãs e/ou grupos de objetos"*

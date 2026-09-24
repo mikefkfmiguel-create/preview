@@ -7698,48 +7698,135 @@ function nomeLivreDeCopia(base, projetoAtual) {
  * que se duplique assim, e copiá-los daqui era inventar uma regra nova para
  * cada um deles sem ninguém a pedir.
  */
+/**
+ * O que se pode copiar: um ecrã do projeto, um palco (o principal ou um
+ * extra), uma passarela ou uma régie. Um gomo de plateia não — é uma fatia de
+ * uma plateia que se define pelo número de gomos, e "mais um gomo" escreve-se
+ * nesse número. Um DSM também não: a quantidade vem dos Calculadores.
+ */
+function podeCopiar(alvo) {
+  const n = alvo && alvo.obj && alvo.obj.name;
+  if (!n) return false;
+  return n.indexOf("zona ") === 0 || n === "palco" ||
+         n.indexOf("palco-") === 0 || n.indexOf("passarela-") === 0 ||
+         n.indexOf("regie-") === 0;
+}
+
 function duplicarPecas(alvos) {
-  if (!projeto || !alvos || !alvos.length) return 0;
-  const zonas = [];
+  if (!alvos || !alvos.length) return 0;
+
+  // A COR DA CÓPIA. Pedido: *"as cópias devem surgir de cor diferente,
+  // inclusive os palcos e passarelas"* -- uma cópia encostada à original, da
+  // mesma cor, é indistinguível dela, e ninguém sabe qual está a arrastar.
+  //
+  // A cor sai da paleta da app e é a primeira que ainda não está em uso. Uma
+  // cor fixa de "cópia" resolvia a primeira e falhava a terceira: três cópias
+  // todas iguais voltam ao mesmo problema.
+  const emUso = new Set();
+  if (projeto) projeto.zonas.forEach((z) => { if (z.cor) emUso.add(String(z.cor).toLowerCase()); });
+  ajustes.palcosExtra.forEach((p) => { if (p.cor) emUso.add(String(p.cor).toLowerCase()); });
+  ajustes.passarelasExtra.forEach((p) => { if (p.cor) emUso.add(String(p.cor).toLowerCase()); });
+  (ajustes.regiesExtra || []).forEach((p) => { if (p.cor) emUso.add(String(p.cor).toLowerCase()); });
+  let daVez = 0;
+  const corDeCopia = () => {
+    for (let n = 0; n < CORES_ZONA.length; n++) {
+      const c = CORES_ZONA[(daVez + n) % CORES_ZONA.length];
+      if (!emUso.has(c.toLowerCase())) { daVez = (daVez + n + 1) % CORES_ZONA.length; emUso.add(c.toLowerCase()); return c; }
+    }
+    // Paleta toda gasta: volta ao princípio em vez de ficar sem cor nenhuma.
+    const c = CORES_ZONA[daVez % CORES_ZONA.length];
+    daVez++;
+    return c;
+  };
+
+  // Quanto é que o conjunto anda para o lado: a largura DELE mais meio metro.
+  // Mede-se pelo que está desenhado, que é a única medida que serve para
+  // peças de famílias diferentes (um ecrã tem `w`, um palco tem `largura`).
+  const caixa = new THREE.Box3();
+  alvos.forEach((a) => { if (a.obj && a.obj.isObject3D) caixa.expandByObject(a.obj); });
+  const desvio = caixa.isEmpty() ? 2 : (caixa.max.x - caixa.min.x) + 0.5;
+
+  const feitos = [];
   alvos.forEach((a) => {
-    const nome = a.obj && a.obj.name.indexOf("zona ") === 0 ? a.obj.name.slice(5) : null;
-    const z = nome && projeto.zonas.find((x) => x.nome === nome);
-    if (z) zonas.push(z);
-  });
-  if (!zonas.length) return 0;
+    const nomeCena = a.obj && a.obj.name;
+    if (!nomeCena) return;
 
-  // O conjunto anda para o lado a largura DELE, mais meio metro: duas cópias
-  // encostadas ainda se percebem, sobrepostas não.
-  const esquerda = Math.min(...zonas.map((z) => (Number(z.x) || 0) - (Number(z.w) || 0) / 2));
-  const direita = Math.max(...zonas.map((z) => (Number(z.x) || 0) + (Number(z.w) || 0) / 2));
-  const desvio = (direita - esquerda) + 0.5;
+    // ---- um ecrã do projeto -------------------------------------------
+    if (nomeCena.indexOf("zona ") === 0) {
+      if (!projeto) return;
+      const z = projeto.zonas.find((x) => x.nome === nomeCena.slice(5));
+      if (!z) return;
+      const nome = nomeLivreDeCopia(z.nome, projeto);
+      const copia = { ...z, nome, id: novoIdZona(), cor: corDeCopia(),
+                      x: (Number(z.x) || 0) + desvio };
+      // `colorOverride` é a cor que veio dos Calculadores; deixá-la na cópia
+      // fazia a cor nova ser ignorada do outro lado.
+      delete copia.colorOverride;
+      const original = ajustes.delays[z.nome];
+      ajustes.delays[nome] = original ? { ...original } : { dx: 0, dy: 0, dz: 0 };
+      if (ajustes.zonasSemLeitura.includes(z.nome)) ajustes.zonasSemLeitura.push(nome);
+      projeto.zonas.push(copia);
+      feitos.push({ chave: "zona " + nome, nome });
+      return;
+    }
 
-  const novos = [];
-  zonas.forEach((z) => {
-    const nome = nomeLivreDeCopia(z.nome, projeto);
-    const copia = { ...z, nome, id: novoIdZona(), x: (Number(z.x) || 0) + desvio };
-    // Os ajustes desta app (o que foi mexido AQUI) vão com ela. Sem isto uma
-    // cópia de um ecrã rodado saía direita, e não era uma cópia.
-    const original = ajustes.delays[z.nome];
-    ajustes.delays[nome] = original ? { ...original } : { dx: 0, dy: 0, dz: 0 };
-    // "Sem leitura" é uma propriedade da peça, não do sítio: um ecrã de
-    // ambiente copiado continua a ser de ambiente.
-    if (ajustes.zonasSemLeitura.includes(z.nome)) ajustes.zonasSemLeitura.push(nome);
-    projeto.zonas.push(copia);
-    novos.push(copia);
+    // ---- um palco, uma passarela ou uma régie ---------------------------
+    //
+    // Estes vivem em listas dos ajustes (`ajustes.palcosExtra` e companhia),
+    // não no projeto: nascem aqui no 3D e não vêm dos Calculadores. Copiar um
+    // é acrescentar outro à lista dele, com o mesmo tamanho e o mesmo ângulo.
+    const familias = [
+      { prefixo: "palco-",     lista: ajustes.palcosExtra,     nome: "Palco" },
+      { prefixo: "passarela-", lista: ajustes.passarelasExtra, nome: "Passarela" },
+      { prefixo: "regie-",     lista: ajustes.regiesExtra || [], nome: "Régie" }
+    ];
+    for (const f of familias) {
+      if (nomeCena.indexOf(f.prefixo) !== 0) continue;
+      const i = parseInt(nomeCena.slice(f.prefixo.length), 10) - 1;
+      const orig = f.lista[i];
+      if (!orig) return;
+      f.lista.push({ ...orig, cor: corDeCopia(), dx: (Number(orig.dx) || 0) + desvio });
+      feitos.push({ chave: f.prefixo + f.lista.length, nome: f.nome + " " + f.lista.length });
+      return;
+    }
+
+    // ---- O PALCO PRINCIPAL --------------------------------------------
+    //
+    // Não é uma peça de uma lista: é o palco da sala, com campos próprios.
+    // Copiá-lo dá um palco EXTRA com as medidas dele — que é o que quem
+    // carrega em "copiar" no palco está a pedir. O principal fica onde está.
+    if (nomeCena === "palco") {
+      const p = lerPalco();
+      // ONDE O PALCO ESTÁ MESMO, lido da cena. O `dx`/`dz` do palco principal
+      // é um DESVIO em relação ao sítio onde ele nasce (encostado ao fundo,
+      // centrado); o de um palco extra é a posição absoluta. Copiar um número
+      // pelo outro punha a cópia no sítio errado -- e a posição desenhada é a
+      // única que não depende de eu ter percebido bem essa diferença.
+      const onde = a.obj.getWorldPosition(new THREE.Vector3());
+      ajustes.palcosExtra.push({
+        largura: p.largura, altura: p.altura, profundidade: p.profundidade,
+        raio: p.raio || 0, rot: 0, cor: corDeCopia(),
+        dx: onde.x + (p.largura || 6) + 0.5,
+        dz: onde.z
+      });
+      feitos.push({ chave: "palco-" + ajustes.palcosExtra.length,
+                    nome: "Palco " + ajustes.palcosExtra.length });
+    }
   });
+
+  if (!feitos.length) return 0;
 
   // As cópias ficam marcadas, as originais não.
   selecaoDeGrupo.clear();
-  novos.forEach((z) => selecaoDeGrupo.add("zona " + z.nome));
+  feitos.forEach((f) => selecaoDeGrupo.add(f.chave));
   guardarAjustes(ajustes);
   projetoMudou();
-  if (novos.length >= 2) abrirPainelDeGrupo();
+  if (feitos.length >= 2) abrirPainelDeGrupo();
   else { const um = alvosSelecionados()[0]; if (um) abrirPainelDeAjuste(um); }
-  dizerNaCena(novos.length === 1
-    ? `Cópia feita: ${novos[0].nome}. Ficou ao lado, já marcada — arrasta-a para onde vai.`
-    : `${novos.length} cópias feitas, ao lado das originais e já marcadas — arrasta-as para onde vão.`);
-  return novos.length;
+  dizerNaCena(feitos.length === 1
+    ? `Cópia feita: ${feitos[0].nome}, de cor nova e ao lado — já marcada para arrastares.`
+    : `${feitos.length} cópias feitas, de cores novas e ao lado das originais — já marcadas para arrastares.`);
+  return feitos.length;
 }
 
 /** Soma o mesmo desvio a todas as peças marcadas. */
@@ -8087,15 +8174,13 @@ function abrirPainelDeAjuste(alvo) {
   fechar.title = "Fechar";
   fechar.textContent = "×";
   fechar.addEventListener("click", fecharPainelDeAjuste);
-  // O ⧉ só aparece em quem se pode mesmo copiar: uma zona do projeto. Num
-  // gomo de plateia, num DSM ou no palco, um botão que não faz nada é pior
-  // do que botão nenhum.
-  const ehZona = alvo.obj && alvo.obj.name && alvo.obj.name.indexOf("zona ") === 0;
-  if (ehZona) {
+  // O ⧉ só aparece em quem se pode mesmo copiar. Num gomo de plateia ou num
+  // DSM, um botão que não faz nada é pior do que botão nenhum.
+  if (podeCopiar(alvo)) {
     const copiar = document.createElement("button");
     copiar.type = "button";
     copiar.className = "btn-icone";
-    copiar.title = "Copiar este ecrã — a cópia sai ao lado, já marcada";
+    copiar.title = "Copiar esta peça — a cópia sai ao lado, de cor nova e já marcada";
     copiar.textContent = "⧉";
     copiar.addEventListener("click", () => duplicarPecas([alvo]));
     topo.append(nome, copiar, fechar);
@@ -8120,7 +8205,8 @@ function abrirPainelDeAjuste(alvo) {
   // a segunda.
   const dica = document.createElement("p");
   dica.className = "ajuste-grupo-dica";
-  dica.textContent = "Shift+clique noutra peça para mexer e rodar as duas juntas.";
+  dica.textContent = "Shift+clique noutra peça para mexer e rodar as duas juntas, " +
+    "ou Shift+arrastar no vazio para apanhar várias de uma vez. Escape larga.";
   caixa.append(dica);
 
   caixa.hidden = false;
@@ -8178,7 +8264,8 @@ function abrirPainelDeGrupo() {
   dica.textContent = "Os números são a partir de onde cada peça está, e voltam " +
     "a zero quando sais do campo — escrever o mesmo outra vez roda outra vez. " +
     "Rodar gira o conjunto à volta do meio das peças marcadas. " +
-    "Shift+clique junta ou tira peças; clicar no vazio larga a selecção.";
+    "Shift+clique junta ou tira uma peça; Shift+arrastar no vazio faz um laço " +
+    "e apanha tudo o que lá couber; Escape larga a selecção.";
   caixa.append(dica);
 
   caixa.hidden = false;
@@ -8224,6 +8311,101 @@ function porRatoAjuste(e) {
     -((e.clientY - caixa.top) / caixa.height) * 2 + 1);
 }
 
+/* ====================================================== O LAÇO E O ESCAPE
+ *
+ * *"preciso de uma forma melhor de criar e desfazer grupos, para mover e
+ * copiar"*.
+ *
+ * CRIAR: Shift + arrastar no vazio desenha um rectângulo, e fica marcado tudo
+ * o que estiver dentro dele. Junta-se ao que já estava marcado, para se
+ * poderem apanhar dois cantos da sala em dois laços.
+ *
+ * DESFAZER: a tecla Escape. Clicar no vazio já largava, mas numa sala cheia o
+ * vazio é difícil de acertar -- e com o painel do grupo aberto por cima,
+ * mais ainda. Uma tecla acerta sempre.
+ *
+ * O que conta como "dentro": o PONTO DE ROTAÇÃO de cada peça projectado no
+ * ecrã, e não a caixa dela. Pela caixa, um ecrã grande meio de fora entrava
+ * por um canto que mal se vê; pelo ponto, entra o que se apontou.
+ */
+let laco = null;
+
+function caixaDoLaco() {
+  let el = document.getElementById("lacoSelecao");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "lacoSelecao";
+    el.hidden = true;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function comecarLaco(e) {
+  controlos.enabled = false;
+  tela.setPointerCapture(e.pointerId);
+  laco = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY, id: e.pointerId };
+  desenharLaco();
+}
+
+function desenharLaco() {
+  if (!laco) return;
+  const el = caixaDoLaco();
+  el.hidden = false;
+  el.style.left = Math.min(laco.x0, laco.x1) + "px";
+  el.style.top = Math.min(laco.y0, laco.y1) + "px";
+  el.style.width = Math.abs(laco.x1 - laco.x0) + "px";
+  el.style.height = Math.abs(laco.y1 - laco.y0) + "px";
+}
+
+function fecharLaco() {
+  if (!laco) return;
+  caixaDoLaco().hidden = true;
+  const x0 = Math.min(laco.x0, laco.x1), x1 = Math.max(laco.x0, laco.x1);
+  const y0 = Math.min(laco.y0, laco.y1), y1 = Math.max(laco.y0, laco.y1);
+  const arrastou = (x1 - x0) > 4 || (y1 - y0) > 4;
+  laco = null;
+  controlos.enabled = true;
+  if (!arrastou) return;   // um Shift+clique no vazio não é um laço
+
+  const r = tela.getBoundingClientRect();
+  const apanhados = [];
+  objetosArrastaveis().forEach((a) => {
+    if (!a.obj || !a.obj.isObject3D) return;
+    const v = a.obj.getWorldPosition(new THREE.Vector3());
+    v.project(camara);
+    // Atrás da câmara o project() devolve coordenadas espelhadas: sem isto,
+    // uma peça que está nas costas de quem olha entrava no laço.
+    if (v.z > 1) return;
+    const x = r.left + ((v.x + 1) / 2) * r.width;
+    const y = r.top + ((-v.y + 1) / 2) * r.height;
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) apanhados.push(a);
+  });
+
+  apanhados.forEach((a) => selecaoDeGrupo.add(a.obj.name));
+  marcarSelecao();
+  if (selecaoDeGrupo.size >= 2) abrirPainelDeGrupo();
+  else if (selecaoDeGrupo.size === 1) abrirPainelDeAjuste(alvosSelecionados()[0]);
+  else fecharPainelDeAjuste();
+  const n = selecaoDeGrupo.size;
+  dizerNaCena(apanhados.length
+    ? `${n} peça${n === 1 ? "" : "s"} marcada${n === 1 ? "" : "s"}.`
+    : "O laço não apanhou nada — arrasta por cima das peças que queres.");
+}
+
+// O ESCAPE LARGA A SELECÇÃO. Não se apanha enquanto se escreve num campo:
+// ali o Escape é para desfazer o que se escreveu, não para largar peças.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const onde = document.activeElement;
+  if (onde && (onde.tagName === "INPUT" || onde.tagName === "TEXTAREA" || onde.isContentEditable)) return;
+  if (!selecaoDeGrupo.size) return;
+  limparSelecao();
+  fecharPainelDeAjuste();
+  dizerNaCena("Selecção largada.");
+});
+
+
 tela.addEventListener("pointerdown", (e) => {
   if (!edicaoLivreLigada()) return;   // cadeado fechado: só a câmara mexe
   if (aArrastar) return;              // já vai o orador
@@ -8239,6 +8421,17 @@ tela.addEventListener("pointerdown", (e) => {
       melhor = { alvo, ponto: hits[0].point };
     }
   }
+  // SHIFT + ARRASTAR NO VAZIO = LAÇO. Pedido: *"preciso de uma forma melhor
+  // de criar e desfazer grupos"*. Marcar peça a peça com Shift+clique é
+  // sofrível com duas e é trabalho a sério com sete -- e numa sala cheia
+  // acertar em cada uma custa. Com o laço, arrasta-se um rectângulo por cima
+  // e fica tudo o que lá couber.
+  //
+  // Porquê com Shift e não à seca: arrastar no vazio SEM Shift roda a câmara,
+  // que é o gesto mais usado desta app inteira. Tirá-lo para pôr um laço era
+  // trocar o que se faz a toda a hora pelo que se faz às vezes.
+  if (e.shiftKey && !melhor) { comecarLaco(e); return; }
+
   // CLICAR NO VAZIO LARGA TUDO. É o gesto que toda a gente já tem no dedo, e
   // sem ele uma selecção ficava agarrada sem se perceber como a soltar.
   if (!melhor) { limparSelecao(); fecharPainelDeAjuste(); return; }
@@ -8290,6 +8483,7 @@ tela.addEventListener("pointerdown", (e) => {
 });
 
 tela.addEventListener("pointermove", (e) => {
+  if (laco) { laco.x1 = e.clientX; laco.y1 = e.clientY; desenharLaco(); return; }
   if (!alvoArrasto) return;
   porRatoAjuste(e);
   apontadorAjuste.setFromCamera(ratoAjuste, camara);
@@ -8302,6 +8496,11 @@ tela.addEventListener("pointermove", (e) => {
 });
 
 function largarAjuste(e) {
+  if (laco) {
+    fecharLaco();
+    try { tela.releasePointerCapture(e.pointerId); } catch (_) {}
+    return;
+  }
   if (!alvoArrasto) return;
   // AO LARGAR, ARREDONDA AO CENTÍMETRO. Um arrasto deixa valores como
   // 28,957212 m, e o painel a mostrá-los faz um número que ninguém escreveu
@@ -9134,7 +9333,8 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   // da rotação escrita do lado de fora.
                   get selecaoDeGrupo() { return selecaoDeGrupo; },
                   alvosSelecionados, centroDoGrupo, moverGrupo, rodarGrupo,
-                  duplicarPecas, nomeLivreDeCopia,
+                  duplicarPecas, nomeLivreDeCopia, podeCopiar,
+                  get laco() { return laco; }, comecarLaco, desenharLaco, fecharLaco,
                   abrirPainelDeAjuste,
                   marcarSelecao, limparSelecao, abrirPainelDeGrupo,
                   desfazer, guardarAjustes,
