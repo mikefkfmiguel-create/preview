@@ -655,7 +655,10 @@ function desenharCena(recentrarCamara) {
         largura: Math.max(2, re.largura || 2), profundidade: Math.max(2, re.profundidade || 2),
         x: re.dx || 0, z: re.dz || 0, rodar: re.rot || 0
       };
-      r.elevacao = elevacaoDaRegie(sala, palco, publico, r.z);
+      // A elevação sai do degrau da plateia onde a régie assenta; o `dy` do
+      // painel soma-se a isso -- uma régie em cima de um praticável. Antes não
+      // era lido em lado nenhum e o campo "subir" não fazia nada.
+      r.elevacao = elevacaoDaRegie(sala, palco, publico, r.z) + (Number(re.dy) || 0);
       const grupoExtra = fazerRegie(sala, r);
       grupoExtra.name = "regie-" + (i + 1);
       desenhado.add(grupoExtra);
@@ -1102,6 +1105,10 @@ function desenharCena(recentrarCamara) {
   desenharRegiesExtra();
   desenharPassarelasExtra();
   desenharProjetoresExtra();
+  // A medida do painel flutuante lê-se da cena — e a cena é esta, acabada de
+  // montar. Refresca-se aqui, e não em cada sítio que mexe numa peça: é o
+  // único ponto por onde tudo o que mexe alguma coisa passa.
+  refrescarPosicaoDoPainel();
   devolverDaqui();
   if (recentrarCamara) vista("frente");
 }
@@ -4025,8 +4032,8 @@ function desenharAjustes() {
     nome.textContent = z.nome + (z.tipo === "tv" ? " (TV)" : " (Projeção)");
     linha.append(nome);
     linha.append(campoAjuste("↔", ajustes.delays[z.nome], "dx", "m", "0.05", `d-${z.nome}-dx`));
-    linha.append(campoAjuste("fundo", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
-    linha.append(campoAjuste("altura", ajustes.delays[z.nome], "dy", "m", "0.05", `d-${z.nome}-dy`));
+    linha.append(campoAjuste("↕", ajustes.delays[z.nome], "dz", "m", "0.05", `d-${z.nome}-dz`));
+    linha.append(campoAjuste("subir", ajustes.delays[z.nome], "dy", "m", "0.05", `d-${z.nome}-dy`));
     linha.append(campoAjuste("rodar", ajustes.delays[z.nome], "rot", "°", "5", `d-${z.nome}-rot`, -180, 180));
     // "tilt": para um delay pendurado no alto, a apontar para baixo, para a
     // plateia -- positivo inclina para baixo (ver o comentário em cena.js).
@@ -4043,7 +4050,7 @@ function desenharAjustes() {
     nome.textContent = "DSM " + (i + 1);
     linha.append(nome);
     linha.append(campoAjuste("↔", ajustes.dsm[i], "dx", "m", "0.05", `m${i}-dx`));
-    linha.append(campoAjuste("fundo", ajustes.dsm[i], "dz", "m", "0.05", `m${i}-dz`));
+    linha.append(campoAjuste("↕", ajustes.dsm[i], "dz", "m", "0.05", `m${i}-dz`));
     linha.append(campoAjuste("rodar", ajustes.dsm[i], "rot", "°", "5", `m${i}-rot`, -180, 180));
     // Afinação por cima do tombo fixo (ver o comentário em fazerDSM, cena.js).
     linha.append(campoAjuste("tilt", ajustes.dsm[i], "tilt", "°", "5", `m${i}-tilt`, -45, 45));
@@ -4128,7 +4135,7 @@ function desenharGomos(publico) {
     linha.append(nome);
     linha.append(campoAjuste("largura", aj, "largura", "m", "0.5", `gomo-${i}-largura`, 0.5, 60));
     linha.append(campoAjuste("↔", aj, "dx", "m", "0.1", `gomo-${i}-dx`));
-    linha.append(campoAjuste("fundo", aj, "dz", "m", "0.1", `gomo-${i}-dz`));
+    linha.append(campoAjuste("↕", aj, "dz", "m", "0.1", `gomo-${i}-dz`));
     linha.append(campoAjuste("rodar", aj, "rot", "°", "5", `gomo-${i}-rot`, -180, 180));
     // "corredor" a 0 encosta este gomo ao vizinho, sem vão nenhum entre os
     // dois -- nasce igual ao "Largura dos corredores" global (secção
@@ -4221,8 +4228,11 @@ function desenharPalcosExtra() {
     });
     soFrente.append(caixa, document.createTextNode(" só a frente arredondada"));
     formas.append(soFrente);
-    linha.append(campoAjuste("↔", pe, "dx", "m", "0.25", `palcoExtra-${i}-dx`));
+    linha.append(campoAjuste("lado", pe, "dx", "m", "0.25", `palcoExtra-${i}-dx`));
     linha.append(campoAjuste("fundo", pe, "dz", "m", "0.25", `palcoExtra-${i}-dz`));
+    // "subir" é a altura A QUE O PALCO ASSENTA, e não a espessura dele (isso é
+    // o "altura" lá em cima) -- é o campo de fazer escadas com praticáveis.
+    linha.append(campoAjuste("subir", pe, "dy", "m", "0.1", `palcoExtra-${i}-dy`));
     linha.append(campoAjuste("rodar", pe, "rot", "°", "15", `palcoExtra-${i}-rot`, -180, 180));
     const remover = document.createElement("button");
     remover.type = "button";
@@ -4258,8 +4268,11 @@ function desenharRegiesExtra() {
     linha.append(nome);
     linha.append(campoAjuste("largura", re, "largura", "m", "0.5", `regieExtra-${i}-largura`, 2, 12));
     linha.append(campoAjuste("profundidade", re, "profundidade", "m", "0.5", `regieExtra-${i}-profundidade`, 2, 12));
-    linha.append(campoAjuste("↔", re, "dx", "m", "0.25", `regieExtra-${i}-dx`));
+    linha.append(campoAjuste("lado", re, "dx", "m", "0.25", `regieExtra-${i}-dx`));
     linha.append(campoAjuste("fundo", re, "dz", "m", "0.25", `regieExtra-${i}-dz`));
+    // Por cima do degrau da plateia onde ela já assenta -- uma régie num
+    // praticável.
+    linha.append(campoAjuste("subir", re, "dy", "m", "0.1", `regieExtra-${i}-dy`));
     linha.append(campoAjuste("rodar", re, "rot", "°", "15", `regieExtra-${i}-rot`, -180, 180));
     const remover = document.createElement("button");
     remover.type = "button";
@@ -4296,8 +4309,9 @@ function desenharPassarelasExtra() {
     linha.append(campoAjuste("largura", pl, "largura", "m", "0.1", `passarelaExtra-${i}-largura`, 0.5, 20));
     linha.append(campoAjuste("comprimento", pl, "comprimento", "m", "0.5", `passarelaExtra-${i}-comprimento`, 0.5, 60));
     linha.append(campoAjuste("altura", pl, "altura", "m", "0.1", `passarelaExtra-${i}-altura`, 0, 10));
-    linha.append(campoAjuste("↔", pl, "dx", "m", "0.25", `passarelaExtra-${i}-dx`));
+    linha.append(campoAjuste("lado", pl, "dx", "m", "0.25", `passarelaExtra-${i}-dx`));
     linha.append(campoAjuste("fundo", pl, "dz", "m", "0.25", `passarelaExtra-${i}-dz`));
+    linha.append(campoAjuste("subir", pl, "dy", "m", "0.1", `passarelaExtra-${i}-dy`));
     linha.append(campoAjuste("rodar", pl, "rot", "°", "15", `passarelaExtra-${i}-rot`, -180, 180));
     const remover = document.createElement("button");
     remover.type = "button";
@@ -4336,7 +4350,7 @@ function desenharProjetoresExtra() {
     linha.append(campoAjuste("rácio", pe, "racio", "", "0.05", `projetorExtra-${i}-racio`, 0.1, 10));
     linha.append(campoAjuste("distância", pe, "distancia", "m", "0.1", `projetorExtra-${i}-distancia`, 0.1, 100));
     linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `projetorExtra-${i}-altura`, -5, 20));
-    linha.append(campoAjuste("↔", pe, "lateral", "m", "0.25", `projetorExtra-${i}-lateral`));
+    linha.append(campoAjuste("lado", pe, "lateral", "m", "0.25", `projetorExtra-${i}-lateral`));
     const remover = document.createElement("button");
     remover.type = "button";
     remover.className = "ajuste-passo ajuste-remover";
@@ -8166,10 +8180,13 @@ function comandoDeGrupo() {
   return alvo;
 }
 
+// Os campos do GRUPO são sempre deslocamentos -- mexem N peças de uma vez, e
+// uma coordenada só faria sentido se fossem todas a mesma peça. Por isso ↔ e
+// ↕, nunca "lado" e "fundo": ver a nota em CAMPOS_POSICAO.
 const CAMPOS_GRUPO = [
   { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
-  { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.05" },
-  { rotulo: "altura", chave: "dy", unidade: "m", passo: "0.05" },
+  { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.05" },
+  { rotulo: "subir", chave: "dy", unidade: "m", passo: "0.05" },
   { rotulo: "rodar", chave: "rot", unidade: "°", passo: "5", min: -180, max: 180 }
 ];
 
@@ -8253,22 +8270,52 @@ function alvoDeProjetorExtra(sala, ajuste) {
   };
 }
 
-// Que campos é que cada coisa tem para ajustar. Os mesmos nomes, passos e
-// limites da lista do painel -- é a mesma campoAjuste() a desenhá-los, para
-// não haver dois sítios a discordar sobre o que é "rodar" ou quanto anda uma
-// seta.
+/* Que campos é que cada coisa tem para ajustar. Os mesmos nomes, passos e
+ * limites da lista do painel -- é a mesma campoAjuste() a desenhá-los, para
+ * não haver dois sítios a discordar sobre o que é "rodar" ou quanto anda uma
+ * seta.
+ *
+ * DUAS FAMÍLIAS DE CAMPOS, e o nome tem de as distinguir. Reportado assim:
+ * *"não bate certo nas medidas para a posição"*, com o painel do Palco aberto.
+ * Estava certo: a mesma palavra, "fundo", queria dizer duas coisas.
+ *
+ *   · num palco extra, numa passarela solta ou numa régie extra, o `dz` É a
+ *     coordenada da sala -- escrever −12 põe a peça em z = −12;
+ *   · no palco principal e nos ecrãs, o `dz` é um DESLOCAMENTO a partir de
+ *     onde a app põe a peça (0 = encostado ao fundo, 0 = onde o arranjo a
+ *     pôs). Medido numa sala de 30 m: o painel dizia "fundo 0" com o palco em
+ *     z = −12 e o ecrã em z = −14,65.
+ *
+ * Por isso "lado" e "fundo" ficam reservados à coordenada, e o deslocamento
+ * passa a ↔ e ↕ -- as mesmas setas do "Deslocar ↔ / Deslocar ↕" da lista, que
+ * ninguém lê como uma posição. E, para não ser preciso adivinhar, o painel
+ * mostra sempre por baixo ONDE A PEÇA ESTÁ MESMO (ver posicaoNaSala()).
+ */
 const CAMPOS_POSICAO = [
   { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
+  { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.05" },
+  { rotulo: "subir", chave: "dy", unidade: "m", passo: "0.05" },
+  { rotulo: "rodar", chave: "rot", unidade: "°", passo: "5", min: -180, max: 180 }
+];
+// A mesma coisa para quem guarda a posição em coordenadas do mundo. "subir" é
+// o mesmo `dy` nos dois -- é sempre uma altura a partir do chão da peça, não
+// uma cota da sala.
+const CAMPOS_POSICAO_MUNDO = [
+  { rotulo: "lado", chave: "dx", unidade: "m", passo: "0.05" },
   { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.05" },
-  { rotulo: "altura", chave: "dy", unidade: "m", passo: "0.05" },
+  { rotulo: "subir", chave: "dy", unidade: "m", passo: "0.05" },
   { rotulo: "rodar", chave: "rot", unidade: "°", passo: "5", min: -180, max: 180 }
 ];
 const CAMPOS_SO_XZ = [
   { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
+  { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.05" }
+];
+const CAMPOS_SO_XZ_MUNDO = [
+  { rotulo: "lado", chave: "dx", unidade: "m", passo: "0.05" },
   { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.05" }
 ];
 const CAMPOS_PROJETOR = [
-  { rotulo: "↔", chave: "lateral", unidade: "m", passo: "0.05" },
+  { rotulo: "lado", chave: "lateral", unidade: "m", passo: "0.05" },
   { rotulo: "distância", chave: "distancia", unidade: "m", passo: "0.05", min: 0.1 },
   { rotulo: "altura", chave: "altura", unidade: "m", passo: "0.05" }
 ];
@@ -8280,8 +8327,8 @@ const CAMPOS_PROJETOR = [
  * quem estava a olhar para a sala carregava no pano e não acontecia nada.
  * Reportado a seguir ao boneco: *"e não tenho como ajustar o ecrã também"*.
  * Agora é um alvo como os outros -- arrasta-se, e o painel flutuante abre com
- * o ↔, o fundo e a base. São os mesmos campos do painel lateral, não uma
- * segunda cópia deles.
+ * o ↔, o ↕ e a base. São os mesmos campos do painel lateral, não uma segunda
+ * cópia deles.
  */
 function alvoDoEcraCurvo() {
   return {
@@ -8292,7 +8339,7 @@ function alvoDoEcraCurvo() {
 
 const CAMPOS_ECRA_CURVO = [
   { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.25" },
-  { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.25" },
+  { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.25" },
   { rotulo: "base", chave: "base", unidade: "m", passo: "0.1" }
 ];
 
@@ -8326,18 +8373,18 @@ function objetosArrastaveis() {
       // uma coordenada por uma constante -- os deltas são os mesmos.
       alvos.push({ obj: o, rotulo: "Palco", campos: CAMPOS_SO_XZ, ...alvoDeCampos("palcoX", "palcoZ") });
     } else if (o.name === "regie") {
-      alvos.push({ obj: o, rotulo: "Régie", campos: CAMPOS_SO_XZ, ...alvoDeCampos("regieX", "regieZ") });
+      alvos.push({ obj: o, rotulo: "Régie", campos: CAMPOS_SO_XZ_MUNDO, ...alvoDeCampos("regieX", "regieZ") });
     } else if (o.name === "projetor-0") {
-      alvos.push({ obj: o, rotulo: "Projetor", campos: CAMPOS_SO_XZ, ...alvoDeCamposProjetor(lerSala()) });
+      alvos.push({ obj: o, rotulo: "Projetor", campos: CAMPOS_SO_XZ_MUNDO, ...alvoDeCamposProjetor(lerSala()) });
     } else if (o.name.indexOf("palco-") === 0) {
       const i = parseInt(o.name.slice(6), 10) - 1;
-      if (ajustes.palcosExtra[i]) alvos.push({ obj: o, rotulo: "Palco " + (i + 1), campos: CAMPOS_POSICAO, ...alvoDeAjuste(ajustes.palcosExtra[i]) });
+      if (ajustes.palcosExtra[i]) alvos.push({ obj: o, rotulo: "Palco " + (i + 1), campos: CAMPOS_POSICAO_MUNDO, ...alvoDeAjuste(ajustes.palcosExtra[i]) });
     } else if (o.name.indexOf("regie-") === 0) {
       const i = parseInt(o.name.slice(6), 10) - 1;
-      if (ajustes.regiesExtra[i]) alvos.push({ obj: o, rotulo: "Régie " + (i + 1), campos: CAMPOS_POSICAO, ...alvoDeAjuste(ajustes.regiesExtra[i]) });
+      if (ajustes.regiesExtra[i]) alvos.push({ obj: o, rotulo: "Régie " + (i + 1), campos: CAMPOS_POSICAO_MUNDO, ...alvoDeAjuste(ajustes.regiesExtra[i]) });
     } else if (o.name.indexOf("passarela-") === 0) {
       const i = parseInt(o.name.slice(10), 10) - 1;
-      if (ajustes.passarelasExtra[i]) alvos.push({ obj: o, rotulo: "Passarela " + (i + 1), campos: CAMPOS_POSICAO, ...alvoDeAjuste(ajustes.passarelasExtra[i]) });
+      if (ajustes.passarelasExtra[i]) alvos.push({ obj: o, rotulo: "Passarela " + (i + 1), campos: CAMPOS_POSICAO_MUNDO, ...alvoDeAjuste(ajustes.passarelasExtra[i]) });
     } else if (o.name.indexOf("projetor-") === 0) {
       // Num ecrã CURVO a posição de cada máquina não é dela: sai do arco (a
       // fatia que lhe toca e a distância da fila). Arrastar escrevia um
@@ -8366,6 +8413,50 @@ function objetosArrastaveis() {
  * objeto de ajustes. Escrever aqui é escrever lá -- não há dois valores, há
  * dois sítios a mostrar o mesmo.
  */
+/**
+ * ONDE A PEÇA ESTÁ MESMO, em coordenadas da sala.
+ *
+ * *"não bate certo nas medidas para a posição"* — e não batia: os campos do
+ * painel são, em metade das peças, um DESLOCAMENTO (ver a nota em
+ * CAMPOS_POSICAO). Numa sala de 30 m, o painel do Palco dizia "fundo 0" com o
+ * palco em z = −12, e o do ecrã dizia 0 com ele em z = −14,65.
+ *
+ * Os campos ficam como estão — são eles que o arrasto escreve e que a lista do
+ * painel partilha —, mas ao lado passa a estar a medida: lida da CENA, com
+ * getWorldPosition(), que é o único sítio onde a posição desenhada existe sem
+ * discussão. É a mesma origem das Coordenadas de montagem (centro da sala, ao
+ * nível do chão), para não haver duas leituras a discordar em silêncio.
+ */
+function posicaoNaSala(obj) {
+  if (!obj || !obj.getWorldPosition || !desenhado) return null;
+  // A cena é refeita a cada desenho: o objeto que o painel guardou quando
+  // abriu já não é o que está lá. Vai-se buscar pelo NOME, que sobrevive.
+  let atual = null;
+  desenhado.traverse((o) => {
+    if (!atual && o.name === obj.name && (!obj.isMesh || o.isMesh)) atual = o;
+  });
+  const p = new THREE.Vector3();
+  (atual || obj).getWorldPosition(p);
+  return { x: p.x, z: p.z };
+}
+
+/** A linha "na sala · lado X · fundo Z", que os dois painéis partilham. */
+function linhaDaPosicao() {
+  const p = document.createElement("p");
+  p.className = "ajuste-posicao";
+  p.title = "Onde está na sala, a sério — as mesmas coordenadas da tabela de " +
+    "montagem: origem no centro da sala, ao nível do chão, o fundo a crescer " +
+    "para o lado da plateia.";
+  return p;
+}
+
+function escreverPosicao(no, ponto) {
+  if (!no) return;
+  no.textContent = ponto
+    ? "na sala · lado " + nsin(ponto.x) + " m · fundo " + nsin(ponto.z) + " m"
+    : "";
+}
+
 function abrirPainelDeAjuste(alvo) {
   const caixa = $("painelAjuste");
   if (!caixa || !alvo || !alvo.ajuste || !alvo.campos) return;
@@ -8405,6 +8496,12 @@ function abrirPainelDeAjuste(alvo) {
   });
   caixa.append(campos);
 
+  // A MEDIDA, por baixo dos campos. Os campos dizem quanto se mexeu; esta
+  // linha diz onde a peça ficou — e é a que se leva para a fita.
+  const posicao = linhaDaPosicao();
+  escreverPosicao(posicao, posicaoNaSala(alvo.obj));
+  caixa.append(posicao);
+
   // A DICA VIVE ONDE O GESTO FAZ FALTA. Shift+clique não se descobre sozinho,
   // e o painel do grupo — que a explica — só aparece depois de já se saber
   // fazê-lo. Aqui, com uma peça na mão, é o momento exacto antes de se querer
@@ -8417,7 +8514,7 @@ function abrirPainelDeAjuste(alvo) {
 
   caixa.hidden = false;
   porCaixaDeAjusteNoSitio();
-  painelDeAjusteAberto = { alvo, inputs };
+  painelDeAjusteAberto = { alvo, inputs, posicao };
 }
 
 /**
@@ -8511,14 +8608,24 @@ function abrirPainelDeGrupo() {
     + "Os números são a partir de onde cada peça está e voltam a zero quando sais do campo. "
     + "Rodar gira o conjunto à volta do meio das peças. "
     + "Shift+clique junta ou tira uma; Shift+arrastar no vazio faz um laço; Escape larga.";
-  caixa.append(dica);
+
+  // A MEDIDA do conjunto é o MEIO das peças — o mesmo ponto à volta do qual
+  // "rodar" as faz girar. Assim o número que se lê e o eixo que roda são o
+  // mesmo sítio, e não duas ideias diferentes de "centro".
+  const posicao = linhaDaPosicao();
+  const centro = centroDoGrupo(alvos);
+  escreverPosicao(posicao, alvos.length ? { x: centro.x, z: centro.z } : null);
+  posicao.title = "O meio das peças marcadas, nas coordenadas da sala (origem " +
+    "no centro da sala, ao nível do chão). É também o eixo à volta do qual o " +
+    "«rodar» gira o conjunto.";
+  caixa.append(posicao, dica);
 
   caixa.hidden = false;
   porCaixaDeAjusteNoSitio();
   // `grupo: true` é o que diz a fecharPainelDeAjuste e ao arrasto que esta
   // caixa não é de uma peça — e a refrescarPainelDeAjuste que não tem campos
   // de peça nenhuma para reescrever a meio de um arrasto.
-  painelDeAjusteAberto = { grupo: true, inputs: [] };
+  painelDeAjusteAberto = { grupo: true, inputs: [], posicao };
 }
 
 /**
@@ -8529,9 +8636,12 @@ function abrirPainelDeGrupo() {
  */
 function refrescarPainelDeAjuste() {
   if (!painelDeAjusteAberto) return;
+  refrescarPosicaoDoPainel();
   // O painel do grupo não se refresca a meio de um arrasto: os campos dele
   // são deslocamentos, e reescrevê-los com a posição de alguém era apagar o
   // que a pessoa acabou de escrever e trocá-lo por um número de outra coisa.
+  // (A linha da MEDIDA, acima, refresca-se na mesma: essa não é um campo para
+  // escrever, é o que a cena responde.)
   if (painelDeAjusteAberto.grupo) return;
   const { alvo, inputs } = painelDeAjusteAberto;
   inputs.forEach(({ input, chave }) => {
@@ -8539,6 +8649,25 @@ function refrescarPainelDeAjuste() {
     const v = Number(alvo.ajuste[chave]) || 0;
     input.value = String(Math.round(v * 100) / 100);
   });
+}
+
+/**
+ * Só a linha da medida.
+ *
+ * Corre também no fim de cada montagem, e não apenas a arrastar: escrever "2"
+ * num campo muda a cena, e uma medida que só se actualiza com o rato ficava a
+ * dizer onde a peça estava antes de se escrever o número.
+ */
+function refrescarPosicaoDoPainel() {
+  if (!painelDeAjusteAberto || !painelDeAjusteAberto.posicao) return;
+  if (painelDeAjusteAberto.grupo) {
+    const alvos = alvosSelecionados();
+    const c = centroDoGrupo(alvos);
+    escreverPosicao(painelDeAjusteAberto.posicao, alvos.length ? { x: c.x, z: c.z } : null);
+    return;
+  }
+  escreverPosicao(painelDeAjusteAberto.posicao,
+    posicaoNaSala(painelDeAjusteAberto.alvo && painelDeAjusteAberto.alvo.obj));
 }
 
 

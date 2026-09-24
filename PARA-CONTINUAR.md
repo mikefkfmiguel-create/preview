@@ -1763,6 +1763,81 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 24 de setembro — os números do painel batem certo com a sala (v3.87)
+
+> *"não bate certo nas medidas para a posição"* — com o painel do **Palco**
+> aberto na foto.
+
+Batia mal, e a culpa era da mesma palavra a querer dizer duas coisas. Medido
+numa sala de 30 m, antes de mexer em nada:
+
+| peça | o painel dizia «fundo» | onde estava (z) | diferença |
+|---|---|---|---|
+| Palco (principal) | 0 | −12,00 | **12,00 m** |
+| ecrã «central» | 0 | −14,65 | **14,65 m** |
+| Palco 1 (extra) | −12 | −12,00 | 0 |
+| Passarela 1 | −6 | −6,00 | 0 |
+
+**Há duas famílias de campos, e tinham o mesmo nome em cima.** Num palco
+extra, numa passarela solta ou numa régie (extra ou a principal), o `dz` **é**
+a coordenada da sala. No palco principal e nos ecrãs é um **deslocamento** a
+partir de onde a app põe a peça — 0 quer dizer "encostado ao fundo" ou "onde o
+arranjo o pôs", nunca "no meio da sala". Nos ecrãs é ainda pior de adivinhar,
+porque o conjunto se volta a centrar a cada desenho (ver a v3.86): o campo
+fica em 0 e a peça anda na mesma.
+
+Três coisas, e a terceira é a que resolve de vez:
+
+1. **"lado" e "fundo" ficam reservados à coordenada.** Onde o campo é um
+   deslocamento, passa a **↔** e **↕** — as setas do "Deslocar ↔/↕" da lista,
+   que ninguém lê como uma posição. Vale nos dois sítios (painel flutuante e
+   lista lateral), para não haver duas línguas na mesma app. A régie principal
+   dizia "Deslocar ↕" e é coordenada: passou a "Fundo".
+2. **O `dy` passou a chamar-se "subir"** em todo o lado. "Altura" já era a
+   espessura da peça na lista dos palcos extra — duas alturas no mesmo painel.
+3. **O painel mostra sempre onde a peça está mesmo.** Uma linha por baixo dos
+   campos: `na sala · lado +8,00 m · fundo −12,00 m`, lida da CENA com
+   `getWorldPosition()` e com a mesma origem das Coordenadas de montagem
+   (centro da sala, ao nível do chão). Refresca-se no fim de cada montagem —
+   não em cada sítio que mexe numa peça, que é como se arranjam duas leituras
+   a discordar. No painel do grupo é o **meio das peças**, que é também o eixo
+   à volta do qual elas rodam: o número que se lê e o eixo que roda passam a
+   ser o mesmo ponto.
+
+Isto fecha a linha que estava pendurada desde a v2.99 na secção "PENDENTE"
+mais abaixo: *"«fundo» em vez de ↕/profundidade para a posição — se algum não
+soar bem a usar, é uma linha a mudar"*. Soou mal por uma razão de fundo, não
+de gosto.
+
+### E o campo que não fazia nada
+
+A caminho, medido: o **"altura" (`dy`) do painel flutuante não era lido por
+ninguém** nos palcos extra, nas passarelas soltas e nas régies extra. Escrever
+2 m não mexia a peça um milímetro — y 0 → 0. `fazerPalcoExtra()` e
+`fazerPassarelaLivre()` faziam `position.set(dx, 0, dz)`, com o zero à mão, e
+a régie extra tirava a elevação só do degrau da plateia.
+
+Era precisamente o campo de que o pedido de ontem precisava: *"vou montar um
+cenário com vários palcos a alturas diferentes para fazer escadas"*. Agora
+sobe o grupo (não a caixa), por isso a espessura do palco continua a ser só a
+espessura, e o campo está também na lista lateral dos três — três palcos
+iguais a subir 0 / 0,4 / 0,8 são uma escadaria.
+
+**Atenção a projetos antigos:** quem tiver escrito naquele campo, ou movido um
+grupo para cima com um palco lá dentro, tem um `dy` guardado que até agora não
+fazia nada. Ao reabrir, essas peças sobem — é o valor que lá estava a passar a
+fazer o que dizia.
+
+### O teste
+
+`scripts/verificar-posicao-real.mjs`, contra a app a sério e com a cena como
+testemunha: a medida do painel bate com o `getWorldPosition()` ao centímetro
+nas seis famílias; "fundo" só aparece onde o campo é mesmo a coordenada; a
+medida acompanha o que se escreve **e** o que se arrasta (e, no ecrã, prova
+que o número escrito e a posição são mesmo diferentes — 4 escrito, −10,65 de
+posição); "subir" sobe nos três; e no grupo a medida é o meio das peças e
+não foge quando se roda 90°.
+
 ## 24 de setembro — a cópia deixou de atirar peças para longe, e a caixa move-se (v3.86)
 
 > *"algo estranho na copia"* — com uma fotografia de um palco e um ecrã
@@ -4744,9 +4819,10 @@ Do lado do Preview, o que lá está e toca a esta pasta:
 - **Limpeza de branches.** 69 branches locais já incorporadas em `main`, mas
   só **2** existem no `origin` — as outras só existem nesta pasta. Ficou
   combinado confirmar branch a branch antes de apagar, e só depois apagar.
-- **Os nomes novos da v2.99** ("Tamanho do ecrã", "Ecrãs na sala", "Onde
-  ficam os delays e o DSM", "fundo" em vez de "↕"/"profundidade" para a
-  posição). Se algum não soar bem a usar, é uma linha a mudar.
+- ~~**Os nomes novos da v2.99**~~ — tratado na v3.87. O "fundo" voltou a ser
+  "↕" onde o campo é um deslocamento, e ficou "fundo" só onde é mesmo a
+  coordenada da sala; o painel passou a mostrar a posição real por baixo dos
+  campos.
 - **Uma ideia do mike**, por contar e analisar.
 - **Analítica de uso** (item 8 da lista de lá, decidido a 12/9 e por fazer): a
   fase 1 mexe também nesta pasta — id de instalação anónimo, fila de eventos
