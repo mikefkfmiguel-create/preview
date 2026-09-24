@@ -562,7 +562,10 @@ function desenharCena(recentrarCamara) {
     // Palcos extra (2º, 3º, ...) são só visuais -- nenhum ecrã nem conta de
     // ângulo/cobertura se agarra a eles, ver fazerPalcoExtra() em cena.js.
     ajustes.palcosExtra.forEach((pe, i) => {
-      const grupoExtra = fazerPalcoExtra(pe);
+      // A cor do grupo entra AQUI, no desenho, e não no objeto: `pe.cor`
+      // continua a ser a cor da peça. É isso que faz desfazer o grupo devolver
+      // cada uma à sua cor sem ter sido preciso guardar cópias de nada.
+      const grupoExtra = fazerPalcoExtra({ ...pe, cor: corComGrupo("palco-" + (i + 1), pe.cor) });
       grupoExtra.name = "palco-" + (i + 1);
       desenhado.add(grupoExtra);
     });
@@ -625,7 +628,7 @@ function desenharCena(recentrarCamara) {
   // criar mais do que um... passarela"). Existem sempre que estiverem na
   // lista, sem interruptor à parte.
   ajustes.passarelasExtra.forEach((pl, i) => {
-    const grupoExtra = fazerPassarelaLivre(pl);
+    const grupoExtra = fazerPassarelaLivre({ ...pl, cor: corComGrupo("passarela-" + (i + 1), pl.cor) });
     grupoExtra.name = "passarela-" + (i + 1);
     desenhado.add(grupoExtra);
   });
@@ -683,7 +686,16 @@ function desenharCena(recentrarCamara) {
     medidas = totais(montado);
     // Os ecrãs também se desligam: para olhar para a sala sem eles, ou para os
     // tirar da frente da planta que se está a acertar por baixo.
-    const zonas = fazerZonas(montado, medidas, sala, palco, textura, modoConteudo, ajustes.delays, texturasPorZona);
+    // Idem para os ecrãs: desenha-se uma cópia do projeto com a cor do grupo
+    // por cima, e o `cor` de cada zona fica intacto no projeto a sério. Um
+    // ecrã que entra num cenário passa a ser da cor dele; sai e volta à sua.
+    const comCorDeGrupo = ajustes.grupos && ajustes.grupos.length
+      ? { ...montado, zonas: montado.zonas.map((z) => {
+            const c = corComGrupo("zona " + z.nome, z.cor);
+            return c === z.cor ? z : { ...z, cor: c };
+          }) }
+      : montado;
+    const zonas = fazerZonas(comCorDeGrupo, medidas, sala, palco, textura, modoConteudo, ajustes.delays, texturasPorZona);
     if ($("verEcras").checked) desenhado.add(zonas.grupo);
     etiquetas = ($("verMedidas").checked && $("verEcras").checked) ? zonas.etiquetas : [];
 
@@ -5839,7 +5851,7 @@ function limparTudo() {
   // não era a conta da primeira fila, era isto).
   // O interruptor do depósito é feitio de trabalhar, não conteúdo do projeto:
   // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
-  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
+  ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
 
   document.querySelectorAll("#painel input").forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
@@ -6104,6 +6116,7 @@ async function abrirProjetoTodo(estado) {
         fatiasEscondidas: Array.isArray(estado.ajustes.fatiasEscondidas) ? estado.ajustes.fatiasEscondidas : [],
         nomePorId: (estado.ajustes.nomePorId && typeof estado.ajustes.nomePorId === "object") ? estado.ajustes.nomePorId : {},
         noDeposito: Array.isArray(estado.ajustes.noDeposito) ? estado.ajustes.noDeposito : [],
+        grupos: Array.isArray(estado.ajustes.grupos) ? estado.ajustes.grupos : [],
         // Um ficheiro gravado antes do depósito abre com tudo montado, que é
         // como foi gravado -- nunca com a sala vazia à espera de descarga.
         depositoIniciado: true,
@@ -6113,7 +6126,7 @@ async function abrirProjetoTodo(estado) {
         // Esta vem: a máquina faz parte do projeto que se gravou.
         projetor: (estado.ajustes.projetor && typeof estado.ajustes.projetor === "object") ? estado.ajustes.projetor : null
       }
-    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
+    : { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
   guardarAjustes(ajustes);
   mostrarLogoProprioExtra(false);
 
@@ -7581,6 +7594,11 @@ let alvoArrasto = null;
 let selecaoDeGrupo = new Set();   // nomes dos objetos (o.name), não os alvos:
                                   // os alvos são reconstruídos a cada arrasto.
 let marcasDeSelecao = [];
+// "Dentro" de um grupo guardado: o duplo clique põe a true e mexe-se só
+// numa peça; o clique fora põe a false e volta a agarrar-se o conjunto.
+// Declarada aqui, com o resto do estado da selecção, e não lá em baixo ao
+// pé do dblclick: quem lê o pointerdown tem de a encontrar.
+let dentroDeUmGrupo = false;
 
 /** Os alvos que estão selecionados, resolvidos agora contra a cena de agora. */
 function alvosSelecionados() {
@@ -7698,6 +7716,126 @@ function nomeLivreDeCopia(base, projetoAtual) {
  * que se duplique assim, e copiá-los daqui era inventar uma regra nova para
  * cada um deles sem ninguém a pedir.
  */
+/* ================================================== GRUPOS GUARDADOS
+ *
+ * *"quando quiser uma cor única nos objetos de palco, ou unificar como um
+ * único objeto, posso travar e criar grupo? por exemplo, vou montar um
+ * cenário com vários palcos a alturas diferentes para fazer escadas, e
+ * forrar com ecrãs de LED"*.
+ *
+ * O laço e o Shift+clique fazem uma selecção PASSAGEIRA: serve para mexer uma
+ * vez, mas uma escadaria de sete palcos deixa de ser uma escadaria assim que
+ * se clica noutro sítio, e volta tudo a ser sete palcos soltos. Um grupo
+ * guardado é o contrário: marca-se uma vez, fica com nome, e daí em diante
+ * clicar numa peça agarra o conjunto.
+ *
+ * VAI NO FICHEIRO (`ajustes.grupos`). Um cenário que se desfaz ao reabrir o
+ * projeto não é um cenário.
+ *
+ * A COR DO GRUPO É POR CIMA, NÃO POR DENTRO -- escolha dele, entre substituir
+ * e sobrepor. A peça guarda a cor que tinha; o grupo pinta-as todas ao
+ * desenhar. Desfazer o grupo devolve cada uma à sua cor, sem ter guardado
+ * cópias de nada: a cor original nunca chegou a ser tocada.
+ *
+ * DUPLO CLIQUE ENTRA -- a outra escolha dele. O clique normal agarra o grupo
+ * todo; o duplo clique agarra só aquela peça, que é como se afina a altura de
+ * um degrau sem desfazer a escadaria.
+ */
+
+/** O grupo a que uma peça pertence, se pertencer a algum. */
+function grupoDaPeca(chave) {
+  if (!chave || !Array.isArray(ajustes.grupos)) return null;
+  return ajustes.grupos.find((g) => Array.isArray(g.chaves) && g.chaves.includes(chave)) || null;
+}
+
+/**
+ * A cor com que uma peça se desenha: a do grupo, se tiver; senão a dela.
+ * Chamada só no caminho do desenho — nunca escreve nada.
+ */
+function corComGrupo(chave, corPropria) {
+  const g = grupoDaPeca(chave);
+  return (g && g.cor) ? g.cor : corPropria;
+}
+
+/** Nome livre para um grupo novo, na fala de quem monta: "Cenário 2". */
+function nomeLivreDeGrupo() {
+  let n = 1;
+  let nome = "Cenário " + n;
+  while (ajustes.grupos.some((g) => g.nome === nome)) nome = "Cenário " + (++n);
+  return nome;
+}
+
+/**
+ * Trava a selecção de agora num grupo guardado.
+ *
+ * Uma peça só pode estar num grupo: entrar num novo tira-a do anterior, e um
+ * grupo que fique com menos de duas peças desaparece — um "grupo" de uma peça
+ * é uma peça, e deixá-lo na lista era deixar lixo que ninguém percebia.
+ */
+function criarGrupo() {
+  const chaves = [...selecaoDeGrupo];
+  if (chaves.length < 2) {
+    dizerNaCena("Marca pelo menos duas peças antes de criar um grupo.");
+    return null;
+  }
+  if (!Array.isArray(ajustes.grupos)) ajustes.grupos = [];
+  ajustes.grupos.forEach((g) => { g.chaves = g.chaves.filter((c) => !chaves.includes(c)); });
+  ajustes.grupos = ajustes.grupos.filter((g) => g.chaves.length >= 2);
+
+  const usadas = new Set(ajustes.grupos.map((g) => String(g.cor || "").toLowerCase()));
+  const cor = CORES_ZONA.find((c) => !usadas.has(c.toLowerCase())) || CORES_ZONA[0];
+  const grupo = { id: "g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                  nome: nomeLivreDeGrupo(), cor, chaves };
+  ajustes.grupos.push(grupo);
+  guardarAjustes(ajustes);
+  remontarDaqui(0);
+  abrirPainelDeGrupo();
+  dizerNaCena(`«${grupo.nome}» criado com ${chaves.length} peças, todas da mesma cor. ` +
+              `Clicar numa agarra o conjunto; duplo clique agarra só uma.`);
+  return grupo;
+}
+
+/** Desfaz o grupo: as peças ficam onde estão e cada uma volta à sua cor. */
+function desfazerGrupo(id) {
+  if (!Array.isArray(ajustes.grupos)) return;
+  const g = ajustes.grupos.find((x) => x.id === id);
+  if (!g) return;
+  ajustes.grupos = ajustes.grupos.filter((x) => x.id !== id);
+  guardarAjustes(ajustes);
+  remontarDaqui(0);
+  abrirPainelDeGrupo();
+  dizerNaCena(`«${g.nome}» desfeito. As peças ficaram onde estavam e cada uma voltou à sua cor.`);
+}
+
+/** Muda a cor de um grupo — a cor do cenário, não a das peças. */
+function pintarGrupo(id, cor) {
+  const g = (ajustes.grupos || []).find((x) => x.id === id);
+  if (!g) return;
+  g.cor = cor;
+  guardarAjustes(ajustes);
+  remontarDaqui(0);
+}
+
+/*
+ * NÃO HÁ LIMPEZA DE GRUPOS A CADA DESENHO, e a tentativa de a haver foi o
+ * defeito mais caro desta funcionalidade.
+ *
+ * A ideia parecia boa: tirar dos grupos as chaves de peças que já não existem.
+ * Na prática apagava cenários inteiros, por duas vias:
+ *
+ *   · AO RECARREGAR A APP a cena ainda está vazia quando o primeiro desenho
+ *     corre. Nenhuma chave "existe", o grupo fica com zero peças, e o cenário
+ *     que foi guardado desaparece antes de alguém o ver;
+ *   · e DESLIGAR O PALCO na secção Vista esconde os palcos extra. Esconder não
+ *     é apagar — mas para uma limpeza que só olha para o que está desenhado é
+ *     a mesma coisa, e a escadaria morria por se ter carregado num interruptor.
+ *
+ * Uma chave a apontar para uma peça que não existe agora não faz mal nenhum:
+ * `alvosSelecionados()` resolve contra o que está na cena e ignora o resto, e
+ * o painel conta o que resolveu. Se a peça voltar (o palco religado), a chave
+ * volta a valer. Guardar de mais é reversível; apagar não é.
+ */
+
 /**
  * O que se pode copiar: um ecrã do projeto, um palco (o principal ou um
  * extra), uma passarela ou uma régie. Um gomo de plateia não — é uma fatia de
@@ -8227,7 +8365,26 @@ function abrirPainelDeGrupo() {
   const topo = document.createElement("div");
   topo.className = "ajuste-flutuante-topo";
   const nome = document.createElement("b");
-  nome.textContent = alvos.length + " peças";
+  // TRAVAR / DESTRAVAR. O mesmo botão nos dois sentidos, porque é a mesma
+  // pergunta: estas peças andam juntas, ou não? Um cadeado fechado quer dizer
+  // "já é um cenário".
+  const doGrupo = alvos.map((a) => grupoDaPeca(a.obj.name)).filter(Boolean);
+  const grupoInteiro = doGrupo.length === alvos.length && doGrupo.length > 0 &&
+                       doGrupo.every((g) => g.id === doGrupo[0].id);
+  // Um grupo guardado tem NOME, e é o nome que se lê no título: "Cenário 1"
+  // diz o que aquilo é; "7 peças" diz só quantas são.
+  nome.textContent = grupoInteiro ? doGrupo[0].nome : (alvos.length + " peças");
+  const travar = document.createElement("button");
+  travar.type = "button";
+  travar.className = "btn-icone";
+  travar.textContent = grupoInteiro ? "🔒" : "🔓";
+  travar.title = grupoInteiro
+    ? `«${doGrupo[0].nome}» é um grupo guardado — clica para o desfazer (as peças ficam onde estão e cada uma volta à sua cor)`
+    : "Travar estas peças num grupo guardado: passam a andar juntas, com uma cor só, e ficam assim quando guardares o projeto";
+  travar.addEventListener("click", () => {
+    if (grupoInteiro) desfazerGrupo(doGrupo[0].id); else criarGrupo();
+  });
+
   const copiar = document.createElement("button");
   copiar.type = "button";
   copiar.className = "btn-icone";
@@ -8240,13 +8397,30 @@ function abrirPainelDeGrupo() {
   fechar.title = "Largar a selecção";
   fechar.textContent = "×";
   fechar.addEventListener("click", limparSelecao);
-  topo.append(nome, copiar, fechar);
+  topo.append(nome, travar, copiar, fechar);
   caixa.append(topo);
 
   const quem = document.createElement("p");
   quem.className = "ajuste-grupo-quem";
   quem.textContent = alvos.map((a) => a.rotulo).join(" · ");
   caixa.append(quem);
+
+  // A COR DO CENÁRIO. Só aparece quando as peças já são um grupo guardado:
+  // numa selecção passageira, uma cor comum não teria onde ficar.
+  if (grupoInteiro) {
+    const linhaCor = document.createElement("label");
+    linhaCor.className = "ajuste-campo ajuste-grupo-cor";
+    const rot = document.createElement("span");
+    rot.className = "ajuste-rotulo";
+    rot.textContent = "cor";
+    const escolha = document.createElement("input");
+    escolha.type = "color";
+    escolha.value = doGrupo[0].cor || "#2E7BFF";
+    escolha.title = "A cor do cenário. Fica POR CIMA da cor de cada peça — desfazer o grupo devolve cada uma à sua.";
+    escolha.addEventListener("input", () => pintarGrupo(doGrupo[0].id, escolha.value));
+    linhaCor.append(rot, escolha);
+    caixa.append(linhaCor);
+  }
 
   const comando = comandoDeGrupo();
   const campos = document.createElement("div");
@@ -8261,11 +8435,13 @@ function abrirPainelDeGrupo() {
 
   const dica = document.createElement("p");
   dica.className = "ajuste-grupo-dica";
-  dica.textContent = "Os números são a partir de onde cada peça está, e voltam " +
-    "a zero quando sais do campo — escrever o mesmo outra vez roda outra vez. " +
-    "Rodar gira o conjunto à volta do meio das peças marcadas. " +
-    "Shift+clique junta ou tira uma peça; Shift+arrastar no vazio faz um laço " +
-    "e apanha tudo o que lá couber; Escape larga a selecção.";
+  dica.textContent = (grupoInteiro
+    ? "Grupo guardado: clicar numa peça agarra o conjunto, e duplo clique entra para mexer só numa. "
+      + "O 🔒 desfaz o grupo. A cor é do cenário e fica por cima da cor de cada peça. "
+    : "O 🔓 trava estas peças num grupo guardado, com uma cor só, que fica no ficheiro. ")
+    + "Os números são a partir de onde cada peça está e voltam a zero quando sais do campo. "
+    + "Rodar gira o conjunto à volta do meio das peças. "
+    + "Shift+clique junta ou tira uma; Shift+arrastar no vazio faz um laço; Escape larga.";
   caixa.append(dica);
 
   caixa.hidden = false;
@@ -8434,7 +8610,7 @@ tela.addEventListener("pointerdown", (e) => {
 
   // CLICAR NO VAZIO LARGA TUDO. É o gesto que toda a gente já tem no dedo, e
   // sem ele uma selecção ficava agarrada sem se perceber como a soltar.
-  if (!melhor) { limparSelecao(); fecharPainelDeAjuste(); return; }
+  if (!melhor) { dentroDeUmGrupo = false; limparSelecao(); fecharPainelDeAjuste(); return; }
 
   // SHIFT JUNTA OU TIRA. Não arrasta: quem está a escolher peças não quer
   // que a terceira escolha lhe desloque as outras duas sem querer.
@@ -8452,6 +8628,29 @@ tela.addEventListener("pointerdown", (e) => {
   // Clique simples numa peça JÁ MARCADA: arrasta o conjunto todo. Numa peça
   // de fora: recomeça a selecção nela, que é o que um clique simples sempre
   // fez.
+  // UMA PEÇA DE UM GRUPO GUARDADO TRAZ O GRUPO TODO. É o que faz de uma
+  // escadaria de sete palcos uma escadaria, e não sete palcos: clica-se num
+  // degrau e vem a escada. O duplo clique (mais abaixo) é a porta para entrar
+  // e mexer num degrau sozinho.
+  const grupoGuardado = !dentroDeUmGrupo && grupoDaPeca(melhor.alvo.obj.name);
+  if (grupoGuardado && !e.shiftKey) {
+    selecaoDeGrupo.clear();
+    grupoGuardado.chaves.forEach((c) => selecaoDeGrupo.add(c));
+    marcarSelecao();
+    abrirPainelDeGrupo();
+    controlos.enabled = false;
+    tela.setPointerCapture(e.pointerId);
+    planoAjuste.set(new THREE.Vector3(0, 1, 0), -melhor.ponto.y);
+    const doGrupo = alvosSelecionados();
+    alvoArrasto = {
+      alvo: melhor.alvo,
+      grupo: doGrupo.map((a) => { const pt = a.getXZ(); return { alvo: a, x0: pt.x, z0: pt.z }; }),
+      px0: melhor.ponto.x, pz0: melhor.ponto.z
+    };
+    tela.style.cursor = "grabbing";
+    return;
+  }
+
   const dentroDaSelecao = selecaoDeGrupo.has(melhor.alvo.obj.name) && selecaoDeGrupo.size > 1;
   if (!dentroDaSelecao) {
     // O clique simples SEMEIA a selecção com esta peça. Sem isto o gesto
@@ -8517,6 +8716,30 @@ function largarAjuste(e) {
   tela.style.cursor = "";
   try { tela.releasePointerCapture(e.pointerId); } catch (_) {}
 }
+// DUPLO CLIQUE ENTRA NO GRUPO. Escolha dele, para afinar a altura de um
+// degrau sem desfazer a escadaria. Fica "dentro" só até ao clique seguinte
+// fora da peça -- um modo que se entra e não se sabe sair é uma armadilha.
+tela.addEventListener("dblclick", (e) => {
+  if (!edicaoLivreLigada()) return;
+  porRatoAjuste(e);
+  apontadorAjuste.setFromCamera(ratoAjuste, camara);
+  let melhor = null, dist = Infinity;
+  for (const alvo of objetosArrastaveis()) {
+    const hits = apontadorAjuste.intersectObject(alvo.obj, true);
+    if (hits.length && hits[0].distance < dist) { dist = hits[0].distance; melhor = alvo; }
+  }
+  if (!melhor) { dentroDeUmGrupo = false; return; }
+  const g = grupoDaPeca(melhor.obj.name);
+  if (!g) return;                      // fora de um grupo, o duplo clique não é nada
+  dentroDeUmGrupo = true;
+  selecaoDeGrupo.clear();
+  selecaoDeGrupo.add(melhor.obj.name);
+  marcarSelecao();
+  abrirPainelDeAjuste(melhor);
+  dizerNaCena(`Dentro de «${g.nome}»: estás a mexer só em ${melhor.rotulo}. ` +
+              `Clica fora para voltar a agarrar o grupo todo.`);
+});
+
 tela.addEventListener("pointerup", largarAjuste);
 tela.addEventListener("pointercancel", largarAjuste);
 
@@ -9334,6 +9557,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   get selecaoDeGrupo() { return selecaoDeGrupo; },
                   alvosSelecionados, centroDoGrupo, moverGrupo, rodarGrupo,
                   duplicarPecas, nomeLivreDeCopia, podeCopiar,
+                  criarGrupo, desfazerGrupo, pintarGrupo, grupoDaPeca, corComGrupo,
                   get laco() { return laco; }, comecarLaco, desenharLaco, fecharLaco,
                   abrirPainelDeAjuste,
                   marcarSelecao, limparSelecao, abrirPainelDeGrupo,

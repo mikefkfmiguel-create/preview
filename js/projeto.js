@@ -452,6 +452,11 @@ export function ajustesGuardados() {
       // porque está tudo montado" de "ainda nunca corri com depósito", que é
       // o que impede um projeto antigo de aparecer todo por montar.
       noDeposito: (dados && Array.isArray(dados.noDeposito)) ? dados.noDeposito : [],
+      // GRUPOS GUARDADOS: peças que andam juntas e se pintam da mesma cor.
+      // Vão no ficheiro porque um cenário montado a partir de vários palcos
+      // (uma escadaria, por exemplo) deixa de ser um cenário se ao reabrir o
+      // projeto voltar a ser sete palcos soltos.
+      grupos: (dados && Array.isArray(dados.grupos)) ? dados.grupos : [],
       depositoIniciado: !!(dados && dados.depositoIniciado),
       // Com isto desligado, o material novo entra logo na sala em vez de
       // parar no depósito — a forma como isto funcionava antes da v2.92.
@@ -472,7 +477,7 @@ export function ajustesGuardados() {
       retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null, retroDoBlend: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null, retroDoBlend: false };
   }
 }
 

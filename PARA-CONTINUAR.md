@@ -1763,6 +1763,66 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 24 de setembro — grupos guardados: um cenário é um objeto (v3.85)
+
+> *"quando quiser uma cor única nos objetos de palco, ou unificar como um único
+> objeto, posso travar e criar grupo? por exemplo, vou montar um cenário com
+> vários palcos a alturas diferentes para fazer escadas, e forrar com ecrãs de
+> LED"*.
+
+O laço e o Shift+clique fazem uma selecção **passageira**: serve para mexer uma
+vez. Uma escadaria de palcos deixava de ser uma escadaria no clique seguinte.
+
+Um grupo guardado marca-se uma vez, ganha nome ("Cenário 1"), e daí em diante
+clicar numa peça agarra o conjunto. Vai em `ajustes.grupos`, ou seja **no
+ficheiro**: um cenário que se desfaz ao reabrir o projeto não é um cenário.
+
+### As duas escolhas dele
+
+- **A cor fica por cima, não por dentro.** A peça guarda a cor que tinha; o
+  grupo pinta-as todas *ao desenhar*. Desfazer devolve cada uma à sua cor sem
+  ter sido preciso guardar cópias de nada — a original nunca chegou a ser
+  tocada. (A moldura escura de um ecrã não se pinta: é estrutura, não
+  identidade.)
+- **Duplo clique entra.** O clique normal agarra o cenário todo; o duplo agarra
+  só aquele degrau, que é como se afina a altura de um sem desfazer a escada.
+  Sai-se com um clique fora — um modo em que se entra e não se sabe sair é uma
+  armadilha.
+
+### O defeito mais caro: a limpeza que apagava cenários
+
+Escrevi uma `arrumarGrupos()` que, a cada desenho, tirava dos grupos as chaves
+de peças que já não existiam. Parecia arrumação; era destruição, por duas vias:
+
+- **ao recarregar a app** a cena ainda está vazia no primeiro desenho. Nenhuma
+  chave "existe", o grupo fica a zero, e o cenário guardado desaparece antes de
+  alguém o ver. Foi assim que o teste apanhou;
+- e **desligar o Palco** na secção Vista esconde os palcos extra. Esconder não
+  é apagar — mas para uma limpeza que só olha para o que está desenhado é a
+  mesma coisa, e a escadaria morria por se ter carregado num interruptor.
+
+Não há limpeza nenhuma. Uma chave órfã não faz mal: `alvosSelecionados()`
+resolve contra a cena e ignora o resto. Se a peça voltar, a chave volta a
+valer. **Guardar de mais é reversível; apagar não é.**
+
+### Quatro defeitos do meu próprio teste
+
+Nenhum era da app, e três deles faziam-no passar sem medir nada:
+
+1. clicava num degrau **fora da tela** (x=1520 numa janela de 1400): não
+   chegava evento nenhum. E "4 marcadas" a seguir era a selecção que já lá
+   estava — passava. Agora enquadra a cena, **exige que o ponto esteja dentro**
+   da tela, e larga a selecção antes de clicar;
+2. lia a cor pela **primeira malha** de cada peça; um ecrã tem várias, e a
+   primeira é a moldura. Passou a exigir que a cor do cenário **apareça** entre
+   as malhas de cada peça;
+3. lia `material.color` em materiais que são **array** (um painel LED tem
+   vários), e dava "sem cor nenhuma" num ecrã desenhado à frente dele;
+4. e a verificação da persistência estava **a meio**, quando recarregar a app
+   a abre limpa: rebentava a seguir, a perguntar a cor de um ecrã que já não
+   existia. Foi para o fim, e passou a comparar com o retrato de antes em vez
+   de um número escrito à mão.
+
 ## 24 de setembro — o laço, o Escape, e cópias de cor nova (v3.84)
 
 > *"no 3D preciso de uma forma melhor de criar e desfazer grupos para mover e
