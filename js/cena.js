@@ -258,7 +258,16 @@ export function fazerPalcoExtra(pe) {
   caixa.position.set(0, altura / 2, 0);
   grupo.add(caixa);
   grupo.rotation.y = -(pe.rot || 0) * Math.PI / 180;
-  grupo.position.set(pe.dx || 0, 0, pe.dz || 0);
+  // SUBIR DO CHÃO (`dy`). O campo existia no painel flutuante desde que estes
+  // palcos se arrastam, mas ninguém o lia: escrever 2 m ali não mexia a peça um
+  // milímetro -- medido, y 0 → 0. E era precisamente o que faltava ao pedido
+  // *"vou montar um cenário com vários palcos a alturas diferentes para fazer
+  // escadas"*: um palco em cima de outro SOBE, não engorda.
+  //
+  // Sobe o GRUPO e não a caixa: assim o tampo continua a ficar a `altura/2` do
+  // pé do próprio palco, e `pe.altura` (o campo "altura" da lista) continua a
+  // ser só a espessura dele.
+  grupo.position.set(pe.dx || 0, Number(pe.dy) || 0, pe.dz || 0);
   return grupo;
 }
 
@@ -1471,7 +1480,9 @@ export function fazerPassarelaLivre(pl) {
   caixa.position.set(0, altura / 2, 0);
   grupo.add(caixa);
   grupo.rotation.y = -(pl.rot || 0) * Math.PI / 180;
-  grupo.position.set(pl.dx || 0, 0, pl.dz || 0);
+  // Sobe do chão pelo `dy`, como o palco extra -- e pela mesma razão: o campo
+  // estava no painel e não mexia nada.
+  grupo.position.set(pl.dx || 0, Number(pl.dy) || 0, pl.dz || 0);
   return grupo;
 }
 

@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.86</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.87</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -241,6 +241,7 @@
         <p><b>Arredondar cantos</b> é em metros e limita-se sozinho a metade de cada lado: a meio dá cantos suaves, no máximo fecha a curva de vez — um palco comprido fica em elipse, um quadrado fica redondo. <b>⭘ Fazer um círculo</b> trata disso tudo de uma vez (põe a profundidade igual à largura e o arredondamento no máximo).</p>
         <p><b>Passarela</b> sai do meio da frente do palco para dentro da plateia, à mesma altura do tampo. Onde ela passa, a plateia abre-se dos dois lados e volta a juntar-se depois do fim dela.</p>
         <p><b>+ Palco</b> acrescenta um palco extra — só visual, sem ecrã nem cobertura agarrados. Arrasta-se na cena (cadeado aberto) ou escreve-se nos campos. O arredondamento não muda conta nenhuma: ecrãs, ângulos e cobertura usam sempre a medida cheia.</p>
+        <p>Num palco extra, numa passarela solta ou numa régie extra, <b>altura</b> é a espessura da peça e <b>subir</b> é a que altura ela assenta — é assim que se fazem degraus: três palcos iguais a subir 0, 0,4 e 0,8. E <b>lado</b> e <b>fundo</b> são a posição na sala, não um deslocamento: o mesmo número que a folha de montagem mostra.</p>
       </div>
     </details>
     <div class="campos">
@@ -355,8 +356,8 @@
     <div class="campos">
       <label>Largura <input id="regieL" type="number" value="2" min="2" max="12" step="0.5"><i>m</i></label>
       <label>Profundidade <input id="regieP" type="number" value="2" min="2" max="12" step="0.5"><i>m</i></label>
-      <label>Deslocar ↔ <input id="regieX" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
-      <label>Deslocar ↕ <input id="regieZ" type="number" value="7" min="-100" max="100" step="0.25"><i>m</i></label>
+      <label title="A posição na sala, não um deslocamento: 0 é o meio da sala, positivo para a direita de quem olha para o palco.">Lado <input id="regieX" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
+      <label title="A posição na sala, não um deslocamento: 0 é o meio da sala, positivo para o lado da plateia. É o mesmo número que aparece nas coordenadas de montagem.">Fundo <input id="regieZ" type="number" value="7" min="-100" max="100" step="0.25"><i>m</i></label>
       <label>Rodar <input id="regieR" type="number" value="0" min="-180" max="180" step="15"><i>°</i></label>
     </div>
     <div id="listaRegiesExtra" style="margin-top:10px"></div>
@@ -563,7 +564,8 @@
       <summary>O que está montado, e como se mexe</summary>
       <div class="ajuda-corpo">
         <p>Uma linha por ecrã que está <b>na sala</b> — o que ainda estiver por montar está no Depósito, acima. Normalmente vêm dos Calculadores, mas também se criam aqui, para um esboço rápido ou para uma obra sem rede.</p>
-        <p>Cada linha tem o tipo (LED, TV, Projeção), o tamanho, e a posição: <b>↔</b> é para os lados, <b>fundo</b> é para a frente e para trás, <b>rodar</b> e <b>tilt</b> são os ângulos. Também se arrastam directamente na cena, com o cadeado aberto. Aí, para mexer e rodar várias ao mesmo tempo: <b>Shift+clique</b> junta ou tira uma peça, <b>Shift+arrastar no vazio</b> faz um laço e apanha tudo o que lá couber, e <b>Escape</b> larga a selecção.</p>
+        <p>Cada linha tem o tipo (LED, TV, Projeção), o tamanho, e a posição: <b>↔</b> é para os lados, <b>↕</b> é para a frente e para trás, <b>subir</b> é a altura, <b>rodar</b> e <b>tilt</b> são os ângulos. Também se arrastam directamente na cena, com o cadeado aberto. Aí, para mexer e rodar várias ao mesmo tempo: <b>Shift+clique</b> junta ou tira uma peça, <b>Shift+arrastar no vazio</b> faz um laço e apanha tudo o que lá couber, e <b>Escape</b> larga a selecção.</p>
+        <p><b>Setas ou nomes, e a diferença importa.</b> Onde o campo se chama <b>↔</b> e <b>↕</b>, o número é um <b>deslocamento</b> a partir de onde a app põe a peça — nos ecrãs e no palco principal, zero não quer dizer «no meio da sala», quer dizer «onde ele já estava». Onde se chama <b>lado</b> e <b>fundo</b> — palcos extra, passarelas soltas, régies — o número <b>é</b> a posição na sala. Para não ser preciso saber qual é qual, o painel que abre ao clicar numa peça mostra sempre, por baixo dos campos, <b>onde ela está mesmo</b>: as mesmas coordenadas da folha de montagem, com origem no centro da sala. Com várias peças marcadas, essa linha é o <b>meio do conjunto</b> — o ponto à volta do qual o <b>rodar</b> as gira.</p>
         <p><b>Grupos guardados.</b> Com várias peças marcadas, o <b>🔓</b> do painel trava-as num grupo com nome — um cenário. A partir daí, clicar numa agarra o conjunto todo, e ele <b>fica no ficheiro</b> quando guardas o projeto. O grupo tem uma <b>cor só</b>, que fica <b>por cima</b> da cor de cada peça: desfazer o grupo (<b>🔒</b>) devolve cada uma à sua. Para afinar uma peça sozinha sem desfazer nada — a altura de um degrau, por exemplo — <b>duplo clique</b> nela. Serve para montar um cenário de vários palcos a alturas diferentes e forrá-lo a LED, sem ter de voltar a marcar tudo a cada passo.</p>
         <p><b>⧉</b> copia, <b>↓</b> manda de volta para o depósito sem apagar, <b>🗑</b> tira do projeto. <b>leitura</b> desligada marca um ecrã como decorativo: continua desenhado, mas deixa de contar para a cobertura da plateia.</p>
         <p>A <b>cópia</b> leva tudo o que a original tem — medidas, tiles, resolução, peso, consumo, e os ajustes feitos aqui — com nome e identidade próprios, e sai <b>ao lado</b>, já marcada para se arrastar. A cópia sai de <b>cor diferente</b> da original, para não haver dúvida sobre qual é qual. O mesmo <b>⧉</b> está no painel que abre ao clicar numa peça na cena, e aí copia <b>o conjunto inteiro</b> se tiveres várias marcadas — e copia também <b>palcos e passarelas</b>, não só ecrãs.</p>
