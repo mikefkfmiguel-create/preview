@@ -743,3 +743,11 @@ button.apontado { animation: apontar 1.1s ease-in-out 3; }
   border-radius: 2px;
 }
 #lacoSelecao[hidden] { display: none; }
+
+/* A cor do cenário, no painel do grupo. O quadrado de cor é um alvo de toque
+   como os outros campos — em obra isto usa-se no telemóvel. */
+.ajuste-grupo-cor { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
+.ajuste-grupo-cor input[type="color"] {
+  flex: 1; height: 30px; padding: 0; border: 1px solid var(--linha, #2A3640);
+  border-radius: 6px; background: none; cursor: pointer;
+}
