@@ -267,6 +267,75 @@ console.log("   botões no painel do palco: " + botoesDoPalco);
 conferir(!!botoesDoPalco && botoesDoPalco.includes("⧉"),
   "e o palco TEM ⧉ — era o que ele pediu: «inclusive os palcos e passarelas»");
 
+
+// ---- 10. A CAIXA DE AJUSTES ARRASTA-SE --------------------------------
+//
+// *"e se puder mover a caixa de ajustes livre pode dar mais jeito, e não ficar
+// sempre ali no cantito"*. Ela nasce no canto de baixo à direita, que é
+// exactamente onde tapa a peça quando a peça também está desse lado.
+console.log("\n== arrastar a caixa de ajustes ==");
+await pagina.evaluate(async () => {
+  window.preview.limparSelecao();
+  const a = window.preview.objetosArrastaveis().find((x) => x.obj && x.obj.name.indexOf("zona ") === 0);
+  window.preview.abrirPainelDeAjuste(a);
+  await new Promise((r) => setTimeout(r, 300));
+});
+const caixaEm = () => pagina.evaluate(() => {
+  const r = document.getElementById("painelAjuste").getBoundingClientRect();
+  return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+});
+const noCanto = await caixaEm();
+console.log("   no canto: " + noCanto.x + "," + noCanto.y);
+
+// Agarra-se pelo CABEÇALHO, que é a única parte que arrasta.
+const cabeca = await pagina.evaluate(() => {
+  const h = document.querySelector("#painelAjuste .ajuste-flutuante-topo").getBoundingClientRect();
+  // Ao lado do texto, longe dos botões do canto direito.
+  return { x: h.left + 20, y: h.top + h.height / 2 };
+});
+await pagina.mouse.move(cabeca.x, cabeca.y);
+await pagina.mouse.down();
+await pagina.mouse.move(cabeca.x - 400, cabeca.y - 250, { steps: 10 });
+await pagina.mouse.up();
+await pagina.waitForTimeout(400);
+const arrastada = await caixaEm();
+console.log("   depois de arrastar: " + arrastada.x + "," + arrastada.y);
+conferir(Math.abs((noCanto.x - arrastada.x) - 400) < 12 && Math.abs((noCanto.y - arrastada.y) - 250) < 12,
+  "a caixa seguiu o rato (" + (noCanto.x - arrastada.x) + " px para a esquerda, " + (noCanto.y - arrastada.y) + " para cima)");
+
+// O SÍTIO FICA: abrir outra peça não a manda de volta ao canto.
+await pagina.evaluate(async () => {
+  window.preview.limparSelecao();
+  const outras = window.preview.objetosArrastaveis().filter((x) => x.obj && x.obj.name.indexOf("zona ") === 0);
+  window.preview.abrirPainelDeAjuste(outras[1] || outras[0]);
+  await new Promise((r) => setTimeout(r, 400));
+});
+const noutraPeca = await caixaEm();
+console.log("   ao abrir outra peça: " + noutraPeca.x + "," + noutraPeca.y);
+conferir(Math.abs(noutraPeca.x - arrastada.x) < 4 && Math.abs(noutraPeca.y - arrastada.y) < 4,
+  "e ficou onde foi posta — quem a arruma não a quer de volta no canto a cada peça");
+
+// ARRASTAR POR UM BOTÃO NÃO MEXE NA CAIXA: o × e o ⧉ são para carregar.
+const botao = await pagina.evaluate(() => {
+  const b = document.querySelector("#painelAjuste .ajuste-flutuante-topo button");
+  const r = b.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+});
+await pagina.mouse.move(botao.x, botao.y);
+await pagina.mouse.down();
+await pagina.mouse.move(botao.x - 150, botao.y, { steps: 6 });
+await pagina.mouse.up();
+await pagina.waitForTimeout(300);
+const depoisDoBotao = await pagina.evaluate(() => {
+  const c = document.getElementById("painelAjuste");
+  if (c.hidden) return "fechou";
+  const r = c.getBoundingClientRect();
+  return { x: Math.round(r.left), y: Math.round(r.top) };
+});
+console.log("   arrastar a partir de um botão: " + JSON.stringify(depoisDoBotao));
+conferir(depoisDoBotao === "fechou" || Math.abs(depoisDoBotao.x - noutraPeca.x) < 4,
+  "arrastar a partir de um botão do cabeçalho não move a caixa — os botões são para carregar");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();

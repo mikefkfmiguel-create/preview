@@ -1763,6 +1763,62 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 24 de setembro — a cópia deixou de atirar peças para longe, e a caixa move-se (v3.86)
+
+> *"algo estranho na copia"* — com uma fotografia de um palco e um ecrã
+> marcados juntos. E, a seguir: *"e se puder mover a caixa de ajustes livre
+> pode dar mais jeito e não ficar sempre ali no cantito"*.
+
+### O que estava estranho, medido
+
+Copiar um palco de 16 m **e** um ecrã de 3 m marcados juntos:
+
+- a cópia do ecrã era atirada **20 m** para o lado — porque o desvio saía da
+  caixa envolvente de TUDO o que estava marcado, e o que estava marcado incluía
+  um palco de 16 m;
+- e o ecrã **original** andava **10 m** sozinho.
+
+O desvio passou a ser **por família**: os ecrãs andam a largura dos ecrãs
+marcados, os palcos a dos palcos. Dentro de cada família a arrumação mantém-se
+(mesmo desvio para todas), e nenhuma peça é arrastada pelo tamanho de outra
+coisa. O ecrã copiado passou de 20 m para 3,5 m do seu.
+
+### A parte que NÃO se pode curar, e porquê
+
+O ecrã original mexer-se é o **recentrar**: a app mantém o conjunto das zonas
+centrado na sala, por isso um ecrã a mais alarga o conjunto e empurra os que já
+lá estavam.
+
+Tentei compensar, somando o desvio inverso a todas as zonas. **Não funciona**, e
+a razão vale a pena ficar escrita: se a posição de cada zona é dada pelo centro
+do conjunto, somar o mesmo a todas não muda nada depois de recentrar. É
+inerente à regra "o conjunto vive centrado" — não é um defeito da cópia.
+
+Por isso mede-se e **diz-se**, como o `devolverAosCalculadores` já fazia: *"o
+conjunto de ecrãs ficou mais largo e voltou a centrar-se na sala: os que já lá
+estavam andaram 1,75 m"*. Ver um ecrã em que ninguém tocou mexer-se, sem uma
+palavra, é que era estranho.
+
+**Para um palco e o ecrã dele ficarem colados, a ferramenta é o grupo (v3.85)**,
+não a cópia: agrupados, andam juntos daí em diante.
+
+### E um erro meu no caminho
+
+Ao reescrever o fim da `duplicarPecas` apaguei as duas linhas que marcam as
+**cópias** em vez das originais. O teste apanhou à primeira.
+
+### A caixa de ajustes arrasta-se
+
+Pelo **cabeçalho** — o mesmo gesto e a mesma regra do popup do Ecrã Complexo do
+outro lado. Só pelo cabeçalho, porque lá dentro há campos de número com setas e
+arrastar a partir de um campo tirava a pessoa do número que estava a acertar. Os
+botões do cabeçalho (⧉, 🔒, ×) continuam a ser botões.
+
+O sítio fica **para a sessão, em memória** e não no `localStorage`: uma caixa
+que abre fora do ecrã porque ontem a janela era maior é pior do que uma caixa no
+canto. E é sempre reposta dentro do ecrã, com **dois cliques no cabeçalho** a
+devolvê-la ao canto para quem a arrumou num sítio mau.
+
 ## 24 de setembro — grupos guardados: um cenário é um objeto (v3.85)
 
 > *"quando quiser uma cor única nos objetos de palco, ou unificar como um único
