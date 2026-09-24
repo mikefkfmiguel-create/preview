@@ -6522,6 +6522,7 @@ function escreverRespostaIA(veio, feitas, mantidas, comVariosTamanhos) {
   caixa.innerHTML = '<button class="fechar" title="Fechar">×</button>' + partes.join("<br>");
   caixa.querySelector(".fechar").onclick = () => { caixa.hidden = true; };
   caixa.hidden = false;
+  porCaixaDeAjusteNoSitio();
 }
 
 /**
@@ -7877,12 +7878,54 @@ function duplicarPecas(alvos) {
     return c;
   };
 
-  // Quanto é que o conjunto anda para o lado: a largura DELE mais meio metro.
-  // Mede-se pelo que está desenhado, que é a única medida que serve para
-  // peças de famílias diferentes (um ecrã tem `w`, um palco tem `largura`).
-  const caixa = new THREE.Box3();
-  alvos.forEach((a) => { if (a.obj && a.obj.isObject3D) caixa.expandByObject(a.obj); });
-  const desvio = caixa.isEmpty() ? 2 : (caixa.max.x - caixa.min.x) + 0.5;
+  // QUANTO É QUE CADA CÓPIA ANDA PARA O LADO — POR FAMÍLIA, não pelo conjunto.
+  //
+  // Era a largura de TUDO o que estava marcado. Com um palco de 16 m e um ecrã
+  // de 3 m marcados juntos, a cópia do ecrã era atirada 20 m para o lado, longe
+  // de tudo. Reportado assim: *"algo estranho na cópia"*.
+  //
+  // Agora cada família anda a largura do que foi marcado DELA: os ecrãs andam a
+  // largura dos ecrãs, os palcos a largura dos palcos. Dentro de cada família a
+  // arrumação mantém-se (é o mesmo desvio para todas as peças dela), e nenhuma
+  // é arrastada pelo tamanho de outra coisa.
+  const familiaDe = (nome) => {
+    if (!nome) return null;
+    if (nome.indexOf("zona ") === 0) return "zona";
+    if (nome === "palco" || nome.indexOf("palco-") === 0) return "palco";
+    if (nome.indexOf("passarela-") === 0) return "passarela";
+    if (nome.indexOf("regie-") === 0) return "regie";
+    return null;
+  };
+  const larguraPorFamilia = {};
+  alvos.forEach((a) => {
+    const f = familiaDe(a.obj && a.obj.name);
+    if (!f || !a.obj || !a.obj.isObject3D) return;
+    (larguraPorFamilia[f] || (larguraPorFamilia[f] = new THREE.Box3())).expandByObject(a.obj);
+  });
+  const desvioDe = (nome) => {
+    const cx = larguraPorFamilia[familiaDe(nome)];
+    return (!cx || cx.isEmpty()) ? 2 : (cx.max.x - cx.min.x) + 0.5;
+  };
+
+  // ONDE AS ZONAS ESTÃO MESMO, ANTES DE COPIAR.
+  //
+  // A app RECENTRA o conjunto das zonas na sala a cada desenho. Uma cópia
+  // alarga esse conjunto, logo o recentrar puxa TODAS as zonas para o lado —
+  // incluindo as originais, que ninguém mandou mexer. Reportado assim:
+  // *"algo estranho na cópia"*. Medido: copiar um palco mais um ecrã atirava a
+  // cópia do ecrã para 20 m e arrastava o ecrã ORIGINAL 10 m para o outro
+  // lado, e o par deixava de ter a forma que tinha.
+  //
+  // Guarda-se aqui a posição desenhada de cada zona para, depois de copiar,
+  // se poder devolver as originais ao sítio. Mede-se em vez de reproduzir a
+  // conta do recentrar: é a conta dela que manda, não a minha ideia dela.
+  const ondeEstavam = new Map();
+  if (projeto && desenhado) {
+    projeto.zonas.forEach((z) => {
+      const o = desenhado.getObjectByName("zona " + z.nome);
+      if (o) ondeEstavam.set(z.nome, o.getWorldPosition(new THREE.Vector3()).x);
+    });
+  }
 
   const feitos = [];
   alvos.forEach((a) => {
@@ -7896,7 +7939,7 @@ function duplicarPecas(alvos) {
       if (!z) return;
       const nome = nomeLivreDeCopia(z.nome, projeto);
       const copia = { ...z, nome, id: novoIdZona(), cor: corDeCopia(),
-                      x: (Number(z.x) || 0) + desvio };
+                      x: (Number(z.x) || 0) + desvioDe(nomeCena) };
       // `colorOverride` é a cor que veio dos Calculadores; deixá-la na cópia
       // fazia a cor nova ser ignorada do outro lado.
       delete copia.colorOverride;
@@ -7923,7 +7966,7 @@ function duplicarPecas(alvos) {
       const i = parseInt(nomeCena.slice(f.prefixo.length), 10) - 1;
       const orig = f.lista[i];
       if (!orig) return;
-      f.lista.push({ ...orig, cor: corDeCopia(), dx: (Number(orig.dx) || 0) + desvio });
+      f.lista.push({ ...orig, cor: corDeCopia(), dx: (Number(orig.dx) || 0) + desvioDe(nomeCena) });
       feitos.push({ chave: f.prefixo + f.lista.length, nome: f.nome + " " + f.lista.length });
       return;
     }
@@ -7954,16 +7997,41 @@ function duplicarPecas(alvos) {
 
   if (!feitos.length) return 0;
 
-  // As cópias ficam marcadas, as originais não.
+  // As cópias ficam marcadas, as originais não: o movimento seguinte de quem
+  // acabou de copiar é arrastá-las para onde vão.
   selecaoDeGrupo.clear();
   feitos.forEach((f) => selecaoDeGrupo.add(f.chave));
   guardarAjustes(ajustes);
+  montar(false);
+
+  // O CONJUNTO DE ECRÃS ANDA, E ISSO DIZ-SE.
+  //
+  // A app centra o conjunto das zonas na sala. Um ecrã a mais alarga o
+  // conjunto, e o recentrar empurra os que já lá estavam. Tentei compensar
+  // somando o desvio inverso a todas as zonas: NÃO FUNCIONA, e a razão vale a
+  // pena ficar escrita — se a posição de cada zona é dada pelo centro do
+  // conjunto, somar o mesmo a todas não muda nada depois de recentrar. É
+  // inerente à regra "o conjunto vive centrado".
+  //
+  // Por isso mede-se e conta-se, como já se faz no devolverAosCalculadores
+  // ("o conjunto ficou X m mais largo e voltou a centrar-se"). Ver mexer-se
+  // um ecrã em que ninguém tocou, sem uma palavra, é que era estranho.
+  let empurrao = 0;
+  for (const [nome, antes] of ondeEstavam) {
+    const o = desenhado && desenhado.getObjectByName("zona " + nome);
+    if (!o) continue;
+    empurrao = Math.abs(antes - o.getWorldPosition(new THREE.Vector3()).x);
+    break;   // o recentrar é uma translação: uma zona chega para o medir
+  }
   projetoMudou();
   if (feitos.length >= 2) abrirPainelDeGrupo();
   else { const um = alvosSelecionados()[0]; if (um) abrirPainelDeAjuste(um); }
-  dizerNaCena(feitos.length === 1
+  const recado = feitos.length === 1
     ? `Cópia feita: ${feitos[0].nome}, de cor nova e ao lado — já marcada para arrastares.`
-    : `${feitos.length} cópias feitas, de cores novas e ao lado das originais — já marcadas para arrastares.`);
+    : `${feitos.length} cópias feitas, de cores novas e ao lado das originais — já marcadas para arrastares.`;
+  dizerNaCena(empurrao > 0.01
+    ? recado + ` O conjunto de ecrãs ficou mais largo e voltou a centrar-se na sala: os que já lá estavam andaram ${nnum(empurrao)} m.`
+    : recado);
   return feitos.length;
 }
 
@@ -8348,6 +8416,7 @@ function abrirPainelDeAjuste(alvo) {
   caixa.append(dica);
 
   caixa.hidden = false;
+  porCaixaDeAjusteNoSitio();
   painelDeAjusteAberto = { alvo, inputs };
 }
 
@@ -8445,6 +8514,7 @@ function abrirPainelDeGrupo() {
   caixa.append(dica);
 
   caixa.hidden = false;
+  porCaixaDeAjusteNoSitio();
   // `grupo: true` é o que diz a fecharPainelDeAjuste e ao arrasto que esta
   // caixa não é de uma peça — e a refrescarPainelDeAjuste que não tem campos
   // de peça nenhuma para reescrever a meio de um arrasto.
@@ -8470,6 +8540,86 @@ function refrescarPainelDeAjuste() {
     input.value = String(Math.round(v * 100) / 100);
   });
 }
+
+
+/* ============================ ARRASTAR A CAIXA DE AJUSTES
+ *
+ * *"e se puder mover a caixa de ajustes livre pode dar mais jeito, e não ficar
+ * sempre ali no cantito"*.
+ *
+ * A caixa nasce no canto de baixo à direita, e é aí que tapa exactamente o que
+ * se está a tentar ver quando a peça também está desse lado. Agora arrasta-se
+ * pelo cabeçalho -- o mesmo gesto e a mesma regra do popup de edição do Ecrã
+ * Complexo, do outro lado.
+ *
+ * SÓ PELO CABEÇALHO, e não pela caixa toda: lá dentro há campos de número com
+ * setas, e arrastar a caixa a partir de um campo tirava a pessoa do número que
+ * estava a acertar.
+ *
+ * O SÍTIO FICA GUARDADO para a sessão, em memória e não no disco: quem arruma
+ * a caixa para um canto não a quer de volta no outro a cada peça que toca. Não
+ * vai para o localStorage de propósito -- uma caixa que abre fora do ecrã
+ * porque ontem a janela era maior é pior do que uma caixa no canto.
+ */
+let sitioDaCaixaDeAjustes = null;
+
+function porCaixaDeAjusteNoSitio() {
+  const caixa = $("painelAjuste");
+  if (!caixa || !sitioDaCaixaDeAjustes) return;
+  // Sempre dentro do ecrã: uma janela mais pequena do que quando se arrumou a
+  // caixa punha-a fora, e daí não há como a trazer de volta.
+  const larg = caixa.offsetWidth || 220, alt = caixa.offsetHeight || 200;
+  const x = Math.min(Math.max(8, sitioDaCaixaDeAjustes.x), innerWidth - larg - 8);
+  const y = Math.min(Math.max(8, sitioDaCaixaDeAjustes.y), innerHeight - alt - 8);
+  caixa.style.left = x + "px";
+  caixa.style.top = y + "px";
+  caixa.style.right = "auto";
+  caixa.style.bottom = "auto";
+}
+
+(function arrastarCaixaDeAjustes() {
+  const caixa = $("painelAjuste");
+  if (!caixa) return;
+  let a = null;
+
+  caixa.addEventListener("pointerdown", (e) => {
+    const cabeca = e.target.closest(".ajuste-flutuante-topo");
+    // Nem os botões do cabeçalho: o ⧉, o 🔒 e o × são para carregar, não para
+    // arrastar.
+    if (!cabeca || e.target.closest("button")) return;
+    const r = caixa.getBoundingClientRect();
+    a = { dx: e.clientX - r.left, dy: e.clientY - r.top, id: e.pointerId };
+    caixa.setPointerCapture(e.pointerId);
+    caixa.classList.add("a-arrastar");
+    e.preventDefault();
+  });
+
+  caixa.addEventListener("pointermove", (e) => {
+    if (!a) return;
+    sitioDaCaixaDeAjustes = { x: e.clientX - a.dx, y: e.clientY - a.dy };
+    porCaixaDeAjusteNoSitio();
+  });
+
+  const largar = (e) => {
+    if (!a) return;
+    caixa.classList.remove("a-arrastar");
+    try { caixa.releasePointerCapture(e.pointerId); } catch (_) {}
+    a = null;
+  };
+  caixa.addEventListener("pointerup", largar);
+  caixa.addEventListener("pointercancel", largar);
+
+  // Dois cliques no cabeçalho devolvem-na ao canto -- a saída para quem a
+  // arrumou num sítio mau e não quer andar a caçá-la.
+  caixa.addEventListener("dblclick", (e) => {
+    if (!e.target.closest(".ajuste-flutuante-topo") || e.target.closest("button")) return;
+    sitioDaCaixaDeAjustes = null;
+    caixa.style.left = caixa.style.top = caixa.style.right = caixa.style.bottom = "";
+    dizerNaCena("Caixa de ajustes de volta ao canto.");
+  });
+
+  addEventListener("resize", porCaixaDeAjusteNoSitio);
+})();
 
 function fecharPainelDeAjuste() {
   const caixa = $("painelAjuste");
@@ -9558,6 +9708,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   alvosSelecionados, centroDoGrupo, moverGrupo, rodarGrupo,
                   duplicarPecas, nomeLivreDeCopia, podeCopiar,
                   criarGrupo, desfazerGrupo, pintarGrupo, grupoDaPeca, corComGrupo,
+                  get sitioDaCaixaDeAjustes() { return sitioDaCaixaDeAjustes; }, porCaixaDeAjusteNoSitio,
                   get laco() { return laco; }, comecarLaco, desenharLaco, fecharLaco,
                   abrirPainelDeAjuste,
                   marcarSelecao, limparSelecao, abrirPainelDeGrupo,
