@@ -1,17 +1,13 @@
 # Versão estável
 
-**Preview 3D v3.79** · commit `63f3f73` · dada como estável a 20 de setembro de 2026.
+**Preview 3D v3.87** · commit `ed7b80b` · dada como estável a 24 de setembro de 2026.
 
-> *"parece bem este por agora, podes dar como estável a versão"*
+> *"era só para confirmares as versões correctas como estão"* — com as duas
+> apps abertas lado a lado. E a seguir, confirmadas: *"promove as duas"*.
 
-Par: **Calculadores v4.11** (`3ea8468` no repositório `calculadores`),
-actualizado a 21 de setembro. As duas apps falam uma com a outra — dar uma
-como estável sem a outra não quer dizer nada, e por isso o par escreve-se aqui
-e vai sendo corrigido: o código deste lado não mudou, o companheiro dele sim.
-
-A v4.10 dos Calculadores, que era o par de ontem, levava um defeito que
-trancava a app ao abrir um projeto com várias zonas. Está corrigido na v4.11 —
-que é a que esta linha agora nomeia.
+Par: **Calculadores v4.12** (`6c63869` no repositório `calculadores`). As duas
+apps falam uma com a outra — dar uma como estável sem a outra não quer dizer
+nada, e por isso o par escreve-se aqui e é promovido ao mesmo tempo.
 
 ## O que "estável" quer dizer aqui
 
@@ -22,45 +18,53 @@ as verificações todas verdes no dia em que se escreveu isto.
 
 ## Medido no dia, neste commit
 
-**13 verificações verdes** em `scripts/`:
+**18 verificações verdes** em `scripts/`:
 
-`cena` · `contagem` · `excecoes-de-lugares` · `ficheiro-da-app` ·
-`fora-das-paredes` · `instalar` · `palco` · `planta-de-volta` · `planta-dxf` ·
-`planta-guardada` · `plateia` · `posicao-bidirecional` · `sincronizacao`
+`cena` · `contagem` · `copiar-pecas` · `excecoes-de-lugares` ·
+`ficheiro-da-app` · `fora-das-paredes` · `grupo-no-3d` · `grupos-guardados` ·
+`instalar` · `palco` · `planta-de-volta` · `planta-dxf` · `planta-guardada` ·
+`plateia` · `posicao-bidirecional` · `posicao-real` · `relatorio-ecras` ·
+`sincronizacao`
 
-Do outro lado, nos Calculadores v4.11, **16 verificações verdes** (uma nova,
-`abrir-sem-trancar`), e a verificação de tradução sem nada de novo por
-traduzir. As treze deste lado voltaram a correr a 21 de setembro, para o par
-ser conferido junto e não uma app de cada vez.
+Cinco delas são novas desde a v3.79: `copiar-pecas`, `grupo-no-3d`,
+`grupos-guardados`, `posicao-real` e `relatorio-ecras`.
 
-## O que entrou desde a última vez que ele olhou
+Do outro lado, nos Calculadores v4.12, **17 verificações verdes** e a
+verificação de tradução sem nada de novo por traduzir (dívida conhecida: 287
+trechos). As dezoito deste lado correram no commit que esta página nomeia, não
+no ramo antes de fundir.
 
-- **a planta da sala vai dentro do ficheiro guardado** (v3.71), e mudar as
-  medidas da sala já não deixa peças lá fora em silêncio;
-- **um `.vwx` não é um desenho** (v3.72) — recusa-se com recado, em vez de
-  entrar vazio;
-- **a planta exportada volta a entrar no sítio** (v3.73/v3.74), com o alçado
-  separado para quem o quiser;
-- **mexer aqui com o sync desligado passa a dizer-se** (v3.75);
-- **a posição de um ecrã passa a ser um número só** (v3.76), escrito pelos
-  dois lados;
-- **o `.pvw` é desta app** (v3.77): ícone próprio, dois cliques, e a pergunta
-  ao fechar;
-- **uma fila pode fugir à regra do bloco** (v3.78) — e os corredores
-  continuam a direito;
-- **"⤓ Instalar"** (v3.79), um motor só, ligado ao link `#instalar` da página
-  de entrada.
+## O que entrou desde a v3.79, que foi a estável anterior
+
+- **a folha de montagem leva o quadro dos ecrãs** (v3.80): medida, pitch,
+  resolução e peso, em separado e em total, sem inventar número nenhum;
+- **marcar várias peças e mexê-las juntas** (v3.81) — Shift+clique, e o
+  conjunto roda como um corpo;
+- **o eixo da rotação deixou de fugir** (v3.82): é a média dos pontos de
+  rotação, não o centro da caixa que as envolve (derivava metros);
+- **copiar peças** (v3.83), com identidade própria e tudo o que a original
+  tem;
+- **o laço, o Escape e cópias de cor nova** (v3.84), palcos e passarelas
+  incluídos;
+- **grupos guardados** (v3.85): um cenário é um objeto — anda junto, tem uma
+  cor só, fica no ficheiro, e o duplo clique entra para afinar um degrau;
+- **a cópia deixou de atirar peças para longe** (v3.86), e a caixa de ajustes
+  arrasta-se pelo cabeçalho;
+- **os números do painel batem certo com a sala** (v3.87): "lado"/"fundo" só
+  onde são mesmo a coordenada, ↔/↕ onde são deslocamento, a posição real
+  escrita por baixo dos campos — e o "subir" dos palcos extra, passarelas e
+  régies, que até aqui não fazia nada.
 
 ## Como se volta a este ponto
 
 ```
-git checkout 63f3f73          # ver como estava
+git checkout ed7b80b          # ver como estava
 git revert <commit>           # desfazer uma coisa só, sem perder o resto
 ```
 
-A tag `v3.79` **não** está no GitHub: as credenciais da sessão que escreveu
+A tag `v3.87` **não** está no GitHub: as credenciais da sessão que escreveu
 isto deixam empurrar ramos, não tags (HTTP 403). Se ela fizer falta, cria-se
-na página de *releases* do repositório, apontada a `63f3f73`.
+na página de *releases* do repositório, apontada a `ed7b80b`.
 
 ## Quando isto deixa de valer
 
