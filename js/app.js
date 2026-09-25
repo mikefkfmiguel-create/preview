@@ -187,7 +187,11 @@ function lerPalco() {
            dx: num("palcoX"), dz: num("palcoZ"),
            // Só o desenho: o raio não entra em conta nenhuma (ecrã, ângulos,
            // cobertura continuam a usar a medida cheia do palco).
-           raio: num("palcoR") };
+           raio: num("palcoR"),
+           // O ÂNGULO. Roda o tampo e a passarela que sai dele (e o vão que
+           // ela abre na plateia). A plateia, os ecrãs e a régie continuam
+           // medidos à SALA -- decisão dele, e está escrita no campo.
+           rot: num("palcoRot") };
 }
 let formatoImagem = 1.777;
 
@@ -6024,6 +6028,7 @@ async function abrirProjetoTodo(estado) {
   // aqui, e preencherCampo ignora undefined -- fica no 0 de sempre, encostado
   // ao fundo, que é exactamente como ele foi guardado.
   preencherCampo("palcoX", p.dx); preencherCampo("palcoZ", p.dz);
+  preencherCampo("palcoRot", p.rot);
   preencherCheckbox("passLigada", pa.ligada); preencherCampo("passL", pa.largura);
   preencherCampo("passC", pa.comprimento); preencherCampo("passX", pa.dx);
   preencherCampo("filas", pu.filas); preencherCampo("primeiraFila", pu.primeiraFila);
@@ -8310,6 +8315,13 @@ const CAMPOS_SO_XZ = [
   { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
   { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.05" }
 ];
+// O palco principal: deslocamento nos dois eixos, e o ângulo -- que é uma
+// coisa e não a outra, por isso "rodar" chama-se rodar nas duas famílias.
+const CAMPOS_PALCO = [
+  { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.05" },
+  { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.05" },
+  { rotulo: "rodar", chave: "rot", unidade: "°", passo: "5", min: -180, max: 180 }
+];
 const CAMPOS_SO_XZ_MUNDO = [
   { rotulo: "lado", chave: "dx", unidade: "m", passo: "0.05" },
   { rotulo: "fundo", chave: "dz", unidade: "m", passo: "0.05" }
@@ -8371,7 +8383,9 @@ function objetosArrastaveis() {
       // uma coordenada do mundo como os da régie. Serve à mesma: o arrasto é
       // todo por deltas (x0 + o que o rato andou), e um deslocamento difere de
       // uma coordenada por uma constante -- os deltas são os mesmos.
-      alvos.push({ obj: o, rotulo: "Palco", campos: CAMPOS_SO_XZ, ...alvoDeCampos("palcoX", "palcoZ") });
+      alvos.push({ obj: o, rotulo: "Palco", campos: CAMPOS_PALCO,
+                   ...alvoDeCampos("palcoX", "palcoZ"),
+                   ajuste: ajusteSobreCampos({ dx: "palcoX", dz: "palcoZ", rot: "palcoRot" }) });
     } else if (o.name === "regie") {
       alvos.push({ obj: o, rotulo: "Régie", campos: CAMPOS_SO_XZ_MUNDO, ...alvoDeCampos("regieX", "regieZ") });
     } else if (o.name === "projetor-0") {
@@ -9931,7 +9945,11 @@ function plantaEmDXF() {
     const larguraPalco = Math.min(palco.largura || sala.largura, sala.largura);
     const centroZ = frente.z - palco.profundidade / 2;
     const c = P(frente.x, centroZ);
-    por("PALCO", DESENHO.rectangulo("PALCO", c.x, c.y, larguraPalco, palco.profundidade, 0));
+    // A planta tem de dizer o mesmo que o 3D: com o palco rodado, o
+    // rectângulo roda. O sinal é o mesmo dos ecrãs aqui em baixo -- o DXF
+    // mede ao contrário da cena.
+    const grausPalco = Number(palco.rot) || 0;
+    por("PALCO", DESENHO.rectangulo("PALCO", c.x, c.y, larguraPalco, palco.profundidade, grausPalco));
     por("PALCO", DESENHO.texto("PALCO", c.x - larguraPalco / 2 + 0.2, c.y,
       0.3, "PALCO " + nnum(larguraPalco) + " x " + nnum(palco.profundidade) +
       " m · h " + nnum(palco.altura) + " m"));
@@ -9944,9 +9962,9 @@ function plantaEmDXF() {
     if (passarela.ligada && passarela.comprimento > 0) {
       const zp = zonaDaPassarela(sala, palco, passarela);
       if (zp) {
-        const cp = P(zp.dx, (zp.zMin + zp.zMax) / 2);
+        const cp = P(zp.cx, zp.cz);
         por("PALCO", DESENHO.rectangulo("PALCO", cp.x, cp.y,
-          zp.largura, zp.zMax - zp.zMin, 0));
+          zp.largura, zp.comprimento, grausPalco));
       }
     }
   }
