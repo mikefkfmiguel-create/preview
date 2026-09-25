@@ -216,6 +216,38 @@ export function frenteDoPalco(sala, palco) {
   };
 }
 
+/**
+ * O CENTRO DO TAMPO — o eixo à volta do qual o palco roda.
+ *
+ * Pedido: *"preciso rodar os palcos"*. Os palcos extra, as passarelas soltas
+ * e as régies rodam desde que existem; o principal nunca rodou, e era o
+ * único que interessava para um palco em diagonal ou encostado a um canto.
+ *
+ * O eixo é o CENTRO e não um canto: rodar pelo canto faz o palco fugir para
+ * o lado a cada grau, e quem está a acertar um ângulo quer vê-lo girar no
+ * sítio. Vive aqui, numa função só, porque a passarela tem de rodar à volta
+ * do MESMO ponto -- duas contas do mesmo eixo acabariam a discordar.
+ */
+export function centroDoPalco(sala, palco) {
+  return {
+    x: Number(palco.dx) || 0,
+    z: -sala.profundidade / 2 + palco.profundidade / 2 + (Number(palco.dz) || 0)
+  };
+}
+
+/** Quanto o palco está rodado, em radianos, no sentido dos outros ângulos. */
+function anguloDoPalco(palco) {
+  return -(Number(palco && palco.rot) || 0) * Math.PI / 180;
+}
+
+/** Um ponto rodado à volta de outro, no plano do chão. */
+function rodarEmTornoDe(ponto, centro, ang) {
+  if (!ang) return { x: ponto.x, z: ponto.z };
+  const dx = ponto.x - centro.x, dz = ponto.z - centro.z;
+  const c = Math.cos(ang), s = Math.sin(ang);
+  return { x: centro.x + dx * c + dz * s, z: centro.z - dx * s + dz * c };
+}
+
 /** O palco. Encostado ao fundo, a não ser que lhe digam outra coisa. */
 export function fazerPalco({ largura, profundidade }, palco) {
   if (!palco.altura || !palco.profundidade) return new THREE.Group();
@@ -230,6 +262,9 @@ export function fazerPalco({ largura, profundidade }, palco) {
   caixa.name = "palco";
   caixa.position.set((Number(palco.dx) || 0), palco.altura / 2,
     -profundidade / 2 + palco.profundidade / 2 + (Number(palco.dz) || 0));
+  // A malha está posicionada pelo CENTRO, por isso rodá-la é rodá-la no
+  // sítio -- ver centroDoPalco(), que é o mesmo eixo que a passarela usa.
+  caixa.rotation.y = anguloDoPalco(palco);
   grupo.add(caixa);
   return grupo;
 }
@@ -297,7 +332,16 @@ export function fazerPassarela(sala, palco, passarela) {
   caixa.name = "passarela";
   // O "dx" da passarela é relativo ao palco, não à sala: ela sai da boca de
   // cena, e um palco deslocado leva-a com ele.
-  caixa.position.set(frente.x + (passarela.dx || 0), palco.altura / 2, zFrente + comprimento / 2);
+  //
+  // E um palco RODADO leva-a também: ela sai da boca de cena, e a boca de
+  // cena rodou. Roda-se à volta do centro do palco -- o mesmo eixo, não um
+  // parecido -- senão a passarela descolava-se da frente a cada grau.
+  const ang = anguloDoPalco(palco);
+  const onde = rodarEmTornoDe(
+    { x: frente.x + (passarela.dx || 0), z: zFrente + comprimento / 2 },
+    centroDoPalco(sala, palco), ang);
+  caixa.position.set(onde.x, palco.altura / 2, onde.z);
+  caixa.rotation.y = ang;
   grupo.add(caixa);
   return grupo;
 }
@@ -313,8 +357,18 @@ export function zonaDaPassarela(sala, palco, passarela) {
   const largura = Math.max(0.5, passarela.largura || 1.5);
   const comprimento = Math.max(0.5, passarela.comprimento || 1);
   const frente = frenteDoPalco(sala, palco);
-  return { dx: frente.x + (passarela.dx || 0), largura,
-           zMin: frente.z, zMax: frente.z + comprimento };
+  const ang = anguloDoPalco(palco);
+  // O CENTRO e o ÂNGULO, e não só a faixa zMin..zMax: com o palco rodado a
+  // passarela deixa de estar alinhada com os eixos, e um vão alinhado
+  // deixaria gente sentada em cima do tampo de um lado e um buraco vazio do
+  // outro. Quem abre o vão (fazerPublico) trata isto como já trata a régie e
+  // as passarelas soltas: leva o lugar ao referencial da peça e pergunta lá.
+  const centro = rodarEmTornoDe(
+    { x: frente.x + (passarela.dx || 0), z: frente.z + comprimento / 2 },
+    centroDoPalco(sala, palco), ang);
+  return { dx: frente.x + (passarela.dx || 0), largura, comprimento,
+           zMin: frente.z, zMax: frente.z + comprimento,
+           cx: centro.x, cz: centro.z, rot: ang };
 }
 
 // A colocação dos projetores começou por ser um número ("arranjo"), e
@@ -2494,11 +2548,23 @@ export function fazerPublico(sala, palco, publico, regies, passarela, passarelas
       }
       if (dentroDeAlgumaRegie) continue;
 
-      // A mesma ideia da régie, mas em vez de um rectângulo fixo é a faixa
-      // da passarela (zMin..zMax) -- meio lugar de folga de cada lado dela,
-      // que é o que separa "aberto" de "gente sentada em cima do tampo".
-      if (zonaPass && z <= zonaPass.zMax + publico.entreFilas / 2
-        && Math.abs(x - zonaPass.dx) < zonaPass.largura / 2 + publico.entreLugares / 2) continue;
+      // A mesma ideia da régie: leva-se o lugar ao referencial da passarela
+      // -- rodado ao contrário do que ela está -- e só depois se pergunta se
+      // cai dentro dela. Meio lugar de folga de cada lado, que é o que
+      // separa "aberto" de "gente sentada em cima do tampo".
+      //
+      // Com o palco direito isto dá exactamente o que dava antes (o ângulo é
+      // zero e o rectângulo volta a ser a faixa zMin..zMax); com o palco
+      // rodado, o vão acompanha-a em vez de ficar alinhado com a sala.
+      if (zonaPass) {
+        const dxP = x - zonaPass.cx;
+        const dzP = z - zonaPass.cz;
+        const cP = Math.cos(zonaPass.rot), sP = Math.sin(zonaPass.rot);
+        const localX = dxP * cP - dzP * sP;
+        const localZ = dxP * sP + dzP * cP;
+        if (Math.abs(localX) < zonaPass.largura / 2 + publico.entreLugares / 2
+          && Math.abs(localZ) < zonaPass.comprimento / 2 + publico.entreFilas / 2) continue;
+      }
 
       // Passarelas soltas: mesmo referencial local rodado já usado para a
       // régie, porque estas (ao contrário da presa ao palco) podem estar em

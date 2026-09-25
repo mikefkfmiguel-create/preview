@@ -1763,6 +1763,46 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 25 de setembro — o palco principal roda (v3.88)
+
+> *"olha, preciso rodar os palcos"*.
+
+Os palcos **extra**, as passarelas soltas e as régies rodam desde que
+existem. O **principal** nunca rodou — e era o único que interessava para um
+palco em diagonal, ou encostado a um canto. Tinha largura, altura,
+profundidade, deslocar ↔/↕ e arredondar cantos; ângulo, não.
+
+**As duas escolhas dele, que são o desenho todo:**
+
+- roda o palco **e o que assenta nele** — a passarela que sai da boca de cena,
+  e o **vão que ela abre na plateia**;
+- a **plateia**, os **ecrãs** e a **régie** não acompanham: continuam medidos
+  à sala. Para rodar um ecrã com o palco há o grupo (v3.85), que já faz isso
+  sem mexer em nada.
+
+**O eixo é o centro do tampo, não um canto.** Rodar pelo canto faz o palco
+fugir para o lado a cada grau, e quem está a acertar um ângulo quer vê-lo
+girar no sítio. Vive numa função só (`centroDoPalco`), porque a passarela tem
+de rodar à volta do **mesmo** ponto — duas contas do mesmo eixo acabariam a
+discordar, e a passarela descolava-se da frente.
+
+**O vão na plateia era a parte que se partia em silêncio.** Estava escrito
+como uma faixa alinhada com os eixos (`zMin..zMax` e uma largura em x); com o
+palco rodado, deixaria gente sentada em cima do tampo de um lado e um buraco
+vazio do outro. Passou a ser o mesmo teste que a régie e as passarelas soltas
+já usavam: leva-se o lugar ao referencial da peça, rodado ao contrário, e
+pergunta-se lá. Com 0° dá exactamente o que dava antes.
+
+**A planta em DXF roda com ele** — o rectângulo do palco e o da passarela
+levam o ângulo, como os ecrãs já levavam. Uma planta que discorde do 3D é
+pior do que planta nenhuma.
+
+`scripts/verificar-rodar-palco.mjs`: o centro não foge um milímetro entre 0°
+e 90°; a passarela roda o mesmo ângulo e **continua à mesma distância do
+palco** (é isso que prova o eixo comum); o número de lugares muda quando ela
+roda (o vão acompanhou) e volta ao mesmo a 0°; a primeira fila e o ecrã não
+se mexem; e o ângulo volta com o projeto.
+
 ## 24 de setembro — os números do painel batem certo com a sala (v3.87)
 
 > *"não bate certo nas medidas para a posição"* — com o painel do **Palco**

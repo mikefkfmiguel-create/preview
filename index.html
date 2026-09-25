@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.87</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.88</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -238,6 +238,7 @@
       <summary>Palco, passarela e palcos extra</summary>
       <div class="ajuda-corpo">
         <p>O palco principal fica sempre encostado ao fundo, e é dele que os ecrãs e os ângulos se medem. <b>Ecrã acima do palco</b> levanta os ecrãs em relação ao tampo.</p>
+        <p><b>Rodar</b> gira o palco à volta do <b>próprio centro</b> — não de um canto, para ele girar no sítio enquanto acertas o ângulo. A <b>passarela</b> que sai dele acompanha, e o <b>vão que ela abre na plateia</b> também. O que <b>não</b> acompanha: a plateia, os ecrãs e a régie, que continuam medidos à sala — é o que serve para um palco em diagonal ou encostado a um canto. Para rodar um ecrã junto com o palco, marca os dois na cena e usa o <b>grupo</b>.</p>
         <p><b>Arredondar cantos</b> é em metros e limita-se sozinho a metade de cada lado: a meio dá cantos suaves, no máximo fecha a curva de vez — um palco comprido fica em elipse, um quadrado fica redondo. <b>⭘ Fazer um círculo</b> trata disso tudo de uma vez (põe a profundidade igual à largura e o arredondamento no máximo).</p>
         <p><b>Passarela</b> sai do meio da frente do palco para dentro da plateia, à mesma altura do tampo. Onde ela passa, a plateia abre-se dos dois lados e volta a juntar-se depois do fim dela.</p>
         <p><b>+ Palco</b> acrescenta um palco extra — só visual, sem ecrã nem cobertura agarrados. Arrasta-se na cena (cadeado aberto) ou escreve-se nos campos. O arredondamento não muda conta nenhuma: ecrãs, ângulos e cobertura usam sempre a medida cheia.</p>
@@ -255,6 +256,7 @@
            sempre nasceu, encostado ao fundo e centrado. -->
       <label title="0 = centrado na largura da sala. Leva com ele a plateia, a passarela, o orador e os DSM — tudo o que assenta no palco ou se mede a partir dele.">Deslocar ↔ <input id="palcoX" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
       <label title="0 = encostado ao fundo da sala. Positivo traz o palco para dentro da sala; a plateia acompanha, porque a «primeira fila a X m» é medida ao palco.">Deslocar ↕ <input id="palcoZ" type="number" value="0" min="-100" max="100" step="0.25"><i>m</i></label>
+      <label title="Roda o palco à volta do próprio centro. A passarela que sai dele acompanha, e o vão que ela abre na plateia também. A PLATEIA, os ECRÃS e a RÉGIE não acompanham — continuam medidos à sala; para rodar um ecrã com o palco, marca os dois e usa o grupo.">Rodar <input id="palcoRot" type="number" value="0" min="-180" max="180" step="5"><i>°</i></label>
       <label title="Raio dos cantos, em metros. Limita-se sozinho a metade de cada lado: a meio dá cantos suaves, no máximo fecha a curva de vez (um palco comprido fica em elipse, um quadrado fica redondo). Só afeta o desenho — as contas de ecrã, ângulos e cobertura usam a medida cheia.">Arredondar cantos <input id="palcoR" type="number" value="0" min="0" max="100" step="0.25"><i>m</i></label>
     </div>
     <button type="button" id="btPalcoRedondo" style="margin-top:8px; width:100%"

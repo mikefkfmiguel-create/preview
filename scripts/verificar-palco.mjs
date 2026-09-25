@@ -222,8 +222,10 @@ const agarravel = await pagina.evaluate(() => {
 console.log("   " + JSON.stringify(agarravel));
 conferir(agarravel.quantos === 1,
   "o palco principal está na lista dos agarráveis — e UMA vez só");
-conferir(agarravel.campos.join(",") === "dx,dz",
-  "com os dois eixos para ajustar à mão");
+// Desde a v3.88 o palco principal também RODA (*"preciso rodar os palcos"*),
+// por isso o painel dele tem três campos e não dois.
+conferir(agarravel.campos.join(",") === "dx,dz,rot",
+  "com os dois eixos e o ângulo para ajustar à mão");
 
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
