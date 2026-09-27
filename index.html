@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.88</i></span>
+        <span>o projeto no terreno       <i id="versao">v3.89</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -473,7 +473,7 @@
       <summary>Ver de onde, e ver o quê</summary>
       <div class="ajuda-corpo">
         <p>Os quatro botões põem a câmara de <b>Frente</b>, de <b>Lado</b>, de <b>Cima</b> (a planta) ou nos <b>Olhos da plateia</b> — esta última é a que responde à pergunta que interessa: vê-se dali?</p>
-        <p>As caixas por baixo ligam e desligam o que está desenhado. Servem para tirar coisas da frente: esconder as paredes para ver o interior, ou esconder o público para fotografar só a estrutura.</p>
+        <p>A barra em cima, na janela do 3D, liga e desliga o que está desenhado. Serve para tirar coisas da frente: esconder as paredes para ver o interior, ou esconder o público para fotografar só a estrutura.</p>
         <p><b>Cobertura dos ecrãs</b> pinta um ponto por lugar no chão — verde vê bem, amarelo vê no limite, vermelho não vê ecrã nenhum.</p>
       </div>
     </details>
@@ -494,44 +494,25 @@
       <button data-vista="dome" id="btVistaDome" style="display:none;" title="De dentro da cúpula, a olhar para cima — é de onde o público a vê">Dentro da cúpula</button>
     </div>
     <div class="hint" id="notaTrazerTudo" style="display:none;"></div>
-    <label class="opcao"><input id="verEcras" type="checkbox" checked> Ecrãs</label>
-    <label class="opcao"><input id="verPlanta" type="checkbox" checked> Planta</label>
-    <label class="opcao"><input id="verMedidas" type="checkbox" checked> Medidas e grelha</label>
-    <!-- Estes quatro nascem DESLIGADOS, a pedido: *"tudo vazio e vou
-         colocando, apenas os guardados trazem tudo no sítio"*. A app deixou de
-         pôr na sala um palco de 16 m, uma régie, um orador e 352 lugares que
-         ninguém pediu — o projeto de quem abre passava a ser hóspede numa sala
-         montada por outra pessoa. As MEDIDAS de cada um ficam como estavam:
-         ligar a caixa dá logo um palco e uma plateia com jeito. -->
-    <label class="opcao"><input id="verPublico" type="checkbox"> Público</label>
-    <label class="opcao"><input id="verRegie" type="checkbox"> Régie</label>
-    <label class="opcao"><input id="verPalco" type="checkbox"> Palco</label>
-    <!-- O orador é do PALCO. Num projeto que é só cúpula ele desaparece da
-         lista, porque quem lá dentro dá a medida é a pessoa da cúpula, mais
-         abaixo — dois bonecos com regras diferentes e o mesmo nome era
-         exactamente o que não convivia bem. -->
-    <label class="opcao" id="verOradorWrap"><input id="verOrador" type="checkbox"> Orador (no palco)</label>
-    <label class="opcao"><input id="verParedes" type="checkbox" checked> Paredes e tecto</label>
-    <label class="opcao"><input id="verCobertura" type="checkbox" title="Um ponto por lugar, no chão: verde vê bem, amarelo vê na marginal, vermelho não vê ecrã nenhum"> Cobertura dos ecrãs</label>
-    <!-- Estes dois só aparecem quando o projeto TEM uma cúpula: dois
-         interruptores mortos numa lista de oito é ruído. -->
-    <label class="opcao" id="verDomeWrap" style="display:none;"><input id="verDome" type="checkbox" checked> Cúpula</label>
-    <!-- A régua humana da cúpula: uma pessoa de 1,75 m no chão, lá dentro,
-         arrastável só dentro dela. É outra coisa que não o orador do palco
-         (pedido: *"podíamos ter um para palcos e salas normais e outro para a
-          dome apenas para tirar a medida quando uma pessoa estiver dentro
-          dela"*), e é esta que diz quem tapa que projetor. -->
-    <label class="opcao" id="verPessoaDomeWrap" style="display:none;"><input id="verPessoaDome" type="checkbox" checked> Pessoa dentro da cúpula (1,75 m)</label>
+    <!-- AS CAIXAS DO "VER" SAÍRAM DAQUI, para a barra no topo da janela do 3D
+         (ver #barraVista, lá em baixo no <main>). Pedido assim: *"podemos
+         mudar os players da vista para o topo da janela sempre visíveis e
+         tirar do menu, pois abre sempre com a grelha e identificação das
+         pessoas e fica confuso, assim será mais rápido selecionar o que
+         ver"*. Eram o que mais se liga e desliga na app inteira, e estavam
+         atrás de: abrir o painel, rolar até "Vista", e só então clicar. Aqui
+         fica o que continua a ser texto para LER -- as notas -- que numa
+         barra de botões não cabiam nem faziam sentido. -->
+    <p class="vazio" style="margin:12px 0 0">O que se vê na cena — ecrãs, palco, público, medidas — liga-se e desliga-se na <b>barra em cima, na própria janela do 3D</b>. Fica à mão com o painel aberto ou fechado, e a escolha guarda-se para a próxima vez.</p>
     <p class="vazio" id="notaDome" style="margin:6px 0 0"></p>
-    <label class="opcao" id="verFatiasWrap" style="display:none;" title="A repartição da superfície pelos projetores, por área igual — não é o cone real da lente, que depende da lente que se alugar"><input id="verFatias" type="checkbox" checked> Fatias dos projetores</label>
     <!-- Chamava-se "Cúpula fechada" e ninguém sabia o que era (perguntado em
          uso: *"o que e a cupula fechada"*). O que o interruptor mexe é a
          SUPERFÍCIE: translúcida por omissão para se ver o interior, opaca
          para ver a cúpula como ela é. A explicação existia só num title=,
-         que num telemóvel não aparece -- agora está à vista. -->
-    <div id="domeSolidoWrap" style="display:none;">
-      <label class="opcao"><input id="domeSolido" type="checkbox"> Superfície opaca</label>
-      <p class="vazio" style="margin:5px 0 0">Desligada, a cúpula é translúcida: vê-se através dela o público, os ecrãs e os projetores. Ligada, a superfície fica cheia como na realidade — mais parecida com o sítio, mas tapa tudo o que estiver do lado de lá.</p>
+         que num telemóvel não aparece -- por isso fica escrita, aqui, mesmo
+         com o botão a viver na barra. -->
+    <div id="notaDomeSolido" style="display:none;">
+      <p class="vazio" style="margin:6px 0 0"><b>Superfície opaca</b>, na barra: desligada, a cúpula é translúcida — vê-se através dela o público, os ecrãs e os projetores. Ligada, a superfície fica cheia como na realidade, mais parecida com o sítio, mas tapa tudo o que estiver do lado de lá.</p>
     </div>
   </section>
 
@@ -665,6 +646,50 @@
        chega a quem está a olhar para o 3D com o painel fechado -- e um botão
        que age em silêncio, nestes dois, era o pior dos defeitos. -->
   <div id="recadoTela" hidden></div>
+  <!-- A BARRA DO QUE SE VÊ. Vivia dentro do menu, na secção "Vista", e era o
+       sítio errado: estes são os interruptores que se mexem dez vezes por
+       minuto (*"assim será mais rápido selecionar o que ver"*) e estavam a
+       três gestos de distância — abrir o painel, rolar, clicar — quando com o
+       painel fechado, que é como se olha para o 3D, nem apareciam.
+       São as MESMAS caixas de sempre, com os mesmos ids: tudo o que lê
+       $("verPalco").checked continua a ler o mesmo interruptor, só que agora
+       ele está aqui. A caixa em si está escondida por CSS e o que se vê é a
+       etiqueta inteira, em pastilha — num telemóvel um quadradinho de 13 px
+       não se acerta, uma pastilha acerta-se.
+       A ordem é a do uso, não a de antes: primeiro o que se monta (ecrãs,
+       palco, público, régie), depois o cenário (planta, paredes) e só no fim
+       as ajudas de desenho (medidas, cobertura). As últimas quatro só
+       aparecem quando o projeto tem uma cúpula — ver desenharCena(). -->
+  <div id="barraVista" role="group" aria-label="O que se vê na cena">
+    <label class="chip" title="Os ecrãs de LED e as suas medidas"><input id="verEcras" type="checkbox" checked><span>Ecrãs</span></label>
+    <!-- Estes nascem DESLIGADOS, a pedido antigo: *"tudo vazio e vou
+         colocando, apenas os guardados trazem tudo no sítio"*. As MEDIDAS de
+         cada um ficam como estavam: ligar dá logo um palco e uma plateia com
+         jeito. -->
+    <label class="chip"><input id="verPalco" type="checkbox"><span>Palco</span></label>
+    <label class="chip"><input id="verPublico" type="checkbox"><span>Público</span></label>
+    <label class="chip"><input id="verRegie" type="checkbox"><span>Régie</span></label>
+    <!-- O orador é do PALCO. Num projeto que é só cúpula ele desaparece da
+         barra, porque quem lá dentro dá a medida é a pessoa da cúpula --
+         dois bonecos com regras diferentes e o mesmo nome era exactamente o
+         que não convivia bem. -->
+    <label class="chip" id="verOradorWrap"><input id="verOrador" type="checkbox"><span>Orador</span></label>
+    <label class="chip"><input id="verPlanta" type="checkbox" checked><span>Planta</span></label>
+    <label class="chip"><input id="verParedes" type="checkbox" checked><span>Paredes</span></label>
+    <!-- DESLIGADA à nascença, e esta é a mudança que ele pediu por palavras
+         dele: *"abre sempre com a grelha e identificação das pessoas e fica
+         confuso"*. Quem quiser conferir medidas liga-a num toque, aqui
+         mesmo; quem quer é olhar para a sala deixa de ter de a desligar
+         sempre que abre a app. -->
+    <label class="chip"><input id="verMedidas" type="checkbox"><span>Medidas e grelha</span></label>
+    <label class="chip" title="Um ponto por lugar, no chão: verde vê bem, amarelo vê na marginal, vermelho não vê ecrã nenhum"><input id="verCobertura" type="checkbox"><span>Cobertura</span></label>
+    <label class="chip" id="verDomeWrap" style="display:none;"><input id="verDome" type="checkbox" checked><span>Cúpula</span></label>
+    <!-- A régua humana da cúpula: uma pessoa de 1,75 m no chão, lá dentro,
+         arrastável só dentro dela — é esta que diz quem tapa que projetor. -->
+    <label class="chip" id="verPessoaDomeWrap" style="display:none;" title="Uma pessoa de 1,75 m dentro da cúpula, para tirar a medida"><input id="verPessoaDome" type="checkbox" checked><span>Pessoa na cúpula</span></label>
+    <label class="chip" id="verFatiasWrap" style="display:none;" title="A repartição da superfície pelos projetores, por área igual — não é o cone real da lente, que depende da lente que se alugar"><input id="verFatias" type="checkbox" checked><span>Fatias</span></label>
+    <label class="chip" id="domeSolidoWrap" style="display:none;" title="Translúcida vê-se o interior; opaca é a cúpula como ela é, mas tapa o que estiver do lado de lá"><input id="domeSolido" type="checkbox"><span>Superfície opaca</span></label>
+  </div>
   <canvas id="tela"></canvas>
   <!-- O painel de ajuste, ao pé da coisa que se está a mexer. Pedido direto:
        "numa situação destas, onde ajusto a posição dos elementos com números,
