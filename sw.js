@@ -7,7 +7,7 @@
 
 // O nome do cache segue a versao que aparece no painel: subindo uma, sobe a
 // outra, e quem estiver com a app aberta recebe a nova sem fazer nada.
-const CACHE = "preview-v3.91";
+const CACHE = "preview-v3.92";
 
 const TUDO = [
   "./",
@@ -68,6 +68,17 @@ self.addEventListener("activate", (evento) => {
 self.addEventListener("fetch", (evento) => {
   const pedido = evento.request;
   if (pedido.method !== "GET" || new URL(pedido.url).origin !== location.origin) return;
+
+  // "HÁ REDE?" -- e a pergunta tem de chegar À REDE.
+  //
+  // O botão da versão apaga o cache e vai buscar tudo de novo, e antes disso
+  // confirma que há de onde o ir buscar: apagar o offline sem rede deixava a
+  // app em branco no sítio onde ela faz mais falta. Mas esse `fetch` passava
+  // por AQUI, e aqui responde-se do cache -- a confirmação dizia "há rede"
+  // com o telemóvel em modo de avião. Medido: com a rede cortada, o cache era
+  // apagado na mesma. Um pedido marcado assim não se toca: vai à rede, e se
+  // não houver rede falha, que é a resposta verdadeira.
+  if (new URL(pedido.url).searchParams.has("rede")) return;
 
   // Uma navegação vai primeiro à rede para apanhar versões novas, e cai no
   // cache quando não houver. O resto vai primeiro ao cache, que é mais rápido
