@@ -1763,6 +1763,41 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 27 de setembro — o 🏠 enquadra as peças, e não o chão (v3.93)
+
+> *"o home deve enquadrar os objetos todos e não saltar para o fundo da casa;
+> se for muito comprida deixo de os ver"*.
+
+A caixa a enquadrar era à volta de **tudo o que está desenhado** — e tudo
+inclui o chão e as paredes. Numa sala comprida (a app nasce com 50 × 50 m, e
+um pavilhão a sério pode ter 120 m de fundo) a caixa **é** a sala: o botão que
+existe precisamente para quando já não se percebe o que se está a ver levava a
+câmara para trás de tudo, a olhar para um chão vazio com as peças a um palmo
+do horizonte.
+
+Passou a haver três tentativas, da mais útil para a menos:
+
+1. **as peças** — ecrãs, palco, público, régie, projetores, cúpula. É o que
+   interessa ver, e é a resposta certa em 99 casos em 100;
+2. sem peças nenhumas, **a planta** — quem só carregou um desenho do sítio
+   quer ver o desenho;
+3. e só então **a sala**, que é o que sobra quando não há mais nada.
+
+As ajudas de desenho ficam sempre de fora: a grelha e os pontos da cobertura
+cobrem a plateia toda, e enquadrá-los era enquadrar o chão outra vez por outro
+caminho.
+
+Medido num pavilhão de 30 × 120 m com ecrã, palco e plateia: a câmara aponta a
+**z = −51** (as peças estão contra a parede do fundo, a z ≈ −60) e fica a
+**42,6 m**; a enquadrar a sala inteira ficava a mais de 150 m, com o ecrã
+reduzido a um ponto.
+
+Testado com Playwright (`scripts/verificar-enquadrar-o-que-existe.mjs`). A
+asserção que interessa não é a distância: é **projetar o centro do ecrã na
+câmara** e confirmar que ele cai dentro da tela — é a única forma de responder
+a *"deixo de os ver"* sem ser de olho. Confere também que ligar as medidas e a
+cobertura não muda o enquadramento, e que numa sala vazia o botão não rebenta.
+
 ## 27 de setembro — ir buscar a versão nova (v3.92)
 
 > *"e ainda não atualizou"* — com o Preview instalado no telemóvel preso numa

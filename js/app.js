@@ -4971,9 +4971,47 @@ function trazerParaDentro(lista) {
  * quase sempre. Esta enquadra a caixa do que existe: é a que serve quando
  * alguém se perdeu, porque não assume que o que se procura está onde devia.
  */
-function enquadrarOQueExiste() {
+/**
+ * O 🏠 enquadra AS PEÇAS, e não a sala.
+ *
+ * Era uma caixa à volta de tudo o que está desenhado — e tudo inclui o chão
+ * e as paredes. Numa sala comprida (a app nasce com 50 × 50 m, e um pavilhão
+ * a sério pode ter 120 m de fundo) a caixa é a sala, e o botão que existe
+ * para trazer tudo à vista levava a câmara para trás de tudo, a olhar para
+ * um chão vazio com as peças a um palmo do horizonte. Reportado assim: *"o
+ * home deve enquadrar os objetos todos e não saltar para o fundo da casa; se
+ * for muito comprida deixo de os ver"*.
+ *
+ * Três tentativas, da mais útil para a menos:
+ *
+ *   1. as PEÇAS — ecrãs, palco, público, régie, projetores, cúpula. É o que
+ *      interessa ver, e é a resposta certa em 99 casos em 100;
+ *   2. sem peças nenhumas, a PLANTA — quem só carregou um desenho do sítio
+ *      quer ver o desenho;
+ *   3. e só então a sala, que é o que sobra quando não há mais nada.
+ *
+ * As ajudas de desenho (a grelha, os pontos da cobertura) ficam sempre de
+ * fora: a cobertura cobre a plateia toda, e enquadrá-la era enquadrar o
+ * chão outra vez por outro caminho.
+ */
+const FORA_DO_ENQUADRAMENTO = ["sala", "aux:planta", "planta-cad", "aux:cobertura"];
+
+function caixaDe(excluir) {
   const caixa = new THREE.Box3();
-  if (desenhado) caixa.expandByObject(desenhado);
+  if (!desenhado) return caixa;
+  desenhado.children.forEach((filho) => {
+    if (excluir.indexOf(filho.name) !== -1) return;
+    if (filho.name && filho.name.indexOf("aux:") === 0) return;
+    if (filho.visible === false) return;
+    caixa.expandByObject(filho);
+  });
+  return caixa;
+}
+
+function enquadrarOQueExiste() {
+  let caixa = caixaDe(FORA_DO_ENQUADRAMENTO);
+  if (caixa.isEmpty()) caixa = caixaDe(["sala", "aux:cobertura"]);
+  if (caixa.isEmpty()) { const tudo = new THREE.Box3(); if (desenhado) tudo.expandByObject(desenhado); caixa = tudo; }
   enquadrarCaixa(caixa);
 }
 
