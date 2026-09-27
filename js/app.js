@@ -1931,7 +1931,7 @@ function escreverCoordenadas() {
     caixa.innerHTML = "";
     if (nota) {
       nota.textContent = (projeto && projeto.dome)
-        ? 'Liga a “Cúpula” na secção Vista para a app colocar os projetores e dar as coordenadas.'
+        ? 'Liga a “Cúpula” na barra em cima da janela para a app colocar os projetores e dar as coordenadas.'
         : "";
     }
     return;
@@ -3089,7 +3089,7 @@ function calcularEDesenharDistribuicao() {
   }
   if (!corposDoPublico || !corposDoPublico.corpos || !corposDoPublico.corpos.length) {
     resumo.className = "vazio";
-    resumo.textContent = "Liga o público (secção Vista) para calcular a distribuição.";
+    resumo.textContent = "Liga o Público, na barra em cima da janela, para calcular a distribuição.";
     return;
   }
 
@@ -3356,15 +3356,50 @@ function avisarDaSalaVazia() {
     "<b>A sala está vazia</b>" +
     "<p>Nasce assim de propósito: só tem o que lhe puseres.</p>" +
     '<button type="button" class="aviso-link" data-secao="sProjeto">Trazer um projeto dos Calculadores</button>' +
-    '<button type="button" class="aviso-link" data-secao="sVista">Ligar o palco, o público ou a régie</button>' +
-    '<button type="button" class="aviso-link" data-secao="zonas">Montar um ecrã aqui mesmo</button>';
+    // O palco, o público e a régie deixaram de estar numa secção do painel
+    // (v3.89): estão na barra em cima, sempre à vista. Mandar aqui para
+    // "sVista" levava a uma secção onde já não há interruptor nenhum --
+    // um atalho que aponta para o sítio errado é pior do que não existir.
+    '<button type="button" class="aviso-link" data-barra="verPalco">Ligar o palco, o público ou a régie</button>' +
+    // ANTES ia para "Ecrãs na sala", que numa app vazia está vazia e não
+    // tem um único botão: quem escolhia montar um ecrã aqui mesmo aterrava
+    // num sítio sem nada para carregar. Reportado assim: *"quando no 3D
+    // abro e escolho fazer um projeto direto nele, [devia] saltar para a
+    // aba dos meus ecrãs, do depósito"*. O "+ Ecrã" vive no DEPÓSITO, e é
+    // para lá que este botão passa a levar -- com o próprio "+ Ecrã" à
+    // vista, que é a acção que ele foi buscar.
+    '<button type="button" class="aviso-link" data-secao="deposito" data-foco="btNovaZona">Montar um ecrã aqui mesmo</button>';
   aviso.classList.add("mostra");
 }
 
 $("avisoVazio").addEventListener("click", (e) => {
-  const alvo = e.target.closest("[data-secao]");
-  if (alvo) irParaSeccao(alvo.dataset.secao);
+  const alvo = e.target.closest("[data-secao], [data-barra]");
+  if (!alvo) return;
+  if (alvo.dataset.barra) { apontarParaBarraDeVista(alvo.dataset.barra); return; }
+  irParaSeccao(alvo.dataset.secao, alvo.dataset.foco || null);
 });
+
+/**
+ * Pisca uma pastilha da barra do "ver".
+ *
+ * A barra está sempre à vista, por isso não há para onde "ir" -- o que
+ * falta a quem nunca reparou nela é saber ONDE olhar. Dois piscares é o
+ * que dá para seguir com os olhos sem parecer um erro. Se o painel estiver
+ * aberto por cima, fecha-se: a barra é da janela, e com o painel aberto num
+ * telemóvel ela fica atrás dele.
+ */
+function apontarParaBarraDeVista(id) {
+  const caixa = $(id);
+  const pastilha = caixa && caixa.closest(".chip");
+  if (!pastilha) return;
+  if (innerWidth <= 820) painel(true);
+  pastilha.classList.remove("apontada");
+  // Forçar o reflow: sem isto, tirar e pôr a classe no mesmo tique não
+  // reinicia a animação, e um segundo clique não piscava nada.
+  void pastilha.offsetWidth;
+  pastilha.classList.add("apontada");
+  setTimeout(() => pastilha.classList.remove("apontada"), 1800);
+}
 
 $("btMontarTudo").onclick = () => {
   ajustes.noDeposito = [];
@@ -3394,8 +3429,10 @@ function escreverPainel(medidas, lugares, gentePosta, cobertura) {
   if (!temAlgo) {
     resumo.className = "vazio";
     resumo.textContent = projeto
-      ? "Projeto sem ecrãs ainda. Usa o \"+ Ecrã\", o \"+ Delay\" ou o \"+ DSM\" aqui em baixo."
-      : "Sem projeto. Podes montar tudo aqui mesmo (\"+ Ecrã\", \"+ Delay\", \"+ DSM\") e só ligar " +
+      // Nomear a SECÇÃO, e não "aqui em baixo": os três botões vivem no
+      // Depósito, a meio do painel, e "em baixo" manda procurar.
+      ? "Projeto sem ecrãs ainda. Usa o \"+ Ecrã\", o \"+ Delay\" ou o \"+ DSM\", na secção Depósito."
+      : "Sem projeto. Podes montar tudo aqui mesmo (\"+ Ecrã\", \"+ Delay\", \"+ DSM\", na secção Depósito) e só ligar " +
         "a sincronização quando quiseres o equipamento certo dos Calculadores — ou trazer já o que lá está.";
     lista.className = "vazio";
     lista.textContent = "—";
@@ -5913,7 +5950,13 @@ function limparTudo() {
   // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
   ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
 
+  // A BARRA DO "VER" fica como está, pela mesma razão do interruptor do
+  // depósito: é feitio de trabalhar, não conteúdo do projeto. Quem desligou
+  // as medidas e o público não os quer de volta só por ter limpado a sala --
+  // e a escolha está guardada neste aparelho (preview-vista-v1), o que faria
+  // do "Limpar tudo" um sítio estranho para a desfazer.
   document.querySelectorAll(CAMPOS_DA_APP).forEach(campo => {
+    if (campo.closest("#barraVista")) return;
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
     else if (campo.type !== "file") campo.value = campo.defaultValue;
   });
@@ -7888,7 +7931,7 @@ function pintarGrupo(id, cor) {
  *   · AO RECARREGAR A APP a cena ainda está vazia quando o primeiro desenho
  *     corre. Nenhuma chave "existe", o grupo fica com zero peças, e o cenário
  *     que foi guardado desaparece antes de alguém o ver;
- *   · e DESLIGAR O PALCO na secção Vista esconde os palcos extra. Esconder não
+ *   · e DESLIGAR O PALCO na barra do "ver" esconde os palcos extra. Esconder não
  *     é apagar — mas para uma limpeza que só olha para o que está desenhado é
  *     a mesma coisa, e a escadaria morria por se ter carregado num interruptor.
  *
@@ -9107,7 +9150,7 @@ async function exportar(formato, soACupula) {
     // A total era COPIADA da cena, e isso deixou de servir quando o conteúdo
     // passou a ser cortado na base da imagem: com um logo carregado, a casca
     // da cena está cortada e a "total" saía cortada com ela. Construída
-    // aqui, também já não depende de a cúpula estar ligada na secção Vista.
+    // aqui, também já não depende de a cúpula estar ligada na barra do "ver".
     const soProjecao = $("expSoProjecao") && $("expSoProjecao").checked;
     const recorte = fazerCascaDeProjecao(projeto.dome, !soProjecao);
     if (!recorte) { nota.textContent = "Não consegui construir a superfície da cúpula."; return; }
@@ -9148,7 +9191,7 @@ async function exportar(formato, soACupula) {
     return;
   }
 
-  // O interruptor "Ecrãs" da secção Vista serve para olhar para a sala vazia
+  // O interruptor "Ecrãs" da barra do "ver" serve para olhar para a sala vazia
   // -- não é uma decisão sobre o que sai no ficheiro. Sem isto, desligá-lo um
   // instante (para medir uma parede, por exemplo) e esquecer de o voltar a
   // ligar tirava os ecrãs e o DSM do .glb sem nenhum aviso a dizer porquê:
