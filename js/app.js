@@ -3361,20 +3361,34 @@ function avisarDaSalaVazia() {
     // "sVista" levava a uma secção onde já não há interruptor nenhum --
     // um atalho que aponta para o sítio errado é pior do que não existir.
     '<button type="button" class="aviso-link" data-barra="verPalco">Ligar o palco, o público ou a régie</button>' +
-    // ANTES ia para "Ecrãs na sala", que numa app vazia está vazia e não
-    // tem um único botão: quem escolhia montar um ecrã aqui mesmo aterrava
-    // num sítio sem nada para carregar. Reportado assim: *"quando no 3D
-    // abro e escolho fazer um projeto direto nele, [devia] saltar para a
-    // aba dos meus ecrãs, do depósito"*. O "+ Ecrã" vive no DEPÓSITO, e é
-    // para lá que este botão passa a levar -- com o próprio "+ Ecrã" à
-    // vista, que é a acção que ele foi buscar.
-    '<button type="button" class="aviso-link" data-secao="deposito" data-foco="btNovaZona">Montar um ecrã aqui mesmo</button>';
+    // ESTE BOTÃO MONTA. Levou duas voltas a acertar, e as duas são a mesma
+    // lição: um atalho que não faz o que o seu nome diz não é um atalho.
+    //
+    //   · ia para "Ecrãs na sala", que numa app vazia não tem um único
+    //     botão -- aterrava-se num sítio sem nada para carregar;
+    //   · passou a ir para o DEPÓSITO, em cima do "+ Ecrã". Melhor, mas
+    //     ainda não era montar: carregar no "+ Ecrã" põe a peça à ESPERA
+    //     (é o que o depósito faz), a sala continuava vazia, a cena
+    //     continuava igual, e o cartão "A sala está vazia" continuava lá a
+    //     dizer que não havia nada. Reportado com uma foto: *"não era para
+    //     parar aqui pois não"*.
+    //
+    // Agora cria o ecrã e põe-no NA SALA, com a câmara a enquadrá-lo. O
+    // depósito não é contrariado por isto: ele existe para o material que
+    // CHEGA (dos Calculadores) não entrar todo de uma vez na sala; isto é
+    // alguém a carregar num botão que diz "montar".
+    '<button type="button" class="aviso-link" data-acao="montarEcra">Montar um ecrã aqui mesmo</button>';
   aviso.classList.add("mostra");
 }
 
 $("avisoVazio").addEventListener("click", (e) => {
-  const alvo = e.target.closest("[data-secao], [data-barra]");
+  const alvo = e.target.closest("[data-secao], [data-barra], [data-acao]");
   if (!alvo) return;
+  if (alvo.dataset.acao === "montarEcra") {
+    acrescentarEcra(false);
+    dizerNaCena("Ecrã montado na sala. As medidas e a posição ficam em “Ecrãs na sala”, no painel.");
+    return;
+  }
   if (alvo.dataset.barra) { apontarParaBarraDeVista(alvo.dataset.barra); return; }
   irParaSeccao(alvo.dataset.secao, alvo.dataset.foco || null);
 });
@@ -3529,7 +3543,50 @@ function irParaSeccao(id, idParaFoco) {
       JSON.stringify([...document.querySelectorAll("#painel section.fechada")]
         .filter(x => x.id !== id).map(x => x.id)));
   } catch (_) {}
-  (idParaFoco ? $(idParaFoco) : secao).scrollIntoView({ block: "start", behavior: "smooth" });
+  levarPainelA((idParaFoco && $(idParaFoco)) || secao);
+}
+
+/**
+ * Leva o painel até um elemento — e depois CONFIRMA que chegou.
+ *
+ * Era um `scrollIntoView({ behavior: "smooth" })`, e escorregava. O painel
+ * reescreve-se a seguir a quase tudo (o resumo lá em cima encolhe de três
+ * linhas para uma, a lista do depósito passa de "—" a "Tudo montado", a nota
+ * de um botão aparece), e uma rolagem ANIMADA que dura 300 ms a apontar a um
+ * sítio cujo endereço muda a meio acaba noutro lado. Foi o que ele viu, com
+ * uma foto: carregou para montar um ecrã e o painel parou em "Ecrãs na sala"
+ * a dizer "—", uma secção abaixo do que devia.
+ *
+ * Duas passagens: a primeira suave, para se perceber que o painel andou; a
+ * segunda, seca, depois de tudo se ter reescrito, para ficar no sítio certo.
+ * E a conta é feita contra o próprio painel, não contra a janela — num
+ * telemóvel o painel é uma caixa de 46% da altura, e não a página.
+ */
+function levarPainelA(alvo) {
+  const caixa = $("painel");
+  if (!caixa || !alvo) return;
+  // O CABEÇALHO DO PAINEL É "STICKY": fica colado ao topo e passa por cima do
+  // que está a rolar por baixo. Levar uma coisa ao "topo do painel" era, na
+  // prática, metê-la DEBAIRO dele — e o que se via em cima era o que vinha
+  // uns 230 px mais abaixo. Foi isto que ele fotografou: carregou em "montar
+  // um ecrã aqui mesmo", a app levou-o ao "+ Ecrã", e o que lhe apareceu no
+  // topo foi a secção seguinte, "Ecrãs na sala", a dizer "—".
+  const cabecalho = caixa.querySelector("header");
+  const por = () => {
+    const r = alvo.getBoundingClientRect();
+    const rc = caixa.getBoundingClientRect();
+    const tapado = cabecalho ? cabecalho.getBoundingClientRect().height : 0;
+    const desvio = r.top - rc.top - tapado - 8;
+    if (Math.abs(desvio) < 2) return;
+    caixa.scrollTo({ top: Math.max(0, caixa.scrollTop + desvio), behavior: "auto" });
+  };
+  por();
+  // E outra vez, mais logo: o painel reescreve-se a seguir a quase tudo (o
+  // resumo lá em cima encolhe, a lista do depósito muda de texto), e uma
+  // rolagem só acabava ao lado. Sem animação, de propósito — uma rolagem
+  // suave a apontar a um sítio cujo endereço muda a meio acaba noutro lado,
+  // e foi medida a acabar 147 px fora.
+  [280, 560, 900].forEach((ms) => setTimeout(por, ms));
 }
 
 function mostrarZonas() {
@@ -3553,14 +3610,22 @@ function projetoMudou(recentrar = false) {
   montar(recentrar);
 }
 
-$("btNovaZona").onclick = () => {
+/**
+ * Um ecrã novo, criado aqui no 3D.
+ *
+ * `paraODeposito` decide se a peça fica à espera ou entra logo na sala. O
+ * "+ Ecrã" respeita o interruptor do depósito, como sempre; o atalho da sala
+ * vazia não — ver mais abaixo, em avisoVazio, e a razão por que isto passou a
+ * ser uma função com um argumento em vez de dois blocos iguais.
+ */
+function acrescentarEcra(paraODeposito) {
   const p = garantirProjeto();
   const n = p.zonas.length;
   // Cada ecrã novo nasce ao lado do último, para não empilhar tudo em cima do
   // mesmo sítio e obrigar a arrastar números antes de se ver alguma coisa.
   const anterior = p.zonas[n - 1];
   const idNovo = novoIdZona();
-  guardarNoDeposito(idNovo);
+  if (paraODeposito) guardarNoDeposito(idNovo);
   p.zonas.push({
     nome: `Ecrã ${n + 1}`,
     id: idNovo,
@@ -3569,12 +3634,20 @@ $("btNovaZona").onclick = () => {
     cor: CORES_ZONA[n % CORES_ZONA.length],
     tipo: "led"
   });
+  const nome = p.zonas[p.zonas.length - 1].nome;
   projetoMudou();
-  // Com o depósito desligado a peça já está na sala: quem a quer ajustar
-  // vai às Zonas, não a uma lista onde ela não está.
-  if (depositoLigado()) irParaSeccao("deposito", "listaDeposito");
+  // A entrar na sala, a câmara vai ter com ELA. "Enquadrar tudo" não servia:
+  // a caixa de tudo o que está desenhado é a sala, que nasce com 50 × 50 m, e
+  // um ecrã de 2 m lá dentro fica um ponto do tamanho de uma unha.
+  if (!paraODeposito) enquadrarPeca("zona " + nome);
+  // Com a peça já na sala, quem a quer ajustar vai às Zonas, não a uma lista
+  // onde ela não está.
+  if (paraODeposito) irParaSeccao("deposito", "listaDeposito");
   else mostrarZonas();
-};
+  return idNovo;
+}
+
+$("btNovaZona").onclick = () => acrescentarEcra(depositoLigado());
 
 $("btNovoDelay").onclick = () => {
   const p = garantirProjeto();
@@ -4899,12 +4972,33 @@ function trazerParaDentro(lista) {
  * alguém se perdeu, porque não assume que o que se procura está onde devia.
  */
 function enquadrarOQueExiste() {
-  if (camara.fov !== FOV_NORMAL) { camara.fov = FOV_NORMAL; camara.updateProjectionMatrix(); }
   const caixa = new THREE.Box3();
   if (desenhado) caixa.expandByObject(desenhado);
+  enquadrarCaixa(caixa);
+}
+
+/**
+ * Leva a câmara a UMA peça, pelo nome com que ela está desenhada.
+ *
+ * O "enquadrar tudo" não serve para isto: a sala nasce com 50 × 50 m, e a
+ * caixa de tudo o que está desenhado é sempre a sala. Um ecrã de 2 m lá
+ * dentro fica um ponto azul do tamanho de uma unha -- que é quase o mesmo
+ * que não ter aparecido. Com folga larga para se ver onde ele está, e não
+ * só ele a tapar o ecrã todo.
+ */
+function enquadrarPeca(nome) {
+  let achado = null;
+  if (desenhado) desenhado.traverse((o) => { if (!achado && o.name === nome) achado = o; });
+  if (!achado) return false;
+  enquadrarCaixa(new THREE.Box3().setFromObject(achado), 3.2);
+  return true;
+}
+
+function enquadrarCaixa(caixa, folga = 1.25) {
+  if (camara.fov !== FOV_NORMAL) { camara.fov = FOV_NORMAL; camara.updateProjectionMatrix(); }
   // Sala vazia, ou tudo desligado: não há caixa nenhuma para enquadrar e a
   // vista de frente é a resposta honesta.
-  if (caixa.isEmpty()) { vista("frente"); return; }
+  if (!caixa || caixa.isEmpty()) { vista("frente"); return; }
 
   const centro = caixa.getCenter(new THREE.Vector3());
   const tamanho = caixa.getSize(new THREE.Vector3());
@@ -4914,7 +5008,7 @@ function enquadrarOQueExiste() {
   // as pontas de fora precisamente no ecrã em que isto faz falta.
   const meioFovV = (camara.fov * Math.PI) / 360;
   const meioFovH = Math.atan(Math.tan(meioFovV) * camara.aspect);
-  const distancia = (maior / 2) / Math.tan(Math.min(meioFovV, meioFovH)) * 1.25;
+  const distancia = (maior / 2) / Math.tan(Math.min(meioFovV, meioFovH)) * folga;
   // Do mesmo sítio de onde a vista "Frente" olha — de trás e um pouco acima,
   // que é como se lê uma sala — mas à distância que faz caber tudo.
   camara.position.set(

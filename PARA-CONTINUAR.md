@@ -1763,6 +1763,55 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 27 de setembro — o botão que diz montar, monta (v3.91)
+
+> *"não era para parar aqui pois não"* — com uma foto do telemóvel: carregou
+> em **«Montar um ecrã aqui mesmo»** e o painel parou em «ECRÃS NA SALA» a
+> dizer «—», com o cartão «A sala está vazia» ainda lá.
+
+Tinha razão, e a foto era sintoma de **três** coisas ao mesmo tempo.
+
+**1. O botão não montava nada.** A v3.90 tinha-o mandado para o Depósito, em
+cima do `+ Ecrã` — melhor do que a secção vazia de antes, mas ainda não era
+montar: o `+ Ecrã` põe a peça **à espera**. A sala continuava vazia, a cena
+igual, e o cartão «A sala está vazia» continuava lá a dizer que não havia
+nada. Agora o botão **cria o ecrã e põe-no na sala**. O `+ Ecrã` do depósito
+fica exactamente como estava — o depósito existe para o material que *chega*
+dos Calculadores não entrar todo de uma vez; isto é alguém a carregar num
+botão que diz «montar». A função passou a ser uma só
+(`acrescentarEcra(paraODeposito)`), em vez de dois blocos iguais.
+
+**2. O cabeçalho do painel é `sticky`, e tapa o que rola por baixo dele.**
+Levar algo ao «topo do painel» metia-o **debaixo** do cabeçalho, e o que
+aparecia em cima era o que vinha uns 230 px mais abaixo. É exactamente isso
+que a foto mostra: a app levou-o ao `+ Ecrã`, o `+ Ecrã` ficou escondido atrás
+do cabeçalho, e o que se via era a secção seguinte. Este defeito era **de
+todos os atalhos do painel** desde sempre (os avisos de «não cabe», o
+«mostrar zonas», tudo) — nunca tinha sido nomeado.
+
+**3. A rolagem suave acabava ao lado** — medida **147 px fora**. O painel
+reescreve-se a seguir a quase tudo (o resumo lá em cima encolhe de três linhas
+para uma, a lista do depósito passa de «—» a «Tudo montado»), e uma animação
+de 300 ms a apontar a um sítio cujo endereço muda a meio acaba noutro lado.
+Passou a ser seca, e a confirmar-se em 280 / 560 / 900 ms até assentar.
+
+Os três ficaram num sítio só, `levarPainelA()`, que o `irParaSeccao()` usa.
+
+**E um quarto, que só se via na cena:** a câmara enquadrava *tudo o que está
+desenhado* — e como a sala nasce com 50 × 50 m, a caixa de «tudo» é sempre a
+sala. Um ecrã de 2 m lá dentro ficava um ponto azul do tamanho de uma unha,
+que é quase o mesmo que não ter aparecido. `enquadrarPeca()` leva a câmara à
+peça, com folga larga para se ver onde ela está: medido a **6,4 m** no
+computador e **7,6 m** no telemóvel, contra os mais de 60 m de antes.
+
+Testado com Playwright (`scripts/verificar-montar-aqui-mesmo.mjs`, que
+substitui o `verificar-comecar-no-deposito` da v3.90), **no computador e no
+telemóvel**: o ecrã entra na sala e não no depósito; o cartão da sala vazia
+desaparece; a câmara aponta à peça e fica perto; a linha do ecrã no painel
+está visível **por baixo do cabeçalho** — a medida que apanha o defeito 2 — e
+continua lá um segundo depois, que é a que apanha o 3; e o `+ Ecrã` do
+depósito continua a pôr a peça à espera. Sem erros de consola.
+
 ## 27 de setembro — quem começa aqui aterra em cima do botão (v3.90)
 
 > *"quando no 3D abro e escolho fazer um projeto direto nele, [devia] saltar
