@@ -4,12 +4,12 @@
 
 > *"publica e promove as duas"*.
 
-Par: **Calculadores v4.28** (`1469088` no repositório `calculadores`). As duas
+Par: **Calculadores v4.30** (`490a73d` no repositório `calculadores`). As duas
 apps falam uma com a outra — dar uma como estável sem a outra não quer dizer
 nada, e por isso o par escreve-se aqui e é promovido ao mesmo tempo.
 
 Desta vez só o outro lado andou. O Preview está na mesma v3.93, e é promovido
-de novo por ser o par testado com os Calculadores v4.28 — não por ter mudado
+de novo por ser o par testado com os Calculadores v4.30 — não por ter mudado
 alguma coisa aqui.
 
 ## O que "estável" quer dizer aqui
@@ -34,7 +34,7 @@ Três são novas desde a v3.90: `montar-aqui-mesmo`, `ir-buscar-versao` e
 `enquadrar-o-que-existe`. O `ir-buscar-versao` corre **com o service worker
 ligado**, ao contrário de todos os outros — ali ele é o assunto.
 
-Do outro lado, nos Calculadores v4.28, **22 verificações verdes**, a
+Do outro lado, nos Calculadores v4.30, **22 verificações verdes**, a
 verificação de tradução sem nada de novo por traduzir (dívida conhecida: 287
 trechos) e **41 testes verdes no Worker**. As vinte e três deste lado correram
 no commit que esta página nomeia, não no ramo antes de fundir.
