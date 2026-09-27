@@ -1763,6 +1763,75 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 27 de setembro — o que se vê passou para a janela (v3.89)
+
+> *"No 3d podemos mudar os players da vista para o topo da janela sempre
+> visíveis e tirar do menu, pois abre sempre com a grelha e identificação das
+> pessoas e fica confuso, assim será mais rápido selecionar o que ver"* — e, a
+> seguir: *"grelha desligada e escolha guardada"*.
+
+Os treze interruptores do "ver" (ecrãs, palco, público, régie, orador, planta,
+paredes, medidas, cobertura, e os quatro da cúpula) viviam dentro do painel, na
+secção **Vista**. Eram os que mais se mexem na app inteira, e estavam a três
+gestos de distância: abrir o painel, rolar até à secção, clicar. Com o painel
+fechado — que é como se olha para o 3D — não existiam de todo.
+
+Passaram para uma **barra de pastilhas no topo da própria janela**, sempre à
+vista. São as mesmas caixas, com os mesmos ids: a caixa está escondida por CSS
+e o que se toca é a etiqueta inteira, em pastilha (num telemóvel um quadradinho
+de 13 px não se acerta; uma pastilha acerta-se). Tudo o que lê
+`$("verPalco").checked` continua a ler o mesmo interruptor.
+
+A ordem passou a ser a do uso: primeiro o que se monta (ecrãs, palco, público,
+régie, orador), depois o cenário (planta, paredes), e só no fim as ajudas de
+desenho (medidas, cobertura). As quatro da cúpula só aparecem quando o projeto
+tem uma — como já era.
+
+**Duas mudanças de comportamento, as que ele pediu:**
+
+- **"Medidas e grelha" nasce DESLIGADA.** Era a queixa: a app abria com a
+  grelha no chão e as etiquetas por cima de tudo. Quem quer conferir medidas
+  liga-a num toque, na barra. Um ficheiro gravado **antes** disto continua a
+  trazer as medidas ligadas se era assim que estava (`LIGADO_ANTES`).
+- **A escolha fica guardada neste aparelho** (`preview-vista-v1`), como o
+  cadeado da edição livre e a largura do painel: é feitio de trabalhar, não
+  conteúdo do projeto. Repõe-se **antes** do primeiro desenho, para a sala não
+  mudar sozinha à frente de quem está a olhar. Um "🔗 Link para ver" não
+  guarda nada — quem o abre está a ver o projeto de outra pessoa.
+
+**A armadilha desta mudança, e o que a apanhou.** Três sítios diferentes
+apanhavam os campos da app com `"#painel input"`: o que liga cada campo ao
+redesenho, o que tira o instantâneo para o **desfazer**, e o que o "Limpar
+tudo" repõe. Tirar as caixas do painel fazia as três deixarem de as ver — os
+interruptores não redesenhavam nada, não entravam no desfazer e não se
+repunham. Três avarias caladas, cada uma longe da mudança que as causou. O
+selector passou a estar **num sítio só** (`CAMPOS_DA_APP`, no topo do app.js) e
+o teste novo confere o desfazer de propósito.
+
+**A segunda armadilha: a barra roubava a cena onde não tinha botões.** Nasceu
+esticada de lado a lado (`left: 12px; right: 12px`), e essa faixa apanhava os
+cliques no alto da tela mesmo onde não há pastilha nenhuma — e clicar no céu é
+precisamente como se larga uma selecção de peças. Quem apanhou foi o
+`verificar-grupo-no-3d.mjs`, que clica a 85% da largura e 8% da altura de
+propósito ("o ponto tem de cair DENTRO da tela"). A barra passou a
+`width: max-content` com `max-width`: ocupa só o que as pastilhas ocupam, e só
+rola de lado quando não couberem. O teste novo confere isso por
+`elementFromPoint`.
+
+Ficaram no painel as **notas** — o que é texto para ler e não botão: a leitura
+da pessoa dentro da cúpula, e a explicação da superfície opaca (que aparece e
+desaparece com a cúpula, como o botão dela).
+
+Testado com Playwright (`scripts/verificar-barra-de-vista.mjs`): os
+interruptores estão na barra e já não no painel; a barra vê-se com o painel
+fechado e dentro da janela, **sem apanhar o clique no alto da tela à direita
+das pastilhas**; a app abre sem grelha no chão e sem etiquetas (0);
+tocar em "Palco" põe o palco na cena e acende a pastilha; tocar em "Medidas"
+traz a grelha e as etiquetas; um passo atrás no desfazer desliga-as outra vez e
+apaga a pastilha; fechar e reabrir a app traz o palco ainda ligado e as medidas
+ainda desligadas; as quatro pastilhas da cúpula estão escondidas sem cúpula e
+aparecem com ela. Sem erros de consola.
+
 ## 25 de setembro — o palco principal roda (v3.88)
 
 > *"olha, preciso rodar os palcos"*.

@@ -27,6 +27,39 @@ import { usoArranque, usoMarcar, usoDoProjeto, ligarInterruptorDeUso } from "./u
 const $ = (id) => document.getElementById(id);
 const tela = $("tela");
 
+/**
+ * Onde vivem os campos da app.
+ *
+ * Era "#painel input" em três sítios diferentes -- o que liga cada campo ao
+ * redesenho, o que tira o instantâneo para o desfazer, e o que o "Limpar
+ * tudo" repõe. No dia em que as caixas do "ver" saíram do painel para a
+ * barra da janela (#barraVista), esses três selectores deixavam de as
+ * apanhar: os interruptores não redesenhavam nada, não entravam no desfazer
+ * e não se repunham -- três avarias caladas, cada uma longe da mudança que
+ * as causou. Estão aqui em cima, num sítio só, para o próximo campo que
+ * mudar de casa não ter de descobrir isto outra vez.
+ */
+const CAMPOS_DA_APP = "#painel input, #barraVista input";
+const CAMPOS_E_LISTAS_DA_APP = "#painel input, #painel select, #barraVista input";
+
+/**
+ * As caixas que vivem na barra do topo. A ordem é a do HTML, e a lista serve
+ * para pintar as pastilhas e para guardar a escolha neste aparelho.
+ */
+const CAIXAS_DA_VISTA = ["verEcras", "verPalco", "verPublico", "verRegie",
+  "verOrador", "verPlanta", "verParedes", "verMedidas", "verCobertura",
+  "verDome", "verPessoaDome", "verFatias", "domeSolido"];
+
+// Aqui em cima, e não ao pé das funções que as usam, lá para o fim do
+// ficheiro: pintarBarraDeVista() é chamada dentro do desenharCena(), e um
+// desenho que acontecesse antes de a linha do `const` correr rebentava com um
+// ReferenceError -- o erro que só aparece no dia em que alguém mudar a ordem
+// do arranque, e que ninguém liga à barra.
+const CHAVE_ESCOLHA_DA_VISTA = "preview-vista-v1";
+// O último texto escrito. Sem isto escrevia-se no localStorage a cada
+// redesenho, e redesenha-se a cada tecla num campo de números.
+let vistaEscrita = null;
+
 // preserveDrawingBuffer: sem isto o browser pode limpar o canvas antes de o
 // copiarmos, e a imagem guardada sai preta.
 const renderizador = new THREE.WebGLRenderer({ canvas: tela, antialias: true,
@@ -533,6 +566,12 @@ function desenharCena(recentrarCamara) {
     campoNome.value = projeto && projeto.nome ? projeto.nome : "";
   }
 
+  // As pastilhas da barra acompanham. Aqui, e não só no clique: abrir um
+  // ficheiro, anular um passo ou "Limpar tudo" mudam as caixas por baixo do
+  // pano, e uma pastilha apagada por cima de um palco visível é pior do que
+  // não ter pastilha nenhuma.
+  pintarBarraDeVista();
+
   const sala = lerSala();
   const palco = lerPalco();
   const publico = lerPublico();
@@ -581,8 +620,11 @@ function desenharCena(recentrarCamara) {
   // a razão de ser translúcida por omissão.
   domeMontado = null;
   const domeDoProjeto = (projeto && projeto.dome) ? projeto.dome : null;
+  // "notaDomeSolido" é a explicação da superfície opaca, que ficou no painel
+  // quando o interruptor foi para a barra: um parágrafo sobre um botão que
+  // não existe neste projeto é ruído igual ao do botão morto.
   ["verDomeWrap", "domeSolidoWrap", "verFatiasWrap", "verPessoaDomeWrap",
-   "btVistaDome", "saidasDome"].forEach((id) => {
+   "notaDomeSolido", "btVistaDome", "saidasDome"].forEach((id) => {
     if ($(id)) $(id).style.display = domeDoProjeto ? "" : "none";
   });
   // Onde fica o ecrã curvo — dois campos que só fazem sentido quando há um.
@@ -4575,7 +4617,7 @@ let estadoAnterior = null;
  */
 function instantaneo() {
   const campos = {};
-  document.querySelectorAll("#painel input, #painel select").forEach((el) => {
+  document.querySelectorAll(CAMPOS_E_LISTAS_DA_APP).forEach((el) => {
     if (!el.id) return;
     campos[el.id] = el.type === "checkbox" ? el.checked : el.value;
   });
@@ -4962,7 +5004,7 @@ if ($("curvaBase")) {
   $("curvaBase").addEventListener("input", acompanharBaseDoEcra);
   $("curvaBase").addEventListener("change", acompanharBaseDoEcra);
 }
-document.querySelectorAll("#painel input").forEach(campo => {
+document.querySelectorAll(CAMPOS_DA_APP).forEach(campo => {
   campo.addEventListener("input", () => remontarDaqui());
   campo.addEventListener("change", () => remontarDaqui(0));
 });
@@ -5871,7 +5913,7 @@ function limparTudo() {
   // sobrevive ao "Limpar tudo", como sobrevive a abrir um ficheiro.
   ajustes = { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: true, depositoLigado: depositoLigado(), projetor: null, curvaDoBlend: null, retroDoBlend: false };
 
-  document.querySelectorAll("#painel input").forEach(campo => {
+  document.querySelectorAll(CAMPOS_DA_APP).forEach(campo => {
     if (campo.type === "checkbox") campo.checked = campo.defaultChecked;
     else if (campo.type !== "file") campo.value = campo.defaultValue;
   });
@@ -9695,9 +9737,79 @@ atualizarBotaoEdicaoLivre();
   }
 })();
 
+// ------------------------------------------- a barra do que se vê
+//
+// Pedido assim: *"podemos mudar os players da vista para o topo da janela
+// sempre visíveis e tirar do menu, pois abre sempre com a grelha e
+// identificação das pessoas e fica confuso, assim será mais rápido
+// selecionar o que ver"* -- e, a seguir, *"grelha desligada e escolha
+// guardada"*.
+//
+// A escolha fica NESTE aparelho, como o cadeado da edição livre e a largura
+// do painel: é feitio de trabalhar, não conteúdo do projeto. Um ficheiro
+// gravado continua a trazer a visibilidade dele (ver aplicarVista), e manda
+// enquanto estiver aberto -- é o que lá está escrito.
+
+/** Pinta as pastilhas ligadas, e guarda a escolha. */
+function pintarBarraDeVista() {
+  CAIXAS_DA_VISTA.forEach((id) => {
+    const caixa = $(id);
+    if (!caixa) return;
+    const pastilha = caixa.closest(".chip");
+    if (pastilha) pastilha.classList.toggle("ligado", caixa.checked);
+  });
+  guardarEscolhaDaVista();
+}
+
+// "DaVista" e não "Vista": guardarVista() já existe nesta casa e grava a cena
+// em PNG. Dois nomes iguais no mesmo módulo não dão um aviso, dão uma app que
+// não arranca de todo -- foi o que aconteceu à primeira.
+function guardarEscolhaDaVista() {
+  // Um "🔗 Link para ver" não é o aparelho de ninguém: quem o abre está a ver
+  // o projeto de outra pessoa, e a visibilidade que lá vem não é uma escolha
+  // sua para guardar. (O modoVisualizacao só se liga mais abaixo, no
+  // arranque; por isso pergunta-se também ao endereço, que já sabe.)
+  if (modoVisualizacao || idPartilhaDoEndereco()) return;
+  const estado = {};
+  CAIXAS_DA_VISTA.forEach((id) => { if ($(id)) estado[id] = $(id).checked; });
+  const texto = JSON.stringify(estado);
+  if (texto === vistaEscrita) return;
+  vistaEscrita = texto;
+  try { localStorage.setItem(CHAVE_ESCOLHA_DA_VISTA, texto); } catch (_) {}
+}
+
+/**
+ * Repõe a escolha da vez anterior, antes do primeiro desenho.
+ *
+ * Só aceita booleanos e só para caixas que existam: uma chave a mais de uma
+ * versão futura, ou a menos de uma antiga, não pode estragar o arranque --
+ * o que faltar fica na omissão do HTML.
+ */
+function aplicarVistaGuardada() {
+  let guardado = null;
+  try { guardado = JSON.parse(localStorage.getItem(CHAVE_ESCOLHA_DA_VISTA) || "null"); } catch (_) {}
+  if (guardado && typeof guardado === "object") {
+    CAIXAS_DA_VISTA.forEach((id) => {
+      const caixa = $(id);
+      if (caixa && typeof guardado[id] === "boolean") caixa.checked = guardado[id];
+    });
+  }
+  pintarBarraDeVista();
+}
+
+// A pastilha acende no instante do toque. O redesenho vem a seguir (pelo
+// querySelectorAll dos campos, lá em cima) e volta a pintar -- mas esperar
+// por ele fazia o botão parecer que não respondeu.
+if ($("barraVista")) $("barraVista").addEventListener("change", pintarBarraDeVista);
+
 // ------------------------------------------------------------------ arranque
 
 const idPartilha = idPartilhaDoEndereco();
+// A escolha da vez anterior entra ANTES do primeiro desenho: entrar depois
+// era ver a sala montada de uma maneira e mudar-se sozinha à frente de quem
+// olha. Num link partilhado não há escolha guardada a repor -- a
+// visibilidade vem no próprio link -- e as pastilhas só se pintam.
+if (idPartilha) pintarBarraDeVista(); else aplicarVistaGuardada();
 if (idPartilha) {
   // Um link "🔗 Link para ver" -- o projeto não cabe no próprio endereço (é
   // grande demais para isso), vem do Worker, e só há algo para desenhar

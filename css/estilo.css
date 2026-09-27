@@ -426,10 +426,57 @@ body.modo-ver #painel, body.modo-ver #btAbrir, body.modo-ver #btEdicaoLivre { di
 }
 #btDesfazerTela:disabled { opacity: .4; cursor: default; }
 
-/* O recado dos dois botões, por baixo deles. Some sozinho: é uma confirmação,
-   não um aviso permanente, e a tapar a cena não pode ficar. */
+/* --------------------------------------- a barra do que se vê, no topo
+
+   Segunda linha da janela, por baixo do ☰ / nome do projeto / cadeado: a
+   primeira já está cheia, e estas pastilhas precisam de largura. Rola na
+   horizontal quando não couberem (telemóvel deitado, treze pastilhas) em
+   vez de partir para uma segunda linha e ir comendo a cena.
+
+   A caixa de cada uma está escondida, mas continua a ser um <input> dentro
+   do <label>: clicar na pastilha alterna-a como sempre, o teclado alcança-a,
+   e todo o código que lê $("verX").checked não deu por nada. O "ligado" é
+   pintado pelo JS (pintarBarraDeVista) e não por :has() -- um estado que só
+   se vê em navegadores recentes, numa app que também corre em tablets
+   antigos de obra, é o mesmo que não ter estado nenhum. */
+/* "width: max-content" e não "left+right": a barra ocupa só o que as
+   pastilhas ocupam. Esticada de lado a lado, a faixa dela apanhava cliques
+   onde não há botão nenhum -- e essa faixa é a própria cena. Foi o teste do
+   grupo que apanhou isto: o clique "no vazio", no alto da tela, deixou de
+   largar a selecção porque ia dar à barra. Só quando as pastilhas não
+   couberem é que ela chega ao limite, e aí rola de lado. */
+#barraVista {
+  position: absolute; left: 12px; top: 58px; z-index: 4;
+  width: max-content; max-width: calc(100% - 24px);
+  display: flex; gap: 6px; align-items: center;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 2px 0; scrollbar-width: thin;
+}
+#barraVista .chip {
+  position: relative; flex: 0 0 auto;
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(20, 27, 33, .9); border: 1px solid var(--linha);
+  color: var(--apagado); font-size: 12.5px; line-height: 1.25;
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+#barraVista .chip input {
+  position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0;
+  pointer-events: none;
+}
+#barraVista .chip:hover { border-color: var(--azul); }
+#barraVista .chip.ligado {
+  background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600;
+}
+/* O foco do teclado tem de ver-se: a caixa está escondida, e sem isto quem
+   anda de Tab não sabia em que pastilha estava. */
+#barraVista .chip:focus-within { outline: 2px solid var(--ciano); outline-offset: 1px; }
+
+/* O recado dos dois botões. Estava a 58px, que passou a ser a linha da barra
+   do "ver" -- desce para debaixo dela. Some sozinho: é uma confirmação, não
+   um aviso permanente, e a tapar a cena não pode ficar. */
 #recadoTela {
-  position: absolute; right: 12px; top: 58px; z-index: 4;
+  position: absolute; right: 12px; top: 104px; z-index: 4;
   max-width: min(78vw, 420px); padding: 8px 12px; border-radius: 8px;
   background: rgba(20, 27, 33, .94); border: 1px solid var(--linha);
   color: var(--texto); font-size: 12.5px; line-height: 1.4;
@@ -470,7 +517,9 @@ body.modo-ver #painel, body.modo-ver #btAbrir, body.modo-ver #btEdicaoLivre { di
     left: 56px; right: 150px; transform: none; max-width: none;
     font-size: 12px; padding: 6px 10px; text-align: center;
   }
-  #recadoTela { left: 10px; right: 10px; max-width: none; top: 58px; }
+  #barraVista { left: 10px; top: 56px; gap: 5px; max-width: calc(100% - 20px); }
+  #barraVista .chip { padding: 6px 10px; font-size: 12px; }
+  #recadoTela { left: 10px; right: 10px; max-width: none; top: 100px; }
 }
 
 /* ------------------------------------------------- dobrar as secções
