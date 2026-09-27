@@ -1763,6 +1763,58 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 27 de setembro — ir buscar a versão nova (v3.92)
+
+> *"e ainda não atualizou"* — com o Preview instalado no telemóvel preso numa
+> versão antiga, já muito depois de a nova estar publicada.
+
+Registar o service worker não chega, e era só isso que esta app fazia. O
+browser só vai ver o `sw.js` por sua conta numa **navegação** — e uma app
+instalada que se retoma do fundo não navega para lado nenhum. Fica dias a
+servir do cache uma versão de há uma semana, sem um único sinal de que é isso
+que está a acontecer. Os Calculadores já tinham cura para isto; este lado não.
+
+**Três coisas passaram a existir:**
+
+- **`updateViaCache: "none"` no registo.** Sem isto o browser pode servir o
+  *próprio* `sw.js` do seu cache de HTTP — a app pergunta «há versão nova?» a
+  uma cópia velha do ficheiro que devia responder. É o caminho mais curto
+  para ficar presa sem nada avariado à vista.
+- **A app pergunta pelo NÚMERO**, e não só pelo mecanismo. O
+  `registration.update()` é o caminho certo mas é **mudo**: não há maneira de
+  saber se foi, se foi atendido, ou se o browser o deixou para depois —
+  medido com a app a correr, voltar à frente não chegava a pedir o `sw.js`
+  outra vez. Agora vai buscar o `sw.js` à rede, lê dali o `preview-vX.YZ` e
+  compara com o que está escrito no painel. Se forem diferentes, diz-o e
+  **acende o número da versão**.
+- **O número da versão é um botão**, como o dos Calculadores: apaga o cache,
+  tira o service worker do caminho e recarrega.
+
+**E três defeitos por baixo, os três apanhados por medição e não por leitura:**
+
+- **A pergunta «há rede?» era respondida pelo cache.** O botão confirma a rede
+  antes de apagar o que quer que seja — apagar o offline sem rede deixava a
+  app em branco precisamente na sala sem internet onde ela faz falta. Só que
+  esse `fetch` passava pelo próprio service worker, que respondia do cache:
+  **medido, com a rede cortada o cache era apagado na mesma**. Um pedido com
+  `?rede=` deixou de ser interceptado (ver `sw.js`), e a pergunta passou a
+  chegar à rede.
+- **O `unregister()` ficava pendurado** sem nunca resolver, e a app ficava
+  eternamente em «A procurar versão nova…» — o pior fim possível para um
+  botão de último recurso. A limpeza passou a ter prazo: ao fim de 4 segundos
+  recarrega-se na mesma.
+- E o aviso **diz-se uma vez por sessão**: repeti-lo a cada vinda à frente era
+  a maneira mais rápida de o tornar invisível.
+
+Testado com Playwright (`scripts/verificar-ir-buscar-versao.mjs`), e este
+corre **com o service worker ligado** — ao contrário do resto da bateria, que
+o bloqueia de propósito; aqui ele é o assunto. O servidor do teste passa a
+poder **anunciar uma versão mais recente por baixo da app aberta**, que é a
+única forma honesta de verificar isto: a app tem de reparar numa versão que
+não é a sua, e não numa que lhe demos à partida. Confere que ela repara e diz
+qual é, que acende o número, que não repete o aviso; que o botão recarrega
+tudo de raiz com rede; e que **sem rede não apaga nada** e explica porquê.
+
 ## 27 de setembro — o botão que diz montar, monta (v3.91)
 
 > *"não era para parar aqui pois não"* — com uma foto do telemóvel: carregou

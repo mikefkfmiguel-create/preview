@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao">v3.91</i></span>
+        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v3.92</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -741,7 +741,11 @@
   if ("serviceWorker" in navigator) {
     addEventListener("load", async () => {
       try {
-        const registo = await navigator.serviceWorker.register("./sw.js");
+        // "updateViaCache: none" NÃO É DETALHE: sem isto o browser pode servir o
+        // próprio sw.js do seu cache de HTTP, e a app pergunta "há versão nova?"
+        // a uma cópia velha do ficheiro que devia responder. É o caminho mais
+        // curto para ficar presa numa versão antiga sem nada avariado à vista.
+        const registo = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
         // Quando entra uma versao nova, ela so manda no proximo arranque. Em
         // vez de deixar o mike a olhar para a app de ontem sem saber porque,
         // recarrega-se assim que ela estiver pronta.
@@ -752,9 +756,125 @@
             if (novo.state === "installed" && navigator.serviceWorker.controller) location.reload();
           });
         });
+
+        // PERGUNTAR SE HÁ VERSÃO NOVA -- o que faltava, e o que ele reportou:
+        // *"e ainda não atualizou"*, com a app instalada no telemóvel presa
+        // numa versão antiga. Registar não chega: o browser só vai ver o
+        // sw.js por sua conta numa NAVEGAÇÃO, e uma app instalada que se
+        // retoma do fundo não navega para lado nenhum -- fica dias sem
+        // perguntar nada a ninguém. Isto pergunta ao abrir, e outra vez
+        // sempre que a app volta à frente. Não custa quando não há nada de
+        // novo: o servidor responde que o ficheiro não mudou.
+        const perguntar = () => { try { registo.update(); } catch (_) {} };
+        perguntar();
+        addEventListener("visibilitychange", () => { if (!document.hidden) perguntar(); });
+        addEventListener("focus", perguntar);
       } catch (_) { /* sem service worker a app funciona na mesma, so nao offline */ }
     });
   }
+
+  // PERGUNTAR PELO NÚMERO, E NÃO SÓ PELO MECANISMO.
+  //
+  // O `registration.update()` acima é o caminho certo, mas é mudo: não há
+  // maneira de a app saber se ele foi, se foi atendido, ou se o browser o
+  // deixou para depois. Medido com a app a correr: voltar à frente não
+  // chegava a pedir o sw.js outra vez. Um mecanismo que não se pode observar
+  // não se pode garantir -- e foi por isso que ele ficou dias com a versão
+  // de trás sem nada que lho dissesse.
+  //
+  // Isto pergunta pelo NÚMERO, que é o que interessa: vai buscar o sw.js à
+  // rede (com "?rede=", que o service worker não intercepta), lê dali o
+  // "preview-vX.YZ", e compara com o que está escrito no painel. Se forem
+  // diferentes, diz-se -- e o número acende, para haver onde tocar.
+  (function ligarBotaoDaVersao() {
+    const etiqueta = document.getElementById("versao");
+    if (!etiqueta) return;
+
+    const dizer = (texto) => {
+      const aviso = document.getElementById("aviso");
+      if (!aviso) return;
+      aviso.textContent = texto;
+      aviso.classList.add("mostra");
+      setTimeout(() => aviso.classList.remove("mostra"), 6000);
+    };
+
+    const emUso = () => etiqueta.textContent.trim().replace(/^v/i, "");
+
+    async function versaoPublicada() {
+      try {
+        const r = await fetch("./sw.js?rede=1&v=" + Date.now(), { cache: "no-store" });
+        if (!r || !r.ok) return null;
+        const achado = /preview-v([0-9]+\.[0-9]+)/.exec(await r.text());
+        return achado ? achado[1] : null;
+      } catch (_) { return null; }
+    }
+
+    // Uma vez por sessão chega: repetir o mesmo aviso a cada vinda à frente
+    // é a maneira mais rápida de o tornar invisível.
+    let jaAvisado = false;
+    async function verSeHaNova() {
+      if (jaAvisado) return;
+      const publicada = await versaoPublicada();
+      if (!publicada || publicada === emUso()) return;
+      jaAvisado = true;
+      etiqueta.classList.add("ha-nova");
+      etiqueta.title = "Há a versão v" + publicada + " publicada — toca para a ires buscar.";
+      dizer("Há uma versão nova publicada (v" + publicada + "). Toca no número da versão, aqui em cima, para a ires buscar.");
+    }
+    addEventListener("load", () => setTimeout(verSeHaNova, 1500));
+    addEventListener("visibilitychange", () => { if (!document.hidden) verSeHaNova(); });
+    addEventListener("focus", verSeHaNova);
+
+    let aCorrer = false;
+    async function forcarAtualizacao() {
+      if (aCorrer) return;
+      aCorrer = true;
+      dizer("A procurar versão nova…");
+      // A REDE PRIMEIRO, e sem isto a cura era pior do que a doença: o cache
+      // é o que faz esta app abrir numa sala sem internet. Apagá-lo sem ter
+      // a certeza de que há de onde a ir buscar deixava-o com a app em
+      // branco precisamente no sítio onde ela faz falta.
+      let temRede = false;
+      try {
+        // O "?rede=" é o que faz o service worker NÃO tocar neste pedido (ver
+        // sw.js). Sem ele, a pergunta "há rede?" era respondida pelo cache, e
+        // dizia que sim com o telemóvel em modo de avião.
+        const r = await fetch("./sw.js?rede=1&v=" + Date.now(), { cache: "no-store" });
+        temRede = !!(r && r.ok);
+      } catch (_) {}
+      if (!temRede) {
+        aCorrer = false;
+        dizer("Sem resposta da rede — fica como está, para continuar a abrir sem internet.");
+        return;
+      }
+      // COM PRAZO. Limpar não pode ser o que impede de recarregar: medido,
+      // o `unregister()` ficava pendurado sem nunca resolver, e a app ficava
+      // eternamente em "A procurar versão nova…" — o pior fim possível para
+      // um botão de último recurso. Passados 4 segundos recarrega-se na
+      // mesma: o cache já foi, e o que sobrar do service worker antigo o
+      // arranque seguinte trata.
+      const comPrazo = (promessa) => Promise.race([
+        Promise.resolve(promessa).catch(() => null),
+        new Promise((pronto) => setTimeout(pronto, 4000))
+      ]);
+      try {
+        if (window.caches) {
+          await comPrazo(caches.keys().then((chaves) =>
+            Promise.all(chaves.map((k) => caches.delete(k)))));
+        }
+      } catch (_) {}
+      try {
+        await comPrazo(navigator.serviceWorker.getRegistrations().then((registos) =>
+          Promise.all(registos.map((r) => r.unregister()))));
+      } catch (_) {}
+      location.reload();
+    }
+
+    etiqueta.addEventListener("click", forcarAtualizacao);
+    etiqueta.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); forcarAtualizacao(); }
+    });
+  })();
 </script>
 </body>
 </html>

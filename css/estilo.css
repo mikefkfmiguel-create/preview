@@ -46,7 +46,22 @@ body { display: flex; }
 #painel header span { display: block; font-size: 12px; color: var(--apagado); }
 /* A versao anda a vista: sem ela, ninguem sabe se o que esta no ecra ja e o
    que foi publicado ha cinco minutos ou o de ontem que ficou no cache. */
-#versao { font-style: normal; color: var(--ciano); font-variant-numeric: tabular-nums; }
+/* O número da versão é um BOTÃO — o mesmo gesto que os Calculadores já
+   tinham. Serve para o caso que ele reportou: a app instalada no telemóvel
+   fica presa numa versão antiga e não há nada em que tocar para a curar.
+   Com o contorno à vista, senão ninguém adivinha que se pode tocar. */
+#versao {
+  font-style: normal; color: var(--ciano); font-variant-numeric: tabular-nums;
+  border: 1px solid transparent; border-radius: 5px; padding: 1px 5px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+#versao:hover, #versao:focus-visible { border-color: var(--ciano); outline: none; }
+#versao:active { opacity: .6; }
+/* Há versão nova publicada: o número acende, para haver onde tocar. Aceso e
+   quieto — a piscar no cabeçalho ficava a chamar por atenção o dia todo. */
+#versao.ha-nova {
+  background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600;
+}
 /* A lotacao existe para se ver de relance numa reuniao, sem ter de rolar o
    painel ate ao rodape onde ja estava escrita. */
 .lotacao-topo {
