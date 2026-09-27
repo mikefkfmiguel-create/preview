@@ -1763,6 +1763,52 @@ escrever `-4.5` no campo "fundo" continua a dar `-4.5` (a correcção da v2.96
 não se perdeu); o interruptor do depósito e o botão do círculo continuam lá.
 Sem erros de consola.
 
+## 27 de setembro — quem começa aqui aterra em cima do botão (v3.90)
+
+> *"quando no 3D abro e escolho fazer um projeto direto nele, [devia] saltar
+> para a aba dos meus ecrãs, do depósito"*.
+
+O aviso da sala vazia oferece três caminhos, e o terceiro — **«Montar um ecrã
+aqui mesmo»** — levava à secção **Ecrãs na sala**. Numa app acabada de abrir
+essa secção está vazia e **não tem um único botão**: quem escolhia começar ali
+aterrava num sítio sem nada para carregar. O `+ Ecrã` (e o `+ Delay`, e o
+`+ DSM`) vive no **Depósito**, que é por onde todo o material entra. Passa a
+levar lá, e a levar a vista até ao próprio botão.
+
+**E o segundo caminho estava partido desde a v3.89.** «Ligar o palco, o público
+ou a régie» apontava para a secção **Vista** — de onde os interruptores tinham
+saído no dia anterior, para a barra do topo. Um atalho que aponta para o sítio
+errado é pior do que não existir. Como a barra está sempre à vista não há para
+onde *ir*: o botão passa a **piscar a pastilha** do Palco, que é o que falta a
+quem ainda não reparou nela.
+
+**A mesma mudança tinha deixado mais texto a mentir**, e este só se via em casos
+raros — que é onde ninguém o apanha:
+
+- «Liga **Cobertura dos ecrãs** na secção Vista» (ajuda da cobertura);
+- «Liga a "Cúpula" na secção Vista» (nota das coordenadas, só com cúpula);
+- «Liga o público (secção Vista)» (resumo da distribuição pela plateia).
+
+Todos passaram a dizer **a barra em cima da janela**. O teste novo lê os
+ficheiros e falha se a expressão voltar — a frase pode estar num aviso que só
+aparece num caso raro, e é aí que não se apanha a olho.
+
+**E ainda outra coisa da v3.89, apanhada pelo `verificar-limpeza` dos
+Calculadores:** a chave `preview-vista-v1` não estava na lista do que a limpeza
+guarda, e o botão vermelho que limpa as duas apps voltava a ligar a grelha que
+alguém tinha desligado. É feitio de trabalhar, como o cadeado da edição livre e
+a largura do painel — entrou no `MANTER` (nas duas cópias do `limpeza.js`) e o
+«Limpar tudo» do projeto deixou de repor a barra ao mesmo tempo que repõe os
+campos.
+
+Testado com Playwright (`scripts/verificar-comecar-no-deposito.mjs`): o aviso
+oferece os três caminhos; «Ligar o palco» pisca a pastilha e não manda para
+secção nenhuma; «Montar um ecrã aqui mesmo» abre o Depósito e deixa o `+ Ecrã`
+mesmo visível dentro do painel; carregar nesse botão acrescenta um ecrã a sério
+(é o que separa aterrar no sítio certo de aterrar noutro sítio vazio); nenhum
+dos três ficheiros manda ninguém à secção Vista; e a limpeza a fundo deixa
+«Medidas e grelha» como estava. Sem erros de consola.
+
 ## 27 de setembro — o que se vê passou para a janela (v3.89)
 
 > *"No 3d podemos mudar os players da vista para o topo da janela sempre

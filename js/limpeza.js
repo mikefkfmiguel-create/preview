@@ -57,7 +57,8 @@
     "preview-painel",                     // painel aberto/fechado
     "preview-dobras",                     // secções dobradas
     "preview-largura-painel",             // largura do painel
-    "preview-edicao-livre"                // cadeado aberto/fechado
+    "preview-edicao-livre",               // cadeado aberto/fechado
+    "preview-vista-v1"                    // o que se vê na cena (a barra do topo)
   ];
 
   // Escrita no fim da limpeza, para a OUTRA app (aberta noutro separador) dar

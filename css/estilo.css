@@ -472,6 +472,21 @@ body.modo-ver #painel, body.modo-ver #btAbrir, body.modo-ver #btEdicaoLivre { di
    anda de Tab não sabia em que pastilha estava. */
 #barraVista .chip:focus-within { outline: 2px solid var(--ciano); outline-offset: 1px; }
 
+/* "Olha para aqui" — o aviso da sala vazia a apontar para a barra. A barra
+   está sempre à vista, por isso não há para onde ir; o que falta é saber
+   onde olhar. Dois piscares, e pára. */
+@keyframes apontar-pastilha {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+  50%      { box-shadow: 0 0 0 5px rgba(34, 211, 238, .55); }
+}
+#barraVista .chip.apontada {
+  animation: apontar-pastilha .6s ease-in-out 3;
+  border-color: var(--ciano);
+}
+@media (prefers-reduced-motion: reduce) {
+  #barraVista .chip.apontada { animation: none; box-shadow: 0 0 0 4px rgba(34, 211, 238, .55); }
+}
+
 /* O recado dos dois botões. Estava a 58px, que passou a ser a linha da barra
    do "ver" -- desce para debaixo dela. Some sozinho: é uma confirmação, não
    um aviso permanente, e a tapar a cena não pode ficar. */
