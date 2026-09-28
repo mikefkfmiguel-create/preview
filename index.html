@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v3.98</i></span>
+        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v3.99</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -453,6 +453,14 @@
     <p class="vazio" style="margin:8px 0 0" id="notaProj">O rácio e a distância podem
        vir feitos: nos Calculadores, na aba <b>Distância de Projeção</b>, carrega em
        <b>Ver no Preview 3D</b>.</p>
+    <!-- O ECRÃ CURVO QUE SE PERDEU, E O BOTÃO PARA O REPOR.
+         Reparo dele: *"o desenho perdeu o ecrã total ... e não consigo voltar
+         a pô-lo se não apagar no projeto"*. A tela curva só existia como
+         consequência da ponte: se do outro lado viesse um blend sem curva, ela
+         desaparecia e não havia daqui maneira nenhuma de a trazer de volta.
+         Agora a última fica guardada, e este aviso é a porta para ela. -->
+    <p id="avisoCurvaPerdida" class="vazio" style="margin:8px 0 0" hidden></p>
+    <button id="btReporCurva" class="secundario" style="margin-top:6px" hidden>Repor o ecrã curvo</button>
     <div id="listaProjetoresExtra" style="margin-top:10px"></div>
   </section>
 

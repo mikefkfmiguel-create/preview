@@ -1302,6 +1302,8 @@ function desenharCena(recentrarCamara) {
     if (tapamOBlend.tapam.length) desenhado.add(marcarQuemTapa(tapamOBlend.tapam));
   }
   escreverQuemTapaOBlend();
+  escreverCurvaPerdida();
+  guardarProjecaoNosAjustes();
 
   cena.add(desenhado);
   if (document.activeElement !== $("ecraL") && document.activeElement !== $("ecraA")) {
@@ -1419,6 +1421,91 @@ function atualizarMarcasDoBlend() {
   escreverQuemTapaOBlend();
 }
 
+/**
+ * O AVISO DE QUE O ECRÃ CURVO SE PERDEU, E A PORTA PARA O TRAZER DE VOLTA.
+ *
+ * Reparo dele, com uma fotografia das fatias a flutuar sem tela nenhuma
+ * atrás: *"o desenho perdeu o ecrã total ... e não consigo voltar a pô-lo se
+ * não apagar no projeto"*. As duas metades da queixa são a mesma coisa: a
+ * tela curva não era uma peça daqui, era uma consequência da ponte. Chegasse
+ * do outro lado um blend sem curva e ela desaparecia -- sem uma palavra, e
+ * sem nada nesta app que a pudesse repor. Apagar o projeto todo era o único
+ * caminho de volta.
+ *
+ * Não se adivinha curva nenhuma: repõe-se A QUE LÁ ESTAVA, que é a única que
+ * se pode repor sem inventar medidas.
+ */
+/**
+ * A PROJEÇÃO DESTE PROJETO, GUARDADA COM ELE.
+ *
+ * Reparo dele: *"o guardar projeto não está a guardar projetores"*. E não
+ * estava: as máquinas do blend ficavam (em `ajustes.projetoresExtra`), mas o
+ * INTERRUPTOR e os números viviam só nos campos do ecrã. Recarregar a app
+ * punha-os na omissão -- projeção DESLIGADA, rácio 1,4 a 12 m -- e como a
+ * guarda da projeção é uma só (v3.94), desligada não se desenha nada: nem
+ * máquinas, nem imagens, nem tela.
+ *
+ * Medido: antes de recarregar, tela de 30,03 m e três imagens. Depois,
+ * ZERO imagens e tela nenhuma, com as três máquinas ainda guardadas cá
+ * dentro. Foi isto que ele viu como "o desenho perdeu o ecrã total".
+ *
+ * Também vai a posição do pano plano (projPanoX/projDz): mover o pano é
+ * trabalho dele como qualquer outro, e perdia-se pela mesma razão.
+ */
+function guardarProjecaoNosAjustes() {
+  const p = lerProjecao();
+  const antes = JSON.stringify(ajustes.projecao || null);
+  const agora = {
+    ligada: p.ligada, racio: p.racio, distancia: p.distancia, altura: p.altura,
+    lateral: p.lateral, shiftV: p.shiftV, shiftH: p.shiftH,
+    formato: formatoImagem, panoX: num("projPanoX") || 0, panoDz: num("projDz") || 0
+  };
+  if (JSON.stringify(agora) === antes) return;
+  ajustes.projecao = agora;
+  guardarAjustes(ajustes);
+}
+
+/**
+ * E devolvê-la ao arranque. Corre ANTES do primeiro desenho, senão a app
+ * nasce com a sala de ontem e a projeção de nunca.
+ *
+ * Só quando há alguma coisa guardada: um projeto novo continua a nascer com a
+ * projeção desligada, que é a decisão tomada e que se mantém -- ninguém leva
+ * uma projeção ligada sem a ter pedido. Isto devolve o que ELE montou.
+ */
+function aplicarProjecaoGuardada() {
+  const g = ajustes.projecao;
+  if (!g || typeof g !== "object") return;
+  const põe = (id, v) => { if ($(id) && Number.isFinite(v)) $(id).value = String(v); };
+  põe("projRacio", g.racio); põe("projDist", g.distancia); põe("projAltura", g.altura);
+  põe("projLateral", g.lateral);
+  if (Number.isFinite(g.shiftV)) $("projShiftV").value = String(Math.round(g.shiftV * 1000) / 10);
+  if (Number.isFinite(g.shiftH)) $("projShiftH").value = String(Math.round(g.shiftH * 1000) / 10);
+  põe("projPanoX", g.panoX); põe("projDz", g.panoDz);
+  if (g.formato > 0.2) {
+    formatoImagem = g.formato;
+    document.querySelectorAll("[data-formato]").forEach((b) => {
+      b.classList.toggle("destaque", Math.abs(parseFloat(b.dataset.formato) - g.formato) < 0.02);
+    });
+  }
+  if ($("projLigada")) $("projLigada").checked = !!g.ligada;
+  if ($("verProjecao")) $("verProjecao").checked = !!g.ligada;
+  if (g.ligada) document.getElementById("sProjecao").classList.remove("fechada");
+}
+
+function escreverCurvaPerdida() {
+  const nota = $("avisoCurvaPerdida"), botao = $("btReporCurva");
+  if (!nota || !botao) return;
+  const antiga = ajustes.curvaAnterior;
+  const mostrar = !!antiga && !ajustes.curvaDoBlend && (ajustes.projetoresExtra || []).length > 0;
+  nota.hidden = !mostrar;
+  botao.hidden = !mostrar;
+  if (!mostrar) return;
+  nota.innerHTML = "Este blend chegou <b>sem ecrã curvo</b>, e por isso a tela " +
+    "deixou de ser desenhada. A última tinha " + nnum(antiga.raio) + " m de raio" +
+    (antiga.altura > 0 ? " e " + nnum(antiga.altura) + " m de altura" : "") + ".";
+}
+
 function escreverQuemTapaOBlend() {
   const nota = $("notaTapaBlend");
   if (!nota) return;
@@ -1461,6 +1548,26 @@ function curvaAtivaDoBlend() {
  * É a mesma receita do anel da cúpula, que já cá estava: um raio de montagem
  * mais pequeno do que o da superfície, e cada máquina a olhar para fora.
  */
+/**
+ * A altura da imagem mais alta da fila -- o mínimo que aquele pano tem de ter.
+ *
+ * Serve de recurso quando a curva chega sem `altura`. Não é a medida do ecrã
+ * (essa só quem o comprou a sabe), é o que a luz obriga: desenhar uma tela
+ * assim é menos errado do que não desenhar tela nenhuma e não dizer porquê.
+ */
+function alturaMaisAltaDasFatias(curva) {
+  const fila = lerProjecao();
+  let maior = 0;
+  (ajustes.projetoresExtra || []).forEach((pe) => {
+    if (!(pe.racio > 0)) return;
+    const tiro = (curva && curva.montagem === "linha" && curva.trussDistancia > 0)
+      ? curva.trussDistancia : fila.distancia;
+    if (!(tiro > 0)) return;
+    maior = Math.max(maior, tiro / pe.racio / formatoImagem);
+  });
+  return maior;
+}
+
 function desenharBlendCurvo(sala, curva) {
   // A PAREDE DO FUNDO, crua -- e não o zDoPanoPlano(). Um ecrã curvo tem os
   // seus próprios ↔/Fundo/Base (curvaDx/curvaDz/curvaBase), aplicados já a
@@ -1547,8 +1654,13 @@ function desenharBlendCurvo(sala, curva) {
 
   // A TELA, desenhada como objeto e não como soma das imagens -- ver
   // fazerEcraCurvo(). Vai primeiro para as imagens ficarem por cima dela.
-  if (curva.altura > 0) {
-    const tela = fazerEcraCurvo(m, alturaDaBaseDoEcra(), curva.altura);
+  // UMA CURVA SEM ALTURA CONTINUA A SER UM ECRÃ. Antes, `altura` a zero dava
+  // zero tela e zero explicação -- as fatias ficavam a flutuar e a app calava
+  // o motivo. Na falta do número usa-se o que se sabe: a altura da imagem mais
+  // alta, que é o mínimo que aquele pano tem de ter.
+  const alturaDaTela = curva.altura > 0 ? curva.altura : alturaMaisAltaDasFatias(curva);
+  if (alturaDaTela > 0) {
+    const tela = fazerEcraCurvo(m, alturaDaBaseDoEcra(), alturaDaTela);
     if (tela) desenhado.add(tela);
   }
 
@@ -9817,6 +9929,31 @@ function aplicarProjetores(lista) {
   // primeira incluída) com a posição delas ao longo do arco, e o lateral do
   // campo deixa de contar: um arco concêntrico deslocado para o lado já não
   // é concêntrico.
+  // A CURVA QUE SE PERDE FICA GUARDADA, E HÁ COMO A REPOR.
+  //
+  // Reparo dele: *"o desenho perdeu o ecrã total ... e não consigo voltar a
+  // pô-lo se não apagar no projeto"*. A tela curva só existia como
+  // consequência da ponte -- chegasse um blend sem curva e ela desaparecia,
+  // sem aviso e sem volta. Apagar o projeto era o único caminho de regresso,
+  // que é o preço mais caro possível por um campo.
+  //
+  // Medido: sem `curvaDoBlend` a cena fica com as fatias e sem tela nenhuma,
+  // que é exactamente a fotografia que ele mandou.
+  //
+  // E A FILA VAI COM ELA. Num ecrã curvo o `projetoresExtra` guarda TODAS as
+  // máquinas (a primeira incluída, porque a posição é o ângulo no arco); num
+  // plano guarda só as que vêm depois da primeira. Repor a curva com a fila
+  // do plano deixava uma máquina de fora -- medido: três imagens antes, duas
+  // depois. Guarda-se o par, que é o que faz sentido: aquela curva com
+  // aquelas máquinas. Isto corre ANTES de o projetoresExtra ser reescrito
+  // mais abaixo, e é de propósito.
+  if (!lista.curva && ajustes.curvaDoBlend) {
+    ajustes.curvaAnterior = ajustes.curvaDoBlend;
+    ajustes.projetoresAnteriores = ajustes.projetoresExtra || [];
+  } else if (lista.curva) {
+    ajustes.curvaAnterior = null;
+    ajustes.projetoresAnteriores = null;
+  }
   ajustes.curvaDoBlend = lista.curva || null;
   // De que lado do pano estão as máquinas. Guardado à parte da curva porque um
   // ecrã PLANO em retro também existe e não tem curva nenhuma onde se pendurar.
@@ -9912,6 +10049,25 @@ function shiftForaDaLente() {
   }
   return fora.length ? fora.join("; ") : null;
 }
+
+/**
+ * REPOR O ECRÃ CURVO que a última carga deitou fora. Ver escreverCurvaPerdida().
+ */
+$("btReporCurva").onclick = () => {
+  if (!ajustes.curvaAnterior) return;
+  ajustes.curvaDoBlend = ajustes.curvaAnterior;
+  if ((ajustes.projetoresAnteriores || []).length) {
+    ajustes.projetoresExtra = ajustes.projetoresAnteriores;
+  }
+  ajustes.curvaAnterior = null;
+  ajustes.projetoresAnteriores = null;
+  guardarAjustes(ajustes);
+  montar(false);
+  const aviso = $("aviso");
+  aviso.textContent = "Ecrã curvo reposto.";
+  aviso.classList.add("mostra");
+  setTimeout(() => aviso.classList.remove("mostra"), 2600);
+};
 
 $("btTrazerProjetor").onclick = () => {
   if (!aplicarProjetores(projetorGuardado())) {
@@ -10495,6 +10651,11 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
   // à vista e a escolha continua a ser de quem está a olhar.
   document.getElementById("sProjecao").classList.remove("fechada");
 })();
+
+// A PROJEÇÃO DE ONTEM, ANTES DO PRIMEIRO DESENHO. Ver
+// aplicarProjecaoGuardada(): depois era vê-la nascer desligada e ligar-se
+// sozinha à frente de quem olha.
+aplicarProjecaoGuardada();
 
 montar(true);
 volta();
