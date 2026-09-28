@@ -268,9 +268,10 @@ function lerPalco() {
  * a altura do ecrã, que vivia em dois sítios e só um foi corrigido. Quatro
  * cópias desta seriam quatro sítios para discordarem sobre onde está o pano.
  *
- * As máquinas vão atrás por construção: ficam a `projDist` DESTE plano, e essa
- * distância não muda. Mover o pano sem levar os projetores era mudar o tiro
- * por baixo, e com ele o tamanho da imagem.
+ * AS MÁQUINAS NÃO VÃO ATRÁS -- ficam ancoradas à parede do fundo (ver
+ * zDasMaquinasPlanas), e quem as quer mover com o pano AGRUPA-AS. Por isso
+ * mexer no pano muda mesmo o tiro, e com ele o tamanho da imagem: é o
+ * tiroAtePano() que o mede, e não o número escrito no campo.
  */
 function zDoPanoPlano(sala) {
   // SEM LIMITE A ZERO. Tinha aqui um `Math.max(0, ...)` -- e com o pano
@@ -299,6 +300,32 @@ function zDoPanoPlano(sala) {
  */
 function zDasMaquinasPlanas(sala) {
   return -sala.profundidade / 2 + 0.35;
+}
+
+/**
+ * O TIRO QUE ESTÁ MESMO DESENHADO: da lente ao pano, medido na cena.
+ *
+ * Reparo dele, com o conjunto já agrupado: *"mantém-se o problema assim que
+ * movo o conjunto"*. E mantinha-se, de outra maneira -- medido, mover o grupo
+ * 4 m para dentro da sala engordava a imagem de 11,99 m para 13,12 m (+9,4%)
+ * sem ninguém lhe ter tocado no tamanho.
+ *
+ * A causa: o tamanho saía do CAMPO da distância (`projDist`), e esse campo
+ * está ancorado à parede do fundo, não ao pano. Mover o grupo soma o mesmo
+ * número aos dois -- ao `projDist` de cada máquina e ao `projDz` do pano --,
+ * por isso o tiro real não muda um centímetro e o número do campo cresce à
+ * mesma. A imagem crescia com ele.
+ *
+ * Aqui mede-se o que está desenhado: a distância entre a lente e o plano do
+ * pano. Com o pano por mexer (`projDz` a 0) dá exactamente o número do campo,
+ * e nada muda em projetos antigos. Depois de mexer o pano dá o tiro certo --
+ * chegar o pano à máquina encolhe a imagem, que é o que acontece na sala.
+ *
+ * Vale para os dois lados (em retro a máquina está atrás do pano), e nunca
+ * devolve zero: um tiro de zero era uma imagem de zero e um pano sem medida.
+ */
+function tiroAtePano(zDaMaquina, zDoPano) {
+  return Math.max(0.1, Math.abs(zDaMaquina - zDoPano));
 }
 
 /**
@@ -1027,8 +1054,6 @@ function desenharCena(recentrarCamara) {
   const fila = lerProjecao();
   ajustes.projetoresExtra.forEach((pe, i) => {
     if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
-    const larguraExtra = pe.distancia / pe.racio;
-    const alturaExtra = larguraExtra / formatoImagem;
     // A ALTURA É DA FILA, do campo -- o mesmo que já valia para a distância e
     // para o shift, e que o ecrã curvo passou a fazer na v3.41. Aqui ficou
     // congelada: guardava-se a absoluta, calculada com o âncora que estava no
@@ -1046,6 +1071,11 @@ function desenharCena(recentrarCamara) {
       x: pe.lateral || 0, y: alturaExtraMaquina,
       z: ajustes.retroDoBlend ? zMaquinasProj - pe.distancia : zMaquinasProj + pe.distancia
     };
+    // O mesmo que no principal: o tamanho sai do tiro desenhado, não do
+    // número guardado. Sem isto, uma fila agrupada com o pano engordava toda
+    // de cada vez que o conjunto andava. Ver tiroAtePano().
+    const larguraExtra = tiroAtePano(projetorExtra.z, z0Proj) / pe.racio;
+    const alturaExtra = larguraExtra / formatoImagem;
     const imagemExtra = {
       x: projetorExtra.x + fila.shiftH * larguraExtra,
       y: projetorExtra.y + fila.shiftV * alturaExtra,
@@ -1688,18 +1718,20 @@ function desenharProjecao(sala, palco) {
   $("resumoProj").textContent = "—";
   if (!p.ligada || !p.racio || !p.distancia) return;
 
-  const largura = p.distancia / p.racio;
-  const altura = largura / formatoImagem;
   const z0 = zDoPanoPlano(sala);
 
   // Onde a imagem cai nao se escreve: sai da lente e do shift dela. Era isto
   // que faltava -- com a base escrita a mao, o desenho mostrava imagens que
   // nenhuma lente conseguia por ali.
   // A MÁQUINA no plano em que foi montada; a IMAGEM no plano do pano. Com o
-  // interruptor ligado são o mesmo plano e nada muda; desligado, é aqui que
-  // as duas se separam.
+  // pano por mexer são o mesmo plano e nada muda; depois de o mexer, é aqui
+  // que as duas se separam.
   const zMaquinas = zDasMaquinasPlanas(sala);
   const projetor = { x: p.lateral, y: p.altura, z: zMaquinas + p.distancia };
+  // O TAMANHO SAI DO TIRO QUE ESTÁ DESENHADO, e não do número escrito no
+  // campo. Ver tiroAtePano().
+  const largura = tiroAtePano(projetor.z, z0) / p.racio;
+  const altura = largura / formatoImagem;
   const imagem = {
     x: projetor.x + p.shiftH * largura,
     y: projetor.y + p.shiftV * altura,
@@ -2671,9 +2703,20 @@ function medirSombra() {
     const n = Math.round(v * 100);
     return n < 1 ? "menos de 1%" : n + "%";
   };
+  // O TIRO QUE ESTÁ DESENHADO, quando não é o do campo. O campo `projDist`
+  // conta da parede do fundo até à lente -- é aí que a máquina está ancorada,
+  // para poder entrar num grupo sem andar a dobrar. Mal o pano saia da parede,
+  // o tiro real deixa de ser aquele número, e é o tiro real que faz o tamanho
+  // da imagem. Dizer só um deles era deixá-lo a olhar para 22 m com uma
+  // imagem de 18.
+  const tiroReal = Math.abs(projecaoAtual.projetor.z - projecaoAtual.imagem.z);
+  const tiroEscrito = num("projDist");
+  const notaDoTiro = Math.abs(tiroReal - tiroEscrito) > 0.05
+    ? ` · tiro real <b>${tiroReal.toFixed(2)} m</b> (pano fora da parede)` : "";
+
   $("resumoProj").innerHTML =
     `Imagem <b>${imagem.largura.toFixed(2)} × ${imagem.altura.toFixed(2)} m</b>` +
-    ` · base a <b>${projecaoAtual.base.toFixed(2)} m</b>` +
+    ` · base a <b>${projecaoAtual.base.toFixed(2)} m</b>` + notaDoTiro +
     (sombra > 0.0005
       ? ` · sombra <b>${emPercentagem(sombra)}</b>` +
         (gentePeloMeio
