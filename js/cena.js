@@ -3189,6 +3189,34 @@ export function fazerEcraCurvo(m, base, altura, nome = "ecra-curvo") {
   return tela;
 }
 
+/**
+ * O PANO PLANO. O objeto, e não a soma das imagens (v3.96).
+ *
+ * O ecrã curvo tem tela desde a v3.36 — e o comentário dela diz porquê: sem
+ * tela, uma imagem maior do que o pano fazia o PANO crescer, porque pano não
+ * havia. O plano nunca teve nenhuma: o que se via era só a luz a aterrar, e
+ * onde ela caía ao lado não havia nada que o mostrasse.
+ *
+ * Pedido dele: *"e se precisar andar com o ecrã para o meio da sala, de forma
+ * a que possa agrupar com os projetores"*. Para se agrupar tem de ser uma
+ * peça; para ser peça tem de existir.
+ *
+ * Mesmo cinzento do curvo, sem textura: é o pano, não a projeção. O que se vê
+ * dele por baixo das imagens é exactamente o que vai ficar por cobrir.
+ */
+export function fazerEcraPlano(largura, altura, cx, cy, cz, nome = "ecra-plano") {
+  if (!(largura > 0) || !(altura > 0)) return null;
+  const tela = new THREE.Mesh(
+    new THREE.PlaneGeometry(largura, altura),
+    new THREE.MeshStandardMaterial({ color: 0x2A3038, roughness: 0.95, metalness: 0,
+                                     side: THREE.DoubleSide }));
+  tela.name = nome;
+  // 2 cm atrás do plano das imagens, para a luz ficar por cima dele e não a
+  // disputar o mesmo z -- senão os dois piscam um por cima do outro.
+  tela.position.set(cx, cy, cz - 0.02);
+  return tela;
+}
+
 export function fazerProjecaoCurva(projetor, fatia, textura, nome = "projetor-0") {
   const grupo = new THREE.Group();
   grupo.name = "projecao";
