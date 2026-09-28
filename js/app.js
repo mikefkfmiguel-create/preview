@@ -273,7 +273,14 @@ function lerPalco() {
  * por baixo, e com ele o tamanho da imagem.
  */
 function zDoPanoPlano(sala) {
-  return -sala.profundidade / 2 + 0.35 + Math.max(0, num("projDz") || 0);
+  // SEM LIMITE A ZERO. Tinha aqui um `Math.max(0, ...)` -- e com o pano
+  // agrupado às máquinas, recuar o grupo movia-as a elas e deixava o pano
+  // parado: o campo guardava o -2,84 e esta linha deitava-o fora. Medido.
+  //
+  // Um campo que aceita um número e o ignora é pior do que um campo que não o
+  // aceita. Todas as outras posições desta app (curvaDz, palcoZ, regieZ) vão
+  // a negativo; esta não tinha razão nenhuma para ser diferente.
+  return -sala.profundidade / 2 + 0.35 + (num("projDz") || 0);
 }
 
 /**
