@@ -1,0 +1,261 @@
+/**
+ * A ALTURA VEM DE QUEM A SABE, E AS FORMAS DO PALCO SÃO AS QUE SE PEDEM.
+ *
+ * Três reparos dele na mesma manhã, todos medidos aqui:
+ *
+ * 1. *"está a nascer assim quando vem da calculadora e nela não tenho onde
+ *    dizer a que altura do chão está o ecrã"*. O alçado dos Calculadores só
+ *    sabia posições RELATIVAS entre zonas -- não tinha chão. Sem esse número,
+ *    este lado punha a base do conjunto na altura do palco (1 m por omissão),
+ *    que não é escolha de ninguém: é o que sobra. Agora vem no payload
+ *    (`alturaDoChao`) e manda.
+ *
+ *    Duas armadilhas guardadas aqui: o campo tem de sobreviver à LISTA BRANCA
+ *    do projeto.js (a primeira tentativa morreu lá, em silêncio), e o ZERO tem
+ *    de passar -- zero é o ecrã pousado no chão, não é "não sei".
+ *
+ * 2. *"ao desligar apenas está a apagar um projetor"*. E era: a guarda do
+ *    interruptor vivia DENTRO do desenharProjecao(), e a fila de extras (e o
+ *    blend curvo) desenhavam-se na mesma. Medido antes: desligado ficavam 6
+ *    objectos na cena.
+ *
+ * 3. *"o palco inicial não está a dar para fazer em apenas frente redonda, e
+ *    quando peço círculo não está a desenhá-lo correto"*. Duas coisas: o
+ *    principal nunca passou o `meio` ao desenho (só os palcos extra o faziam),
+ *    e os cantos eram Béziers quadráticas -- que não são arcos. Um palco de
+ *    16 m pedido em círculo saía com 8,49 m do centro à diagonal em vez de
+ *    8,00: +6,1%, quase meio metro.
+ *
+ *   node scripts/verificar-altura-e-formas.mjs
+ */
+
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const RAIZ = fileURLToPath(new URL("..", import.meta.url));
+
+const TIPOS = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8",
+  ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml",
+  ".wasm": "application/wasm", ".ico": "image/x-icon",
+  ".webmanifest": "application/manifest+json"
+};
+
+function servidor() {
+  return new Promise((resolve) => {
+    const s = createServer(async (req, res) => {
+      const caminho = decodeURIComponent(req.url.split("?")[0]);
+      const ficheiro = join(RAIZ, normalize(caminho === "/" ? "/index.html" : caminho).replace(/^(\.\.[/\\])+/, ""));
+      try {
+        const dados = await readFile(ficheiro);
+        res.writeHead(200, { "Content-Type": TIPOS[extname(ficheiro)] || "application/octet-stream" });
+        res.end(dados);
+      } catch (_) { res.writeHead(404).end("não há"); }
+    });
+    s.listen(0, "127.0.0.1", () => resolve({ s, porta: s.address().port }));
+  });
+}
+
+async function carregarPlaywright() {
+  const sitios = [process.env.PLAYWRIGHT, "playwright",
+                  "/opt/node22/lib/node_modules/playwright/index.mjs"].filter(Boolean);
+  for (const sitio of sitios) { try { return await import(sitio); } catch (_) {} }
+  console.log("Falta o playwright. `npm i -D playwright`, ou PLAYWRIGHT a apontar a uma instalação.");
+  process.exit(2);
+}
+
+const { s, porta } = await servidor();
+const { chromium } = await carregarPlaywright();
+const browser = await chromium.launch({
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM || "/opt/pw-browsers/chromium"
+});
+const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 }, serviceWorkers: "block" });
+
+let falhas = 0;
+const conferir = (ok, texto) => { console.log((ok ? "  ✓ " : "  ✗ ") + texto); if (!ok) falhas++; };
+const perto = (a, b, tol) => Math.abs(a - b) < (tol || 0.02);
+
+const pagina = await ctx.newPage();
+const erros = [];
+pagina.on("pageerror", (e) => erros.push(e.message));
+
+const SALA = { largura: 24, profundidade: 30, altura: 9 };
+const ZONA = { nome: "Ecrã", id: "z1", x: 0, y: 0, w: 8, h: 4.5, cor: "#2e7bff", tipo: "led" };
+
+/** Abre a app com um projeto dos Calculadores, com (ou sem) altura ao chão. */
+async function comAltura(alturaDoChao) {
+  await pagina.goto(`http://127.0.0.1:${porta}/index.html`, { waitUntil: "networkidle" });
+  await pagina.evaluate(([sala, zona, h]) => {
+    localStorage.clear();
+    localStorage.setItem("mikeapps-sincronizacao-v1", JSON.stringify("ligada"));
+    const projeto = { nome: "Altura", origem: "calculadores", sala, zonas: [zona] };
+    if (h !== null) projeto.alturaDoChao = h;
+    localStorage.setItem("mikeapps-projeto-v1", JSON.stringify(projeto));
+  }, [SALA, ZONA, alturaDoChao]);
+  await pagina.reload({ waitUntil: "networkidle" });
+  await pagina.waitForFunction(() => window.preview && window.preview.montar, null, { timeout: 30000 });
+  await pagina.waitForTimeout(1400);
+  return pagina.evaluate(() => {
+    const w = window.preview, THREE = w.THREE;
+    const grupo = w.desenhado.getObjectByName("zona Ecrã");
+    let baixo = null;
+    if (grupo) {
+      const b = new THREE.Box3().setFromObject(grupo);
+      if (!b.isEmpty()) baixo = +b.min.y.toFixed(2);
+    }
+    const nota = document.getElementById("alturaVemDaCalculadora");
+    return {
+      baseDaMalha: baixo,
+      noProjeto: w.projeto ? w.projeto.alturaDoChao : undefined,
+      nota: nota && nota.style.display !== "none" ? nota.textContent.trim() : null,
+      // «tudo entra direto na sala»: nada fica à espera.
+      aEsperaNoDeposito: (w.ajustes && w.ajustes.noDeposito || []).length
+    };
+  });
+}
+
+console.log("\n== a altura ao chão vem dos Calculadores ==");
+
+const semAltura = await comAltura(null);
+// Sem o campo, o comportamento de sempre: a base cai na altura do palco
+// (1 m + 0 m por omissão). É o que os projetos anteriores a isto esperam.
+conferir(semAltura.baseDaMalha === 1,
+  `um projeto sem o campo continua a assentar no palco (base a ${semAltura.baseDaMalha} m)`);
+conferir(semAltura.nota === null, "e o painel não fala de uma altura que ninguém deu");
+
+const a24 = await comAltura(2.4);
+conferir(a24.noProjeto === 2.4,
+  "o campo sobrevive à lista branca do projeto.js (foi aí que morreu à primeira)");
+conferir(a24.baseDaMalha === 2.4,
+  `2,4 m pedidos põem a base do ecrã a 2,4 m (medido: ${a24.baseDaMalha} m)`);
+conferir(!!a24.nota && /2,40 m do chão/.test(a24.nota),
+  "e o painel do palco diz que a altura vem de lá, em vez de ter dois campos a mentir");
+
+// O ZERO É UMA RESPOSTA. Com `||` em vez de `== null`, um ecrã pousado no
+// chão saltava para cima do palco -- e ninguém percebia porquê.
+const a0 = await comAltura(0);
+conferir(a0.baseDaMalha === 0,
+  `zero quer dizer pousado no chão, e passa (medido: ${a0.baseDaMalha} m)`);
+
+conferir(a24.aEsperaNoDeposito === 0,
+  "e o que vem dos Calculadores entra na SALA, não fica à espera no depósito");
+
+console.log("\n== «Mostrar projeção» desliga a projeção toda ==");
+
+const projecao = await pagina.evaluate(async () => {
+  const contar = () => {
+    let n = 0;
+    window.preview.desenhado.traverse((o) => { if (/projec|projetor/i.test(o.name || "")) n++; });
+    return n;
+  };
+  const caixa = document.getElementById("projLigada");
+  caixa.checked = true; caixa.dispatchEvent(new Event("change", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 700));
+  const so1 = contar();
+  // Uma fila de blend: é aqui que estava o defeito.
+  window.preview.ajustes.projetoresExtra = [
+    { racio: 1.4, distancia: 12, lateral: -4, alturaOffset: 0 },
+    { racio: 1.4, distancia: 12, lateral: 4, alturaOffset: 0 }];
+  window.preview.montar(false);
+  await new Promise((r) => setTimeout(r, 700));
+  const comFila = contar();
+  caixa.checked = false; caixa.dispatchEvent(new Event("change", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 700));
+  const desligada = contar();
+  // E a pastilha do topo tem de ser o MESMO interruptor.
+  const chip = document.getElementById("verProjecao");
+  const espelhaDesligado = chip && chip.checked === false;
+  chip.checked = true; chip.dispatchEvent(new Event("change", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 700));
+  return { so1, comFila, desligada, espelhaDesligado,
+           campoSegueAPastilha: document.getElementById("projLigada").checked === true,
+           voltouAAparecer: contar() };
+});
+conferir(projecao.comFila > projecao.so1,
+  `a fila de blend desenha-se (${projecao.so1} objectos com P1, ${projecao.comFila} com a fila)`);
+conferir(projecao.desligada === 0,
+  `desligada não sobra NADA na cena (medido: ${projecao.desligada}; antes desta versão ficavam 6)`);
+conferir(projecao.espelhaDesligado, "a pastilha do topo acompanha o campo do painel");
+conferir(projecao.campoSegueAPastilha && projecao.voltouAAparecer > 0,
+  "e a pastilha do topo liga a projeção de volta — são o mesmo interruptor");
+
+console.log("\n== as formas do palco principal ==");
+
+/** O troço RETO de cada bordo: a largura em X dos vértices no Z extremo. */
+const formaDoPalco = (profundidade, raio, meio) => pagina.evaluate(async ([P, R, meio]) => {
+  const por = (id, v) => { const el = document.getElementById(id);
+    if (el.type === "checkbox") el.checked = !!v; else el.value = String(v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true })); };
+  por("verPalco", true); por("palcoL", 16); por("palcoA", 1);
+  por("palcoP", P); por("palcoR", R); por("palcoMeio", meio);
+  await new Promise((r) => setTimeout(r, 1200));
+  const o = window.preview.desenhado.getObjectByName("palco");
+  const malha = o && (o.isMesh ? o : o.children.find((c) => c.isMesh));
+  if (!malha) return null;
+  const g = malha.geometry; g.computeBoundingBox();
+  const bb = g.boundingBox, pos = g.attributes.position;
+  const reto = (zAlvo) => {
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      if (Math.abs(pos.getZ(i) - zAlvo) > 0.005) continue;
+      min = Math.min(min, pos.getX(i)); max = Math.max(max, pos.getX(i));
+    }
+    return min === Infinity ? 0 : +(max - min).toFixed(2);
+  };
+  // O ponto mais afastado do centro, na diagonal: num círculo é o raio.
+  let maisLonge = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const X = pos.getX(i), Z = pos.getZ(i);
+    if (Math.abs(X) > 0.01 && Math.abs(Z) > 0.01) maisLonge = Math.max(maisLonge, Math.hypot(X, Z));
+  }
+  return { largura: +(bb.max.x - bb.min.x).toFixed(2), fundo: +(bb.max.z - bb.min.z).toFixed(2),
+           retoAtras: reto(bb.min.z), retoAFrente: reto(bb.max.z), maisLonge: +maisLonge.toFixed(3) };
+}, [profundidade, raio, meio]);
+
+// O CÍRCULO É UM CÍRCULO. Com as Béziers quadráticas de antes, o ponto mais
+// afastado ficava a 8,49 m em vez de 8,00 -- +6,1%.
+const circulo = await formaDoPalco(16, 8, false);
+conferir(circulo.largura === 16 && circulo.fundo === 16, "16 × 16 m pedidos, 16 × 16 m desenhados");
+conferir(perto(circulo.maisLonge, 8, 0.05),
+  `e é redondo a sério: ${circulo.maisLonge} m do centro à diagonal, contra os 8 m do raio ` +
+  `(com as Béziers de antes dava 8,49)`);
+
+// SÓ A FRENTE. A traseira fica a direito de ponta a ponta.
+const todosOsCantos = await formaDoPalco(6, 3, false);
+const soAFrente = await formaDoPalco(6, 3, true);
+conferir(perto(todosOsCantos.retoAtras, 10, 0.3) && perto(todosOsCantos.retoAFrente, 10, 0.3),
+  `com os quatro cantos arredondados, atrás e à frente ficam ${todosOsCantos.retoAtras} m a direito`);
+conferir(perto(soAFrente.retoAtras, 16, 0.05),
+  `"só a frente arredondada" deixa a traseira inteira a direito (${soAFrente.retoAtras} m de 16)`);
+conferir(perto(soAFrente.retoAFrente, 10, 0.3),
+  `e a frente arredondada (${soAFrente.retoAFrente} m a direito, o resto em curva)`);
+
+// Os botões fazem o que o título deles diz.
+const botoes = await pagina.evaluate(async () => {
+  const clicar = async (id) => {
+    document.getElementById(id).click();
+    await new Promise((r) => setTimeout(r, 900));
+    return { P: document.getElementById("palcoP").value, R: document.getElementById("palcoR").value,
+             meio: document.getElementById("palcoMeio").checked };
+  };
+  document.getElementById("palcoL").value = "16";
+  document.getElementById("palcoL").dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 400));
+  return { lua: await clicar("btPalcoMeiaLua"), redondo: await clicar("btPalcoRedondo") };
+});
+conferir(botoes.lua.P === "8" && botoes.lua.R === "8" && botoes.lua.meio === true,
+  "o botão da meia-lua põe profundidade 8, raio 8 e a traseira reta");
+conferir(botoes.redondo.P === "16" && botoes.redondo.R === "8" && botoes.redondo.meio === false,
+  "e o do círculo desmarca a traseira reta — um círculo é redondo à volta toda");
+
+conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
+
+await browser.close();
+s.close();
+console.log("\n" + (falhas ? falhas + " FALHA(S)"
+  : "A altura vem de quem a sabe, e o palco tem a forma que se lhe pede."));
+process.exit(falhas ? 1 : 0);
