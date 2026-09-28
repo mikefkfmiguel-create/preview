@@ -258,6 +258,21 @@ export function lerProjeto(bruto) {
     // antiga. Não existe para "colado"/ficheiros mais velhos, por isso pode
     // vir null -- ver #nomeProjetoViewport em app.js, onde aparece.
     origemVersao: typeof dados.origemVersao === "string" ? dados.origemVersao : null,
+    // A QUE ALTURA DO CHÃO FICA A BASE DO CONJUNTO, em metros, dita pelos
+    // Calculadores (campo «Base do ecrã acima do chão», v4.31 lá / v3.94
+    // aqui). Sem isto, a altura do ecrã era decidida deste lado pelo palco —
+    // 1 m por omissão, que não era escolha de ninguém.
+    //
+    // ATENÇÃO a quem acrescentar campos novos ao payload: esta função é uma
+    // LISTA BRANCA. O que não vier aqui é deitado fora em silêncio, por mais
+    // certo que esteja do outro lado — foi o que aconteceu a este campo na
+    // primeira tentativa, e só se viu a medir.
+    //
+    // `null` quando não vem (projeto antigo, colado, ou feito aqui). Zero é
+    // diferente de null: quer dizer pousado no chão, e tem de passar — daí
+    // não se usar `numero(..., 0)` nem `||`.
+    alturaDoChao: (typeof dados.alturaDoChao === "number" && isFinite(dados.alturaDoChao) &&
+                   dados.alturaDoChao >= 0) ? dados.alturaDoChao : null,
     sala: dados.sala || null,
     zonas,
     dsm,

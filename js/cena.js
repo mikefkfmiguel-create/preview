@@ -164,17 +164,30 @@ function geometriaDeTampo(largura, altura, profundidade, raio, meio) {
 
   // Desenha-se em XY (é o plano onde o Shape do three.js vive) e extruda-se
   // em Z; no fim roda-se para o Z passar a ser a altura.
+  //
+  // OS CANTOS SÃO ARCOS, NÃO BÉZIERS (v3.94). Até aqui cada canto era uma
+  // `quadraticCurveTo` com o canto vivo como ponto de controlo. Isso não é um
+  // arco: é uma parábola, e com o raio no máximo — que é o que o botão
+  // "círculo" pede — o resultado engorda nas diagonais. Medido, num palco de
+  // 16 m pedido em círculo: 8,49 m do centro à diagonal em vez de 8,00, ou
+  // seja +6,1%, quase meio metro. Era o reparo dele — *"quando peço círculo
+  // não está a desenhá-lo correto"*.
+  //
+  // Com `absellipse` os cantos são arcos de elipse de verdade, e o caso
+  // limite (rx = metade da largura, ry = metade da profundidade) fecha numa
+  // elipse exacta — um círculo, quando os dois lados são iguais.
   const x = largura / 2, y = profundidade / 2;
+  const M = Math.PI / 2;
   const forma = new THREE.Shape();
   forma.moveTo(-x + rx, -y);
   forma.lineTo(x - rx, -y);
-  forma.quadraticCurveTo(x, -y, x, -y + ry);
+  forma.absellipse(x - rx, -y + ry, rx, ry, -M, 0, false);
   forma.lineTo(x, y - ry);
-  forma.quadraticCurveTo(x, y, x - rx, y);
+  forma.absellipse(x - rx, y - ry, rx, ry, 0, M, false);
   forma.lineTo(-x + rx, y);
-  forma.quadraticCurveTo(-x, y, -x, y - ry);
+  forma.absellipse(-x + rx, y - ry, rx, ry, M, Math.PI, false);
   forma.lineTo(-x, -y + ry);
-  forma.quadraticCurveTo(-x, -y, -x + rx, -y);
+  forma.absellipse(-x + rx, -y + ry, rx, ry, Math.PI, 3 * M, false);
 
   // curveSegments manda no número de lados de cada canto. Com o raio no
   // máximo os quatro cantos passam a ser a forma toda, e é aí que uma curva
@@ -257,7 +270,10 @@ export function fazerPalco({ largura, profundidade }, palco) {
   // não a regra. Sem valor, assume-se a sala toda.
   const larguraPalco = Math.min(palco.largura || largura, largura);
   const caixa = new THREE.Mesh(
-    geometriaDeTampo(larguraPalco, palco.altura, palco.profundidade, palco.raio),
+    // O quinto argumento — «só a frente arredondada» — faltava aqui até à
+    // v3.94: o palco principal desenhava-se sempre com os quatro cantos
+    // iguais, enquanto os extra já sabiam fazer meia-lua.
+    geometriaDeTampo(larguraPalco, palco.altura, palco.profundidade, palco.raio, palco.meio),
     new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
   caixa.name = "palco";
   caixa.position.set((Number(palco.dx) || 0), palco.altura / 2,
@@ -1989,7 +2005,23 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo,
   const esquerda = Math.min(...projeto.zonas.map(z => z.x));
   const fundo = Math.max(...projeto.zonas.map(z => z.y + z.h));
   const meio = (medidas.largura) / 2;
-  const base = palco.altura + palco.acimaDoPalco;
+  // A QUE ALTURA DO CHÃO ASSENTA A BASE DO CONJUNTO.
+  //
+  // Vinda dos Calculadores quando eles a sabem dizer (campo «Base do ecrã
+  // acima do chão», v4.31 lá / v3.94 aqui): quem monta é que sabe. Sem ela,
+  // usa-se o que está à mão deste lado — o palco — que dá 1 m por omissão e
+  // não é escolha de ninguém.
+  //
+  // CUIDADO: esta conta existe DUAS VEZES, aqui e em contextoDeZonas() no
+  // app.js. Esta é a que põe as malhas no 3D; a de lá serve a cobertura, a
+  // planta e o alçado. Mexer numa sem a outra põe o desenho a discordar de
+  // si próprio — e foi exactamente o que aconteceu na primeira tentativa
+  // deste campo: mudou-se lá, mediu-se, e o ecrã continuava a 1 m.
+  //
+  // `== null` e não `||`: zero quer dizer pousado no chão, e tem de passar.
+  const base = projeto.alturaDoChao == null
+    ? palco.altura + palco.acimaDoPalco
+    : projeto.alturaDoChao;
   const z0 = -sala.profundidade / 2 + 0.35;
 
   const topo = Math.min(...projeto.zonas.map(z => z.y));

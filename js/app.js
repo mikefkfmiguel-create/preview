@@ -50,6 +50,22 @@ const CAIXAS_DA_VISTA = ["verEcras", "verPalco", "verPublico", "verRegie",
   "verOrador", "verPlanta", "verParedes", "verMedidas", "verCobertura",
   "verDome", "verPessoaDome", "verFatias", "domeSolido"];
 
+/**
+ * A PROJEÇÃO tem duas caixas: a pastilha do topo (#verProjecao, pedida por
+ * ele) e a do painel da Projeção (#projLigada), que já lá estava. São o mesmo
+ * interruptor -- duas caixas que pudessem discordar sobre se a projeção está
+ * ligada seriam pior do que uma só mal colocada.
+ *
+ * Quem manda é o #projLigada: é ele que o lerProjecao() lê e é ele que VAI
+ * GRAVADO NO PROJETO. A pastilha é um espelho — escreve nele e lê dele.
+ *
+ * De propósito FORA do CAIXAS_DA_VISTA: essa lista é guardada neste aparelho
+ * como preferência de vista, e a projeção já é guardada no projeto. Nas duas
+ * listas, abrir um projeto com a projeção ligada num aparelho que a tinha
+ * desligado punha as duas a discordar — e a última a correr ganhava.
+ */
+const ESPELHOS_DA_VISTA = { verProjecao: "projLigada" };
+
 // Aqui em cima, e não ao pé das funções que as usam, lá para o fim do
 // ficheiro: pintarBarraDeVista() é chamada dentro do desenharCena(), e um
 // desenho que acontecesse antes de a linha do `const` correr rebentava com um
@@ -221,6 +237,13 @@ function lerPalco() {
            // Só o desenho: o raio não entra em conta nenhuma (ecrã, ângulos,
            // cobertura continuam a usar a medida cheia do palco).
            raio: num("palcoR"),
+           // SÓ A FRENTE ARREDONDADA (v3.94). A traseira fica a direito,
+           // para encostar ao fundo da sala ou a outro palco. Existia só nos
+           // palcos extra; o principal nem sequer passava este valor ao
+           // desenho — ver fazerPalco() em cena.js, que chamava o
+           // geometriaDeTampo() com quatro argumentos e deixava o quinto por
+           // dizer.
+           meio: !!($("palcoMeio") && $("palcoMeio").checked),
            // O ÂNGULO. Roda o tampo e a passarela que sai dele (e o vão que
            // ela abre na plateia). A plateia, os ecrãs e a régie continuam
            // medidos à SALA -- decisão dele, e está escrita no campo.
@@ -534,6 +557,26 @@ function desenharCena(recentrarCamara) {
   // direto (ver #nomeProjetoViewport, css/estilo.css). "hidden" (não só
   // texto vazio) para não deixar uma caixa às riscas por cima da cena
   // quando não há projeto nenhum.
+
+  // A ALTURA AO CHÃO MANDA NOS CAMPOS DO PALCO (v3.94). Quando os
+  // Calculadores a mandam, "Altura do palco" e "Ecrã acima do palco" deixam
+  // de decidir onde o ecrã fica. Um campo que não faz nada e não o diz é pior
+  // do que campo nenhum — por isso diz-se, aqui ao lado deles.
+  const notaAltura = $("alturaVemDaCalculadora");
+  if (notaAltura) {
+    const h = projeto && projeto.alturaDoChao;
+    if (h == null) {
+      notaAltura.style.display = "none";
+      notaAltura.textContent = "";
+    } else {
+      notaAltura.style.display = "";
+      notaAltura.textContent =
+        "A base do ecrã está a " + Number(h).toFixed(2).replace(".", ",") + " m do chão, " +
+        "como vem dos Calculadores — estes dois campos não mexem nela. Para a " +
+        "mudar, muda lá «Base do ecrã acima do chão».";
+    }
+  }
+
   const nomeViewport = $("nomeProjetoViewport");
   if (nomeViewport) {
     const nome = projeto && projeto.nome ? String(projeto.nome) : "";
@@ -882,7 +925,21 @@ function desenharCena(recentrarCamara) {
   maquinasForaDoPano = 0;
   feixesDoBlend = [];
   tapamOBlend = null;
-  if (curvaDoBlend) {
+  // «MOSTRAR PROJEÇÃO» DESLIGA A PROJEÇÃO TODA (v3.94).
+  //
+  // Reparo dele: *"ao desligar apenas está a apagar um projetor"*. E era
+  // mesmo: o desenharProjecao() lia o interruptor e saía, mas a fila de
+  // extras logo a seguir — e o blend curvo — desenhavam-se na mesma. Medido
+  // com uma fila de três: desligado, ficavam 6 objectos na cena e só o P1
+  // desaparecia.
+  //
+  // A causa é a de sempre: a pergunta "está ligada?" estava respondida DENTRO
+  // de uma das funções que ela devia governar, em vez de à entrada das três.
+  // Agora é uma guarda só, aqui, e o desenharProjecao() mantém a dele porque
+  // também é chamado de outros sítios.
+  if (!lerProjecao().ligada) {
+    // nada de projeção na cena — nem P1, nem a fila, nem o blend curvo
+  } else if (curvaDoBlend) {
     desenharBlendCurvo(sala, curvaDoBlend);
   } else {
   desenharProjecao(sala, palco);
@@ -2677,7 +2734,22 @@ function contextoDeZonas(projetoAtual, medidas, sala, palco) {
     esquerda: Math.min(...projetoAtual.zonas.map(z => z.x)),
     fundo: Math.max(...projetoAtual.zonas.map(z => z.y + z.h)),
     meio: medidas.largura / 2,
-    base: palco.altura + palco.acimaDoPalco,
+    // A QUE ALTURA DO CHÃO FICA A BASE DO CONJUNTO.
+    //
+    // Quando os Calculadores o dizem, é esse o número — quem monta é que
+    // sabe. Até à v3.94 não havia lá campo nenhum para isto, e aqui só se
+    // podia usar o que estava à mão: a altura do palco mais o "ecrã acima do
+    // palco". Com os valores por omissão isso dá 1 m, que não é uma escolha
+    // de ninguém: é o que sobra. Foi exactamente o reparo dele — *"está a
+    // nascer assim quando vem da calculadora e nela não tenho onde dizer a
+    // que altura do chão está o ecrã"*.
+    //
+    // `== null` de propósito, e não `||`: zero é resposta legítima (ecrã
+    // pousado no chão) e tem de passar. Só "não sei" é que cai no palco, que
+    // é o que os projetos anteriores a este campo esperam.
+    base: projetoAtual.alturaDoChao == null
+      ? palco.altura + palco.acimaDoPalco
+      : projetoAtual.alturaDoChao,
     z0: -sala.profundidade / 2 + 0.35
   };
 }
@@ -3694,6 +3766,22 @@ if ($("btPalcoRedondo")) $("btPalcoRedondo").onclick = () => {
   if (!largura) return;
   $("palcoP").value = String(largura);
   $("palcoR").value = String(Math.round((largura / 2) * 100) / 100);
+  // Um círculo é redondo à volta toda: pedir círculo com a traseira reta
+  // marcada dava uma meia-lua, e a pessoa carregou no botão do círculo.
+  if ($("palcoMeio")) $("palcoMeio").checked = false;
+  remontarDaqui(0);
+};
+
+// MEIA-LUA no palco principal (v3.94) — as mesmas medidas que os palcos
+// extra já faziam: profundidade em metade da largura e arredondamento no
+// máximo, que é o que dá o semicírculo exacto. A traseira aponta para o
+// fundo da sala; para a virar, é o campo "Rodar".
+if ($("btPalcoMeiaLua")) $("btPalcoMeiaLua").onclick = () => {
+  const largura = num("palcoL");
+  if (!largura) return;
+  $("palcoP").value = String(Math.round((largura / 2) * 100) / 100);
+  $("palcoR").value = String(Math.round((largura / 2) * 100) / 100);
+  if ($("palcoMeio")) $("palcoMeio").checked = true;
   remontarDaqui(0);
 };
 
@@ -5366,27 +5454,28 @@ function receberProjeto(projetoAtual) {
   // ver soVisualizacao() em uso.js.
   usoDoProjeto(projetoAtual);
   if (!Array.isArray(ajustes.noDeposito)) ajustes.noDeposito = [];
-  const conhecidos = (ajustes.nomePorId && typeof ajustes.nomePorId === "object") ? ajustes.nomePorId : {};
-  const primeiraVez = !ajustes.depositoIniciado;
   let mudou = false;
 
-  if (primeiraVez) {
+  // O QUE VEM DOS CALCULADORES ENTRA NA SALA (v3.94).
+  //
+  // Até aqui, tudo o que chegasse de novo era empurrado para o depósito e
+  // ficava à espera. Isso fazia sentido enquanto o depósito era a porta de
+  // TODO o material, mas dava isto: monta-se um ecrã na calculadora, abre-se
+  // o 3D, e a sala está vazia — sem nada a dizer porquê. Foi o que ele viu
+  // ("devia criar a superfície do ecrã também": ela era criada, só que ficava
+  // à espera, invisível).
+  //
+  // Decisão dele, posta a três opções: *"tudo entra direto na sala"*. O
+  // depósito passa a ser só para o que se acrescenta à mão aqui no 3D —
+  // `acrescentarEcra(depositoLigado())`, que não passa por esta função.
+  //
+  // O que JÁ ESTÁ no depósito continua lá: quem o pôs de lado foi alguém, e
+  // montar-lhe as peças agora era mexer na sala pelas costas dessa pessoa.
+  // Por isso `ajustes.noDeposito` não se toca aqui — só se deixa de lhe
+  // acrescentar.
+  if (!ajustes.depositoIniciado) {
     ajustes.depositoIniciado = true;
     mudou = true;
-  } else if (!depositoLigado()) {
-    // Depósito desligado: o material novo entra logo na sala. Quem já lá
-    // estava à espera fica à espera -- desligar não é o mesmo que montar, e
-    // montar peças sem ninguém pedir era mexer na sala pelas costas de quem
-    // as pôs de lado. O aviso e o contador continuam a dizer que lá estão.
-  } else {
-    for (const zona of projetoAtual.zonas) {
-      const chave = chaveDeDeposito(zona);
-      // Só entra no depósito quem nunca cá esteve. Uma zona já conhecida que
-      // volte a chegar (outro sync, outro nome) fica onde estava.
-      if (!chave || !zona.id || conhecidos[zona.id] || estaNoDeposito(chave)) continue;
-      ajustes.noDeposito.push(chave);
-      mudou = true;
-    }
   }
 
   if (mudou) guardarAjustes(ajustes);
@@ -6241,6 +6330,9 @@ async function abrirProjetoTodo(estado) {
   preencherCampo("palcoL", p.largura); preencherCampo("palcoA", p.altura);
   preencherCampo("palcoP", p.profundidade); preencherCampo("ecraOffset", p.acimaDoPalco);
   preencherCampo("palcoR", p.raio);
+  // «Só a frente arredondada» (v3.94). Um projeto guardado antes disto não a
+  // traz e fica desmarcada — que é como ele foi guardado.
+  preencherCheckbox("palcoMeio", p.meio);
   // Onde o palco está. Um projeto guardado antes disto existir não traz nada
   // aqui, e preencherCampo ignora undefined -- fica no 0 de sempre, encostado
   // ao fundo, que é exactamente como ele foi guardado.
@@ -9927,6 +10019,16 @@ atualizarBotaoEdicaoLivre();
 
 /** Pinta as pastilhas ligadas, e guarda a escolha. */
 function pintarBarraDeVista() {
+  // Primeiro os espelhos: a pastilha mostra o que o campo do painel diz, e é
+  // esse que manda. Assim um projeto aberto (que traz o #projLigada gravado)
+  // acende a pastilha certa sem ninguém lhe tocar.
+  Object.keys(ESPELHOS_DA_VISTA).forEach((idPastilha) => {
+    const pastilha = $(idPastilha), campo = $(ESPELHOS_DA_VISTA[idPastilha]);
+    if (!pastilha || !campo) return;
+    if (pastilha.checked !== campo.checked) pastilha.checked = campo.checked;
+    const chip = pastilha.closest(".chip");
+    if (chip) chip.classList.toggle("ligado", pastilha.checked);
+  });
   CAIXAS_DA_VISTA.forEach((id) => {
     const caixa = $(id);
     if (!caixa) return;
@@ -9935,6 +10037,19 @@ function pintarBarraDeVista() {
   });
   guardarEscolhaDaVista();
 }
+
+/** A pastilha da projeção escreve no campo do painel, que é quem manda. */
+(function ligarEspelhosDaVista() {
+  Object.keys(ESPELHOS_DA_VISTA).forEach((idPastilha) => {
+    const pastilha = $(idPastilha), campo = $(ESPELHOS_DA_VISTA[idPastilha]);
+    if (!pastilha || !campo) return;
+    pastilha.addEventListener("change", () => {
+      if (campo.checked === pastilha.checked) return;
+      campo.checked = pastilha.checked;
+      campo.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+})();
 
 // "DaVista" e não "Vista": guardarVista() já existe nesta casa e grava a cena
 // em PNG. Dois nomes iguais no mesmo módulo não dão um aviso, dão uma app que
