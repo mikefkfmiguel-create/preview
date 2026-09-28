@@ -9605,6 +9605,26 @@ function aplicarProjetores(lista) {
   // saber (não quantas máquinas).
   usoMarcar(lista.length > 1 || lista.curva ? "blend" : "projecao");
   const primeiro = lista[0], resto = lista.slice(1);
+  // ONDE A FILA FICA NA SALA, ao centro (v3.95).
+  //
+  // O `lateral` de cada máquina vem CENTRADO na tela (-3,47 · 0 · +3,47 numa
+  // fila de três). As outras são postas em relação à primeira -- e a primeira
+  // nunca escrevia o `lateral` dela em lado nenhum: o aplicarProjetor() punha
+  // o rácio, a distância, o modelo e a lente, e esse ficava por dizer.
+  //
+  // Resultado medido: a fila inteira deslocada para a direita exactamente o
+  // lateral da primeira máquina -- imagens a 0, +3,47 e +6,94 em vez de
+  // -3,47, 0 e +3,47. Era o "não centrado na sala" que ele reportou.
+  //
+  // TEM DE SER AQUI, antes do `anchorLateral` abaixo: é esse que as outras
+  // usam como âncora, e escrever o campo depois dele não muda nada (foi o que
+  // aconteceu à primeira, e só se viu a medir).
+  //
+  // Só quando vem um número: um projetor sozinho de uma carga antiga não traz
+  // `lateral`, e aí o campo é de quem o escreveu.
+  if (primeiro && Number.isFinite(primeiro.lateral)) {
+    $("projLateral").value = primeiro.lateral.toFixed(2);
+  }
   const anchorLateral = num("projLateral"), anchorAltura = num("projAltura");
   // Os offsets do blend vêm ABSOLUTOS, medidos a partir do centro do ecrã:
   // num blend de três, as células são -6, 0, +6. Mas o primeiro projetor fica
@@ -9675,6 +9695,12 @@ function aplicarProjetores(lista) {
     // arrancava sempre a -25% e a imagem nascia meio metro abaixo do pano, com
     // a app a dizer ao mesmo tempo, na outra aba, que o shift devia ser 0%.
     if (Number.isFinite(lista.curva.shiftV)) $("projShiftV").value = lista.curva.shiftV;
+  } else if (Number.isFinite(lista.alturaLente)) {
+    // O MESMO, NUM ECRÃ PLANO (v3.95). Era o que faltava: o curvo aprendeu
+    // isto na v3.43 e o plano ficou para trás, a nascer com 4,5 m e -25%
+    // enquanto os Calculadores diziam ao lado que precisava de outra coisa.
+    $("projAltura").value = (alturaDaBaseDoEcra() + lista.alturaLente).toFixed(2);
+    if (Number.isFinite(lista.shiftV)) $("projShiftV").value = lista.shiftV;
   }
   const aplicou = aplicarProjetor(cabeca);   // este já chama montar() no fim
   if (aplicou && resto.length) {

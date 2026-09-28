@@ -252,6 +252,75 @@ conferir(botoes.lua.P === "8" && botoes.lua.R === "8" && botoes.lua.meio === tru
 conferir(botoes.redondo.P === "16" && botoes.redondo.R === "8" && botoes.redondo.meio === false,
   "e o do círculo desmarca a traseira reta — um círculo é redondo à volta toda");
 
+console.log("\n== o blend plano nasce no sítio ==");
+// Reparo dele, com uma foto: *"continua abaixo do chão e não centrado na
+// sala"*. Duas coisas, e as duas do mesmo caminho -- o do blend, que é OUTRA
+// ponte (mikeapps-projetor-v1) e não a das zonas.
+//
+// 1. A altura da lente e o shift só viajavam num ecrã CURVO (desde a v3.43).
+//    Num plano o Preview arrancava com os valores dele -- lente a 4,5 m e
+//    shift -25% -- enquanto os Calculadores diziam, na aba ao lado, que eram
+//    precisos outros. Com uma imagem alta, a base ficava abaixo do chão.
+// 2. O `lateral` vem centrado na tela, mas a PRIMEIRA máquina nunca escrevia
+//    o dela: as outras são postas em relação a ela, e a fila inteira acabava
+//    deslocada exactamente esse valor.
+await pagina.evaluate(() => {
+  // Limpar o que a secção da projeção deixou: uma fila antiga em ajustes
+  // fazia o teste medir as imagens erradas e dar-se por satisfeito.
+  window.preview.ajustes.projetoresExtra = [];
+  localStorage.setItem("mikeapps-projetor-v1", JSON.stringify({
+    v: 2, curva: null, retro: false, alturaLente: 8, shiftV: -83.3,
+    projetores: [
+      { lateral: -3.47, alturaOffset: 0, largura: 5.05, altura: 6, racio: 3.563, distancia: 18 },
+      { lateral: 0,     alturaOffset: 0, largura: 5.05, altura: 6, racio: 3.563, distancia: 18 },
+      { lateral: 3.47,  alturaOffset: 0, largura: 5.05, altura: 6, racio: 3.563, distancia: 18 }],
+    quando: new Date().toISOString() }));
+});
+// A ponte lê-se ao carregar: escrever e carregar no botão na mesma página não
+// a apanha, e o teste media as imagens de antes.
+await pagina.reload({ waitUntil: "networkidle" });
+await pagina.waitForFunction(() => window.preview && window.preview.montar, null, { timeout: 30000 });
+await pagina.waitForTimeout(1500);
+
+const blend = await pagina.evaluate(async () => {
+  // SINCRONIZAR, e não "Trazer projeto": este último só aplica a ponte do
+  // blend quando NÃO há projeto de zonas (ver btTrazerProjeto em app.js).
+  // Com as duas pontes cheias -- que é o caso dele, com o sync ligado -- quem
+  // aplica as duas é o Sincronizar.
+  document.getElementById("btSincronizar").click();
+  await new Promise((r) => setTimeout(r, 2500));
+  const _ = JSON.stringify({
+    nota: "a ponte já foi aplicada no carregamento" });
+  const w = window.preview, THREE = w.THREE;
+  const imgs = [];
+  w.desenhado.traverse((o) => {
+    if (!o.isMesh || !/projecao-imagem/.test(o.name || "")) return;
+    const bb = new THREE.Box3().setFromObject(o);
+    if (!bb.isEmpty()) imgs.push({ x0: bb.min.x, x1: bb.max.x, y0: bb.min.y });
+  });
+  const xs = imgs.flatMap((i) => [i.x0, i.x1]);
+  return {
+    n: imgs.length,
+    altura: document.getElementById("projAltura").value,
+    shiftV: document.getElementById("projShiftV").value,
+    lateral: document.getElementById("projLateral").value,
+    centro: imgs.length ? +(((Math.min(...xs) + Math.max(...xs)) / 2)).toFixed(2) : null,
+    maisBaixo: imgs.length ? +Math.min(...imgs.map((i) => i.y0)).toFixed(2) : null
+  };
+});
+conferir(blend.n === 3, "as três imagens do blend estão na cena (" + blend.n + ")");
+conferir(blend.altura === "8.00",
+  "a altura da lente vem dos Calculadores, não do 4,5 m por omissão (" + blend.altura + " m)");
+conferir(Number(blend.shiftV) === -83.3,
+  "e o shift que ela obriga também (" + blend.shiftV + "%, não os -25% por omissão)");
+// A asserção que decide o "não centrado".
+conferir(blend.n === 3 && perto(blend.centro, 0, 0.05),
+  "a fila fica CENTRADA na sala (centro em x = " + blend.centro + "; antes desta versão, +3,47)");
+conferir(Number(blend.lateral) === -3.47,
+  "porque a primeira máquina passa a escrever o lateral dela (" + blend.lateral + ")");
+conferir(blend.n === 3 && blend.maisBaixo >= -0.05,
+  "e nada fica abaixo do chão (ponto mais baixo: " + blend.maisBaixo + " m)");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
