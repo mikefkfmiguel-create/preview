@@ -1457,6 +1457,87 @@ function curvaAtivaDoBlend() {
 }
 
 /**
+ * UMA IMAGEM REPARTIDA POR TODAS AS MÁQUINAS DO BLEND.
+ *
+ * Reparo dele, a olhar para uma fila de três: *"nos projetores não está a
+ * preencher por todos — fica sempre uma imagem em cada um"*. E ficava: o
+ * fazerProjecao() punha a textura INTEIRA em cada imagem, por isso uma fila de
+ * três mostrava o mesmo desenho três vezes lado a lado. Um blend existe
+ * exactamente para o contrário.
+ *
+ * O mecanismo já cá estava — para os ecrãs LED, no fazerZona(): a textura
+ * clona-se e cada peça leva o seu `repeat`/`offset`. Nunca tinha chegado aos
+ * projetores. É a mesma conta e o mesmo interruptor do painel:
+ *
+ *   · "Uma imagem por todos" → cada máquina mostra o seu bocado (o normal,
+ *     e o que um media server faz);
+ *   · "A mesma em cada"      → a imagem inteira repetida, para quando as
+ *     máquinas mostram conteúdos independentes.
+ *
+ * As zonas de blend sobrepõem-se em `u` de propósito: DUAS máquinas a mostrar
+ * o mesmo bocado é o que um blend é.
+ *
+ * Com uma máquina só, `repeat` dá 1 e `offset` dá 0 — exactamente o que se
+ * desenhava antes disto existir.
+ */
+function repartirImagemPlana(imagens, minX, maxX, minY, maxY) {
+  if (!textura || modoConteudo === "cada") return;
+  const largura = maxX - minX, altura = maxY - minY;
+  if (!(largura > 0) || !(altura > 0)) return;
+  imagens.forEach((r) => {
+    if (!r.malha || !r.malha.material || !(r.largura > 0) || !(r.altura > 0)) return;
+    const fatia = textura.clone();
+    fatia.needsUpdate = true;
+    fatia.repeat.set(r.largura / largura, r.altura / altura);
+    fatia.offset.set((r.x - r.largura / 2 - minX) / largura,
+                     (r.y - r.altura / 2 - minY) / altura);
+    r.malha.material.map = fatia;
+    r.malha.material.needsUpdate = true;
+  });
+}
+
+/**
+ * O mesmo num ecrã CURVO, onde a repartição é em ângulo e não em metros.
+ *
+ * O `u` da CylinderGeometry cresce com o θ dela, e a fatia foi construída com
+ * `thetaStart = π − angFim`. O ecrã inteiro iria de `π − meioAngulo` a
+ * `π + meioAngulo`, por isso a fatia ocupa, do ecrã, o pedaço que vai de
+ * `(meioAngulo − angFim)` a `(meioAngulo − angInicio)`, a dividir pela
+ * abertura toda. Tirado da geometria e não do palpite: uma fatia que cubra o
+ * ecrã inteiro dá offset 0 e repeat 1, que é o desenho de sempre.
+ */
+function repartirImagemCurva(fatias, meioAngulo, baixoEcra, alturaEcra) {
+  if (!textura || modoConteudo === "cada") return;
+  const abertura = 2 * meioAngulo;
+  if (!(abertura > 0) || !(alturaEcra > 0)) return;
+  fatias.forEach((f) => {
+    if (!f.malha || !f.malha.material) return;
+    // AO CONTRÁRIO, E DE PROPÓSITO. O vértice em θ = π − angFim fica do lado
+    // +x da sala — que é a DIREITA de quem está na plateia — e é esse que a
+    // geometria põe em u = 0. Mapear a direito punha o princípio da imagem à
+    // direita: visto ao vivo com o padrão de teste, as barras saíam azul,
+    // vermelho, magenta, verde, ciano, amarelo, branco — exactamente ao
+    // contrário. Com `repeat` negativo, u = 0 passa a apanhar o FIM do pedaço
+    // e a imagem lê-se da esquerda para a direita, como no ecrã plano.
+    //
+    // O espelho já lá estava antes disto: com a textura inteira em cada fatia
+    // ninguém dava por ele, porque a imagem repetida não tem princípio nem
+    // fim visíveis.
+    const u0 = (f.angFim + meioAngulo) / abertura;
+    const du = (f.angInicio - f.angFim) / abertura;
+    const v0 = (f.y - f.altura / 2 - baixoEcra) / alturaEcra;
+    const dv = f.altura / alturaEcra;
+    if (!(du < 0) || !(dv > 0)) return;
+    const pedaco = textura.clone();
+    pedaco.needsUpdate = true;
+    pedaco.repeat.set(du, dv);
+    pedaco.offset.set(u0, v0);
+    f.malha.material.map = pedaco;
+    f.malha.material.needsUpdate = true;
+  });
+}
+
+/**
  * OS DADOS DA PROJEÇÃO QUE ESTÁ NOS CAMPOS -- a "viva", a que se edita.
  *
  * É a forma que todas as projeções têm: a viva é uma delas, e as guardadas em
@@ -1574,7 +1655,8 @@ function desenharUmaProjecao(sala, palco, p, prefixo, imagens) {
     if (grupoPlano.userData.feixe) feixesDoBlend.push(grupoPlano.userData.feixe);
     desenhado.add(grupoPlano);
     imagens.push({ x: imagemExtra.x, y: imagemExtra.y,
-                          largura: larguraExtra, altura: alturaExtra });
+                          largura: larguraExtra, altura: alturaExtra,
+                          malha: grupoPlano.getObjectByName("projecao-imagem") });
     montagemProjetores.push(fichaDeProjetor(p.etiqueta + (i + 2), projetorExtra, z0Proj,
       fila.shiftH, fila.shiftV, larguraExtra, alturaExtra));
   });
@@ -1602,6 +1684,9 @@ function desenharUmaProjecao(sala, palco, p, prefixo, imagens) {
         xDoPanoPlano(p), (Math.max(...ys) + Math.min(...ys)) / 2, z0Proj,
         prefixo + "ecra-plano");
       if (pano) desenhado.add(pano);
+      // E A IMAGEM REPARTIDA PELAS MÁQUINAS -- ver repartirImagemPlana().
+      repartirImagemPlana(imagens, Math.min(...xs), Math.max(...xs),
+                          Math.min(...ys), Math.max(...ys));
     }
   }
   }
@@ -1741,6 +1826,7 @@ function desenharBlendCurvo(sala, curva, p, prefixo) {
     if (tela) desenhado.add(tela);
   }
 
+  const fatiasDesenhadas = [];
   (p.maquinas || []).forEach((pe, i) => {
     if (!(pe.racio > 0) || !(distancia > 0)) return;
     const s = pe.arco || 0;
@@ -1887,12 +1973,21 @@ function desenharBlendCurvo(sala, curva, p, prefixo) {
     const grupoCurvo = fazerProjecaoCurva(projetor, fatia, textura, prefixo + "projetor-" + i);
     if (grupoCurvo.userData.feixe) feixesDoBlend.push(grupoCurvo.userData.feixe);
     desenhado.add(grupoCurvo);
+    // Guardada para lhe dar o seu bocado da imagem, depois de estarem todas
+    // -- ver repartirImagemCurva().
+    fatiasDesenhadas.push({ malha: grupoCurvo.getObjectByName("projecao-imagem"),
+                            angInicio: cortadoInicio, angFim: cortadoFim,
+                            y: fatia.y, altura: fatia.altura });
     // O alvo é RADIAL e não em frente: é essa a única diferença para a ficha
     // do ecrã plano. No WATCHOUT continua a ser o Target, com o shift à parte.
     montagemProjetores.push(comMedidaNoPano(fichaDeProjetorEm(
       "P" + (i + 1), projetor, { x: alvo.x, y: projetor.y, z: alvo.z },
       fila.shiftH, fila.shiftV, larguraNoArco, alturaImagem)));
   });
+
+  // A IMAGEM REPARTIDA PELO ARCO, agora que se sabe quantas fatias há e onde.
+  repartirImagemCurva(fatiasDesenhadas, m.meioAngulo, alturaDaBaseDoEcra(),
+                      curva.altura > 0 ? curva.altura : alturaMaisAltaDasFatias(curva, p));
 }
 
 /**
@@ -1937,8 +2032,10 @@ function desenharProjecao(sala, palco, p, prefixo, imagens) {
     z: z0, largura, altura
   };
 
-  desenhado.add(fazerProjecao(projetor, imagem, textura, prefixo + "projetor-0"));
-  imagens.push({ x: imagem.x, y: imagem.y, largura, altura });
+  const grupoDoPrincipal = fazerProjecao(projetor, imagem, textura, prefixo + "projetor-0");
+  desenhado.add(grupoDoPrincipal);
+  imagens.push({ x: imagem.x, y: imagem.y, largura, altura,
+                 malha: grupoDoPrincipal.getObjectByName("projecao-imagem") });
   montagemProjetores.push(fichaDeProjetor(p.etiqueta + "1", projetor, z0, p.shiftH, p.shiftV, largura, altura));
   if (!viva) return;
   projecaoAtual = {
