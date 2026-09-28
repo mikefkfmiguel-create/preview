@@ -156,6 +156,9 @@ let distanciaDaFilaLimitada = null;
 // Quanta luz, em metros de arco, está a cair ao lado do ecrã curvo -- ver
 // desenharBlendCurvo(), onde as fatias são cortadas ao tamanho da superfície.
 let luzForaDoEcra = 0;
+// Quanto é que as imagens da fila deixaram de se tocar. Negativo = sobrepõem-se,
+// que é o que um blend é. Ver maiorFolgaEntreImagens().
+let folgaDoBlend = null;
 // Máquinas cujo feixe já não encontra o pano nenhum -- só acontece com o ecrã
 // movido sem elas (ver desenharBlendCurvo()). Não se desenha o que não existe,
 // mas também não se cala: uma máquina que desaparece do 3D sem explicação é
@@ -233,8 +236,53 @@ const num = (id) => parseFloat($(id).value) || 0;
 function lerSala() {
   return { largura: num("salaL"), profundidade: num("salaP"), altura: num("salaA") };
 }
+/**
+ * O PALCO PRINCIPAL ESTÁ NA SALA?
+ *
+ * Duas coisas têm de dizer que sim: a pastilha "Palco" da barra (que é a
+ * VISTA, e apaga o conjunto todo) e o campo "Palco principal na sala" (que é
+ * do PROJETO, e tira só este).
+ *
+ * Reparo dele: *"temos de ter como desligar o palco de origem ou retirá-lo de
+ * vez, pois é o único que nasce sempre no fundo da sala"*. A pastilha levava
+ * com ela os palcos extra e a passarela, por isso quem queria ficar só com os
+ * extra não tinha maneira nenhuma.
+ *
+ * Numa função só de propósito: são TRÊS os sítios que dependem disto -- o
+ * desenho, onde o orador assenta, e a altura a que os ecrãs nascem. Espalhar
+ * a conta por três era garantir que um dia discordavam, e um ecrã a flutuar à
+ * altura de um palco que não está desenhado é exactamente o defeito que esta
+ * app já apanhou duas vezes.
+ */
+function palcoPrincipalNaSala() {
+  return $("verPalco").checked && palcoPrincipalNoProjeto();
+}
+
+/**
+ * E A PERGUNTA DE TRÁS: o projeto TEM palco principal?
+ *
+ * São duas perguntas diferentes e faz diferença qual se faz. A pastilha da
+ * barra é a VISTA -- esconde o palco para se ver o que está por baixo, e não
+ * pode mexer em medida nenhuma. O campo é do PROJETO: ali o palco deixa de
+ * existir, e aí sim o que assentava nele desce ao chão.
+ *
+ * Juntá-las numa só foi o que eu fiz à primeira, e apanhou-o um teste que já
+ * cá estava: com a pastilha desligada (que é como a app nasce), um projeto
+ * sem altura ao chão passou a nascer com o ecrã no CHÃO em vez de na altura
+ * do palco -- mudava o desenho de toda a gente por causa de um interruptor de
+ * ver. O teste tinha razão e a asserção fica como estava.
+ */
+function palcoPrincipalNoProjeto() {
+  return !$("palcoPrincipal") || $("palcoPrincipal").checked;
+}
+
 function lerPalco() {
-  return { largura: num("palcoL"), altura: num("palcoA"),
+  return { // Se ele está mesmo na sala. Vai no `lerPalco()` para viajar no
+           // ficheiro do projeto sem ninguém ter de se lembrar dele, e para
+           // chegar ao desenho das zonas em cena.js -- que é o sítio que
+           // decide a que altura elas nascem quando ninguém a disse.
+           naSala: palcoPrincipalNoProjeto(),
+           largura: num("palcoL"), altura: num("palcoA"),
            profundidade: num("palcoP"), acimaDoPalco: num("ecraOffset"),
            // Onde o palco está na sala. Até aqui nascia sempre encostado ao
            // fundo e centrado; com uma planta por baixo é preciso pô-lo onde
@@ -733,7 +781,11 @@ function desenharCena(recentrarCamara) {
   // palco por omissão é uma caixa a mentir sobre a altura de tudo o que está
   // em cima dela.
   if ($("verPalco").checked) {
-    desenhado.add(fazerPalco(sala, palco));
+    // O principal só quando está na sala -- e com a cor do grupo, se estiver
+    // num. Ver palcoPrincipalNaSala() e fazerPalco() em cena.js.
+    if (palcoPrincipalNaSala()) {
+      desenhado.add(fazerPalco(sala, { ...palco, cor: corComGrupo("palco", null) }));
+    }
     if (passarela.ligada) desenhado.add(fazerPassarela(sala, palco, passarela));
     // Palcos extra (2º, 3º, ...) são só visuais -- nenhum ecrã nem conta de
     // ângulo/cobertura se agarra a eles, ver fazerPalcoExtra() em cena.js.
@@ -948,7 +1000,7 @@ function desenharCena(recentrarCamara) {
   // nada. Reportado assim: *"lá anda o boneco, que não consigo movê-lo para
   // onde quero"* -- e não conseguia mesmo: estava preso a uma coisa que ele
   // não via e não tinha pedido.
-  const noPalco = $("verPalco").checked && palco.altura > 0 && palco.profundidade > 0;
+  const noPalco = palcoPrincipalNaSala() && palco.altura > 0 && palco.profundidade > 0;
   const limite = (noPalco ? larguraPalco : sala.largura) / 2 - 0.7;
   const x = (noPalco ? frenteDoPalco(sala, palco).x : 0)
     - (medidas ? Math.min(limite, medidas.largura / 2 + 1.2) : limite * 0.55);
@@ -965,7 +1017,7 @@ function desenharCena(recentrarCamara) {
     // A figura só sobe ao palco se o palco ESTIVER LÁ. Reportado: *"o boneco
     // não vai ao chão"* -- e não ia: com "Palco" desligado, ela ficava à
     // altura de um palco que não está desenhado, a flutuar no ar.
-    const noChao = !$("verPalco").checked;
+    const noChao = !palcoPrincipalNaSala();
     figura.position.set(fx, hExtra != null ? hExtra : ((noPalco && !noChao) ? palco.altura : 0), fz);
     desenhado.add(figura);
   }
@@ -1013,6 +1065,7 @@ function desenharCena(recentrarCamara) {
   // (a curva da projeção viva vem agora dentro de dadosDaProjecaoViva())
   distanciaDaFilaLimitada = null;
   luzForaDoEcra = 0;
+  folgaDoBlend = null;
   maquinasForaDoPano = 0;
   feixesDoBlend = [];
   tapamOBlend = null;
@@ -1457,6 +1510,31 @@ function curvaAtivaDoBlend() {
 }
 
 /**
+ * A MAIOR FOLGA ENTRE IMAGENS VIZINHAS DA FILA.
+ *
+ * Negativa quer dizer que se sobrepõem — que é o que um blend é. Positiva
+ * quer dizer BANDA PRETA entre duas máquinas, e isso tem de ser dito.
+ *
+ * Isto aparece sozinho quando o pano sai da parede: o tiro encurta, as imagens
+ * encolhem (v3.98, e é o que acontece na sala), mas as máquinas ficam à
+ * distância umas das outras a que foram calculadas. Medido numa fila de três
+ * a 18 m: pano na parede, imagens de 5,06 m sobrepostas 1,66 m; pano 6 m para
+ * dentro, 3,37 m e a tocarem-se à justa; 9 m para dentro, 2,52 m com 0,88 m de
+ * preto no meio. Tudo certo, e nem uma palavra a dizê-lo.
+ */
+function maiorFolgaEntreImagens(imagens) {
+  const uteis = imagens.filter((r) => r && r.largura > 0);
+  if (uteis.length < 2) return null;
+  const ordenadas = uteis.slice().sort((a, b) => a.x - b.x);
+  let maior = -Infinity;
+  for (let i = 1; i < ordenadas.length; i++) {
+    const anterior = ordenadas[i - 1], atual = ordenadas[i];
+    maior = Math.max(maior, (atual.x - atual.largura / 2) - (anterior.x + anterior.largura / 2));
+  }
+  return maior === -Infinity ? null : maior;
+}
+
+/**
  * UMA IMAGEM REPARTIDA POR TODAS AS MÁQUINAS DO BLEND.
  *
  * Reparo dele, a olhar para uma fila de três: *"nos projetores não está a
@@ -1689,6 +1767,7 @@ function desenharUmaProjecao(sala, palco, p, prefixo, imagens) {
       // E A IMAGEM REPARTIDA PELAS MÁQUINAS -- ver repartirImagemPlana().
       repartirImagemPlana(imagens, Math.min(...xs), Math.max(...xs),
                           Math.min(...ys), Math.max(...ys));
+      if (prefixo === "") folgaDoBlend = maiorFolgaEntreImagens(imagens);
     }
   }
   }
@@ -2550,6 +2629,28 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
       "), e o que passa das bordas cai ao lado. O desenho corta no limite do " +
       "ecrã. Para caber: menos distância, lentes de rácio maior, ou outra altura de montagem.");
   }
+  // AS IMAGENS DA FILA DEIXARAM DE SE TOCAR.
+  //
+  // Reparo dele, com uma foto de três imagens pequenas e separadas: *"algo não
+  // está bem"*. E estava tudo certo, menos o silêncio: o pano tinha saído da
+  // parede, o tiro encurtou, as imagens encolheram com ele (que é o que
+  // acontece na sala) e as máquinas ficaram à distância a que foram
+  // calculadas. Resultado: banda preta entre elas, desenhada sem uma palavra.
+  //
+  // O número que interessa é o que falta, e o que o explica é o tiro.
+  if (folgaDoBlend != null && folgaDoBlend > 0.02) {
+    const dist = num("projDist"), dz = num("projDz") || 0;
+    linhas.push(forte("A fila abriu-se: " + nnum(folgaDoBlend) + " m entre imagens") +
+      " — deixam de se tocar, e fica preto no meio. " +
+      (Math.abs(dz) > 0.05
+        ? "O pano está " + nnum(Math.abs(dz)) + " m " + (dz > 0 ? "para dentro da" : "atrás da") +
+          " parede, por isso o tiro é de " + nnum(Math.abs(dist - dz)) + " m e não dos " +
+          nnum(dist) + " m para que a fila foi calculada: as imagens encolheram e as máquinas " +
+          "ficaram onde estavam. Encosta o pano à parede, ou aproxima as máquinas umas das outras."
+        : "Para as juntar: mais distância, lentes de rácio menor, ou as máquinas mais perto " +
+          "umas das outras."));
+  }
+
   // O PANO FOI MOVIDO SEM AS MÁQUINAS. É uma escolha legítima -- serve
   // justamente para ver onde o feixe passa a bater -- mas quem lê as
   // coordenadas tem de saber que descrevem uma montagem desalinhada, senão
@@ -2767,7 +2868,7 @@ async function guardarRelatorio() {
     ["Sala", nnum(sala.largura) + " × " + nnum(sala.profundidade) + " m"],
     ["Pé-direito", nnum(sala.altura) + " m"]
   ];
-  if ($("verPalco") && $("verPalco").checked) {
+  if (palcoPrincipalNoProjeto() && $("verPalco") && $("verPalco").checked) {
     const palco = lerPalco();
     medidasSala.push(["Palco", nnum(palco.largura) + " × " + nnum(palco.profundidade) +
       " m, " + nnum(palco.altura) + " m de alto"]);
@@ -3198,8 +3299,13 @@ function contextoDeZonas(projetoAtual, medidas, sala, palco) {
     // `== null` de propósito, e não `||`: zero é resposta legítima (ecrã
     // pousado no chão) e tem de passar. Só "não sei" é que cai no palco, que
     // é o que os projetos anteriores a este campo esperam.
+    // E SEM PALCO NA SALA, o chão. Antes caía na altura de um palco que não
+    // está desenhado -- um ecrã a flutuar, que é o mesmo defeito que a altura
+    // ao chão já corrigiu uma vez (v3.94). Ver palcoPrincipalNaSala() e a
+    // cópia desta conta em fazerZonas() (cena.js): são DUAS, e têm de
+    // concordar.
     base: projetoAtual.alturaDoChao == null
-      ? palco.altura + palco.acimaDoPalco
+      ? (palco.naSala === false ? 0 : palco.altura + palco.acimaDoPalco)
       : projetoAtual.alturaDoChao,
     z0: -sala.profundidade / 2 + 0.35
   };
@@ -6919,6 +7025,9 @@ async function abrirProjetoTodo(estado) {
   // «Só a frente arredondada» (v3.94). Um projeto guardado antes disto não a
   // traz e fica desmarcada — que é como ele foi guardado.
   preencherCheckbox("palcoMeio", p.meio);
+  // O palco principal está na sala? Um projeto gravado antes deste campo não
+  // o traz, e fica LIGADO -- que é como ele foi gravado.
+  if ($("palcoPrincipal")) $("palcoPrincipal").checked = p.naSala !== false;
   // Onde o palco está. Um projeto guardado antes disto existir não traz nada
   // aqui, e preencherCampo ignora undefined -- fica no 0 de sempre, encostado
   // ao fundo, que é exactamente como ele foi guardado.
