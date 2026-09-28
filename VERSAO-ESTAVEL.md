@@ -1,16 +1,15 @@
 # Versão estável
 
-**Preview 3D v3.93** · commit `07872e7` · dada como estável a 27 de setembro de 2026.
+**Preview 3D v3.94** · commit `5d80ef8` · dada como estável a 28 de setembro de 2026.
 
 > *"publica e promove as duas"*.
 
-Par: **Calculadores v4.30** (`490a73d` no repositório `calculadores`). As duas
+Par: **Calculadores v4.31** (`69195ea` no repositório `calculadores`). As duas
 apps falam uma com a outra — dar uma como estável sem a outra não quer dizer
 nada, e por isso o par escreve-se aqui e é promovido ao mesmo tempo.
 
-Desta vez só o outro lado andou. O Preview está na mesma v3.93, e é promovido
-de novo por ser o par testado com os Calculadores v4.30 — não por ter mudado
-alguma coisa aqui.
+Desta vez andaram os dois, e um não funciona sem o outro: o campo da altura
+do ecrã ao chão é escrito nos Calculadores e lido aqui.
 
 ## O que "estável" quer dizer aqui
 
@@ -21,57 +20,70 @@ as verificações todas verdes no dia em que se escreveu isto.
 
 ## Medido no dia, neste commit
 
-**23 verificações verdes** em `scripts/`:
+**24 verificações verdes** em `scripts/`:
 
-`barra-de-vista` · `cena` · `contagem` · `copiar-pecas` ·
+`altura-e-formas` · `barra-de-vista` · `cena` · `contagem` · `copiar-pecas` ·
 `enquadrar-o-que-existe` · `excecoes-de-lugares` · `ficheiro-da-app` ·
 `fora-das-paredes` · `grupo-no-3d` · `grupos-guardados` · `instalar` ·
 `ir-buscar-versao` · `montar-aqui-mesmo` · `palco` · `planta-de-volta` ·
 `planta-dxf` · `planta-guardada` · `plateia` · `posicao-bidirecional` ·
 `posicao-real` · `relatorio-ecras` · `rodar-palco` · `sincronizacao`
 
-Três são novas desde a v3.90: `montar-aqui-mesmo`, `ir-buscar-versao` e
-`enquadrar-o-que-existe`. O `ir-buscar-versao` corre **com o service worker
+A nova desde a v3.93 é `altura-e-formas`, com 17 asserções. O `ir-buscar-versao` corre **com o service worker
 ligado**, ao contrário de todos os outros — ali ele é o assunto.
 
-Do outro lado, nos Calculadores v4.30, **22 verificações verdes**, a
+Do outro lado, nos Calculadores v4.31, **22 verificações verdes**, a
 verificação de tradução sem nada de novo por traduzir (dívida conhecida: 287
-trechos) e **41 testes verdes no Worker**. As vinte e três deste lado correram
+trechos) e **41 testes verdes no Worker**. As vinte e quatro deste lado correram
 no commit que esta página nomeia, não no ramo antes de fundir.
 
-## O que entrou desde a v3.90, que foi a estável anterior
+## O que entrou desde a v3.93, que foi a estável anterior
 
-- **o botão que diz montar, monta** (v3.91). «Montar um ecrã aqui mesmo»
-  levava ao Depósito, e o `+ Ecrã` de lá põe a peça **à espera**: a sala
-  continuava vazia e o cartão «A sala está vazia» continuava lá. Agora o ecrã
-  entra na sala. Pelo caminho, dois defeitos de **todos** os atalhos do
-  painel: o cabeçalho *sticky* tapava o destino (levar algo ao "topo do
-  painel" metia-o debaixo dele), e a rolagem suave acabava 147 px ao lado
-  porque o painel se reescreve por baixo dela;
-- **ir buscar a versão nova** (v3.92). Registar o service worker não chega: o
-  browser só vai ver o `sw.js` numa navegação, e uma app instalada que se
-  retoma do fundo não navega para lado nenhum — ficava dias na versão de
-  trás, sem um sinal. Agora a app pergunta pelo **número** e o número da
-  versão é um **botão**. Três defeitos por baixo, medidos: a pergunta «há
-  rede?» era respondida pelo cache (com a rede cortada o cache era apagado na
-  mesma), o `unregister()` ficava pendurado e a app nunca recarregava, e
-  faltava o `updateViaCache: "none"`;
-- **o 🏠 enquadra as peças, e não o chão** (v3.93). A caixa a enquadrar era à
-  volta de tudo o que está desenhado — e tudo inclui o chão e as paredes. Num
-  pavilhão de 120 m a caixa **é** a sala, e o botão levava a câmara para trás
-  de tudo. Medido: agora a câmara fica a 42,6 m das peças; antes, a mais de
-  150.
+Tudo v3.94: quatro correcções, dos reparos que ele fez numa manhã. Todas
+medidas antes e depois — nenhuma se resolveu a ler código.
+
+- **a altura do ecrã ao chão vem de quem a sabe.** *"Está a nascer assim
+  quando vem da calculadora, e nela não tenho onde dizer a que altura do chão
+  está o ecrã."* Os Calculadores passam a dizê-la (v4.31) e é ela que manda;
+  sem ela, a base do conjunto caía na altura do palco, 1 m por omissão, que
+  não era escolha de ninguém. Duas armadilhas pelo caminho, e as duas só se
+  viram **a medir**: o campo morria numa lista branca no `projeto.js`, e a
+  conta da altura existe em **dois sítios** (`contextoDeZonas` no app.js e
+  `fazerZonas` no cena.js) — corrigiu-se um, mediu-se, e o ecrã continuava a
+  1 m. O zero tem de passar: é o ecrã pousado no chão, não é «não sei»;
+
+- **o que vem dos Calculadores entra na sala.** Ia todo para o depósito e
+  ficava à espera, invisível — a sala aparecia vazia sem nada a dizer porquê.
+  Era o que ele via quando disse *"devia criar a superfície do ecrã também"*:
+  ela era criada, só que ficava à espera. Decisão dele, posta a três opções.
+  O que já lá está à espera continua lá;
+
+- **«Mostrar projeção» desliga a projeção toda.** *"Ao desligar apenas está a
+  apagar um projetor."* E era: a guarda vivia **dentro** do
+  `desenharProjecao()`, e a fila de extras — e o blend curvo — desenhavam-se
+  na mesma. Medido com uma fila de três: desligado ficavam 6 objectos na
+  cena; agora, zero. E ganha pastilha no topo, espelhada com a caixa do
+  painel;
+
+- **o palco principal sabe fazer só a frente redonda, e o círculo é um
+  círculo.** As duas metades tinham a mesma raiz, na mesma linha: o
+  `fazerPalco()` chamava o `geometriaDeTampo()` com quatro argumentos e
+  deixava o quinto — o `meio` — por dizer; só os palcos extra sabiam fazer
+  meia-lua. E os cantos eram Béziers **quadráticas**, que são parábolas e não
+  arcos: um palco de 16 m pedido em círculo saía com **8,49 m** do centro à
+  diagonal em vez de 8,00, **+6,1%**, quase meio metro. Passam a ser arcos de
+  elipse, como a meia-lua já fazia desde sempre. Erro medido depois: **0%**.
 
 ## Como se volta a este ponto
 
 ```
-git checkout 07872e7          # ver como estava
+git checkout 5d80ef8          # ver como estava
 git revert <commit>           # desfazer uma coisa só, sem perder o resto
 ```
 
-A tag `v3.93` **não** está no GitHub: as credenciais da sessão que escreveu
+A tag `v3.94` **não** está no GitHub: as credenciais da sessão que escreveu
 isto deixam empurrar ramos, não tags (HTTP 403). Se ela fizer falta, cria-se
-na página de *releases* do repositório, apontada a `07872e7`.
+na página de *releases* do repositório, apontada a `5d80ef8`.
 
 ## Quando isto deixa de valer
 
