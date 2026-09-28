@@ -10326,6 +10326,11 @@ function aplicarProjetores(lista) {
   // De que lado do pano estão as máquinas. Guardado à parte da curva porque um
   // ecrã PLANO em retro também existe e não tem curva nenhuma onde se pendurar.
   ajustes.retroDoBlend = lista.retro === true;
+  // OS OUTROS ECRÃS DO MESMO PROJETO, quando a carga os traz (v4.02).
+  // Só quando os traz: ver lerProjetores() sobre a chave ausente.
+  if (lista.temExtras) {
+    ajustes.projecoesExtra = lista.extras.map((e) => ({ ...e }));
+  }
   if (lista.curva) {
     ajustes.projetoresExtra = lista.map((p) => ({
       racio: p.racio, distancia: p.distancia,
