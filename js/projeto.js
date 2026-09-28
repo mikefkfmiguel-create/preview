@@ -598,6 +598,18 @@ export function lerProjetores(d) {
   // porque um ecrã PLANO não tem curva nenhuma e a retroprojeção não é
   // privilégio dos curvos. Uma carga antiga não traz o campo: frontal.
   lista.retro = d.retro === true || (d.curva && d.curva.retro === true);
+  // A ALTURA DA LENTE E O SHIFT, para o ecrã PLANO (v3.95).
+  //
+  // O curvo já os trazia dentro do `curva` desde a v3.43. O plano não trazia
+  // nada, e nascia com os valores por omissão deste lado -- lente a 4,5 m e
+  // shift -25% -- enquanto os Calculadores diziam, na aba ao lado, que eram
+  // precisos outros. Com uma imagem alta isso punha a base da imagem abaixo
+  // do chão, que foi o que ele viu.
+  //
+  // Como no curvo, `alturaLente` vem medida da BASE DO ECRÃ: onde o pano
+  // está pendurado é coisa deste lado, e continua a ser.
+  lista.alturaLente = numero(d.alturaLente, NaN);
+  lista.shiftV = numero(d.shiftV, NaN);
   return lista;
 }
 
