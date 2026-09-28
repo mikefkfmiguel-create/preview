@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v3.99</i></span>
+        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v4.00</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -459,6 +459,17 @@
          consequência da ponte: se do outro lado viesse um blend sem curva, ela
          desaparecia e não havia daqui maneira nenhuma de a trazer de volta.
          Agora a última fica guardada, e este aviso é a porta para ela. -->
+    <!-- VÁRIAS PROJEÇÕES NO MESMO PROJETO.
+         Pedido dele: *"preciso poder adicionar mais ecrãs de projeção e
+         projetores neste projeto"*. Até aqui havia um pano e uma fila, e a
+         carga seguinte substituía a anterior. Agora guarda-se a que está
+         montada, os campos ficam livres para a seguinte, e as duas desenham-se
+         lado a lado. Ver desenharUmaProjecao() em js/app.js. -->
+    <div style="margin-top:10px">
+      <button id="btGuardarProjecao" class="secundario">+ Guardar esta projeção e começar outra</button>
+      <div class="hint" style="margin-top:4px">Fica no 3D como peça própria — arrasta-se e agrupa-se. Os campos ficam livres para o ecrã seguinte.</div>
+    </div>
+    <div id="listaProjecoesExtra" style="margin-top:10px"></div>
     <p id="avisoCurvaPerdida" class="vazio" style="margin:8px 0 0" hidden></p>
     <button id="btReporCurva" class="secundario" style="margin-top:6px" hidden>Repor o ecrã curvo</button>
     <div id="listaProjetoresExtra" style="margin-top:10px"></div>

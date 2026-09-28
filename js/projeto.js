@@ -506,6 +506,11 @@ export function ajustesGuardados() {
       // a pediu: uma carga que nunca foi aplicada continua a esperar por um
       // botão. Isto é devolver o que ele próprio já tinha montado.
       projecao: (dados && typeof dados.projecao === "object" && dados.projecao) || null,
+      // AS PROJEÇÕES GUARDADAS AO LADO DA QUE SE EDITA. Pedido dele:
+      // *"preciso poder adicionar mais ecrãs de projeção e projetores neste
+      // projeto"*. Cada entrada é uma projeção inteira -- tela, máquinas,
+      // posição -- com a mesma forma da viva (ver dadosDaProjecaoViva()).
+      projecoesExtra: (dados && Array.isArray(dados.projecoesExtra)) ? dados.projecoesExtra : [],
       curvaAnterior: (dados && typeof dados.curvaAnterior === "object" && dados.curvaAnterior) || null,
       // E a fila que lhe pertencia: num curvo estão lá todas as máquinas, num
       // plano só as que vêm a seguir à primeira. Repor uma com a fila da
@@ -517,7 +522,7 @@ export function ajustesGuardados() {
       retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, retroDoBlend: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, projecoesExtra: [], curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, retroDoBlend: false };
   }
 }
 
