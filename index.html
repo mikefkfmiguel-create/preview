@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v3.97</i></span>
+        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v3.98</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -794,7 +794,17 @@
         // perguntar nada a ninguém. Isto pergunta ao abrir, e outra vez
         // sempre que a app volta à frente. Não custa quando não há nada de
         // novo: o servidor responde que o ficheiro não mudou.
-        const perguntar = () => { try { registo.update(); } catch (_) {} };
+        //
+        // O `update()` devolve uma PROMESSA, e o try/catch não apanha uma
+        // recusa. Reportado do lado dos Calculadores, com a hora: *"Failed to
+        // update a ServiceWorker ... Not found"* -- o GitHub Pages a meio de
+        // uma publicação, uns segundos sem sw.js. Não é avaria: pergunta-se
+        // outra vez a seguir. Engole-se aqui para não ir dar ao apanhador de
+        // erros como se fosse defeito da app.
+        const perguntar = () => {
+          try { const r = registo.update(); if (r && r.catch) r.catch(() => {}); }
+          catch (_) {}
+        };
         perguntar();
         addEventListener("visibilitychange", () => { if (!document.hidden) perguntar(); });
         addEventListener("focus", perguntar);

@@ -372,6 +372,23 @@ conferir(perto(pano.depois.p0.x - pano.soPano.p0.x, 2, 0.05) &&
          perto(pano.depois.p0.z - pano.soPano.p0.z, 3, 0.05),
   "e as máquinas o mesmo — uma vez cada, não duas");
 
+// E A IMAGEM NÃO MUDA DE TAMANHO. Reparo dele com o conjunto já agrupado:
+// *"mantém-se o problema assim que movo o conjunto"*. Mantinha-se, de outra
+// maneira: medido, mover o grupo 4 m para dentro da sala engordava a imagem
+// de 11,99 m para 13,12 m (+9,4%). O tamanho saía do CAMPO da distância, que
+// está ancorado à parede do fundo -- mover o grupo soma o mesmo número ao
+// campo e ao pano, o tiro real não muda um centímetro, e a imagem crescia
+// com o número. Passa a sair do tiro que está desenhado.
+conferir(perto(pano.depois.pano.largura, pano.soPano.pano.largura, 0.02),
+  "mover o grupo NÃO muda o tamanho da imagem (" +
+  pano.soPano.pano.largura + " m → " + pano.depois.pano.largura + " m)");
+
+// O outro lado da mesma conta, e é o que prova que não se fixou o tamanho à
+// força: chegar o pano SOZINHO às máquinas encolhe a imagem, como na sala.
+conferir(pano.soPano.pano.largura < pano.antes.pano.largura - 1,
+  "mas mover o pano SOZINHO encolhe-a, que é o que um tiro mais curto faz (" +
+  pano.antes.pano.largura + " m → " + pano.soPano.pano.largura + " m)");
+
 // E PARA TRÁS TAMBÉM. Reparo dele, com uma foto do grupo já feito: recuar o
 // conjunto movia as máquinas e deixava o pano parado. O campo guardava o
 // número negativo e um `Math.max(0, ...)` no desenho deitava-o fora -- um
@@ -381,16 +398,28 @@ const recuo = await pagina.evaluate(async () => {
   const z = (nome) => { const o = w.desenhado.getObjectByName(nome); if (!o) return null;
     const bb = new THREE.Box3().setFromObject(o);
     return bb.isEmpty() ? null : +(((bb.min.z + bb.max.z) / 2)).toFixed(2); };
-  const antes = { pano: z("ecra-plano"), p0: z("projetor-0") };
+  const larg = () => { const o = w.desenhado.getObjectByName("ecra-plano"); if (!o) return null;
+    const bb = new THREE.Box3().setFromObject(o);
+    return bb.isEmpty() ? null : +((bb.max.x - bb.min.x)).toFixed(2); };
+  const antes = { pano: z("ecra-plano"), p0: z("projetor-0"), largura: larg() };
   w.moverGrupo(0, 0, -2.84);
   await new Promise((r) => setTimeout(r, 1200));
-  return { antes, depois: { pano: z("ecra-plano"), p0: z("projetor-0") },
+  return { antes, depois: { pano: z("ecra-plano"), p0: z("projetor-0"), largura: larg() },
+           resumo: document.getElementById("resumoProj").textContent,
            campo: document.getElementById("projDz").value };
 });
 conferir(perto(recuo.depois.pano - recuo.antes.pano, -2.84, 0.05),
   "recuar o grupo leva o PANO para trás (" + (recuo.depois.pano - recuo.antes.pano).toFixed(2) + " m)");
 conferir(perto(recuo.depois.p0 - recuo.antes.p0, -2.84, 0.05),
   "e as máquinas o mesmo — não se separam quando o número é negativo");
+conferir(perto(recuo.depois.largura, recuo.antes.largura, 0.02),
+  "e para trás a imagem também mantém o tamanho (" + recuo.depois.largura + " m)");
+
+// O CAMPO DA DISTÂNCIA CONTA DA PAREDE, o tiro conta do pano. Com o pano
+// fora da parede os dois números afastam-se, e o painel tem de dizer qual é
+// qual: 22 m escritos com uma imagem de 18 m era a app a saber e a não dizer.
+conferir(/tiro real/.test(recuo.resumo),
+  "o painel diz o TIRO REAL quando o pano já não está na parede");
 
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
