@@ -486,13 +486,38 @@ export function ajustesGuardados() {
       // carga: quem reabre a app amanhã tem de voltar a ver o ecrã curvo sem
       // ir outra vez aos Calculadores.
       curvaDoBlend: (dados && typeof dados.curvaDoBlend === "object" && dados.curvaDoBlend) || null,
+      // A CURVA QUE SE PERDEU, guardada para poder ser reposta daqui -- e
+      // guardada NO PROJETO, porque a queixa dele é de um dia para o outro:
+      // *"não consigo voltar a pô-lo se não apagar no projeto"*. Se só
+      // vivesse em memória, fechar a janela tirava-lhe a única volta atrás.
+      // (E esta é a LISTA BRANCA: o que não vier aqui é deitado fora em
+      // silêncio, como já aconteceu uma vez com a altura do ecrã.)
+      // A PROJEÇÃO DESTE PROJETO -- o interruptor e os números dos campos.
+      //
+      // Reparo dele: *"o guardar projeto não está a guardar projetores"*, e
+      // era literalmente isso. As máquinas do blend sempre ficaram guardadas
+      // aqui (`projetoresExtra`), mas o INTERRUPTOR e o rácio/distância viviam
+      // só nos campos do ecrã, e um recarregamento punha-os na omissão da app
+      // -- projeção desligada, rácio 1.4, 12 m. Medido: três imagens e a tela
+      // antes de recarregar, ZERO depois, com as três máquinas ainda cá
+      // dentro. É por isso que ele viu o ecrã desaparecer.
+      //
+      // Não contradiz a decisão de não ligar a projeção sozinha a quem nunca
+      // a pediu: uma carga que nunca foi aplicada continua a esperar por um
+      // botão. Isto é devolver o que ele próprio já tinha montado.
+      projecao: (dados && typeof dados.projecao === "object" && dados.projecao) || null,
+      curvaAnterior: (dados && typeof dados.curvaAnterior === "object" && dados.curvaAnterior) || null,
+      // E a fila que lhe pertencia: num curvo estão lá todas as máquinas, num
+      // plano só as que vêm a seguir à primeira. Repor uma com a fila da
+      // outra deixava uma máquina por desenhar.
+      projetoresAnteriores: (dados && Array.isArray(dados.projetoresAnteriores)) ? dados.projetoresAnteriores : null,
       // Frontal ou retro. Do projeto, pela mesma razão que a curva: quem reabre
       // amanhã tem de voltar a ver as máquinas do lado certo do pano sem ir
       // outra vez aos Calculadores. Um projeto antigo não traz isto: frontal.
       retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, curvaDoBlend: null, retroDoBlend: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, retroDoBlend: false };
   }
 }
 
