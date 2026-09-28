@@ -372,6 +372,26 @@ conferir(perto(pano.depois.p0.x - pano.soPano.p0.x, 2, 0.05) &&
          perto(pano.depois.p0.z - pano.soPano.p0.z, 3, 0.05),
   "e as máquinas o mesmo — uma vez cada, não duas");
 
+// E PARA TRÁS TAMBÉM. Reparo dele, com uma foto do grupo já feito: recuar o
+// conjunto movia as máquinas e deixava o pano parado. O campo guardava o
+// número negativo e um `Math.max(0, ...)` no desenho deitava-o fora -- um
+// campo que aceita um número e o ignora é pior do que um que não o aceita.
+const recuo = await pagina.evaluate(async () => {
+  const w = window.preview, THREE = w.THREE;
+  const z = (nome) => { const o = w.desenhado.getObjectByName(nome); if (!o) return null;
+    const bb = new THREE.Box3().setFromObject(o);
+    return bb.isEmpty() ? null : +(((bb.min.z + bb.max.z) / 2)).toFixed(2); };
+  const antes = { pano: z("ecra-plano"), p0: z("projetor-0") };
+  w.moverGrupo(0, 0, -2.84);
+  await new Promise((r) => setTimeout(r, 1200));
+  return { antes, depois: { pano: z("ecra-plano"), p0: z("projetor-0") },
+           campo: document.getElementById("projDz").value };
+});
+conferir(perto(recuo.depois.pano - recuo.antes.pano, -2.84, 0.05),
+  "recuar o grupo leva o PANO para trás (" + (recuo.depois.pano - recuo.antes.pano).toFixed(2) + " m)");
+conferir(perto(recuo.depois.p0 - recuo.antes.p0, -2.84, 0.05),
+  "e as máquinas o mesmo — não se separam quando o número é negativo");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
