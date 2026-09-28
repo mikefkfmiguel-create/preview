@@ -12,7 +12,7 @@ import { fazerCena, fazerSala, fazerPalco, frenteDoPalco, fazerPalcoExtra, fazer
          padraoDeTeste, texturaDaMarca, dataURLDeFicheiro, conteudoDeFicheiro, conteudoDeDataURL, fazerProjecao, pontosDaImagem,
          fazerPlanta, fazerPlantaCad, fazerRegie, fazerDSM, fazerConeCobertura, fazerDome,
          fazerCascaDeProjecao, pintarQuemTapa, medidasDaCupula,
-         medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo,
+         medidasDaCurva, fazerProjecaoCurva, fazerEcraCurvo, fazerEcraPlano,
          quemTapaOFeixe, marcarQuemTapa, mostrarFatiasDaCupula,
          marcaDaLente, marcaNoEcra, corDoProjetor } from "./cena.js";
 import { lerDXF, metrosPorUnidade } from "./dxf.js";
@@ -142,6 +142,13 @@ let ondeEstaNaDome = null;
 // A ficha de montagem dos projetores de ecrã plano (o da projeção e os do
 // blend), enchida por quem os desenha -- ver escreverCoordenadas().
 let montagemProjetores = [];
+/**
+ * Os RECTÂNGULOS das imagens do ecrã plano, recolhidos onde são calculados.
+ * É a soma deles que dá o tamanho do pano -- um pano faz-se à medida do que
+ * ali vai ser projetado, que é como se compra um. A ficha de montagem não
+ * serve para isto: ela guarda o centro da imagem, não o tamanho dela.
+ */
+let imagensDoPlano = [];
 // Quando a distância escrita não cabe dentro do raio da curva, guarda-se aqui
 // o valor a que foi limitada -- para a nota das coordenadas o poder dizer, em
 // vez de o desenho mudar calado (ver desenharBlendCurvo()).
@@ -249,6 +256,55 @@ function lerPalco() {
            // medidos à SALA -- decisão dele, e está escrita no campo.
            rot: num("palcoRot") };
 }
+/**
+ * ONDE ESTÁ O PANO DA PROJEÇÃO PLANA, em Z (v3.96).
+ *
+ * Pedido dele: *"e se precisar andar com o ecrã para o meio da sala"*. Não
+ * havia como. O ecrã CURVO tem os seus ↔/Fundo/Base; o plano nascia pregado à
+ * parede do fundo -- e essa conta estava escrita à mão em QUATRO sítios (o
+ * desenho da projeção, a fila de extras, e os dois alvos de arrasto).
+ *
+ * Numa função só, de propósito: hoje já me bateu duas vezes a mesma coisa --
+ * a altura do ecrã, que vivia em dois sítios e só um foi corrigido. Quatro
+ * cópias desta seriam quatro sítios para discordarem sobre onde está o pano.
+ *
+ * As máquinas vão atrás por construção: ficam a `projDist` DESTE plano, e essa
+ * distância não muda. Mover o pano sem levar os projetores era mudar o tiro
+ * por baixo, e com ele o tamanho da imagem.
+ */
+function zDoPanoPlano(sala) {
+  return -sala.profundidade / 2 + 0.35 + Math.max(0, num("projDz") || 0);
+}
+
+/**
+ * ONDE AS MÁQUINAS FORAM MONTADAS, em Z — a posição de origem, sempre.
+ *
+ * NÃO acompanha o pano, e isso é de propósito. À primeira fi-lo acompanhar,
+ * com um interruptor "levar os projetores com o pano" copiado do ecrã curvo.
+ * Medido: com o pano e os projetores marcados no MESMO grupo, tudo se movia a
+ * DOBRAR -- o grupo movia cada peça uma vez, e o pano arrastava as máquinas
+ * outra. O pano andou +4 m onde se lhe pediu +2.
+ *
+ * A causa era ter dois mecanismos para a mesma coisa. Ficou um: o pano tem
+ * posição própria, as máquinas têm a delas, e quem as quer mover juntas
+ * AGRUPA-AS. Foi o que ele pediu -- *"de forma a que possa agrupar com os
+ * projetores"* -- e é como todas as outras peças desta app funcionam.
+ */
+function zDasMaquinasPlanas(sala) {
+  return -sala.profundidade / 2 + 0.35;
+}
+
+/**
+ * Onde o pano está no eixo ↔. 0 = centrado na largura da sala.
+ *
+ * É a posição DELE, e não a das imagens: se fosse somada ao centro das
+ * imagens, mover os projetores mexia no pano sem ninguém lho pedir -- e num
+ * grupo com os dois, a dobrar.
+ */
+function xDoPanoPlano() {
+  return num("projPanoX") || 0;
+}
+
 let formatoImagem = 1.777;
 
 function lerProjecao() {
@@ -914,6 +970,7 @@ function desenharCena(recentrarCamara) {
   // desenhados, aqui a seguir -- por isso as coordenadas só se escrevem
   // depois da projeção e dos extras do blend.
   montagemProjetores = [];
+  imagensDoPlano = [];
   // Um ecrã CURVO é outro desenho, não uma variação deste: a superfície é um
   // cilindro, as máquinas ficam num arco e o alvo de cada uma é radial. Os
   // dois caminhos são exclusivos -- num ecrã curvo todas as máquinas do blend
@@ -949,7 +1006,10 @@ function desenharCena(recentrarCamara) {
   // vêm do array. O shift é a excepção: esse é o do campo, igual para toda a
   // fila (ver a seguir). Só visuais: sem sombra nem cobertura calculadas para
   // eles (ver PARA-CONTINUAR.md).
-  const z0Proj = -sala.profundidade / 2 + 0.35;
+  // Dois planos, como no principal: o pano onde está agora, e as máquinas
+  // onde foram montadas. Iguais com o interruptor ligado.
+  const z0Proj = zDoPanoPlano(sala);
+  const zMaquinasProj = zDasMaquinasPlanas(sala);
   // O shift é o do CAMPO, igual para todos -- decisão do mike ("deve ser de
   // igual sim"). Numa fila de blend são máquinas iguais montadas da mesma
   // maneira, e não há campo de shift por extra: enquanto cada um guardava o
@@ -977,7 +1037,7 @@ function desenharCena(recentrarCamara) {
     // outro lado. O pano está em z0Proj e a plateia em z maior.
     const projetorExtra = {
       x: pe.lateral || 0, y: alturaExtraMaquina,
-      z: ajustes.retroDoBlend ? z0Proj - pe.distancia : z0Proj + pe.distancia
+      z: ajustes.retroDoBlend ? zMaquinasProj - pe.distancia : zMaquinasProj + pe.distancia
     };
     const imagemExtra = {
       x: projetorExtra.x + fila.shiftH * larguraExtra,
@@ -987,9 +1047,36 @@ function desenharCena(recentrarCamara) {
     const grupoPlano = fazerProjecao(projetorExtra, imagemExtra, textura, "projetor-" + (i + 1));
     if (grupoPlano.userData.feixe) feixesDoBlend.push(grupoPlano.userData.feixe);
     desenhado.add(grupoPlano);
+    imagensDoPlano.push({ x: imagemExtra.x, y: imagemExtra.y,
+                          largura: larguraExtra, altura: alturaExtra });
     montagemProjetores.push(fichaDeProjetor("P" + (i + 2), projetorExtra, z0Proj,
       fila.shiftH, fila.shiftV, larguraExtra, alturaExtra));
   });
+
+  // O PANO, depois de todas as imagens (v3.96). É a soma delas que lhe dá o
+  // tamanho: o pano é feito à medida do que ali vai ser projetado, que é como
+  // se compra um. Desenhado por último para o cinzento dele ficar por baixo da
+  // luz, e nomeado `ecra-plano` para ser uma PEÇA -- seleccionável,
+  // arrastável e agrupável com os projetores. Ver objetosArrastaveis().
+  if (imagensDoPlano.length) {
+    const xs = [], ys = [];
+    imagensDoPlano.forEach((r) => {
+      if (!(r.largura > 0) || !(r.altura > 0)) return;
+      xs.push(r.x - r.largura / 2, r.x + r.largura / 2);
+      ys.push(r.y - r.altura / 2, r.y + r.altura / 2);
+    });
+    if (xs.length) {
+      const larguraPano = Math.max(...xs) - Math.min(...xs);
+      const alturaPano = Math.max(...ys) - Math.min(...ys);
+      // A LARGURA vem das imagens (um pano compra-se à medida do que ali vai
+      // ser projetado); a POSIÇÃO é dele. Na vertical ainda acompanha as
+      // imagens -- não há campo de altura do pano, e subir/descer o pano não
+      // é o que ele pediu.
+      const pano = fazerEcraPlano(larguraPano, alturaPano,
+        xDoPanoPlano(), (Math.max(...ys) + Math.min(...ys)) / 2, z0Proj);
+      if (pano) desenhado.add(pano);
+    }
+  }
   }
   escreverCoordenadas();
 
@@ -1338,6 +1425,10 @@ function curvaAtivaDoBlend() {
  * mais pequeno do que o da superfície, e cada máquina a olhar para fora.
  */
 function desenharBlendCurvo(sala, curva) {
+  // A PAREDE DO FUNDO, crua -- e não o zDoPanoPlano(). Um ecrã curvo tem os
+  // seus próprios ↔/Fundo/Base (curvaDx/curvaDz/curvaBase), aplicados já a
+  // seguir: somar-lhe também o "pano para dentro" do ecrã plano era mover o
+  // mesmo pano duas vezes, com dois campos a disputá-lo.
   const z0 = -sala.profundidade / 2 + 0.35;
   const m = medidasDaCurva(curva, z0, num("curvaDx"), num("curvaDz"));
   if (!m) return;
@@ -1592,12 +1683,16 @@ function desenharProjecao(sala, palco) {
 
   const largura = p.distancia / p.racio;
   const altura = largura / formatoImagem;
-  const z0 = -sala.profundidade / 2 + 0.35;
+  const z0 = zDoPanoPlano(sala);
 
   // Onde a imagem cai nao se escreve: sai da lente e do shift dela. Era isto
   // que faltava -- com a base escrita a mao, o desenho mostrava imagens que
   // nenhuma lente conseguia por ali.
-  const projetor = { x: p.lateral, y: p.altura, z: z0 + p.distancia };
+  // A MÁQUINA no plano em que foi montada; a IMAGEM no plano do pano. Com o
+  // interruptor ligado são o mesmo plano e nada muda; desligado, é aqui que
+  // as duas se separam.
+  const zMaquinas = zDasMaquinasPlanas(sala);
+  const projetor = { x: p.lateral, y: p.altura, z: zMaquinas + p.distancia };
   const imagem = {
     x: projetor.x + p.shiftH * largura,
     y: projetor.y + p.shiftV * altura,
@@ -1605,6 +1700,7 @@ function desenharProjecao(sala, palco) {
   };
 
   desenhado.add(fazerProjecao(projetor, imagem, textura));
+  imagensDoPlano.push({ x: imagem.x, y: imagem.y, largura, altura });
   montagemProjetores.push(fichaDeProjetor("P1", projetor, z0, p.shiftH, p.shiftV, largura, altura));
   projecaoAtual = {
     projetor, imagem,
@@ -8557,7 +8653,8 @@ function ajusteSobreCampos(mapa) {
 // z0 recalcula-se aqui outra vez, tal como publicoAtual já é recalculado
 // em objetosArrastaveis() a cada arrastar -- não vale a pena guardá-lo.
 function alvoDeCamposProjetor(sala) {
-  const z0 = -sala.profundidade / 2 + 0.35;
+  // Arrasta-se a MÁQUINA: o plano dela, não o do pano.
+  const z0 = zDasMaquinasPlanas(sala);
   return {
     getXZ: () => ({ x: parseFloat($("projLateral").value) || 0, z: z0 + (parseFloat($("projDist").value) || 0) }),
     setXZ: (x, z) => {
@@ -8573,7 +8670,8 @@ function alvoDeCamposProjetor(sala) {
 // lateral/distancia directamente no ajuste, em vez de nos campos
 // #projLateral/#projDist (que só existem para a instância #0).
 function alvoDeProjetorExtra(sala, ajuste) {
-  const z0 = -sala.profundidade / 2 + 0.35;
+  // Arrasta-se a MÁQUINA: o plano dela, não o do pano.
+  const z0 = zDasMaquinasPlanas(sala);
   return {
     getXZ: () => ({ x: Number(ajuste.lateral) || 0, z: z0 + (Number(ajuste.distancia) || 0) }),
     setXZ: (x, z) => {
@@ -8658,6 +8756,26 @@ function alvoDoEcraCurvo() {
   };
 }
 
+/**
+ * O PANO PLANO como peça (v3.96). Pedido dele: *"e se precisar andar com o
+ * ecrã para o meio da sala, de forma a que possa agrupar com os projetores"*.
+ *
+ * Mesmo desenho do ecrã curvo, que já respondia a esta pergunta: a peça
+ * escreve nos campos que a posicionam, e quem decide se as máquinas vão atrás
+ * é o interruptor "Levar os projetores com o pano".
+ */
+function alvoDoEcraPlano() {
+  return {
+    ...alvoDeCampos("projPanoX", "projDz"),
+    ajuste: ajusteSobreCampos({ dx: "projPanoX", dz: "projDz" })
+  };
+}
+
+const CAMPOS_ECRA_PLANO = [
+  { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.25" },
+  { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.25" }
+];
+
 const CAMPOS_ECRA_CURVO = [
   { rotulo: "↔", chave: "dx", unidade: "m", passo: "0.25" },
   { rotulo: "↕", chave: "dz", unidade: "m", passo: "0.25" },
@@ -8681,6 +8799,8 @@ function objetosArrastaveis() {
       if (aj) alvos.push({ obj: o, rotulo: "DSM " + o.name.slice(4), campos: CAMPOS_POSICAO, ...alvoDeAjuste(aj) });
     } else if (o.name === "ecra-curvo") {
       alvos.push({ obj: o, rotulo: "Ecrã curvo", campos: CAMPOS_ECRA_CURVO, ...alvoDoEcraCurvo() });
+    } else if (o.name === "ecra-plano") {
+      alvos.push({ obj: o, rotulo: "Pano", campos: CAMPOS_ECRA_PLANO, ...alvoDoEcraPlano() });
     } else if (o.name === "palco" && o.isMesh) {
       // Só a malha: fazerPalco() devolve um grupo com o MESMO nome lá dentro,
       // e sem isto o palco entrava duas vezes na lista de agarráveis.

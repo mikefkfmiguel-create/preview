@@ -321,6 +321,57 @@ conferir(Number(blend.lateral) === -3.47,
 conferir(blend.n === 3 && blend.maisBaixo >= -0.05,
   "e nada fica abaixo do chão (ponto mais baixo: " + blend.maisBaixo + " m)");
 
+console.log("\n== o pano plano é uma peça, e agrupa-se ==");
+// Pedido dele: *"e se precisar andar com o ecrã para o meio da sala, de forma
+// a que possa agrupar com os projetores"*. Não havia como: o pano plano nem
+// sequer existia como objeto -- só se viam as imagens a aterrar --, e a
+// distância à parede do fundo estava escrita à mão em quatro sítios.
+const pano = await pagina.evaluate(async () => {
+  const w = window.preview, THREE = w.THREE;
+  const onde = (nome) => {
+    const o = w.desenhado.getObjectByName(nome);
+    if (!o) return null;
+    const bb = new THREE.Box3().setFromObject(o);
+    return bb.isEmpty() ? null
+      : { x: +(((bb.min.x + bb.max.x) / 2)).toFixed(2), z: +(((bb.min.z + bb.max.z) / 2)).toFixed(2),
+          largura: +((bb.max.x - bb.min.x)).toFixed(2) };
+  };
+  const antes = { pano: onde("ecra-plano"), p0: onde("projetor-0") };
+  const rotulos = w.objetosArrastaveis().map((a) => a.rotulo);
+  // Mover o pano SOZINHO: as máquinas ficam, e vê-se o feixe a bater ao lado.
+  const campo = document.getElementById("projDz");
+  campo.value = "6"; campo.dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1000));
+  const soPano = { pano: onde("ecra-plano"), p0: onde("projetor-0") };
+  // E AGORA EM GRUPO: pano e máquinas marcados juntos.
+  w.selecaoDeGrupo.clear();
+  ["ecra-plano", "projetor-0", "projetor-1", "projetor-2"].forEach((n) => w.selecaoDeGrupo.add(n));
+  const nGrupo = w.alvosSelecionados().length;
+  w.moverGrupo(2, 0, 3);
+  await new Promise((r) => setTimeout(r, 1200));
+  return { antes, soPano, nGrupo, depois: { pano: onde("ecra-plano"), p0: onde("projetor-0") }, rotulos };
+});
+conferir(!!pano.antes.pano, "o pano plano existe na cena como objeto próprio");
+conferir(pano.antes.pano && perto(pano.antes.pano.largura, 12, 0.1),
+  "e tem a largura das imagens somadas (" + (pano.antes.pano || {}).largura + " m para três de 5,05)");
+conferir(pano.rotulos.includes("Pano"), "é uma peça agarrável, como o ecrã curvo");
+
+// Sozinho, o pano anda e as máquinas ficam -- é aí que se vê o feixe ao lado.
+conferir(perto(pano.soPano.pano.z - pano.antes.pano.z, 6, 0.1),
+  "mover só o pano leva-o para dentro da sala (+6 m)");
+conferir(perto(pano.soPano.p0.z, pano.antes.p0.z, 0.05),
+  "e as máquinas ficam onde estavam — o pano vai sozinho");
+
+// EM GRUPO: cada peça anda UMA vez. À primeira andavam a dobrar, porque havia
+// um interruptor a arrastar as máquinas e o grupo a arrastá-las outra vez.
+conferir(pano.nGrupo === 4, "pano e três máquinas entram no mesmo grupo (" + pano.nGrupo + ")");
+conferir(perto(pano.depois.pano.x - pano.soPano.pano.x, 2, 0.05) &&
+         perto(pano.depois.pano.z - pano.soPano.pano.z, 3, 0.05),
+  "o grupo move o pano exactamente o que se pediu (+2 x, +3 z), e não a dobrar");
+conferir(perto(pano.depois.p0.x - pano.soPano.p0.x, 2, 0.05) &&
+         perto(pano.depois.p0.z - pano.soPano.p0.z, 3, 0.05),
+  "e as máquinas o mesmo — uma vez cada, não duas");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
