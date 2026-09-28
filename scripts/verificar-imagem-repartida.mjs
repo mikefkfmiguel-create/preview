@@ -177,6 +177,48 @@ conferir(curvo[2] && perto(curvo[2].ate, 1, 0.01),
 conferir(curvo[0] && curvo[1] && curvo[0].ate > curvo[1].de,
   "com as juntas sobrepostas, como no plano");
 
+console.log("\n== e a app diz quando a fila se abre ==");
+
+// Reparo dele, com uma foto de três imagens pequenas e separadas: *"algo não
+// está bem"*. Reproduzido e medido: estava tudo CERTO menos o silêncio.
+//
+// O pano fora da parede encurta o tiro, as imagens encolhem com ele (v3.98, e
+// é o que acontece na sala) e as máquinas ficam à distância umas das outras a
+// que foram calculadas. Resultado: banda preta entre elas.
+//
+//   pano na parede → imagens de 5,06 m, sobrepostas 1,66 m (é o blend)
+//   pano 6 m para dentro → 3,37 m, a tocarem-se à justa
+//   pano 9 m para dentro → 2,52 m, com 0,88 m de preto no meio
+await montarCom(PLANO);
+const juntas = await pagina.evaluate(() =>
+  ((document.getElementById("coordsNota") || {}).textContent || ""));
+conferir(!/fila abriu-se/.test(juntas),
+  "com o pano na parede a fila está fechada, e a app não inventa aviso nenhum");
+
+const aberta = await pagina.evaluate(async () => {
+  const e = document.getElementById("projDz");
+  e.value = "9";
+  e.dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1500));
+  const w = window.preview, THREE = w.THREE;
+  const xs = [];
+  w.desenhado.traverse((o) => {
+    if (o.isMesh && /projecao-imagem/.test(o.name || "")) {
+      const b = new THREE.Box3().setFromObject(o);
+      if (!b.isEmpty()) xs.push({ x0: b.min.x, x1: b.max.x });
+    }
+  });
+  xs.sort((a, b) => a.x0 - b.x0);
+  const folga = xs.length > 1 ? +(xs[1].x0 - xs[0].x1).toFixed(2) : null;
+  return { folga, nota: (document.getElementById("coordsNota") || {}).textContent || "" };
+});
+conferir(aberta.folga > 0.5,
+  "com o pano 9 m para dentro as imagens deixam mesmo de se tocar (" + aberta.folga + " m)");
+conferir(/fila abriu-se/.test(aberta.nota),
+  "E A APP DI-LO — era só isto que faltava: o desenho estava certo, o silêncio é que não");
+conferir(/tiro/.test(aberta.nota) && /pano/.test(aberta.nota),
+  "com o porquê ao lado: o tiro que ficou, e o pano que o encurtou");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();

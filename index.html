@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v4.03</i></span>
+        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v4.04</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -245,6 +245,14 @@
         <p>Num palco extra, numa passarela solta ou numa régie extra, <b>altura</b> é a espessura da peça e <b>subir</b> é a que altura ela assenta — é assim que se fazem degraus: três palcos iguais a subir 0, 0,4 e 0,8. E <b>lado</b> e <b>fundo</b> são a posição na sala, não um deslocamento: o mesmo número que a folha de montagem mostra.</p>
       </div>
     </details>
+    <!-- O PALCO PRINCIPAL, QUE SE PODE TIRAR.
+         Reparo dele: *"temos de ter como desligar o palco de origem ou
+         retirá-lo de vez, pois é o único que nasce sempre no fundo da sala"*.
+         A pastilha "Palco" da barra apaga o conjunto TODO — o principal, a
+         passarela e os palcos extra —, por isso quem queria só os extra não
+         tinha maneira nenhuma de se livrar deste. Isto é dele sozinho, e é do
+         PROJETO (viaja no ficheiro), não da vista. -->
+    <label class="opcao" style="margin-bottom:8px" title="Tira o palco principal da sala e deixa os palcos extra, a passarela e tudo o resto onde estão. As medidas ficam escritas, para o voltares a ligar sem as reescrever."><input id="palcoPrincipal" type="checkbox" checked> Palco principal na sala</label>
     <div class="campos">
       <label>Largura <input id="palcoL" type="number" value="16" min="1" max="200" step="0.5"><i>m</i></label>
       <label>Altura <input id="palcoA" type="number" value="1" min="0" max="10" step="0.1"><i>m</i></label>

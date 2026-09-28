@@ -71,6 +71,21 @@ const browser = await chromium.launch({
 });
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 }, serviceWorkers: "block" });
 
+/** O que está na sala, do lado do palco. */
+const estadoDoPalco = () => pagina.evaluate(() => {
+  const w = window.preview, THREE = w.THREE;
+  const zona = w.desenhado.getObjectByName("zona Ecrã");
+  let baseDaZona = null;
+  if (zona) {
+    const b = new THREE.Box3().setFromObject(zona);
+    if (!b.isEmpty()) baseDaZona = +b.min.y.toFixed(2);
+  }
+  const p = w.desenhado.getObjectByName("palco");
+  let cor = null;
+  if (p) p.traverse((o) => { if (o.isMesh && o.material && o.material.color && cor === null) cor = "#" + o.material.color.getHexString(); });
+  return { principal: !!p, extra: !!w.desenhado.getObjectByName("palco-1"), baseDaZona, cor };
+});
+
 let falhas = 0;
 const conferir = (ok, texto) => { console.log((ok ? "  ✓ " : "  ✗ ") + texto); if (!ok) falhas++; };
 const perto = (a, b, tol) => Math.abs(a - b) < (tol || 0.02);
@@ -226,6 +241,59 @@ conferir(agarravel.quantos === 1,
 // por isso o painel dele tem três campos e não dois.
 conferir(agarravel.campos.join(",") === "dx,dz,rot",
   "com os dois eixos e o ângulo para ajustar à mão");
+
+console.log("\n== o palco principal pode sair da sala ==");
+
+// Reparo dele: *"temos de ter como desligar o palco de origem ou retirá-lo de
+// vez, pois é o único que nasce sempre no fundo da sala e não ganha cores
+// quando agrupado"*.
+//
+// Duas coisas, e as duas verdadeiras. A pastilha "Palco" da barra apaga o
+// conjunto TODO — o principal, a passarela e os palcos extra —, por isso quem
+// queria ficar só com os extra não tinha maneira nenhuma. E a cor do grupo
+// chegava aos palcos extra desde sempre (fazerPalcoExtra) e ao principal
+// nunca: era a única peça de um cenário que ficava de fora da cor.
+await pagina.evaluate(async () => {
+  const b = document.getElementById("verPalco");
+  if (b && !b.checked) b.click();
+  document.getElementById("btAddPalco").click();
+  await new Promise((r) => setTimeout(r, 1400));
+});
+const comPalco = await estadoDoPalco();
+conferir(comPalco.principal && comPalco.extra,
+  "com o palco ligado estão os dois na sala: o principal e o extra");
+
+await pagina.evaluate(async () => {
+  document.getElementById("palcoPrincipal").click();
+  await new Promise((r) => setTimeout(r, 1500));
+});
+const semPalco = await estadoDoPalco();
+conferir(!semPalco.principal, "tirar o principal tira-o mesmo");
+conferir(semPalco.extra,
+  "E DEIXA OS EXTRA onde estavam — era isto que a pastilha da barra não sabia fazer");
+// O simétrico, que é onde estas coisas costumam falhar: o que assentava no
+// palco tem de descer ao chão, e não ficar à altura de um palco que já não
+// está desenhado. A app já apanhou este defeito duas vezes (v3.94).
+conferir(semPalco.baseDaZona === 0,
+  "e o ecrã desce ao CHÃO, em vez de flutuar à altura de um palco que não está lá (" +
+  semPalco.baseDaZona + " m)");
+
+await pagina.evaluate(async () => {
+  document.getElementById("palcoPrincipal").click();
+  await new Promise((r) => setTimeout(r, 1300));
+  const w = window.preview;
+  w.selecaoDeGrupo.clear();
+  ["palco", "zona Ecrã"].forEach((n) => w.selecaoDeGrupo.add(n));
+  w.criarGrupo();
+  await new Promise((r) => setTimeout(r, 1500));
+});
+const agrupado = await estadoDoPalco();
+const corDoGrupo = await pagina.evaluate(() => (window.preview.ajustes.grupos[0] || {}).cor);
+conferir(agrupado.principal, "voltar a ligá-lo põe-no outra vez na sala");
+conferir(!!corDoGrupo && agrupado.cor &&
+         agrupado.cor.toLowerCase() === String(corDoGrupo).toLowerCase(),
+  "e num grupo o palco principal PINTA-SE da cor dele, como as outras peças (" +
+  agrupado.cor + ")");
 
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 

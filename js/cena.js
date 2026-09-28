@@ -274,7 +274,12 @@ export function fazerPalco({ largura, profundidade }, palco) {
     // v3.94: o palco principal desenhava-se sempre com os quatro cantos
     // iguais, enquanto os extra já sabiam fazer meia-lua.
     geometriaDeTampo(larguraPalco, palco.altura, palco.profundidade, palco.raio, palco.meio),
-    new THREE.MeshStandardMaterial({ color: COR_PALCO, roughness: 0.9 }));
+    // A COR DO GRUPO, quando este palco está num. Reparo dele: *"não ganha
+    // cores quando agrupado"* -- e não ganhava: os palcos extra recebiam-na
+    // desde sempre (ver fazerPalcoExtra) e o PRINCIPAL tinha a cor fixa aqui.
+    // Num cenário de palco + ecrã + projetores, era a única peça que ficava
+    // de fora da cor e parecia não pertencer ao conjunto.
+    new THREE.MeshStandardMaterial({ color: palco.cor || COR_PALCO, roughness: 0.9 }));
   caixa.name = "palco";
   caixa.position.set((Number(palco.dx) || 0), palco.altura / 2,
     -profundidade / 2 + palco.profundidade / 2 + (Number(palco.dz) || 0));
@@ -2019,8 +2024,12 @@ export function fazerZonas(projeto, medidas, sala, palco, textura, modoConteudo,
   // deste campo: mudou-se lá, mediu-se, e o ecrã continuava a 1 m.
   //
   // `== null` e não `||`: zero quer dizer pousado no chão, e tem de passar.
+  // E SEM PALCO NA SALA, o chão: cair na altura de um palco que não está
+  // desenhado dava um ecrã a flutuar no ar. (A OUTRA cópia desta conta está em
+  // contextoDeZonas(), no app.js -- são duas, e têm de concordar. Já se
+  // corrigiu uma e se mediu a outra ainda errada, na v3.94.)
   const base = projeto.alturaDoChao == null
-    ? palco.altura + palco.acimaDoPalco
+    ? (palco.naSala === false ? 0 : palco.altura + palco.acimaDoPalco)
     : projeto.alturaDoChao;
   const z0 = -sala.profundidade / 2 + 0.35;
 
