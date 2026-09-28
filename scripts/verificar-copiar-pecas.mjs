@@ -336,6 +336,104 @@ console.log("   arrastar a partir de um botão: " + JSON.stringify(depoisDoBotao
 conferir(depoisDoBotao === "fechou" || Math.abs(depoisDoBotao.x - noutraPeca.x) < 4,
   "arrastar a partir de um botão do cabeçalho não move a caixa — os botões são para carregar");
 
+console.log("\n== duplicar uma projeção inteira ==");
+
+// Reparo dele: *"não estou a conseguir duplicar um grupo no 3D ... os
+// projetores e o pano não consigo duplicar"*. E não conseguia: o ⧉ do painel
+// do grupo aparecia sempre, mas o duplicarPecas() só conhecia zonas, palcos,
+// passarelas e régies. Medido antes: quatro peças marcadas, ZERO copiadas, e
+// nem uma palavra. Um botão que aceita o clique e o ignora é o mesmo defeito
+// de um campo que aceita um número e o deita fora.
+const blendPlano = JSON.stringify({
+  v: 2, retro: false, curva: null, alturaLente: 6, shiftV: -50,
+  projetores: [-1, 0, 1].map((k) => ({ lateral: +(k * 3.4).toFixed(2), alturaOffset: 0,
+    largura: 5.05, altura: 2.84, racio: 3.563, distancia: 18 })),
+  quando: new Date().toISOString()
+});
+await pagina.evaluate((x) => localStorage.setItem("mikeapps-projetor-v1", x), blendPlano);
+await pagina.evaluate(async () => {
+  document.getElementById("btSincronizar").click();
+  await new Promise((r) => setTimeout(r, 2500));
+});
+const antesDaCopia = await pagina.evaluate(() => {
+  const w = window.preview, THREE = w.THREE;
+  let panos = 0, maquinas = 0;
+  w.desenhado.traverse((o) => {
+    if (!o.isMesh && !o.isGroup) return;
+    if (/(^|:)ecra-plano$/.test(o.name || "")) panos += 1;
+    if (/(^|:)projetor-\d+$/.test(o.name || "")) maquinas += 1;
+  });
+  return { panos, maquinas };
+});
+conferir(antesDaCopia.panos === 1 && antesDaCopia.maquinas === 3,
+  "uma projeção de três máquinas na sala (" + antesDaCopia.panos + " pano, " +
+  antesDaCopia.maquinas + " máquinas)");
+
+const copiaDaProjecao = await pagina.evaluate(async () => {
+  const w = window.preview, THREE = w.THREE;
+  w.selecaoDeGrupo.clear();
+  ["ecra-plano", "projetor-0", "projetor-1", "projetor-2"].forEach((n) => w.selecaoDeGrupo.add(n));
+  const marcadas = w.alvosSelecionados().length;
+  const feitas = w.duplicarPecas(w.alvosSelecionados());
+  await new Promise((r) => setTimeout(r, 1600));
+  const onde = (n) => { const o = w.desenhado.getObjectByName(n); if (!o) return null;
+    const b = new THREE.Box3().setFromObject(o);
+    return b.isEmpty() ? null : +(((b.min.x + b.max.x) / 2)).toFixed(2); };
+  let panos = 0, maquinas = 0;
+  w.desenhado.traverse((o) => {
+    if (!o.isMesh && !o.isGroup) return;
+    if (/(^|:)ecra-plano$/.test(o.name || "")) panos += 1;
+    if (/(^|:)projetor-\d+$/.test(o.name || "")) maquinas += 1;
+  });
+  return { marcadas, feitas, panos, maquinas,
+           original: onde("ecra-plano"), copiado: onde("p2:ecra-plano") };
+});
+conferir(copiaDaProjecao.feitas === 1, "o ⧉ copia a projeção (" + copiaDaProjecao.feitas + ")");
+conferir(copiaDaProjecao.panos === 2, "e passam a ser dois panos (" + copiaDaProjecao.panos + ")");
+conferir(copiaDaProjecao.maquinas === 6,
+  "com as máquinas de cada um — não máquinas soltas a apontar a um pano que não existe (" +
+  copiaDaProjecao.maquinas + ")");
+conferir(copiaDaProjecao.copiado !== null && copiaDaProjecao.original !== null &&
+         copiaDaProjecao.copiado - copiaDaProjecao.original > 10,
+  "e a cópia sai AO LADO, fora da original (" + copiaDaProjecao.original + " m → " + copiaDaProjecao.copiado + " m)");
+
+console.log("\n== e os grupos têm nome ==");
+
+// Pedido dele, logo a seguir: *"e poder dar nomes aos grupos"*. O nome já
+// existia, mas nascia automático ("Cenário 1") e era texto morto -- numa sala
+// com três conjuntos, "Cenário 1 · Cenário 2" não diz nada a ninguém.
+const baptismo = await pagina.evaluate(async () => {
+  const w = window.preview;
+  w.selecaoDeGrupo.clear();
+  ["ecra-plano", "projetor-0"].forEach((n) => w.selecaoDeGrupo.add(n));
+  const g = w.criarGrupo();
+  await new Promise((r) => setTimeout(r, 900));
+  const campo = document.querySelector("#painelAjuste .ajuste-grupo-nome");
+  if (!campo) return { semCampo: true };
+  const automatico = campo.value;
+  campo.value = "Palco principal";
+  campo.dispatchEvent(new Event("change", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1200));
+  const depois = document.querySelector("#painelAjuste .ajuste-grupo-nome");
+  return { automatico, guardado: (w.ajustes.grupos.find((x) => x.id === g.id) || {}).nome,
+           noPainel: depois ? depois.value : null };
+});
+conferir(!baptismo.semCampo, "o nome do grupo é um campo, e não texto morto");
+conferir(baptismo.guardado === "Palco principal",
+  "escrever por cima dá-lhe o nome novo (" + baptismo.automatico + " → " + baptismo.guardado + ")");
+conferir(baptismo.noPainel === "Palco principal", "e o painel fica com ele");
+
+const vazio = await pagina.evaluate(async () => {
+  const w = window.preview;
+  const campo = document.querySelector("#painelAjuste .ajuste-grupo-nome");
+  campo.value = "   ";
+  campo.dispatchEvent(new Event("change", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 900));
+  return (w.ajustes.grupos[w.ajustes.grupos.length - 1] || {}).nome;
+});
+conferir(vazio === "Palco principal",
+  "um nome vazio não é um nome: fica o que lá estava (" + vazio + ")");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();

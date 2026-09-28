@@ -1553,6 +1553,7 @@ function dadosDaProjecaoViva() {
     panoX: num("projPanoX") || 0, panoDz: num("projDz") || 0,
     maquinas: ajustes.projetoresExtra || [],
     curva: curvaAtivaDoBlend(),
+    curvaDx: num("curvaDx") || 0, curvaDz: num("curvaDz") || 0,
     retro: !!ajustes.retroDoBlend,
     etiqueta: "P"
   };
@@ -1575,6 +1576,7 @@ function projecaoCompleta(g, etiqueta) {
     panoX: n(g.panoX, 0), panoDz: n(g.panoDz, 0),
     maquinas: Array.isArray(g.maquinas) ? g.maquinas : [],
     curva: (g.curva && g.curva.raio > 0 && g.curva.arco > 0) ? g.curva : null,
+    curvaDx: n(g.curvaDx, 0), curvaDz: n(g.curvaDz, 0),
     retro: !!g.retro,
     etiqueta: etiqueta
   };
@@ -1736,7 +1738,13 @@ function desenharBlendCurvo(sala, curva, p, prefixo) {
   // seguir: somar-lhe também o "pano para dentro" do ecrã plano era mover o
   // mesmo pano duas vezes, com dois campos a disputá-lo.
   const z0 = -sala.profundidade / 2 + 0.35;
-  const m = medidasDaCurva(curva, z0, num("curvaDx"), num("curvaDz"));
+  // A POSIÇÃO DO ECRÃ CURVO É DESTA PROJEÇÃO, e não dos campos.
+  //
+  // Enquanto só havia uma, ler os campos dava no mesmo. Com várias (v4.00) e
+  // com a cópia (v4.03), duas telas curvas partilhavam a mesma posição:
+  // moviam-se as duas ao mexer numa, e uma cópia nascia exactamente por cima
+  // da original, o que é a mesma coisa que não copiar nada.
+  const m = medidasDaCurva(curva, z0, p.curvaDx, p.curvaDz);
   if (!m) return;
 
   // ONDE O PANO ESTÁ, E ONDE AS MÁQUINAS FORAM MONTADAS: dois sítios, e desde
@@ -8702,6 +8710,32 @@ function criarGrupo() {
   return grupo;
 }
 
+/**
+ * DÁ NOVO NOME A UM GRUPO. Pedido dele: *"e poder dar nomes aos grupos"*.
+ *
+ * Um nome vazio não é um nome: fica o que lá estava. Dois grupos com o mesmo
+ * nome também não servem -- o nome é o que se diz em voz alta na obra, e
+ * "manda descer o Cenário 2" com dois Cenário 2 na sala é pior do que não ter
+ * nome nenhum. O segundo ganha um número a seguir.
+ */
+function renomearGrupo(id, novo) {
+  if (!Array.isArray(ajustes.grupos)) return;
+  const g = ajustes.grupos.find((x) => x.id === id);
+  if (!g) return;
+  let nome = String(novo || "").trim().slice(0, 40);
+  if (!nome || nome === g.nome) { abrirPainelDeGrupo(); return; }
+  if (ajustes.grupos.some((x) => x.id !== id && x.nome === nome)) {
+    let n = 2;
+    while (ajustes.grupos.some((x) => x.id !== id && x.nome === nome + " " + n)) n++;
+    nome = nome + " " + n;
+  }
+  g.nome = nome;
+  guardarAjustes(ajustes);
+  projetoMudou();
+  remontarDaqui(0);
+  abrirPainelDeGrupo();
+}
+
 /** Desfaz o grupo: as peças ficam onde estão e cada uma volta à sua cor. */
 function desfazerGrupo(id) {
   if (!Array.isArray(ajustes.grupos)) return;
@@ -8754,11 +8788,100 @@ function podeCopiar(alvo) {
   if (!n) return false;
   return n.indexOf("zona ") === 0 || n === "palco" ||
          n.indexOf("palco-") === 0 || n.indexOf("passarela-") === 0 ||
-         n.indexOf("regie-") === 0;
+         n.indexOf("regie-") === 0 || ehSuperficieDeProjecao(n);
+}
+
+/** "ecra-plano", "p3:ecra-curvo" -- a TELA de uma projeção, qualquer que seja. */
+function ehSuperficieDeProjecao(nome) {
+  return /^(p\d+:)?(ecra-plano|ecra-curvo)$/.test(nome || "");
+}
+
+/**
+ * A PROJEÇÃO a que uma peça pertence, nos dados -- não no desenho.
+ *
+ * Devolve `null` para a viva (a dos campos) e o índice em `projecoesExtra`
+ * para as guardadas. É o prefixo do nome que o diz: ver desenharUmaProjecao().
+ */
+function projecaoDaPeca(nome) {
+  const n = numeroDaProjecao(nome);
+  if (!n) return { viva: true, dados: dadosDaProjecaoViva() };
+  const g = (ajustes.projecoesExtra || [])[n - 2];
+  return g ? { viva: false, indice: n - 2, dados: projecaoCompleta(g, "P" + n + ".") } : null;
+}
+
+/**
+ * DUPLICAR UMA PROJEÇÃO INTEIRA -- a tela e as máquinas que lhe apontam.
+ *
+ * Reparo dele: *"não estou a conseguir duplicar um grupo no 3D"*. E não
+ * estava: o ⧉ do painel do grupo aparecia sempre, mas o duplicarPecas() só
+ * conhecia zonas, palcos, passarelas e régies. Medido: quatro peças marcadas,
+ * ZERO copiadas, e nem uma palavra. Um botão que aceita o clique e o ignora é
+ * o mesmo defeito de um campo que aceita um número e o deita fora.
+ *
+ * A cópia sai AO LADO, a própria largura mais meio metro, como as outras
+ * famílias. E é uma projeção NOVA e inteira: sem isto, copiar uma fila de
+ * blend dava máquinas soltas a apontar a um pano que não existe.
+ */
+function duplicarProjecao(nomeDaTela) {
+  const fonte = projecaoDaPeca(nomeDaTela);
+  if (!fonte || !fonte.dados) return false;
+  const d = fonte.dados;
+  if (!(d.racio > 0) || !(d.distancia > 0)) return false;
+  // A largura do conjunto: a imagem da cabeça mais o que a fila abre para os
+  // lados. Serve para a cópia sair FORA da original, e não por cima dela.
+  const larguraDaImagem = d.distancia / d.racio;
+  const lados = [d.lateral].concat((d.maquinas || []).map((m) => Number(m.lateral) || 0));
+  const abertura = (Math.max(...lados) - Math.min(...lados)) + larguraDaImagem;
+  const desvio = abertura + 0.5;
+  if (!Array.isArray(ajustes.projecoesExtra)) ajustes.projecoesExtra = [];
+  ajustes.projecoesExtra.push({
+    ligada: true, racio: d.racio, distancia: d.distancia, altura: d.altura,
+    lateral: d.lateral + desvio, shiftV: d.shiftV, shiftH: d.shiftH,
+    formato: d.formato,
+    panoX: (d.panoX || 0) + desvio, panoDz: d.panoDz,
+    maquinas: (d.maquinas || []).map((m) => ({ ...m, lateral: (Number(m.lateral) || 0) + desvio })),
+    curva: d.curva ? { ...d.curva } : null,
+    // A tela curva leva a posição DELA, senão a cópia nascia em cima da
+    // original -- que é a mesma coisa que não copiar nada.
+    curvaDx: (d.curvaDx || 0) + desvio, curvaDz: d.curvaDz,
+    retro: d.retro
+  });
+  return true;
 }
 
 function duplicarPecas(alvos) {
   if (!alvos || !alvos.length) return 0;
+
+  // AS PROJEÇÕES PRIMEIRO, e à parte das outras famílias: uma projeção não é
+  // uma peça, é um conjunto (tela + máquinas). As máquinas dela que estejam
+  // marcadas ao mesmo tempo NÃO se copiam à parte -- já vão dentro da cópia,
+  // e copiá-las outra vez dava máquinas a mais a apontar ao mesmo sítio.
+  let projecoesCopiadas = 0;
+  const telas = alvos.filter((a) => a.obj && ehSuperficieDeProjecao(a.obj.name));
+  const jaCopiadas = new Set();
+  telas.forEach((a) => {
+    if (duplicarProjecao(a.obj.name)) {
+      projecoesCopiadas += 1;
+      jaCopiadas.add(numeroDaProjecao(a.obj.name));
+    }
+  });
+  if (projecoesCopiadas) {
+    alvos = alvos.filter((a) => {
+      const n = a.obj && a.obj.name;
+      if (!n) return true;
+      if (ehSuperficieDeProjecao(n)) return false;
+      if (/^(p\d+:)?projetor-\d+$/.test(n) && jaCopiadas.has(numeroDaProjecao(n))) return false;
+      return true;
+    });
+    guardarAjustes(ajustes);
+    if (!alvos.length) {
+      remontarDaqui();
+      dizerNaCena(projecoesCopiadas === 1
+        ? "Projeção copiada: a cópia sai ao lado, com as máquinas dela."
+        : projecoesCopiadas + " projeções copiadas, cada uma ao lado da sua, com as máquinas delas.");
+      return projecoesCopiadas;
+    }
+  }
 
   // A COR DA CÓPIA. Pedido: *"as cópias devem surgir de cor diferente,
   // inclusive os palcos e passarelas"* -- uma cópia encostada à original, da
@@ -8935,10 +9058,10 @@ function duplicarPecas(alvos) {
   const recado = feitos.length === 1
     ? `Cópia feita: ${feitos[0].nome}, de cor nova e ao lado — já marcada para arrastares.`
     : `${feitos.length} cópias feitas, de cores novas e ao lado das originais — já marcadas para arrastares.`;
-  dizerNaCena(empurrao > 0.01
+  dizerNaCena((empurrao > 0.01
     ? recado + ` O conjunto de ecrãs ficou mais largo e voltou a centrar-se na sala: os que já lá estavam andaram ${nnum(empurrao)} m.`
-    : recado);
-  return feitos.length;
+    : recado) + (projecoesCopiadas ? ` E ${projecoesCopiadas === 1 ? "a projeção" : projecoesCopiadas + " projeções"}, com as máquinas.` : ""));
+  return feitos.length + projecoesCopiadas;
 }
 
 /** Soma o mesmo desvio a todas as peças marcadas. */
@@ -9503,7 +9626,6 @@ function abrirPainelDeGrupo() {
 
   const topo = document.createElement("div");
   topo.className = "ajuste-flutuante-topo";
-  const nome = document.createElement("b");
   // TRAVAR / DESTRAVAR. O mesmo botão nos dois sentidos, porque é a mesma
   // pergunta: estas peças andam juntas, ou não? Um cadeado fechado quer dizer
   // "já é um cenário".
@@ -9512,7 +9634,35 @@ function abrirPainelDeGrupo() {
                        doGrupo.every((g) => g.id === doGrupo[0].id);
   // Um grupo guardado tem NOME, e é o nome que se lê no título: "Cenário 1"
   // diz o que aquilo é; "7 peças" diz só quantas são.
-  nome.textContent = grupoInteiro ? doGrupo[0].nome : (alvos.length + " peças");
+  // O NOME DO GRUPO, para se lhe poder chamar o que ele é.
+  //
+  // Pedido dele: *"e poder dar nomes aos grupos"*. O nome já existia, mas
+  // nascia automático ("Cenário 1") e era texto morto -- numa sala com três
+  // conjuntos, "Cenário 1 · Cenário 2 · Cenário 3" não diz nada a ninguém.
+  //
+  // Só num grupo GUARDADO: uma selecção solta não é uma coisa, é o que está
+  // debaixo do rato neste momento, e dar-lhe nome era prometer que ela dura.
+  let nome;
+  if (grupoInteiro) {
+    nome = document.createElement("input");
+    nome.type = "text";
+    nome.className = "ajuste-grupo-nome";
+    nome.value = doGrupo[0].nome;
+    nome.title = "O nome deste grupo — escreve por cima";
+    nome.setAttribute("aria-label", "Nome do grupo");
+    nome.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); nome.blur(); }
+      if (e.key === "Escape") { nome.value = doGrupo[0].nome; nome.blur(); }
+      // A tecla Escape larga a selecção, e a seta move as peças: com o cursor
+      // dentro do campo, uma e outra são teclas de escrita.
+      e.stopPropagation();
+    });
+    nome.addEventListener("change", () => renomearGrupo(doGrupo[0].id, nome.value));
+    nome.addEventListener("blur", () => renomearGrupo(doGrupo[0].id, nome.value));
+  } else {
+    nome = document.createElement("b");
+    nome.textContent = alvos.length + " peças";
+  }
   const travar = document.createElement("button");
   travar.type = "button";
   travar.className = "btn-icone";
@@ -9524,6 +9674,13 @@ function abrirPainelDeGrupo() {
     if (grupoInteiro) desfazerGrupo(doGrupo[0].id); else criarGrupo();
   });
 
+  // O ⧉ SÓ QUANDO HÁ O QUE COPIAR -- a mesma regra do painel de uma peça só,
+  // que aqui faltava. Reparo dele: *"não estou a conseguir duplicar um grupo
+  // no 3D"*, com um pano e três projetores marcados. Medido: quatro peças
+  // marcadas, ZERO copiadas, e nem uma palavra. As projeções passam a
+  // copiar-se (ver duplicarProjecao), e o que continuar sem cópia possível
+  // deixa de ter botão.
+  const daParaCopiar = alvos.some(podeCopiar);
   const copiar = document.createElement("button");
   copiar.type = "button";
   copiar.className = "btn-icone";
@@ -9536,7 +9693,8 @@ function abrirPainelDeGrupo() {
   fechar.title = "Largar a selecção";
   fechar.textContent = "×";
   fechar.addEventListener("click", limparSelecao);
-  topo.append(nome, travar, copiar, fechar);
+  if (daParaCopiar) topo.append(nome, travar, copiar, fechar);
+  else topo.append(nome, travar, fechar);
   caixa.append(topo);
 
   const quem = document.createElement("p");

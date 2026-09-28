@@ -255,7 +255,12 @@ await pagina.mouse.click(p2.x, p2.y);
 await pagina.waitForTimeout(500);
 const cliqueSimples = await pagina.evaluate(() => ({
   marcados: window.preview.selecaoDeGrupo.size,
-  titulo: (document.querySelector("#painelAjuste b") || {}).textContent || ""
+  // O título de um grupo GUARDADO é um campo desde a v4.03 -- passou a
+  // poder-se escrever nele ("e poder dar nomes aos grupos"). Numa selecção
+  // solta continua a ser texto: essa não é uma coisa, é o que está debaixo do
+  // rato agora, e dar-lhe nome era prometer que dura.
+  titulo: (document.querySelector("#painelAjuste .ajuste-grupo-nome") || {}).value ||
+          (document.querySelector("#painelAjuste b") || {}).textContent || ""
 }));
 console.log("   clique simples → " + cliqueSimples.marcados + " marcadas · «" + cliqueSimples.titulo + "»");
 conferir(cliqueSimples.marcados === 4, "um clique num degrau agarra o cenário todo");
