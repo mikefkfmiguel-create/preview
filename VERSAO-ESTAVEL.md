@@ -1,15 +1,15 @@
 # Versão estável
 
-**Preview 3D v3.94** · commit `5d80ef8` · dada como estável a 28 de setembro de 2026.
+**Preview 3D v3.95** · commit `79f1891` · dada como estável a 28 de setembro de 2026.
 
 > *"publica e promove as duas"*.
 
-Par: **Calculadores v4.31** (`69195ea` no repositório `calculadores`). As duas
+Par: **Calculadores v4.32** (`0090d3d` no repositório `calculadores`). As duas
 apps falam uma com a outra — dar uma como estável sem a outra não quer dizer
 nada, e por isso o par escreve-se aqui e é promovido ao mesmo tempo.
 
-Desta vez andaram os dois, e um não funciona sem o outro: o campo da altura
-do ecrã ao chão é escrito nos Calculadores e lido aqui.
+Desta vez andaram os dois, e um não funciona sem o outro: a altura da lente
+e o shift do blend são escritos nos Calculadores e lidos aqui.
 
 ## O que "estável" quer dizer aqui
 
@@ -32,7 +32,7 @@ as verificações todas verdes no dia em que se escreveu isto.
 A nova desde a v3.93 é `altura-e-formas`, com 17 asserções. O `ir-buscar-versao` corre **com o service worker
 ligado**, ao contrário de todos os outros — ali ele é o assunto.
 
-Do outro lado, nos Calculadores v4.31, **22 verificações verdes**, a
+Do outro lado, nos Calculadores v4.32, **22 verificações verdes**, a
 verificação de tradução sem nada de novo por traduzir (dívida conhecida: 287
 trechos) e **41 testes verdes no Worker**. As vinte e quatro deste lado correram
 no commit que esta página nomeia, não no ramo antes de fundir.
@@ -65,6 +65,16 @@ medidas antes e depois — nenhuma se resolveu a ler código.
   cena; agora, zero. E ganha pastilha no topo, espelhada com a caixa do
   painel;
 
+- **o blend plano nasce no sítio** (v3.95). Segunda foto do mesmo dia:
+  *"continua abaixo do chão e não centrado na sala"*. Duas coisas, as duas no
+  caminho do BLEND, que é outra ponte. O `lateral` vem centrado na tela, mas
+  a PRIMEIRA máquina nunca escrevia o dela — e as outras são postas em
+  relação a ela, por isso a fila inteira aparecia deslocada exactamente esse
+  valor (imagens a 0, +3,47 e +6,94 em vez de −3,47, 0 e +3,47). E a altura
+  da lente e o shift só viajavam num ecrã curvo: num plano o 3D arrancava com
+  4,5 m e −25% enquanto os Calculadores diziam 8 m e −90%. Medido depois:
+  centro em x = 0, lente a 8,00 m, shift −83,3%, nada abaixo do chão;
+
 - **o palco principal sabe fazer só a frente redonda, e o círculo é um
   círculo.** As duas metades tinham a mesma raiz, na mesma linha: o
   `fazerPalco()` chamava o `geometriaDeTampo()` com quatro argumentos e
@@ -77,13 +87,13 @@ medidas antes e depois — nenhuma se resolveu a ler código.
 ## Como se volta a este ponto
 
 ```
-git checkout 5d80ef8          # ver como estava
+git checkout 79f1891          # ver como estava
 git revert <commit>           # desfazer uma coisa só, sem perder o resto
 ```
 
-A tag `v3.94` **não** está no GitHub: as credenciais da sessão que escreveu
+A tag `v3.95` **não** está no GitHub: as credenciais da sessão que escreveu
 isto deixam empurrar ramos, não tags (HTTP 403). Se ela fizer falta, cria-se
-na página de *releases* do repositório, apontada a `5d80ef8`.
+na página de *releases* do repositório, apontada a `79f1891`.
 
 ## Quando isto deixa de valer
 
