@@ -1,6 +1,6 @@
 # Versão estável
 
-**Preview 3D v3.96** · commit `022b430` · dada como estável a 28 de setembro de 2026.
+**Preview 3D v3.97** · commit `f51fca9` · dada como estável a 28 de setembro de 2026.
 
 > *"publica e promove as duas"*.
 
@@ -90,6 +90,14 @@ medidas antes e depois — nenhuma se resolveu a ler código.
   grupo tudo se movia **a dobrar** (pedia-se +2 m e o pano andava +4). Dois
   mecanismos para a mesma coisa; ficou um, que é o grupo;
 
+- **recuar o grupo leva o pano com ele** (v3.97). Ainda no mesmo dia, e ainda
+  defeito meu: pus um `Math.max(0, ...)` na posição do pano, por ter assumido
+  que «trazer para dentro» só fazia sentido para dentro. Recuar o conjunto
+  movia as máquinas e deixava o pano parado — o campo guardava o −2,84 e
+  aquela linha deitava-o fora. **Um campo que aceita um número e o ignora é
+  pior do que um que não o aceita.** O teste tinha o mesmo buraco: só movia o
+  grupo para a frente;
+
 - **o palco principal sabe fazer só a frente redonda, e o círculo é um
   círculo.** As duas metades tinham a mesma raiz, na mesma linha: o
   `fazerPalco()` chamava o `geometriaDeTampo()` com quatro argumentos e
@@ -102,13 +110,13 @@ medidas antes e depois — nenhuma se resolveu a ler código.
 ## Como se volta a este ponto
 
 ```
-git checkout 022b430          # ver como estava
+git checkout f51fca9          # ver como estava
 git revert <commit>           # desfazer uma coisa só, sem perder o resto
 ```
 
-A tag `v3.96` **não** está no GitHub: as credenciais da sessão que escreveu
+A tag `v3.97` **não** está no GitHub: as credenciais da sessão que escreveu
 isto deixam empurrar ramos, não tags (HTTP 403). Se ela fizer falta, cria-se
-na página de *releases* do repositório, apontada a `022b430`.
+na página de *releases* do repositório, apontada a `f51fca9`.
 
 ## Quando isto deixa de valer
 
