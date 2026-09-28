@@ -640,6 +640,16 @@ export function lerProjetores(d) {
   // está pendurado é coisa deste lado, e continua a ser.
   lista.alturaLente = numero(d.alturaLente, NaN);
   lista.shiftV = numero(d.shiftV, NaN);
+  // OS OUTROS ECRÃS DE PROJEÇÃO do mesmo projeto (v4.02), calculados na aba
+  // Projeto dos Calculadores. Cada um é uma projeção inteira, na forma que o
+  // app.js desenha desde a v4.00.
+  //
+  // A CHAVE AUSENTE E A LISTA VAZIA NÃO SÃO A MESMA COISA: uma carga antiga
+  // não fala nisto e não pode apagar os ecrãs que já estão no 3D; uma carga
+  // NOVA com a lista vazia está a dizer que não há nenhum, e essa manda. Sem
+  // esta distinção, qualquer carga antiga deitava fora trabalho feito.
+  lista.temExtras = Object.prototype.hasOwnProperty.call(d, "projecoesExtra");
+  lista.extras = Array.isArray(d.projecoesExtra) ? d.projecoesExtra : [];
   return lista;
 }
 
