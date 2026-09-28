@@ -273,7 +273,7 @@ function lerPalco() {
  * mexer no pano muda mesmo o tiro, e com ele o tamanho da imagem: é o
  * tiroAtePano() que o mede, e não o número escrito no campo.
  */
-function zDoPanoPlano(sala) {
+function zDoPanoPlano(sala, p) {
   // SEM LIMITE A ZERO. Tinha aqui um `Math.max(0, ...)` -- e com o pano
   // agrupado às máquinas, recuar o grupo movia-as a elas e deixava o pano
   // parado: o campo guardava o -2,84 e esta linha deitava-o fora. Medido.
@@ -281,7 +281,7 @@ function zDoPanoPlano(sala) {
   // Um campo que aceita um número e o ignora é pior do que um campo que não o
   // aceita. Todas as outras posições desta app (curvaDz, palcoZ, regieZ) vão
   // a negativo; esta não tinha razão nenhuma para ser diferente.
-  return -sala.profundidade / 2 + 0.35 + (num("projDz") || 0);
+  return -sala.profundidade / 2 + 0.35 + (p ? (p.panoDz || 0) : (num("projDz") || 0));
 }
 
 /**
@@ -335,8 +335,8 @@ function tiroAtePano(zDaMaquina, zDoPano) {
  * imagens, mover os projetores mexia no pano sem ninguém lho pedir -- e num
  * grupo com os dois, a dobrar.
  */
-function xDoPanoPlano() {
-  return num("projPanoX") || 0;
+function xDoPanoPlano(p) {
+  return p ? (p.panoX || 0) : (num("projPanoX") || 0);
 }
 
 let formatoImagem = 1.777;
@@ -1010,7 +1010,7 @@ function desenharCena(recentrarCamara) {
   // dois caminhos são exclusivos -- num ecrã curvo todas as máquinas do blend
   // (a primeira incluída) vivem no array, por isso desenhar também a projeção
   // plana era desenhar a primeira duas vezes, numa parede que ali não está.
-  const curvaDoBlend = curvaAtivaDoBlend();
+  // (a curva da projeção viva vem agora dentro de dadosDaProjecaoViva())
   distanciaDaFilaLimitada = null;
   luzForaDoEcra = 0;
   maquinasForaDoPano = 0;
@@ -1028,93 +1028,14 @@ function desenharCena(recentrarCamara) {
   // de uma das funções que ela devia governar, em vez de à entrada das três.
   // Agora é uma guarda só, aqui, e o desenharProjecao() mantém a dele porque
   // também é chamado de outros sítios.
-  if (!lerProjecao().ligada) {
-    // nada de projeção na cena — nem P1, nem a fila, nem o blend curvo
-  } else if (curvaDoBlend) {
-    desenharBlendCurvo(sala, curvaDoBlend);
-  } else {
-  desenharProjecao(sala, palco);
-  // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
-  // Projetor nunca manda nada" para o Preview). Cada um guarda o SEU
-  // racio/distancia/lateral/altura -- simplesmente não vêm de campos no ecrã,
-  // vêm do array. O shift é a excepção: esse é o do campo, igual para toda a
-  // fila (ver a seguir). Só visuais: sem sombra nem cobertura calculadas para
-  // eles (ver PARA-CONTINUAR.md).
-  // Dois planos, como no principal: o pano onde está agora, e as máquinas
-  // onde foram montadas. Iguais com o interruptor ligado.
-  const z0Proj = zDoPanoPlano(sala);
-  const zMaquinasProj = zDasMaquinasPlanas(sala);
-  // O shift é o do CAMPO, igual para todos -- decisão do mike ("deve ser de
-  // igual sim"). Numa fila de blend são máquinas iguais montadas da mesma
-  // maneira, e não há campo de shift por extra: enquanto cada um guardava o
-  // seu, os extras nasciam a 0 com o primeiro no valor do campo (que arranca
-  // a -25%), e a fila ficava com o primeiro quase um metro abaixo dos outros.
-  // Lido aqui a cada desenho, e não gravado no ajuste, para que mexer no campo
-  // mexa na fila inteira -- inclusive em projetos já guardados.
-  const fila = lerProjecao();
-  ajustes.projetoresExtra.forEach((pe, i) => {
-    if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
-    // A ALTURA É DA FILA, do campo -- o mesmo que já valia para a distância e
-    // para o shift, e que o ecrã curvo passou a fazer na v3.41. Aqui ficou
-    // congelada: guardava-se a absoluta, calculada com o âncora que estava no
-    // campo ao aplicar (4,5 m por omissão), e mexer no campo não mexia na
-    // fila. Deu para ver quando o "quem tapa o feixe" nunca encontrava
-    // ninguém: as máquinas ficavam a 4,5 m e o feixe passava por cima de toda
-    // a gente, qualquer que fosse o número escrito. Um ajuste antigo só tem a
-    // absoluta -- lê-se essa, para um projeto guardado não saltar ao reabrir.
-    const alturaExtraMaquina = pe.alturaOffset !== undefined
-      ? fila.altura + pe.alturaOffset
-      : (pe.altura || 0);
-    // Em retro a máquina fica ATRÁS do pano: a mesma distância medida, do
-    // outro lado. O pano está em z0Proj e a plateia em z maior.
-    const projetorExtra = {
-      x: pe.lateral || 0, y: alturaExtraMaquina,
-      z: ajustes.retroDoBlend ? zMaquinasProj - pe.distancia : zMaquinasProj + pe.distancia
-    };
-    // O mesmo que no principal: o tamanho sai do tiro desenhado, não do
-    // número guardado. Sem isto, uma fila agrupada com o pano engordava toda
-    // de cada vez que o conjunto andava. Ver tiroAtePano().
-    const larguraExtra = tiroAtePano(projetorExtra.z, z0Proj) / pe.racio;
-    const alturaExtra = larguraExtra / formatoImagem;
-    const imagemExtra = {
-      x: projetorExtra.x + fila.shiftH * larguraExtra,
-      y: projetorExtra.y + fila.shiftV * alturaExtra,
-      z: z0Proj, largura: larguraExtra, altura: alturaExtra
-    };
-    const grupoPlano = fazerProjecao(projetorExtra, imagemExtra, textura, "projetor-" + (i + 1));
-    if (grupoPlano.userData.feixe) feixesDoBlend.push(grupoPlano.userData.feixe);
-    desenhado.add(grupoPlano);
-    imagensDoPlano.push({ x: imagemExtra.x, y: imagemExtra.y,
-                          largura: larguraExtra, altura: alturaExtra });
-    montagemProjetores.push(fichaDeProjetor("P" + (i + 2), projetorExtra, z0Proj,
-      fila.shiftH, fila.shiftV, larguraExtra, alturaExtra));
+  // A PROJEÇÃO VIVA (a dos campos) e as que ficaram guardadas ao lado dela.
+  // Ver desenharUmaProjecao(): cada uma é um objeto de dados, e o prefixo do
+  // nome é o que as mantém agarráveis uma a uma.
+  desenharUmaProjecao(sala, palco, dadosDaProjecaoViva(), "", imagensDoPlano);
+  (ajustes.projecoesExtra || []).forEach((pe, i) => {
+    const dados = projecaoCompleta(pe, "P" + (i + 2) + ".");
+    desenharUmaProjecao(sala, palco, dados, "p" + (i + 2) + ":", []);
   });
-
-  // O PANO, depois de todas as imagens (v3.96). É a soma delas que lhe dá o
-  // tamanho: o pano é feito à medida do que ali vai ser projetado, que é como
-  // se compra um. Desenhado por último para o cinzento dele ficar por baixo da
-  // luz, e nomeado `ecra-plano` para ser uma PEÇA -- seleccionável,
-  // arrastável e agrupável com os projetores. Ver objetosArrastaveis().
-  if (imagensDoPlano.length) {
-    const xs = [], ys = [];
-    imagensDoPlano.forEach((r) => {
-      if (!(r.largura > 0) || !(r.altura > 0)) return;
-      xs.push(r.x - r.largura / 2, r.x + r.largura / 2);
-      ys.push(r.y - r.altura / 2, r.y + r.altura / 2);
-    });
-    if (xs.length) {
-      const larguraPano = Math.max(...xs) - Math.min(...xs);
-      const alturaPano = Math.max(...ys) - Math.min(...ys);
-      // A LARGURA vem das imagens (um pano compra-se à medida do que ali vai
-      // ser projetado); a POSIÇÃO é dele. Na vertical ainda acompanha as
-      // imagens -- não há campo de altura do pano, e subir/descer o pano não
-      // é o que ele pediu.
-      const pano = fazerEcraPlano(larguraPano, alturaPano,
-        xDoPanoPlano(), (Math.max(...ys) + Math.min(...ys)) / 2, z0Proj);
-      if (pano) desenhado.add(pano);
-    }
-  }
-  }
   escreverCoordenadas();
 
   // AS DUAS PONTAS DE CADA FEIXE, MARCADAS E DECLARADAS.
@@ -1334,6 +1255,7 @@ function desenharCena(recentrarCamara) {
   desenharRegiesExtra();
   desenharPassarelasExtra();
   desenharProjetoresExtra();
+  desenharProjecoesExtra();
   // A medida do painel flutuante lê-se da cena — e a cena é esta, acabada de
   // montar. Refresca-se aqui, e não em cada sítio que mexe numa peça: é o
   // único ponto por onde tudo o que mexe alguma coisa passa.
@@ -1535,6 +1457,177 @@ function curvaAtivaDoBlend() {
 }
 
 /**
+ * OS DADOS DA PROJEÇÃO QUE ESTÁ NOS CAMPOS -- a "viva", a que se edita.
+ *
+ * É a forma que todas as projeções têm: a viva é uma delas, e as guardadas em
+ * `ajustes.projecoesExtra` são cópias desta mesma coisa. Uma forma só, para
+ * não haver dois sítios a discordarem sobre o que é uma projeção.
+ */
+function dadosDaProjecaoViva() {
+  const f = lerProjecao();
+  return {
+    ligada: f.ligada, racio: f.racio, distancia: f.distancia, altura: f.altura,
+    lateral: f.lateral, shiftV: f.shiftV, shiftH: f.shiftH,
+    formato: formatoImagem,
+    panoX: num("projPanoX") || 0, panoDz: num("projDz") || 0,
+    maquinas: ajustes.projetoresExtra || [],
+    curva: curvaAtivaDoBlend(),
+    retro: !!ajustes.retroDoBlend,
+    etiqueta: "P"
+  };
+}
+
+/**
+ * Uma projeção GUARDADA, lida para a mesma forma da viva.
+ *
+ * Só aceita o que sabe ler, e nunca inventa: sem rácio ou sem distância não
+ * há imagem nenhuma para desenhar, e é melhor não desenhar nada do que
+ * desenhar um palpite.
+ */
+function projecaoCompleta(g, etiqueta) {
+  const n = (v, omissao) => (Number.isFinite(Number(v)) ? Number(v) : omissao);
+  return {
+    ligada: g.ligada !== false,
+    racio: n(g.racio, 0), distancia: n(g.distancia, 0), altura: n(g.altura, 0),
+    lateral: n(g.lateral, 0), shiftV: n(g.shiftV, 0), shiftH: n(g.shiftH, 0),
+    formato: n(g.formato, 1.777) > 0.2 ? n(g.formato, 1.777) : 1.777,
+    panoX: n(g.panoX, 0), panoDz: n(g.panoDz, 0),
+    maquinas: Array.isArray(g.maquinas) ? g.maquinas : [],
+    curva: (g.curva && g.curva.raio > 0 && g.curva.arco > 0) ? g.curva : null,
+    retro: !!g.retro,
+    etiqueta: etiqueta
+  };
+}
+
+/**
+ * UMA PROJEÇÃO, DESENHADA A PARTIR DOS SEUS DADOS.
+ *
+ * Era o bloco do montar() a ler campos do ecrã: um pano, uma fila, e a carga
+ * seguinte a substituir a anterior. Pedido dele: *"preciso poder adicionar
+ * mais ecrãs de projeção e projetores neste projeto"*. Uma projeção passa a
+ * ser um OBJETO de dados -- tela, máquinas, posição -- e desenham-se tantas
+ * quantas houver.
+ *
+ * A viva (a dos campos) é uma delas, com prefixo vazio; as guardadas trazem
+ * "p2:", "p3:" à frente do nome de cada peça, para se poderem agarrar e mover
+ * cada uma por si.
+ *
+ * As `imagens` entram de fora porque o PANO é feito à medida delas: cada
+ * projeção tem de somar as suas e não as da do lado, senão dois panos
+ * separados na sala nasciam com a mesma largura, a de todos juntos.
+ */
+function desenharUmaProjecao(sala, palco, p, prefixo, imagens) {
+  if (!p.ligada) {
+    // nada de projeção na cena — nem P1, nem a fila, nem o blend curvo
+  } else if (p.curva) {
+    desenharBlendCurvo(sala, p.curva, p, prefixo);
+  } else {
+  desenharProjecao(sala, palco, p, prefixo, imagens);
+  // Projetores extra (2º, 3º, ...) -- pedido direto ("Blending Multi-
+  // Projetor nunca manda nada" para o Preview). Cada um guarda o SEU
+  // racio/distancia/lateral/altura -- simplesmente não vêm de campos no ecrã,
+  // vêm do array. O shift é a excepção: esse é o do campo, igual para toda a
+  // fila (ver a seguir). Só visuais: sem sombra nem cobertura calculadas para
+  // eles (ver PARA-CONTINUAR.md).
+  // Dois planos, como no principal: o pano onde está agora, e as máquinas
+  // onde foram montadas. Iguais com o interruptor ligado.
+  const z0Proj = zDoPanoPlano(sala, p);
+  const zMaquinasProj = zDasMaquinasPlanas(sala);
+  // O shift é o do CAMPO, igual para todos -- decisão do mike ("deve ser de
+  // igual sim"). Numa fila de blend são máquinas iguais montadas da mesma
+  // maneira, e não há campo de shift por extra: enquanto cada um guardava o
+  // seu, os extras nasciam a 0 com o primeiro no valor do campo (que arranca
+  // a -25%), e a fila ficava com o primeiro quase um metro abaixo dos outros.
+  // Lido aqui a cada desenho, e não gravado no ajuste, para que mexer no campo
+  // mexa na fila inteira -- inclusive em projetos já guardados.
+  const fila = p;
+  (p.maquinas || []).forEach((pe, i) => {
+    if (!(pe.racio > 0) || !(pe.distancia > 0)) return;
+    // A ALTURA É DA FILA, do campo -- o mesmo que já valia para a distância e
+    // para o shift, e que o ecrã curvo passou a fazer na v3.41. Aqui ficou
+    // congelada: guardava-se a absoluta, calculada com o âncora que estava no
+    // campo ao aplicar (4,5 m por omissão), e mexer no campo não mexia na
+    // fila. Deu para ver quando o "quem tapa o feixe" nunca encontrava
+    // ninguém: as máquinas ficavam a 4,5 m e o feixe passava por cima de toda
+    // a gente, qualquer que fosse o número escrito. Um ajuste antigo só tem a
+    // absoluta -- lê-se essa, para um projeto guardado não saltar ao reabrir.
+    const alturaExtraMaquina = pe.alturaOffset !== undefined
+      ? fila.altura + pe.alturaOffset
+      : (pe.altura || 0);
+    // Em retro a máquina fica ATRÁS do pano: a mesma distância medida, do
+    // outro lado. O pano está em z0Proj e a plateia em z maior.
+    const projetorExtra = {
+      x: pe.lateral || 0, y: alturaExtraMaquina,
+      z: p.retro ? zMaquinasProj - pe.distancia : zMaquinasProj + pe.distancia
+    };
+    // O mesmo que no principal: o tamanho sai do tiro desenhado, não do
+    // número guardado. Sem isto, uma fila agrupada com o pano engordava toda
+    // de cada vez que o conjunto andava. Ver tiroAtePano().
+    const larguraExtra = tiroAtePano(projetorExtra.z, z0Proj) / pe.racio;
+    const alturaExtra = larguraExtra / p.formato;
+    const imagemExtra = {
+      x: projetorExtra.x + fila.shiftH * larguraExtra,
+      y: projetorExtra.y + fila.shiftV * alturaExtra,
+      z: z0Proj, largura: larguraExtra, altura: alturaExtra
+    };
+    const grupoPlano = fazerProjecao(projetorExtra, imagemExtra, textura, prefixo + "projetor-" + (i + 1));
+    if (grupoPlano.userData.feixe) feixesDoBlend.push(grupoPlano.userData.feixe);
+    desenhado.add(grupoPlano);
+    imagens.push({ x: imagemExtra.x, y: imagemExtra.y,
+                          largura: larguraExtra, altura: alturaExtra });
+    montagemProjetores.push(fichaDeProjetor(p.etiqueta + (i + 2), projetorExtra, z0Proj,
+      fila.shiftH, fila.shiftV, larguraExtra, alturaExtra));
+  });
+
+  // O PANO, depois de todas as imagens (v3.96). É a soma delas que lhe dá o
+  // tamanho: o pano é feito à medida do que ali vai ser projetado, que é como
+  // se compra um. Desenhado por último para o cinzento dele ficar por baixo da
+  // luz, e nomeado `ecra-plano` para ser uma PEÇA -- seleccionável,
+  // arrastável e agrupável com os projetores. Ver objetosArrastaveis().
+  if (imagens.length) {
+    const xs = [], ys = [];
+    imagens.forEach((r) => {
+      if (!(r.largura > 0) || !(r.altura > 0)) return;
+      xs.push(r.x - r.largura / 2, r.x + r.largura / 2);
+      ys.push(r.y - r.altura / 2, r.y + r.altura / 2);
+    });
+    if (xs.length) {
+      const larguraPano = Math.max(...xs) - Math.min(...xs);
+      const alturaPano = Math.max(...ys) - Math.min(...ys);
+      // A LARGURA vem das imagens (um pano compra-se à medida do que ali vai
+      // ser projetado); a POSIÇÃO é dele. Na vertical ainda acompanha as
+      // imagens -- não há campo de altura do pano, e subir/descer o pano não
+      // é o que ele pediu.
+      const pano = fazerEcraPlano(larguraPano, alturaPano,
+        xDoPanoPlano(p), (Math.max(...ys) + Math.min(...ys)) / 2, z0Proj,
+        prefixo + "ecra-plano");
+      if (pano) desenhado.add(pano);
+    }
+  }
+  }
+}
+
+/**
+ * A altura da imagem mais alta da fila -- o mínimo que aquele pano tem de ter.
+ *
+ * Serve de recurso quando a curva chega sem `altura`. Não é a medida do ecrã
+ * (essa só quem o comprou a sabe), é o que a luz obriga: desenhar uma tela
+ * assim é menos errado do que não desenhar tela nenhuma e não dizer porquê.
+ */
+function alturaMaisAltaDasFatias(curva, p) {
+  const fila = p || dadosDaProjecaoViva();
+  let maior = 0;
+  (fila.maquinas || []).forEach((pe) => {
+    if (!(pe.racio > 0)) return;
+    const tiro = (curva && curva.montagem === "linha" && curva.trussDistancia > 0)
+      ? curva.trussDistancia : fila.distancia;
+    if (!(tiro > 0)) return;
+    maior = Math.max(maior, tiro / pe.racio / fila.formato);
+  });
+  return maior;
+}
+
+/**
  * O BLEND NUM ECRÃ CURVO.
  *
  * Esteve de fora do 3D com a razão de que "a distância de tiro varia ao longo
@@ -1548,27 +1641,11 @@ function curvaAtivaDoBlend() {
  * É a mesma receita do anel da cúpula, que já cá estava: um raio de montagem
  * mais pequeno do que o da superfície, e cada máquina a olhar para fora.
  */
-/**
- * A altura da imagem mais alta da fila -- o mínimo que aquele pano tem de ter.
- *
- * Serve de recurso quando a curva chega sem `altura`. Não é a medida do ecrã
- * (essa só quem o comprou a sabe), é o que a luz obriga: desenhar uma tela
- * assim é menos errado do que não desenhar tela nenhuma e não dizer porquê.
- */
-function alturaMaisAltaDasFatias(curva) {
-  const fila = lerProjecao();
-  let maior = 0;
-  (ajustes.projetoresExtra || []).forEach((pe) => {
-    if (!(pe.racio > 0)) return;
-    const tiro = (curva && curva.montagem === "linha" && curva.trussDistancia > 0)
-      ? curva.trussDistancia : fila.distancia;
-    if (!(tiro > 0)) return;
-    maior = Math.max(maior, tiro / pe.racio / formatoImagem);
-  });
-  return maior;
-}
-
-function desenharBlendCurvo(sala, curva) {
+function desenharBlendCurvo(sala, curva, p, prefixo) {
+  // Como no plano: os dados podem vir de fora (uma projeção guardada) ou dos
+  // campos. Uma forma só para as duas -- ver dadosDaProjecaoViva().
+  p = p || dadosDaProjecaoViva();
+  prefixo = prefixo || "";
   // A PAREDE DO FUNDO, crua -- e não o zDoPanoPlano(). Um ecrã curvo tem os
   // seus próprios ↔/Fundo/Base (curvaDx/curvaDz/curvaBase), aplicados já a
   // seguir: somar-lhe também o "pano para dentro" do ecrã plano era mover o
@@ -1599,7 +1676,7 @@ function desenharBlendCurvo(sala, curva) {
   const desalinhado = !leva;
   // O shift é o do campo, igual para toda a fila — a mesma decisão do ecrã
   // plano ("deve ser de igual sim").
-  const fila = lerProjecao();
+  const fila = p;
 
   // A DISTÂNCIA também é da fila inteira, e pela mesma razão só que mais
   // forte: num arco concêntrico "a distância à superfície" é o raio de
@@ -1658,13 +1735,13 @@ function desenharBlendCurvo(sala, curva) {
   // zero tela e zero explicação -- as fatias ficavam a flutuar e a app calava
   // o motivo. Na falta do número usa-se o que se sabe: a altura da imagem mais
   // alta, que é o mínimo que aquele pano tem de ter.
-  const alturaDaTela = curva.altura > 0 ? curva.altura : alturaMaisAltaDasFatias(curva);
+  const alturaDaTela = curva.altura > 0 ? curva.altura : alturaMaisAltaDasFatias(curva, p);
   if (alturaDaTela > 0) {
-    const tela = fazerEcraCurvo(m, alturaDaBaseDoEcra(), alturaDaTela);
+    const tela = fazerEcraCurvo(m, alturaDaBaseDoEcra(), alturaDaTela, prefixo + "ecra-curvo");
     if (tela) desenhado.add(tela);
   }
 
-  ajustes.projetoresExtra.forEach((pe, i) => {
+  (p.maquinas || []).forEach((pe, i) => {
     if (!(pe.racio > 0) || !(distancia > 0)) return;
     const s = pe.arco || 0;
     // A altura desta máquina: a da fila (do campo) mais o que a distingue.
@@ -1742,7 +1819,7 @@ function desenharBlendCurvo(sala, curva) {
     // `tiro` da lente. Medi-la a partir do arco esticava a imagem para cima
     // pelos mesmos 5,8% que a curva rouba à largura, e a imagem não é mais alta
     // por o ecrã ser curvo.
-    const alturaImagem = tiro / pe.racio / formatoImagem;
+    const alturaImagem = tiro / pe.racio / p.formato;
     // Cada fatia num raio ligeiramente diferente: nas zonas de blend duas
     // fatias ocupam a mesma superfície, e à mesma distância ficavam a piscar
     // uma contra a outra. Assim vê-se também onde elas se sobrepõem.
@@ -1807,7 +1884,7 @@ function desenharBlendCurvo(sala, curva) {
       angFim: cortadoFim,
       alvo: alvo
     };
-    const grupoCurvo = fazerProjecaoCurva(projetor, fatia, textura, "projetor-" + i);
+    const grupoCurvo = fazerProjecaoCurva(projetor, fatia, textura, prefixo + "projetor-" + i);
     if (grupoCurvo.userData.feixe) feixesDoBlend.push(grupoCurvo.userData.feixe);
     desenhado.add(grupoCurvo);
     // O alvo é RADIAL e não em frente: é essa a única diferença para a ficha
@@ -1824,13 +1901,23 @@ function desenharBlendCurvo(sala, curva) {
  * ninguém consegue responder olhando para uma folha: quem é que lhe passa à
  * frente.
  */
-function desenharProjecao(sala, palco) {
-  const p = lerProjecao();
-  projecaoAtual = null;
-  $("resumoProj").textContent = "—";
+function desenharProjecao(sala, palco, p, prefixo, imagens) {
+  // Os dados podem vir de fora (uma projeção guardada) ou dos campos (a viva,
+  // que é o caso de quem chama isto de outros sítios -- ver medirSombra()).
+  p = p || dadosDaProjecaoViva();
+  prefixo = prefixo || "";
+  imagens = imagens || imagensDoPlano;
+  // A SOMBRA E A COBERTURA são só da projeção VIVA: são contas caras e a
+  // pergunta "quem tapa o feixe" faz-se à que se está a montar. As guardadas
+  // são visuais, como já eram os extras do blend.
+  const viva = prefixo === "";
+  if (viva) {
+    projecaoAtual = null;
+    $("resumoProj").textContent = "—";
+  }
   if (!p.ligada || !p.racio || !p.distancia) return;
 
-  const z0 = zDoPanoPlano(sala);
+  const z0 = zDoPanoPlano(sala, p);
 
   // Onde a imagem cai nao se escreve: sai da lente e do shift dela. Era isto
   // que faltava -- com a base escrita a mao, o desenho mostrava imagens que
@@ -1843,16 +1930,17 @@ function desenharProjecao(sala, palco) {
   // O TAMANHO SAI DO TIRO QUE ESTÁ DESENHADO, e não do número escrito no
   // campo. Ver tiroAtePano().
   const largura = tiroAtePano(projetor.z, z0) / p.racio;
-  const altura = largura / formatoImagem;
+  const altura = largura / p.formato;
   const imagem = {
     x: projetor.x + p.shiftH * largura,
     y: projetor.y + p.shiftV * altura,
     z: z0, largura, altura
   };
 
-  desenhado.add(fazerProjecao(projetor, imagem, textura));
-  imagensDoPlano.push({ x: imagem.x, y: imagem.y, largura, altura });
-  montagemProjetores.push(fichaDeProjetor("P1", projetor, z0, p.shiftH, p.shiftV, largura, altura));
+  desenhado.add(fazerProjecao(projetor, imagem, textura, prefixo + "projetor-0"));
+  imagens.push({ x: imagem.x, y: imagem.y, largura, altura });
+  montagemProjetores.push(fichaDeProjetor(p.etiqueta + "1", projetor, z0, p.shiftH, p.shiftV, largura, altura));
+  if (!viva) return;
   projecaoAtual = {
     projetor, imagem,
     base: imagem.y - altura / 2,
@@ -4838,6 +4926,141 @@ function desenharPassarelasExtra() {
  * instância #0 (campos #projLateral/#projAltura/#projDist), cada extra
  * guarda os seus próprios valores directamente no ajuste.
  */
+/**
+ * AS PROJEÇÕES GUARDADAS, e o que se pode fazer a cada uma.
+ *
+ * Pedido dele: *"preciso poder adicionar mais ecrãs de projeção e projetores
+ * neste projeto"*. Até aqui havia UM pano e UMA fila, e a carga seguinte dos
+ * Calculadores substituía a anterior -- calcular o segundo ecrã apagava o
+ * primeiro, dos dois lados.
+ *
+ * Guardar não é congelar: a projeção guardada continua a desenhar-se, a
+ * agarrar-se e a agrupar-se no 3D como qualquer peça. Para voltar a mexer-lhe
+ * nos números, TROCA-SE com a viva -- assim nunca há duas a disputar os mesmos
+ * campos, e nada se perde no caminho.
+ */
+function desenharProjecoesExtra() {
+  const lista = $("listaProjecoesExtra");
+  if (!lista) return;
+  if (aEscreverNaLista(lista)) return;
+  lista.innerHTML = "";
+  (ajustes.projecoesExtra || []).forEach((pe, i) => {
+    const linha = document.createElement("div");
+    linha.className = "ajuste-linha";
+    const nome = document.createElement("strong");
+    const quantas = (pe.maquinas || []).length + 1;
+    nome.textContent = "Projeção " + (i + 2) + " · " +
+      (pe.curva ? "ecrã curvo" : "pano plano") + " · " +
+      quantas + (quantas === 1 ? " máquina" : " máquinas");
+    linha.append(nome);
+
+    const editar = document.createElement("button");
+    editar.type = "button";
+    editar.className = "ajuste-passo";
+    editar.textContent = "editar";
+    editar.title = "Trocar esta projeção com a que está nos campos, para lhe mexer nos números";
+    editar.addEventListener("click", () => trocarProjecaoComAViva(i));
+    linha.append(editar);
+
+    const remover = document.createElement("button");
+    remover.type = "button";
+    remover.className = "ajuste-passo ajuste-remover";
+    remover.textContent = "✕";
+    remover.title = "Remover esta projeção";
+    remover.setAttribute("aria-label", "Remover Projeção " + (i + 2));
+    remover.addEventListener("click", () => {
+      ajustes.projecoesExtra.splice(i, 1);
+      guardarAjustes(ajustes);
+      remontarDaqui();
+    });
+    linha.append(remover);
+    lista.append(linha);
+  });
+}
+
+/**
+ * Guarda a projeção que está nos campos e deixa-os livres para a seguinte.
+ *
+ * O que se guarda é tudo o que ela é: interruptor, números, formato, posição
+ * do pano, a fila de máquinas e a curva. O que fica nos campos é uma projeção
+ * DESLIGADA e vazia de máquinas -- não se apaga o rácio nem a distância, que
+ * costumam repetir-se de um ecrã para o outro e poupam-lhe escrita.
+ */
+function guardarProjecaoEComecarOutra() {
+  const viva = dadosDaProjecaoViva();
+  if (!viva.ligada || !(viva.racio > 0) || !(viva.distancia > 0)) {
+    const aviso = $("aviso");
+    aviso.textContent = "Não há projeção montada para guardar — liga-a e diz o rácio e a distância.";
+    aviso.classList.add("mostra");
+    setTimeout(() => aviso.classList.remove("mostra"), 3200);
+    return;
+  }
+  if (!Array.isArray(ajustes.projecoesExtra)) ajustes.projecoesExtra = [];
+  ajustes.projecoesExtra.push({
+    ligada: true, racio: viva.racio, distancia: viva.distancia, altura: viva.altura,
+    lateral: viva.lateral, shiftV: viva.shiftV, shiftH: viva.shiftH,
+    formato: viva.formato, panoX: viva.panoX, panoDz: viva.panoDz,
+    maquinas: (viva.maquinas || []).map((m) => ({ ...m })),
+    curva: viva.curva ? { ...viva.curva } : null,
+    retro: viva.retro
+  });
+  // Os campos ficam livres: a fila e a curva são da projeção que acabou de ser
+  // guardada, e deixá-las aqui era desenhar a mesma coisa duas vezes.
+  ajustes.projetoresExtra = [];
+  ajustes.curvaDoBlend = null;
+  ajustes.curvaAnterior = null;
+  ajustes.projetoresAnteriores = null;
+  $("projLigada").checked = false;
+  if ($("verProjecao")) $("verProjecao").checked = false;
+  guardarAjustes(ajustes);
+  remontarDaqui();
+  const aviso = $("aviso");
+  aviso.textContent = "Projeção guardada. Traz a próxima dos Calculadores, ou preenche os campos.";
+  aviso.classList.add("mostra");
+  setTimeout(() => aviso.classList.remove("mostra"), 3600);
+}
+
+/**
+ * TROCA uma projeção guardada com a que está nos campos.
+ *
+ * Troca e não "carrega": carregar por cima obrigava a decidir o que fazer com
+ * a que lá estava, e a resposta honesta é "não se deita fora o trabalho de
+ * ninguém". Assim as duas continuam a existir, só mudam de lugar.
+ */
+function trocarProjecaoComAViva(i) {
+  const guardada = (ajustes.projecoesExtra || [])[i];
+  if (!guardada) return;
+  const viva = dadosDaProjecaoViva();
+  const tinhaProjecaoViva = viva.ligada && viva.racio > 0 && viva.distancia > 0;
+  ajustes.projecoesExtra[i] = tinhaProjecaoViva ? {
+    ligada: true, racio: viva.racio, distancia: viva.distancia, altura: viva.altura,
+    lateral: viva.lateral, shiftV: viva.shiftV, shiftH: viva.shiftH,
+    formato: viva.formato, panoX: viva.panoX, panoDz: viva.panoDz,
+    maquinas: (viva.maquinas || []).map((m) => ({ ...m })),
+    curva: viva.curva ? { ...viva.curva } : null, retro: viva.retro
+  } : null;
+  if (!tinhaProjecaoViva) ajustes.projecoesExtra.splice(i, 1);
+
+  const g = projecaoCompleta(guardada, "P");
+  const põe = (id, v) => { if ($(id) && Number.isFinite(v)) $(id).value = String(v); };
+  põe("projRacio", g.racio); põe("projDist", g.distancia); põe("projAltura", g.altura);
+  põe("projLateral", g.lateral);
+  $("projShiftV").value = String(Math.round(g.shiftV * 1000) / 10);
+  $("projShiftH").value = String(Math.round(g.shiftH * 1000) / 10);
+  põe("projPanoX", g.panoX); põe("projDz", g.panoDz);
+  formatoImagem = g.formato;
+  document.querySelectorAll("[data-formato]").forEach((b) => {
+    b.classList.toggle("destaque", Math.abs(parseFloat(b.dataset.formato) - g.formato) < 0.02);
+  });
+  ajustes.projetoresExtra = (g.maquinas || []).map((m) => ({ ...m }));
+  ajustes.curvaDoBlend = g.curva ? { ...g.curva } : null;
+  ajustes.retroDoBlend = g.retro;
+  $("projLigada").checked = true;
+  if ($("verProjecao")) $("verProjecao").checked = true;
+  guardarAjustes(ajustes);
+  remontarDaqui();
+}
+
 function desenharProjetoresExtra() {
   const lista = $("listaProjetoresExtra");
   if (!lista) return;
@@ -8944,6 +9167,38 @@ const CAMPOS_ECRA_CURVO = [
   { rotulo: "base", chave: "base", unidade: "m", passo: "0.1" }
 ];
 
+/**
+ * O PANO (ou a tela) de uma projeção GUARDADA, agarrável como o da viva.
+ *
+ * Escreve na entrada dela e não nos campos: os campos são da projeção que se
+ * está a editar, e duas peças a escrever no mesmo sítio era o defeito dos dois
+ * mecanismos outra vez (ver zDasMaquinasPlanas).
+ */
+function alvoDoPanoGuardado(sala, g) {
+  const z0 = -sala.profundidade / 2 + 0.35;
+  return {
+    getXZ: () => ({ x: Number(g.panoX) || 0, z: z0 + (Number(g.panoDz) || 0) }),
+    setXZ: (x, z) => { g.panoX = x; g.panoDz = z - z0; },
+    ajuste: g
+  };
+}
+
+/** Uma máquina de uma projeção guardada. Mesma conta do alvoDeProjetorExtra. */
+function alvoDaMaquinaGuardada(sala, m) {
+  const z0 = zDasMaquinasPlanas(sala);
+  return {
+    getXZ: () => ({ x: Number(m.lateral) || 0, z: z0 + (Number(m.distancia) || 0) }),
+    setXZ: (x, z) => { m.lateral = x; m.distancia = Math.max(0.1, z - z0); },
+    ajuste: m
+  };
+}
+
+/** "p3:ecra-plano" -> 3. Devolve 0 quando o nome não traz prefixo nenhum. */
+function numeroDaProjecao(nome) {
+  const m = /^p(\d+):/.exec(nome || "");
+  return m ? parseInt(m[1], 10) : 0;
+}
+
 function objetosArrastaveis() {
   if (!desenhado) return [];
   const publicoAtual = lerPublico();
@@ -8963,6 +9218,22 @@ function objetosArrastaveis() {
       alvos.push({ obj: o, rotulo: "Ecrã curvo", campos: CAMPOS_ECRA_CURVO, ...alvoDoEcraCurvo() });
     } else if (o.name === "ecra-plano") {
       alvos.push({ obj: o, rotulo: "Pano", campos: CAMPOS_ECRA_PLANO, ...alvoDoEcraPlano() });
+    } else if (/^p\d+:(ecra-plano|ecra-curvo)$/.test(o.name)) {
+      // O pano (ou a tela) de uma projeção guardada. Ver desenharUmaProjecao().
+      const n = numeroDaProjecao(o.name);
+      const g = (ajustes.projecoesExtra || [])[n - 2];
+      if (g) alvos.push({ obj: o, rotulo: "Pano " + n, campos: CAMPOS_ECRA_PLANO,
+                          ...alvoDoPanoGuardado(lerSala(), g) });
+    } else if (/^p\d+:projetor-\d+$/.test(o.name)) {
+      const n = numeroDaProjecao(o.name);
+      const g = (ajustes.projecoesExtra || [])[n - 2];
+      const i = parseInt(o.name.slice(o.name.lastIndexOf("-") + 1), 10);
+      // Numa projeção guardada a máquina 0 é a principal (que na viva mora nos
+      // campos) e as seguintes vêm do array -- por isso o índice desencontra-se
+      // de um. Num ecrã CURVO estão todas no array, e não desencontra.
+      const m = g ? (g.curva ? (g.maquinas || [])[i] : (i === 0 ? g : (g.maquinas || [])[i - 1])) : null;
+      if (m) alvos.push({ obj: o, rotulo: "Projetor " + n + "." + (i + 1),
+                          campos: CAMPOS_SO_XZ_MUNDO, ...alvoDaMaquinaGuardada(lerSala(), m) });
     } else if (o.name === "palco" && o.isMesh) {
       // Só a malha: fazerPalco() devolve um grupo com o MESMO nome lá dentro,
       // e sem isto o palco entrava duas vezes na lista de agarráveis.
@@ -10053,6 +10324,8 @@ function shiftForaDaLente() {
 /**
  * REPOR O ECRÃ CURVO que a última carga deitou fora. Ver escreverCurvaPerdida().
  */
+$("btGuardarProjecao").onclick = guardarProjecaoEComecarOutra;
+
 $("btReporCurva").onclick = () => {
   if (!ajustes.curvaAnterior) return;
   ajustes.curvaDoBlend = ajustes.curvaAnterior;
