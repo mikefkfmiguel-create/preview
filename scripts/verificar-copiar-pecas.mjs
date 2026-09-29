@@ -397,6 +397,41 @@ conferir(copiaDaProjecao.copiado !== null && copiaDaProjecao.original !== null &
          copiaDaProjecao.copiado - copiaDaProjecao.original > 10,
   "e a cópia sai AO LADO, fora da original (" + copiaDaProjecao.original + " m → " + copiaDaProjecao.copiado + " m)");
 
+// E COMO SE APAGA A CÓPIA. Pergunta dele, com a cópia feita e a olhar para ela
+// no 3D: *"e como apago a cópia?"*. Apagava-se — mas só numa lista do painel
+// lateral, longe da peça que ele tinha na mão. Copiar era um botão no painel
+// da peça; apagar obrigava a procurar noutro sítio.
+const apagar = await pagina.evaluate(async () => {
+  const w = window.preview;
+  // Abrir o painel da peça copiada, como quem lhe toca na cena.
+  const alvo = w.objetosArrastaveis().find((a) => a.obj && a.obj.name === "p2:ecra-plano");
+  if (!alvo) return { semAlvo: true };
+  w.abrirPainelDeAjuste(alvo);
+  await new Promise((r) => setTimeout(r, 700));
+  const botoes = Array.from(document.querySelectorAll("#painelAjuste .btn-icone"))
+    .map((b) => b.textContent);
+  const x = Array.from(document.querySelectorAll("#painelAjuste .btn-icone"))
+    .find((b) => b.textContent === "✕");
+  if (!x) return { botoes, semBotao: true };
+  x.click();
+  await new Promise((r) => setTimeout(r, 1600));
+  const THREE = w.THREE;
+  let panos = 0, maquinas = 0;
+  w.desenhado.traverse((o) => {
+    if (!o.isMesh && !o.isGroup) return;
+    if (/(^|:)ecra-plano$/.test(o.name || "")) panos += 1;
+    if (/(^|:)projetor-\d+$/.test(o.name || "")) maquinas += 1;
+  });
+  return { botoes, guardadas: (w.ajustes.projecoesExtra || []).length, panos, maquinas };
+});
+conferir(!apagar.semAlvo && !apagar.semBotao,
+  "o painel da peça copiada tem ✕ (botões: " + (apagar.botoes || []).join(" ") + ")");
+conferir(apagar.guardadas === 0 && apagar.panos === 1,
+  "e apaga a projeção inteira — um pano e não dois (" + apagar.panos + ")");
+conferir(apagar.maquinas === 3,
+  "com as máquinas dela, sem deixar máquinas órfãs a apontar a um pano que já não existe (" +
+  apagar.maquinas + ")");
+
 console.log("\n== e os grupos têm nome ==");
 
 // Pedido dele, logo a seguir: *"e poder dar nomes aos grupos"*. O nome já

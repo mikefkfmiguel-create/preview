@@ -9785,6 +9785,20 @@ function abrirPainelDeAjuste(alvo) {
   fechar.addEventListener("click", fecharPainelDeAjuste);
   // O ⧉ só aparece em quem se pode mesmo copiar. Num gomo de plateia ou num
   // DSM, um botão que não faz nada é pior do que botão nenhum.
+  // APAGAR, ONDE A PEÇA ESTÁ.
+  //
+  // Pergunta dele, com a cópia feita e a olhar para ela no 3D: *"e como apago
+  // a cópia?"*. Apagava-se — mas só numa lista do painel lateral, longe da
+  // peça que ele tinha na mão. Copiar era um botão aqui; apagar obrigava a
+  // procurar noutro sítio. Quem faz uma cópia pelo ⧉ desfaz-na pelo ✕, no
+  // mesmo sítio.
+  //
+  // Só em quem se pode apagar mesmo: uma projeção GUARDADA sai inteira (tela
+  // e máquinas), a viva não — essa é a que se está a editar, e tem o seu
+  // próprio interruptor.
+  const nApagavel = numeroDaProjecao(alvo.obj && alvo.obj.name);
+  const daParaApagar = nApagavel > 0 && (ajustes.projecoesExtra || [])[nApagavel - 2];
+  const cabeca = [nome];
   if (podeCopiar(alvo)) {
     const copiar = document.createElement("button");
     copiar.type = "button";
@@ -9792,10 +9806,26 @@ function abrirPainelDeAjuste(alvo) {
     copiar.title = "Copiar esta peça — a cópia sai ao lado, de cor nova e já marcada";
     copiar.textContent = "⧉";
     copiar.addEventListener("click", () => duplicarPecas([alvo]));
-    topo.append(nome, copiar, fechar);
-  } else {
-    topo.append(nome, fechar);
+    cabeca.push(copiar);
   }
+  if (daParaApagar) {
+    const apagar = document.createElement("button");
+    apagar.type = "button";
+    apagar.className = "btn-icone";
+    apagar.title = "Apagar esta projeção — sai inteira, com as máquinas dela";
+    apagar.textContent = "✕";
+    apagar.addEventListener("click", () => {
+      ajustes.projecoesExtra.splice(nApagavel - 2, 1);
+      guardarAjustes(ajustes);
+      fecharPainelDeAjuste();
+      limparSelecao();
+      remontarDaqui();
+      dizerNaCena("Projeção apagada, com as máquinas dela.");
+    });
+    cabeca.push(apagar);
+  }
+  cabeca.push(fechar);
+  topo.append(...cabeca);
   caixa.append(topo);
   const campos = document.createElement("div");
   campos.className = "campos";
