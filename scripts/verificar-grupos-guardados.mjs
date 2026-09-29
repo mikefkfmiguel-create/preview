@@ -350,6 +350,67 @@ conferir(retratoDepois === retrato,
   "e continua igual depois de recarregar a app — um cenário que se desfaz ao reabrir não é um cenário");
 
 
+console.log("\n== o cadeado: um cenário fechado não se mexe ==");
+
+// Pedido dele: *"não podemos pôr um cadeado nos grupos para não alterarem
+// nada"*. Um cenário fechado é trabalho acabado -- o que se quer dele é que
+// ninguém lhe mexa sem querer.
+//
+// Há TRÊS caminhos que mexem num grupo (arrasto, setas, e entrar por dentro
+// com duplo clique) e os três têm de perguntar o mesmo. Este bloco mede os
+// que se podem medir sem rato: as setas e a promessa de que nada se move.
+const cadeado = await pagina.evaluate(async () => {
+  const w = window.preview;
+  w.selecaoDeGrupo.clear();
+  ["palco-1", "palco-2"].forEach((n) => w.selecaoDeGrupo.add(n));
+  const g = w.criarGrupo();
+  await new Promise((r) => setTimeout(r, 900));
+  const onde = () => {
+    const a = w.alvosSelecionados()[0];
+    return a ? +a.getXZ().x.toFixed(2) : null;
+  };
+  const antes = onde();
+
+  w.travarGrupo(g.id, true);
+  await new Promise((r) => setTimeout(r, 900));
+  w.selecaoDeGrupo.clear();
+  g.chaves.forEach((c) => w.selecaoDeGrupo.add(c));
+  w.moverGrupo(3, 0, 0);
+  await new Promise((r) => setTimeout(r, 900));
+  const travado = onde();
+
+  w.travarGrupo(g.id, false);
+  await new Promise((r) => setTimeout(r, 900));
+  w.moverGrupo(3, 0, 0);
+  await new Promise((r) => setTimeout(r, 900));
+  const aberto = onde();
+
+  return { antes, travado, aberto, id: g.id,
+           guardado: (w.ajustes.grupos.find((x) => x.id === g.id) || {}).travado };
+});
+conferir(cadeado.travado === cadeado.antes,
+  "com o cadeado fechado, as setas não mexem no grupo (" + cadeado.antes + " → " +
+  cadeado.travado + ")");
+conferir(cadeado.aberto !== cadeado.travado,
+  "e com o cadeado aberto volta a andar (" + cadeado.travado + " → " + cadeado.aberto + ")");
+conferir(cadeado.guardado === false,
+  "o estado do cadeado é do grupo, e fica guardado com ele");
+
+const sobrevive = await pagina.evaluate(async () => {
+  const w = window.preview;
+  const g = w.ajustes.grupos[w.ajustes.grupos.length - 1];
+  w.travarGrupo(g.id, true);
+  await new Promise((r) => setTimeout(r, 700));
+  return g.id;
+});
+await pagina.reload({ waitUntil: "networkidle" });
+await pagina.waitForFunction(() => window.preview && window.preview.montar, null, { timeout: 30000 });
+await pagina.waitForTimeout(2200);
+const aindaTravado = await pagina.evaluate((id) =>
+  (window.preview.ajustes.grupos.find((x) => x.id === id) || {}).travado, sobrevive);
+conferir(aindaTravado === true,
+  "e o cadeado sobrevive a fechar e reabrir — uma tranca que se abre sozinha de noite não tranca nada");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
