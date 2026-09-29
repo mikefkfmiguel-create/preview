@@ -10931,6 +10931,26 @@ function instantaneoDaProjecaoQueEstava(queVem) {
 }
 
 function aplicarProjetores(lista) {
+  // UMA CARGA SEM MÁQUINA VIVA, MAS COM PROJEÇÕES GUARDADAS, quer dizer
+  // exactamente isso: os Calculadores têm ecrãs no projeto e NENHUM em cima
+  // da mesa neste momento.
+  //
+  // Sem esta leitura, acrescentar um blend lá e esvaziar os campos deixava o
+  // mesmo blend nos dois sítios -- vivo nos campos daqui e guardado na lista
+  // --, e ele aparecia DUAS VEZES na sala. Medido: máquina viva na ponte e
+  // uma projeção guardada, o mesmo pano desenhado a dobrar.
+  //
+  // Desligar a projeção viva não apaga nada: os números ficam nos campos, e
+  // o interruptor volta a ligar-se sozinho quando a carga seguinte trouxer
+  // uma máquina.
+  if (lista && !lista.length && lista.temExtras) {
+    ajustes.projecoesExtra = lista.extras.map((e) => ({ ...e }));
+    ajustes.projetoresExtra = [];
+    guardarAjustes(ajustes);
+    if ($("projLigada")) $("projLigada").checked = false;
+    remontarDaqui();
+    return true;
+  }
   if (!lista || !lista.length) return false;
   // A QUE JÁ LÁ ESTAVA FICA. Tem de ser aqui, antes de qualquer campo ser
   // escrito: a partir da primeira linha que mexe nos campos, a projeção que
