@@ -10750,8 +10750,24 @@ function aplicarProjetor(p) {
 function ehAMesmaTela(a, b) {
   if (!a || !b) return false;
   const perto = (x, y, t) => Math.abs(Number(x || 0) - Number(y || 0)) <= t;
-  return perto(a.racio, b.racio, 0.02) &&
-         perto(a.distancia, b.distancia, 0.05) &&
+  // A TELA MEDE-SE PELA TELA, não pela lente.
+  //
+  // A primeira versão comparava o rácio E a distância -- e essas são
+  // exactamente as duas coisas que ele mexe. Reparo dele: *"os blends vão à
+  // vida"*. Medido: corrigir a distância do MESMO blend de 30 para 26 m dava
+  // "a carga substituiu a projeção que estava montada", com botão para repor
+  // uma tela que ele nunca perdeu. Carregar nele deixava-lhe uma cópia
+  // fantasma do mesmo blend ao lado do blend. O aviso que era para lhe
+  // guardar o trabalho passou a enchê-lo de trabalho que ele não pediu.
+  //
+  // O que não muda quando se corrige a lente é a LARGURA DA IMAGEM DE CADA
+  // MÁQUINA: distância ÷ rácio. A 30 m dava 11,85 m e a 26 m dá 11,85 m --
+  // porque o pano é o mesmo pano. Com o número de máquinas e o formato, é
+  // isso que distingue outra tela de uma correcção desta.
+  const largura = (p) => (p && p.racio > 0 ? Number(p.distancia || 0) / Number(p.racio) : 0);
+  const la = largura(a), lb = largura(b);
+  if (!(la > 0) || !(lb > 0)) return false;
+  return perto(la, lb, Math.max(0.05, la * 0.02)) &&
          perto(a.formato, b.formato, 0.02) &&
          (a.maquinas || []).length === (b.maquinas || []).length;
 }
