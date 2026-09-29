@@ -517,6 +517,11 @@ export function ajustesGuardados() {
       // posição -- com a mesma forma da viva (ver dadosDaProjecaoViva()).
       projecoesExtra: (dados && Array.isArray(dados.projecoesExtra)) ? dados.projecoesExtra : [],
       curvaAnterior: (dados && typeof dados.curvaAnterior === "object" && dados.curvaAnterior) || null,
+      // A projeção que a última carga substituiu. Sem estar nesta lista
+      // desaparecia ao guardar o projeto -- e o botão de a repor ficava a
+      // prometer uma coisa que já não existia.
+      projecaoAnterior: (dados && typeof dados.projecaoAnterior === "object" && dados.projecaoAnterior) || null,
+      projecaoPousadaEm: Number.isFinite(dados && dados.projecaoPousadaEm) ? dados.projecaoPousadaEm : 0,
       // E a fila que lhe pertencia: num curvo estão lá todas as máquinas, num
       // plano só as que vêm a seguir à primeira. Repor uma com a fila da
       // outra deixava uma máquina por desenhar.
@@ -527,7 +532,7 @@ export function ajustesGuardados() {
       retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, projecoesExtra: [], larguraPedidaDoPrincipal: null, curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, retroDoBlend: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, projecoesExtra: [], larguraPedidaDoPrincipal: null, curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, projecaoAnterior: null, projecaoPousadaEm: 0, retroDoBlend: false };
   }
 }
 
