@@ -1772,6 +1772,70 @@ function temAltura(g) {
          Number.isFinite(Number(g.altura));
 }
 
+/**
+ * A CONSTRUÇÃO VEM DE LÁ, A DISPOSIÇÃO É DAQUI.
+ *
+ * Dito por ele: *"a construção de ecrãs pertence à calculadora quando nela
+ * criados, mas a disposição é do 3D sem que a calculadora interfira"*.
+ *
+ * A carga dos Calculadores reescreve-se a cada tecla. Enquanto `projecoesExtra`
+ * foi substituída em bloco, qualquer ecrã arrastado aqui voltava ao sítio na
+ * escrita seguinte -- a app a desfazer o trabalho de quem a usa. O que faltava
+ * era IDENTIDADE: saber que o ecrã que chega é o mesmo que já cá está.
+ *
+ * Com id, cada ecrã guarda o que é DAQUI -- onde está o pano (panoX, panoDz),
+ * a que altura, com que shift -- e aceita de lá o que é construção: rácio,
+ * distância, formato, máquinas, curva, retro, nome.
+ *
+ * Um ecrã que chega com um id NOVO nasce ao lado dos que já cá estão, e não
+ * em cima deles (ver sitioParaUmEcraNovo). Uma carga antiga, sem id nenhum,
+ * é substituída em bloco como sempre foi: sem identidade não há nada a casar.
+ */
+function casarProjecoesPorId(antigas, novas) {
+  const lista = Array.isArray(antigas) ? antigas : [];
+  if (!novas.some((e) => e && e.id)) return novas.map((e) => ({ ...e }));
+  const porId = new Map();
+  lista.forEach((e) => { if (e && e.id) porId.set(e.id, e); });
+  const saida = [];
+  novas.forEach((nova) => {
+    const jaCa = nova.id ? porId.get(nova.id) : null;
+    if (jaCa) {
+      // O QUE É DAQUI FICA. A posição, a altura e o shift são de quem os pôs
+      // no sítio -- e isso foi aqui, com o rato.
+      saida.push({ ...nova,
+        panoX: jaCa.panoX, panoDz: jaCa.panoDz,
+        altura: jaCa.altura, shiftV: jaCa.shiftV, shiftH: jaCa.shiftH });
+    } else {
+      saida.push({ ...nova, panoX: sitioParaUmEcraNovo(saida, nova) });
+    }
+  });
+  return saida;
+}
+
+/**
+ * ONDE NASCE UM ECRÃ QUE NUNCA CÁ ESTEVE.
+ *
+ * Reparo dele: *"fiz dois e só vejo um"*. Todos nasciam no meio da mesma
+ * parede, e o mais pequeno ficava inteiro dentro do maior. Nascer no mesmo
+ * sítio não é uma posição: é a falta de uma.
+ *
+ * Põe-se à direita do que já lá está, com um vão. Sem a largura do pano não
+ * se lhe inventa sítio nenhum -- fica no meio, como dantes.
+ */
+function sitioParaUmEcraNovo(jaColocados, nova) {
+  const VAO = 1.5;
+  const largura = (l) => (l && l.larguraDoPano > 0 ? l.larguraDoPano : 0);
+  if (!(largura(nova) > 0)) return Number.isFinite(nova.panoX) ? nova.panoX : 0;
+  let direita = null;
+  jaColocados.forEach((e) => {
+    if (!(largura(e) > 0)) return;
+    const borda = (Number(e.panoX) || 0) + largura(e) / 2;
+    if (direita === null || borda > direita) direita = borda;
+  });
+  if (direita === null) return 0;
+  return Math.round((direita + VAO + largura(nova) / 2) * 100) / 100;
+}
+
 function projecaoCompleta(g, etiqueta) {
   const n = (v, omissao) => (Number.isFinite(Number(v)) ? Number(v) : omissao);
   return {
@@ -1814,6 +1878,11 @@ function projecaoCompleta(g, etiqueta) {
     curva: (g.curva && g.curva.raio > 0 && g.curva.arco > 0) ? g.curva : null,
     curvaDx: n(g.curvaDx, 0), curvaDz: n(g.curvaDz, 0),
     retro: !!g.retro,
+    // O NOME QUE LHE DERAM NOS CALCULADORES. Pedido dele: *"fica escondido ou
+    // misturado, temos de dar nomes às coisas"*. Sem nome, a etiqueta é o que
+    // sempre foi (P2, P3) -- um número não é pior do que um nome inventado.
+    nome: (typeof g.nome === "string" && g.nome.trim()) ? g.nome.trim() : "",
+    larguraDoPano: n(g.larguraDoPano, 0),
     etiqueta: etiqueta
   };
 }
@@ -5347,7 +5416,9 @@ function desenharProjecoesExtra() {
     linha.className = "ajuste-linha";
     const nome = document.createElement("strong");
     const quantas = (pe.maquinas || []).length + 1;
-    nome.textContent = "Projeção " + (i + 2) + " · " +
+    const comoSeChama = (typeof pe.nome === "string" && pe.nome.trim())
+      ? pe.nome.trim() : "Projeção " + (i + 2);
+    nome.textContent = comoSeChama + " · " +
       (pe.curva ? "ecrã curvo" : "pano plano") + " · " +
       quantas + (quantas === 1 ? " máquina" : " máquinas");
     linha.append(nome);
@@ -10944,7 +11015,13 @@ function aplicarProjetores(lista) {
   // o interruptor volta a ligar-se sozinho quando a carga seguinte trouxer
   // uma máquina.
   if (lista && !lista.length && lista.temExtras) {
-    ajustes.projecoesExtra = lista.extras.map((e) => ({ ...e }));
+    // PELO MESMO CAMINHO DO OUTRO RAMO. À primeira este ramo copiou a lista
+    // em bloco e saltou o casamento por id -- e como é ESTE que corre depois
+    // de se acrescentar um ecrã nos Calculadores, era por aqui que a posição
+    // dada no 3D se perdia e os panos voltavam todos para o meio da parede.
+    // Medido: dois ecrãs em x = 0 outra vez, e o que tinha sido arrastado
+    // para -18 sem posição nenhuma.
+    ajustes.projecoesExtra = casarProjecoesPorId(ajustes.projecoesExtra, lista.extras);
     ajustes.projetoresExtra = [];
     guardarAjustes(ajustes);
     if ($("projLigada")) $("projLigada").checked = false;
@@ -11043,7 +11120,7 @@ function aplicarProjetores(lista) {
   // OS OUTROS ECRÃS DO MESMO PROJETO, quando a carga os traz (v4.02).
   // Só quando os traz: ver lerProjetores() sobre a chave ausente.
   if (lista.temExtras) {
-    ajustes.projecoesExtra = lista.extras.map((e) => ({ ...e }));
+    ajustes.projecoesExtra = casarProjecoesPorId(ajustes.projecoesExtra, lista.extras);
   }
   // A QUE ESTAVA MONTADA FICA NUM SÍTIO, E HÁ COMO A REPOR -- depois de a
   // carga ter dito o que traz, para não ser apagada por ela.
