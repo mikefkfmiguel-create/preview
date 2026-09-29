@@ -1760,6 +1760,18 @@ function dadosDaProjecaoViva() {
  * há imagem nenhuma para desenhar, e é melhor não desenhar nada do que
  * desenhar um palpite.
  */
+/**
+ * Esta projeção guardada sabe onde está pendurada, ou não sabe?
+ *
+ * Os Calculadores não sabem: mandam `altura: null` de propósito (v4.38), que
+ * é diferente de mandarem um zero. Uma projeção guardada AQUI sabe sempre,
+ * porque foi copiada dos campos.
+ */
+function temAltura(g) {
+  return g && g.altura !== null && g.altura !== undefined && g.altura !== "" &&
+         Number.isFinite(Number(g.altura));
+}
+
 function projecaoCompleta(g, etiqueta) {
   const n = (v, omissao) => (Number.isFinite(Number(v)) ? Number(v) : omissao);
   return {
@@ -1777,8 +1789,25 @@ function projecaoCompleta(g, etiqueta) {
     // está montada: é o único sítio real que a app conhece, está à vista, e
     // muda-se num campo. Um 0 verdadeiro -- lente mesmo no chão -- não é caso
     // nenhum de obra.
-    altura: n(g.altura, 0) > 0 ? n(g.altura, 0) : num("projAltura"),
-    lateral: n(g.lateral, 0), shiftV: n(g.shiftV, 0), shiftH: n(g.shiftH, 0),
+    // A ALTURA E O SHIFT ANDAM AOS PARES, e herdam-se juntos ou não se herda
+    // nada. A v4.08 herdava só a altura da lente, e isso chega enquanto o
+    // shift for 0. Medido num blend que chega com a lente a 0,00 m e +50 % de
+    // shift -- a lente no chão, a imagem levantada pelo shift: a tela guardada
+    // herdava o 0, ficava com o shift 0 dela, e desenhava-se no chão. Um pano
+    // de 36 x 8 m deitado no soalho, que é a fotografia que ele mandou.
+    //
+    // O que se quer herdar não é onde está a lente: é ONDE A IMAGEM ATERRA.
+    // Por isso, sem altura própria, vêm as duas medidas da projeção que já
+    // está montada — e a imagem nasce à altura da que ele já tem à frente.
+    //
+    // E LEEM-SE PELA lerProjecao(), não pelos campos em cru: o shift vive em
+    // FRAÇÃO nesta forma e em PERCENTAGEM no campo, e ler o campo directamente
+    // deu 50 onde devia dar 0,5. Medido: o pano de 36 x 8 m a 399,97 m de
+    // altura, cem vezes acima do tecto. Quem já sabe converter é a
+    // lerProjecao(); há um sítio só onde essa conta se faz, e é lá.
+    altura: temAltura(g) ? n(g.altura, 0) : lerProjecao().altura,
+    shiftV: temAltura(g) ? n(g.shiftV, 0) : lerProjecao().shiftV,
+    lateral: n(g.lateral, 0), shiftH: n(g.shiftH, 0),
     formato: n(g.formato, 1.777) > 0.2 ? n(g.formato, 1.777) : 1.777,
     panoX: n(g.panoX, 0), panoDz: n(g.panoDz, 0),
     maquinas: Array.isArray(g.maquinas) ? g.maquinas : [],
@@ -10133,7 +10162,17 @@ function porCaixaDeAjusteNoSitio() {
     const cabeca = e.target.closest(".ajuste-flutuante-topo");
     // Nem os botões do cabeçalho: o ⧉, o 🔒 e o × são para carregar, não para
     // arrastar.
-    if (!cabeca || e.target.closest("button")) return;
+    //
+    // NEM O CAMPO DO NOME. Reparo dele: *"e não consigo dar nome, fica sempre
+    // cenário"*. Medido: um clique no campo deixava o foco no BODY -- as
+    // teclas não chegavam lá, e o nome nunca mudava sequer antes do Enter.
+    //
+    // A causa é este preventDefault(): o nome do grupo vive DENTRO do
+    // cabeçalho que arrasta o painel, e cancelar o pointerdown cancela também
+    // o foco que o browser ia dar ao campo. Os botões já estavam de fora por
+    // esta mesma razão; o campo, que nasceu depois deles (v4.03), ficou de
+    // dentro. Um sítio onde se escreve nunca é um sítio por onde se arrasta.
+    if (!cabeca || e.target.closest("button, input, textarea, select")) return;
     const r = caixa.getBoundingClientRect();
     a = { dx: e.clientX - r.left, dy: e.clientY - r.top, id: e.pointerId };
     caixa.setPointerCapture(e.pointerId);
@@ -10159,7 +10198,10 @@ function porCaixaDeAjusteNoSitio() {
   // Dois cliques no cabeçalho devolvem-na ao canto -- a saída para quem a
   // arrumou num sítio mau e não quer andar a caçá-la.
   caixa.addEventListener("dblclick", (e) => {
-    if (!e.target.closest(".ajuste-flutuante-topo") || e.target.closest("button")) return;
+    // Dois cliques dentro do campo do nome são para escolher uma palavra, não
+    // para arrumar a caixa -- mesma razão do pointerdown acima.
+    if (!e.target.closest(".ajuste-flutuante-topo") ||
+        e.target.closest("button, input, textarea, select")) return;
     sitioDaCaixaDeAjustes = null;
     caixa.style.left = caixa.style.top = caixa.style.right = caixa.style.bottom = "";
     dizerNaCena("Caixa de ajustes de volta ao canto.");

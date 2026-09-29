@@ -469,6 +469,48 @@ const vazio = await pagina.evaluate(async () => {
 conferir(vazio === "Palco principal",
   "um nome vazio não é um nome: fica o que lá estava (" + vazio + ")");
 
+console.log("\n== e dá-se o nome COMO SE DÁ: a clicar e a escrever ==");
+
+// Reparo dele: *"e não consigo dar nome, fica sempre cenário"*.
+//
+// O teste acima passava e a app não funcionava, porque o teste disparava o
+// `change` por código e nunca CLICAVA. Medido a clicar: o foco ficava no BODY
+// e as teclas não chegavam ao campo -- o nome não mudava sequer antes do
+// Enter. O campo do nome vive dentro do cabeçalho que arrasta o painel, e o
+// preventDefault() do arrasto cancelava o foco que o browser ia dar-lhe.
+//
+// É por isto que este bloco usa o teclado a sério: o caso por testar era o
+// único que uma pessoa faz.
+const campo = pagina.locator("#painelAjuste .ajuste-grupo-nome");
+await campo.click();
+await pagina.waitForTimeout(200);
+const focado = await pagina.evaluate(() =>
+  document.activeElement === document.querySelector("#painelAjuste .ajuste-grupo-nome"));
+conferir(focado, "clicar no campo do nome põe lá o cursor — e não a arrastar o painel");
+
+await pagina.keyboard.press("Control+a");
+await pagina.keyboard.type("Palco AVK", { delay: 30 });
+await pagina.waitForTimeout(200);
+const escrito = await pagina.evaluate(() =>
+  (document.querySelector("#painelAjuste .ajuste-grupo-nome") || {}).value);
+conferir(escrito === "Palco AVK", "as teclas chegam lá (" + escrito + ")");
+
+await pagina.keyboard.press("Enter");
+await pagina.waitForTimeout(1200);
+const ficou = await pagina.evaluate(() => (window.preview.ajustes.grupos[0] || {}).nome);
+conferir(ficou === "Palco AVK", "e o Enter dá-lhe o nome para ficar (" + ficou + ")");
+
+await campo.click();
+await pagina.keyboard.press("Control+a");
+await pagina.keyboard.type("Cenario do fundo", { delay: 30 });
+await pagina.evaluate(() => {
+  const c = document.querySelector("#painelAjuste .ajuste-grupo-nome"); if (c) c.blur();
+});
+await pagina.waitForTimeout(1200);
+const porBlur = await pagina.evaluate(() => (window.preview.ajustes.grupos[0] || {}).nome);
+conferir(porBlur === "Cenario do fundo",
+  "e clicar fora também chega — nem toda a gente carrega em Enter (" + porBlur + ")");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
