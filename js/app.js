@@ -1282,6 +1282,7 @@ function desenharCena(recentrarCamara) {
   }
   escreverQuemTapaOBlend();
   escreverCurvaPerdida();
+  escreverProjecaoPerdida();
   escreverAvisoDoBlend();
   guardarProjecaoNosAjustes();
 
@@ -1542,6 +1543,33 @@ function escreverCurvaPerdida() {
     (antiga.altura > 0 ? " e " + nnum(antiga.altura) + " m de altura" : "") + ".";
 }
 
+/**
+ * A PROJEÇÃO QUE A CARGA NOVA SUBSTITUIU, e como a ter de volta.
+ *
+ * Reparo dele: *"desfaz o blend que estava e coloca o novo fora de sítio"*.
+ * Medido: um blend de 3 máquinas num pano de 30 m, chega o segundo, e ficam 2
+ * máquinas num pano de 12 m -- o primeiro em lado nenhum, sem aviso. O botão
+ * "guardar esta projeção e começar outra" existia, mas quem manda a segunda
+ * tela dos Calculadores nunca passa por ele: a app apagava o trabalho de quem
+ * não sabia que tinha de o salvar primeiro.
+ *
+ * Substituir continua a ser o que acontece -- na maior parte das vezes a
+ * carga nova É a mesma tela corrigida. O que muda é que a anterior deixa de
+ * desaparecer: fica aqui, com nome e medidas, a um clique de voltar.
+ */
+function escreverProjecaoPerdida() {
+  const nota = $("avisoProjecaoPerdida"), botao = $("btReporProjecao");
+  if (!nota || !botao) return;
+  const antiga = ajustes.projecaoAnterior;
+  nota.hidden = !antiga;
+  botao.hidden = !antiga;
+  if (!antiga) return;
+  const quantas = (antiga.maquinas || []).length + 1;
+  nota.innerHTML = "A carga que chegou dos Calculadores <b>substituiu</b> a projeção " +
+    "que estava montada (" + nnum(antiga.racio) + ":1 a " + nnum(antiga.distancia) + " m, " +
+    quantas + (quantas === 1 ? " máquina" : " máquinas") + "). Ela não se perdeu.";
+}
+
 function escreverQuemTapaOBlend() {
   const nota = $("notaTapaBlend");
   if (!nota) return;
@@ -1736,7 +1764,20 @@ function projecaoCompleta(g, etiqueta) {
   const n = (v, omissao) => (Number.isFinite(Number(v)) ? Number(v) : omissao);
   return {
     ligada: g.ligada !== false,
-    racio: n(g.racio, 0), distancia: n(g.distancia, 0), altura: n(g.altura, 0),
+    racio: n(g.racio, 0), distancia: n(g.distancia, 0),
+    // A ALTURA, QUANDO ELA EXISTE -- e a da tela do lado quando não existe.
+    //
+    // Reparo dele: *"coloca o novo fora de sítio"*. Medido: o pano vivo a
+    // 4,13 m e o guardado a 0,00 m, com a máquina dele no chão. A carga dos
+    // Calculadores mandava `altura: 0` para um número que eles não sabem --
+    // onde o pano está pendurado é daqui -- e um zero que quer dizer "não
+    // sei" desenha-se como um zero que quer dizer "no chão".
+    //
+    // Sem número, a melhor resposta honesta é a altura da projeção que já
+    // está montada: é o único sítio real que a app conhece, está à vista, e
+    // muda-se num campo. Um 0 verdadeiro -- lente mesmo no chão -- não é caso
+    // nenhum de obra.
+    altura: n(g.altura, 0) > 0 ? n(g.altura, 0) : num("projAltura"),
     lateral: n(g.lateral, 0), shiftV: n(g.shiftV, 0), shiftH: n(g.shiftH, 0),
     formato: n(g.formato, 1.777) > 0.2 ? n(g.formato, 1.777) : 1.777,
     panoX: n(g.panoX, 0), panoDz: n(g.panoDz, 0),
@@ -10652,8 +10693,70 @@ function aplicarProjetor(p) {
  * alturaOffset de cada extra somam-se ao que já estava na instância #0, em
  * vez de o substituírem.
  */
+/**
+ * SÃO A MESMA TELA, OU SÃO DUAS?
+ *
+ * A carga que chega dos Calculadores escreve-se nos campos da projeção viva.
+ * Quando é uma CORREÇÃO da mesma tela (mudou a lente, mudou a resolução, o
+ * pano é o mesmo) escrever por cima é o que se quer. Quando é OUTRA tela do
+ * mesmo evento, escrever por cima apaga trabalho.
+ *
+ * A pergunta responde-se pela geometria: o rácio, a distância, o formato e
+ * quantas máquinas. Dois blends que batem certo nestes quatro são o mesmo
+ * trabalho visto duas vezes.
+ */
+function ehAMesmaTela(a, b) {
+  if (!a || !b) return false;
+  const perto = (x, y, t) => Math.abs(Number(x || 0) - Number(y || 0)) <= t;
+  return perto(a.racio, b.racio, 0.02) &&
+         perto(a.distancia, b.distancia, 0.05) &&
+         perto(a.formato, b.formato, 0.02) &&
+         (a.maquinas || []).length === (b.maquinas || []).length;
+}
+
+/**
+ * GUARDA A PROJEÇÃO QUE ESTÁ MONTADA, antes de a carga nova lhe escrever por
+ * cima.
+ *
+ * Reparo dele: *"desfaz o blend que estava e coloca o novo fora de sítio"*.
+ * E desfazia: medido com um blend de 3 máquinas num pano de 30 m -- chegava o
+ * segundo e ficavam 2 máquinas num pano de 12 m, sem o primeiro em lado
+ * nenhum e sem aviso. O botão "guardar e começar outra" existia, mas quem
+ * manda a segunda tela dos Calculadores não passa por ele: a app apagava o
+ * trabalho de quem não sabia que tinha de o salvar primeiro.
+ *
+ * Só guarda o que é trabalho: uma projeção ligada, com rácio e distância.
+ * E só quando é OUTRA tela -- uma correção da mesma continua a escrever por
+ * cima, senão cada reenvio deixava uma cópia atrás de si.
+ */
+function instantaneoDaProjecaoQueEstava(queVem) {
+  const viva = dadosDaProjecaoViva();
+  if (!viva.ligada || !(viva.racio > 0) || !(viva.distancia > 0)) return null;
+  if (ehAMesmaTela(viva, queVem)) return null;
+  return {
+    ligada: true, racio: viva.racio, distancia: viva.distancia, altura: viva.altura,
+    lateral: viva.lateral, shiftV: viva.shiftV, shiftH: viva.shiftH,
+    formato: viva.formato, panoX: viva.panoX, panoDz: viva.panoDz,
+    maquinas: (viva.maquinas || []).map((m) => ({ ...m })),
+    curva: viva.curva ? { ...viva.curva } : null,
+    retro: viva.retro
+  };
+}
+
 function aplicarProjetores(lista) {
   if (!lista || !lista.length) return false;
+  // A QUE JÁ LÁ ESTAVA FICA. Tem de ser aqui, antes de qualquer campo ser
+  // escrito: a partir da primeira linha que mexe nos campos, a projeção que
+  // estava montada já não existe para ser guardada.
+  // TIRAR O RETRATO E POUSÁ-LO SÃO DOIS MOMENTOS. O retrato é aqui, antes de
+  // o primeiro campo ser escrito. Pousá-lo é mais abaixo, DEPOIS de a carga
+  // reescrever `ajustes.projecoesExtra` -- à primeira tentativa pousou-se aqui
+  // e a linha `ajustes.projecoesExtra = lista.extras.map(...)` apagava-o dois
+  // passos à frente. Medido: continuava a dar zero guardadas.
+  const retrato = instantaneoDaProjecaoQueEstava({
+    racio: lista[0] && lista[0].racio, distancia: lista[0] && lista[0].distancia,
+    formato: lista[0] && lista[0].formato, maquinas: lista.slice(1)
+  });
   // Uma máquina só é projeção; várias, ou uma curva, é um blend. A diferença
   // interessa: são dois trabalhos diferentes, e é isso que a contagem quer
   // saber (não quantas máquinas).
@@ -10735,6 +10838,36 @@ function aplicarProjetores(lista) {
   if (lista.temExtras) {
     ajustes.projecoesExtra = lista.extras.map((e) => ({ ...e }));
   }
+  // A QUE ESTAVA MONTADA FICA NUM SÍTIO, E HÁ COMO A REPOR -- depois de a
+  // carga ter dito o que traz, para não ser apagada por ela.
+  //
+  // UM SLOT, NÃO UMA LISTA. À primeira tentativa a projeção antiga entrava
+  // logo em `projecoesExtra`, e medido deu DUAS guardadas onde devia haver
+  // uma: com o "Adicionar ao projeto" ligado, cada tecla nos Calculadores
+  // manda uma carga, e cada estado intermédio ficava lá pousado. Encher-lhe a
+  // lista de telas que ele nunca montou é pior do que a avaria que se queria
+  // curar. É a mesma escolha que já estava feita para a curva perdida
+  // (curvaAnterior): guarda-se a última, e quem a quer de volta carrega num
+  // botão.
+  //
+  // E NÃO SE GUARDA UMA TELA MEIO ESCRITA. Com o "Adicionar ao projeto"
+  // ligado, cada tecla nos Calculadores manda uma carga: escrever 12 numa
+  // largura manda o 1 e manda o 12, e cada um desses estados substitui o
+  // anterior. Medido, a primeira versão disto guardava o ÚLTIMO estado
+  // intermédio (3,46:1) em vez do blend que ele tinha mesmo montado
+  // (1,39:1) -- repor dava-lhe uma tela que nunca existiu.
+  //
+  // O que separa uma das outras é o tempo que estiveram de pé: a tela que ele
+  // montou ficou ali a ser olhada, as intermédias duraram milissegundos.
+  // Guarda-se quando o sítio está vazio, ou quando o que lá estava já durava
+  // mais do que uma escrita.
+  const DE_PE = 6000;
+  const haPouco = ajustes.projecaoPousadaEm &&
+                  (Date.now() - ajustes.projecaoPousadaEm) < DE_PE;
+  if (retrato && (!ajustes.projecaoAnterior || !haPouco)) {
+    ajustes.projecaoAnterior = retrato;
+  }
+  ajustes.projecaoPousadaEm = Date.now();
   if (lista.curva) {
     ajustes.projetoresExtra = lista.map((p) => ({
       racio: p.racio, distancia: p.distancia,
@@ -10795,6 +10928,11 @@ function aplicarProjetores(lista) {
   // mesma razão: poder comparar o desenho com o pedido.
   ajustes.larguraPedidaDoPrincipal = (cabeca && cabeca.largura > 0) ? cabeca.largura : null;
   const aplicou = aplicarProjetor(cabeca);   // este já chama montar() no fim
+  // E DIZ-SE QUE FICOU. Uma projeção que muda de sítio e de nome sem ninguém
+  // avisar é indistinguível de uma projeção que se perdeu -- que foi o que
+  // ele viu. A lista de projeções guardadas tem de se redesenhar também,
+  // senão a que acabou de lá entrar não tem botão nenhum.
+  if (aplicou && retrato) escreverProjecaoPerdida();
   if (aplicou && resto.length) {
     $("notaProj").innerHTML += lista.curva
       ? ` + ${resto.length} do blend, num ecrã curvo de ${nnum(lista.curva.raio)} m de raio` +
@@ -10864,6 +11002,24 @@ $("btReporCurva").onclick = () => {
   aviso.textContent = "Ecrã curvo reposto.";
   aviso.classList.add("mostra");
   setTimeout(() => aviso.classList.remove("mostra"), 2600);
+};
+
+$("btReporProjecao").onclick = () => {
+  if (!ajustes.projecaoAnterior) return;
+  if (!Array.isArray(ajustes.projecoesExtra)) ajustes.projecoesExtra = [];
+  // Entra como projeção GUARDADA, ao lado da que chegou -- não por cima dela.
+  // Repor uma tela apagando a outra era trocar de avaria.
+  ajustes.projecoesExtra.push(ajustes.projecaoAnterior);
+  ajustes.projecaoAnterior = null;
+  guardarAjustes(ajustes);
+  escreverProjecaoPerdida();
+  desenharProjecoesExtra();
+  montar(false);
+  const aviso = $("aviso");
+  aviso.textContent = "Projeção anterior reposta — está na lista como Projeção " +
+    (ajustes.projecoesExtra.length + 1) + ".";
+  aviso.classList.add("mostra");
+  setTimeout(() => aviso.classList.remove("mostra"), 3200);
 };
 
 $("btTrazerProjetor").onclick = () => {

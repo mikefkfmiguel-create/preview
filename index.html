@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v4.07</i></span>
+        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v4.08</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -489,6 +489,12 @@
       <div class="hint" style="margin-top:4px">Fica no 3D como peça própria — arrasta-se e agrupa-se. Os campos ficam livres para o ecrã seguinte.</div>
     </div>
     <div id="listaProjecoesExtra" style="margin-top:10px"></div>
+    <!-- A PROJEÇÃO QUE A CARGA NOVA SUBSTITUIU. Mesmo sítio e mesma forma do
+         "Repor o ecrã curvo" logo a seguir: uma linha a dizer o que se
+         perdeu, e um botão para a ter de volta. Ver escreverProjecaoPerdida()
+         em js/app.js. -->
+    <p id="avisoProjecaoPerdida" class="vazio" style="margin:8px 0 0" hidden></p>
+    <button id="btReporProjecao" class="secundario" style="margin-top:6px" hidden>Repor a projeção anterior</button>
     <p id="avisoCurvaPerdida" class="vazio" style="margin:8px 0 0" hidden></p>
     <button id="btReporCurva" class="secundario" style="margin-top:6px" hidden>Repor o ecrã curvo</button>
     <div id="listaProjetoresExtra" style="margin-top:10px"></div>
