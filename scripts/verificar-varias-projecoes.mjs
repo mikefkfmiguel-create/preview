@@ -234,6 +234,68 @@ conferir(Number.isFinite(altura.offset) && altura.absolutaVelha === undefined,
   "e guarda-se como offset, que é o que faz a fila subir com o ecrã (offset " +
   altura.offset + ")");
 
+console.log("\n== a construção vem de lá, a disposição é daqui ==");
+
+// Dito por ele: *"a construção de ecrãs pertence à calculadora quando nela
+// criados, mas a disposição é do 3D sem que a calculadora interfira"*.
+//
+// A carga dos Calculadores reescreve-se a cada tecla. Enquanto
+// `projecoesExtra` foi substituída em bloco, qualquer ecrã arrastado aqui
+// voltava ao sítio na escrita seguinte -- a app a desfazer o trabalho de quem
+// a usa. O que faltava era IDENTIDADE.
+const comId = (id, nome, larg, dist) => ({
+  id, nome, ligada: true, racio: dist / (larg / 2), distancia: dist,
+  altura: null, lateral: 0, shiftV: 0, shiftH: 0, formato: 1.777,
+  larguraDoPano: larg, maquinas: [{ lateral: larg / 4, racio: dist / (larg / 2), distancia: dist }],
+  curva: null, retro: false
+});
+const carga = (extras) => JSON.stringify({
+  v: 2, projetores: [], curva: null, retro: false,
+  projecoesExtra: extras, quando: new Date().toISOString()
+});
+
+await pagina.evaluate((c) => {
+  const w = window.preview;
+  w.ajustes.projecoesExtra = [];
+  w.guardarAjustes(w.ajustes);
+  localStorage.setItem("mikeapps-projetor-v1", c);
+}, carga([comId("aa", "Palco", 12, 18), comId("bb", "Lateral", 6, 10)]));
+await sincronizar();
+
+const nascidos = await pagina.evaluate(() =>
+  window.preview.ajustes.projecoesExtra.map((e) => ({ id: e.id, nome: e.nome, x: e.panoX })));
+conferir(nascidos.length === 2, "os dois ecrãs chegam (" + nascidos.length + ")");
+conferir(nascidos[0].x !== nascidos[1].x,
+  "E NASCEM LADO A LADO, não um dentro do outro (x = " +
+  nascidos.map((n) => n.x).join(" · ") + " m)");
+conferir(nascidos[1].x - nascidos[0].x >= (12 / 2 + 6 / 2),
+  "com o vão entre eles, contado pela largura de cada pano");
+conferir(nascidos.map((n) => n.nome).join("·") === "Palco·Lateral",
+  "e trazem o nome que lhes deram nos Calculadores (" +
+  nascidos.map((n) => n.nome).join(" · ") + ")");
+
+// AGORA O QUE INTERESSA: pôr um no sítio, e escrever outra vez lá.
+await pagina.evaluate(async () => {
+  const w = window.preview;
+  w.ajustes.projecoesExtra[0].panoX = -18;
+  w.ajustes.projecoesExtra[0].panoDz = 3;
+  w.guardarAjustes(w.ajustes);
+  w.montar(false);
+  await new Promise((r) => setTimeout(r, 900));
+});
+await pagina.evaluate((c) => { localStorage.setItem("mikeapps-projetor-v1", c); },
+  carga([comId("aa", "Palco", 12, 24), comId("bb", "Lateral", 6, 10)]));
+await sincronizar();
+const depois = await pagina.evaluate(() =>
+  window.preview.ajustes.projecoesExtra.map((e) => ({ nome: e.nome, x: e.panoX, dz: e.panoDz, dist: e.distancia })));
+conferir(depois[0].x === -18 && depois[0].dz === 3,
+  "a carga nova NÃO lhe mexe no sítio — a disposição é daqui (x = " +
+  depois[0].x + ", dz = " + depois[0].dz + ")");
+conferir(depois[0].dist === 24,
+  "mas a CONSTRUÇÃO actualiza-se: a distância mudou de 18 para " + depois[0].dist + " m");
+conferir(depois[1].x === nascidos[1].x,
+  "e o que não foi mexido fica onde nasceu (" + depois[1].x + " m)");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
