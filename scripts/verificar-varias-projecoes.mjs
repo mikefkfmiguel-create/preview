@@ -196,6 +196,44 @@ conferir(amanha.panos.length === 2 && amanha.maquinas === 6,
   "e as duas sobrevivem a fechar e reabrir (" + amanha.panos.length + " panos, " +
   amanha.maquinas + " máquinas) — passaram pela lista branca do projeto.js");
 
+console.log("\n== mexer na ALTURA de uma máquina mexe mesmo na máquina ==");
+
+// Reparo dele: *"assim que mudo a posição dos projetores e tento editar o
+// novo, sai fora o blend original"*.
+//
+// Medido: escrevia-se 9 no campo da altura de um projetor do blend e a
+// máquina ficava nos 6. O campo guardava `pe.altura` e o desenho lê
+// `pe.alturaOffset` — que continuava a zero. Um campo que aceita um número e
+// o ignora é pior do que um que o recusa: quem escreve fica a pensar que a
+// app está a desobedecer, e a avaria muda de sítio na cabeça de quem a
+// reporta.
+const altura = await pagina.evaluate(async () => {
+  const w = window.preview;
+  const y = () => { let v = null;
+    w.desenhado.traverse((o) => { if (/^projetor-1$/.test(o.name || "")) v = +o.position.y.toFixed(2); });
+    return v; };
+  const antes = y();
+  const c = document.querySelector('#listaProjetoresExtra input[data-campo$="-altura"]');
+  if (!c) return { semCampo: true };
+  const mostrava = Number(c.value);
+  c.value = "9";
+  c.dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1600));
+  return { antes, mostrava, depois: y(),
+           offset: (w.ajustes.projetoresExtra[0] || {}).alturaOffset,
+           absolutaVelha: (w.ajustes.projetoresExtra[0] || {}).altura };
+});
+conferir(!altura.semCampo, "cada máquina do blend tem campo de altura");
+conferir(altura.mostrava === altura.antes,
+  "o campo mostra METROS ACIMA DO CHÃO, o mesmo que a máquina está (" +
+  altura.mostrava + " m = " + altura.antes + " m)");
+conferir(altura.depois === 9,
+  "escrever 9 PÕE A MÁQUINA A 9 m — era aqui que o número se perdia (" +
+  altura.antes + " → " + altura.depois + " m)");
+conferir(Number.isFinite(altura.offset) && altura.absolutaVelha === undefined,
+  "e guarda-se como offset, que é o que faz a fila subir com o ecrã (offset " +
+  altura.offset + ")");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();

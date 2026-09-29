@@ -4929,7 +4929,16 @@ function aEscreverNaLista(lista) {
  * objeto `alvo` (a entrada de `ajustes.delays[nome]` ou `ajustes.dsm[i]`) e
  * volta a montar a cena, com o mesmo atraso dos outros campos do painel.
  */
-function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", idCampo, min = -500, max = 500) {
+/**
+ * O CAMPO PODE MEDIR UMA COISA E GUARDAR OUTRA.
+ *
+ * Quase sempre o que se escreve é o que se guarda, e `chave` chega. Mas a
+ * altura de uma máquina do blend guarda-se como OFFSET em relação à fila
+ * (para subir o ecrã levar as máquinas com ele) e mede-se em METROS ACIMA DO
+ * CHÃO, que é o que quem monta tem na cabeça. Duas medidas, um campo: aqui
+ * dizem-se as duas contas que as ligam, e o campo deixa de ter de escolher.
+ */
+function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", idCampo, min = -500, max = 500, conversao) {
   const campo = document.createElement("label");
   campo.className = "ajuste-campo";
   // O nome num <span> seu, e não num nó de texto solto: um nó de texto
@@ -4951,10 +4960,11 @@ function campoAjuste(rotulo, alvo, chave, unidadeTexto = "m", passo = "0.05", id
   // teclado precisa para desenhar essa tecla.
   input.min = String(min);
   input.max = String(max);
-  input.value = alvo[chave] || 0;
+  input.value = conversao ? conversao.mostrar(alvo) : (alvo[chave] || 0);
   if (idCampo) input.dataset.campo = idCampo;
   input.addEventListener("input", () => {
-    alvo[chave] = parseFloat(input.value) || 0;
+    const n = parseFloat(input.value) || 0;
+    if (conversao) conversao.guardar(alvo, n); else alvo[chave] = n;
     guardarAjustes(ajustes);
     remontarDaqui();
   });
@@ -5462,7 +5472,30 @@ function desenharProjetoresExtra() {
     linha.append(nome);
     linha.append(campoAjuste("rácio", pe, "racio", "", "0.05", `projetorExtra-${i}-racio`, 0.1, 10));
     linha.append(campoAjuste("distância", pe, "distancia", "m", "0.1", `projetorExtra-${i}-distancia`, 0.1, 100));
-    linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `projetorExtra-${i}-altura`, -5, 20));
+    // A ALTURA DESTA MÁQUINA, EM METROS ACIMA DO CHÃO.
+    //
+    // Reparo dele: *"assim que mudo a posição dos projetores..."*. Medido:
+    // escrevia-se 9 no campo da altura e a máquina ficava nos 6 -- o campo
+    // guardava `pe.altura` e o desenho lê `pe.alturaOffset`, que continuava a
+    // zero. Um campo que aceita um número e o ignora é pior do que um que o
+    // recusa: quem escreve fica a pensar que a app está a desobedecer, e a
+    // avaria muda de sítio na cabeça de quem a reporta.
+    //
+    // O offset é que tem de ficar guardado (é ele que faz a fila subir com o
+    // ecrã, ver aplicarProjetores()), mas o que se escreve são metros acima
+    // do chão. A conversão é a altura do campo da projeção: offset = escrito
+    // − essa altura.
+    linha.append(campoAjuste("altura", pe, "altura", "m", "0.1", `projetorExtra-${i}-altura`, -5, 20, {
+      mostrar: (m) => Math.round((m.alturaOffset !== undefined
+        ? num("projAltura") + m.alturaOffset
+        : (m.altura || 0)) * 100) / 100,
+      guardar: (m, v) => {
+        m.alturaOffset = Math.round((v - num("projAltura")) * 1000) / 1000;
+        // A absoluta some-se: ficar lá uma medida velha que o desenho não lê
+        // é deixar armadilha para o próximo a abrir este objeto.
+        delete m.altura;
+      }
+    }));
     linha.append(campoAjuste("lado", pe, "lateral", "m", "0.25", `projetorExtra-${i}-lateral`));
     const remover = document.createElement("button");
     remover.type = "button";
@@ -8973,6 +9006,28 @@ function nomeLivreDeGrupo() {
  * grupo que fique com menos de duas peças desaparece — um "grupo" de uma peça
  * é uma peça, e deixá-lo na lista era deixar lixo que ninguém percebia.
  */
+/**
+ * ESTE GRUPO ESTÁ TRAVADO?
+ *
+ * Pedido dele: *"não podemos pôr um cadeado nos grupos para não alterarem
+ * nada"*. Um cenário fechado é trabalho acabado: depois de estar no sítio,
+ * o que se quer dele é que NÃO se mexa -- nem por arrasto, nem por setas,
+ * nem por um duplo clique distraído que entra lá dentro.
+ *
+ * A pergunta vive aqui e só aqui, porque há três caminhos que mexem num
+ * grupo e os três têm de a fazer. Espalhar a resposta por eles era garantir
+ * que um se esquecia -- que é exactamente como esta app já perdeu tardes.
+ */
+function grupoTravado(chave) {
+  const g = grupoDaPeca(chave);
+  return !!(g && g.travado);
+}
+
+/** Alguma das peças marcadas pertence a um grupo travado? */
+function selecaoTemGrupoTravado() {
+  return [...selecaoDeGrupo].some((c) => grupoTravado(c));
+}
+
 function criarGrupo() {
   const chaves = [...selecaoDeGrupo];
   if (chaves.length < 2) {
@@ -9032,6 +9087,24 @@ function desfazerGrupo(id) {
   remontarDaqui(0);
   abrirPainelDeGrupo();
   dizerNaCena(`«${g.nome}» desfeito. As peças ficaram onde estavam e cada uma voltou à sua cor.`);
+}
+
+/**
+ * Fecha ou abre o cadeado de um grupo.
+ *
+ * Só isto muda no ajuste: travar não mexe em nada do que está desenhado, e é
+ * essa a promessa toda.
+ */
+function travarGrupo(id, fechar) {
+  const g = (ajustes.grupos || []).find((x) => x.id === id);
+  if (!g) return;
+  g.travado = !!fechar;
+  guardarAjustes(ajustes);
+  projetoMudou();
+  abrirPainelDeGrupo();
+  dizerNaCena(fechar
+    ? `«${g.nome}» travado. Não se mexe até abrires o cadeado.`
+    : `«${g.nome}» destravado.`);
 }
 
 /** Muda a cor de um grupo — a cor do cenário, não a das peças. */
@@ -9354,6 +9427,12 @@ function duplicarPecas(alvos) {
 function moverGrupo(dx, dy, dz) {
   const alvos = alvosSelecionados();
   if (!alvos.length) return;
+  // As setas são o terceiro caminho, e o mais fácil de esquecer: o arrasto
+  // vê-se, uma seta carregada sem querer não.
+  if (selecaoTemGrupoTravado()) {
+    dizerNaCena("Este grupo está travado. Abre o cadeado no painel para lhe mexer.");
+    return;
+  }
   alvos.forEach((a) => {
     if (dx || dz) {
       const p = a.getXZ();
@@ -9964,7 +10043,10 @@ function abrirPainelDeGrupo() {
     nome.type = "text";
     nome.className = "ajuste-grupo-nome";
     nome.value = doGrupo[0].nome;
-    nome.title = "O nome deste grupo — escreve por cima";
+    nome.title = doGrupo[0].travado
+      ? "Travado — abre o cadeado para mudar o nome"
+      : "O nome deste grupo — escreve por cima";
+    nome.readOnly = !!doGrupo[0].travado;
     nome.setAttribute("aria-label", "Nome do grupo");
     nome.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); nome.blur(); }
@@ -9982,13 +10064,39 @@ function abrirPainelDeGrupo() {
   const travar = document.createElement("button");
   travar.type = "button";
   travar.className = "btn-icone";
-  travar.textContent = grupoInteiro ? "🔒" : "🔓";
+  // O CADEADO PASSOU A SER O CADEADO. Este botão é o de AGRUPAR/DESFAZER, e
+  // tinha 🔒/🔓 emprestados -- com um cadeado a sério ao lado, dois cadeados
+  // com sentidos diferentes no mesmo cabeçalho seria pior do que não ter
+  // nenhum. Fica a corrente, que é o que ele faz: prender peças umas às
+  // outras.
+  const travado = grupoInteiro && !!doGrupo[0].travado;
+  travar.textContent = grupoInteiro ? "✂" : "⛓";
   travar.title = grupoInteiro
-    ? `«${doGrupo[0].nome}» é um grupo guardado — clica para o desfazer (as peças ficam onde estão e cada uma volta à sua cor)`
-    : "Travar estas peças num grupo guardado: passam a andar juntas, com uma cor só, e ficam assim quando guardares o projeto";
+    ? `Desfazer «${doGrupo[0].nome}» (as peças ficam onde estão e cada uma volta à sua cor)`
+    : "Juntar estas peças num grupo guardado: passam a andar juntas, com uma cor só, e ficam assim quando guardares o projeto";
+  travar.disabled = travado;
   travar.addEventListener("click", () => {
     if (grupoInteiro) desfazerGrupo(doGrupo[0].id); else criarGrupo();
   });
+
+  // O CADEADO. Pedido dele: *"não podemos pôr um cadeado nos grupos para não
+  // alterarem nada"*. Um cenário fechado é trabalho acabado, e o que se quer
+  // dele é que ninguém lhe mexa sem querer.
+  //
+  // Fechado, nada muda: nem arrasto, nem setas, nem entrar por dentro com
+  // duplo clique, nem o nome, nem a cor, nem desfazer. Só o próprio cadeado
+  // continua a responder -- uma tranca que não se abre é uma peça perdida.
+  let cadeado = null;
+  if (grupoInteiro) {
+    cadeado = document.createElement("button");
+    cadeado.type = "button";
+    cadeado.className = "btn-icone";
+    cadeado.textContent = travado ? "🔒" : "🔓";
+    cadeado.title = travado
+      ? `«${doGrupo[0].nome}» está travado — ninguém lhe mexe. Clica para abrir.`
+      : `Travar «${doGrupo[0].nome}»: fica onde está e não se mexe nem por arrasto nem pelas setas.`;
+    cadeado.addEventListener("click", () => travarGrupo(doGrupo[0].id, !travado));
+  }
 
   // O ⧉ SÓ QUANDO HÁ O QUE COPIAR -- a mesma regra do painel de uma peça só,
   // que aqui faltava. Reparo dele: *"não estou a conseguir duplicar um grupo
@@ -10009,8 +10117,11 @@ function abrirPainelDeGrupo() {
   fechar.title = "Largar a selecção";
   fechar.textContent = "×";
   fechar.addEventListener("click", limparSelecao);
-  if (daParaCopiar) topo.append(nome, travar, copiar, fechar);
-  else topo.append(nome, travar, fechar);
+  const cabeca = [nome, travar];
+  if (cadeado) cabeca.push(cadeado);
+  if (daParaCopiar) cabeca.push(copiar);
+  cabeca.push(fechar);
+  topo.append(...cabeca);
   caixa.append(topo);
 
   const quem = document.createElement("p");
@@ -10030,6 +10141,7 @@ function abrirPainelDeGrupo() {
     escolha.type = "color";
     escolha.value = doGrupo[0].cor || "#2E7BFF";
     escolha.title = "A cor do cenário. Fica POR CIMA da cor de cada peça — desfazer o grupo devolve cada uma à sua.";
+    escolha.disabled = !!doGrupo[0].travado;
     escolha.addEventListener("input", () => pintarGrupo(doGrupo[0].id, escolha.value));
     linhaCor.append(rot, escolha);
     caixa.append(linhaCor);
@@ -10041,6 +10153,12 @@ function abrirPainelDeGrupo() {
   CAMPOS_GRUPO.forEach((c) => {
     const campo = campoAjuste(c.rotulo, comando, c.chave, c.unidade, c.passo,
       undefined, c.min === undefined ? -500 : c.min, c.max === undefined ? 500 : c.max);
+    // Com o cadeado fechado os campos ficam à vista mas não se escrevem:
+    // esconder as medidas de um cenário travado era esconder informação de
+    // quem só queria consultá-la.
+    if (grupoInteiro && doGrupo[0].travado) {
+      campo.querySelectorAll("input, button").forEach((x) => { x.disabled = true; });
+    }
     comando._registar(c.chave, campo.querySelector("input"));
     campos.append(campo);
   });
@@ -10377,6 +10495,13 @@ tela.addEventListener("pointerdown", (e) => {
     grupoGuardado.chaves.forEach((c) => selecaoDeGrupo.add(c));
     marcarSelecao();
     abrirPainelDeGrupo();
+    // TRAVADO É TRAVADO: marca-se, abre-se o painel (para se poder destravar
+    // ali mesmo), e não se arrasta. Deixar a câmara a rodar por baixo é de
+    // propósito -- quem clica num cenário fechado quer olhar para ele.
+    if (grupoGuardado.travado) {
+      dizerNaCena(`«${grupoGuardado.nome}» está travado. Abre o cadeado no painel para lhe mexer.`);
+      return;
+    }
     controlos.enabled = false;
     tela.setPointerCapture(e.pointerId);
     planoAjuste.set(new THREE.Vector3(0, 1, 0), -melhor.ponto.y);
@@ -10470,6 +10595,10 @@ tela.addEventListener("dblclick", (e) => {
   if (!melhor) { dentroDeUmGrupo = false; return; }
   const g = grupoDaPeca(melhor.obj.name);
   if (!g) return;                      // fora de um grupo, o duplo clique não é nada
+  if (g.travado) {
+    dizerNaCena(`«${g.nome}» está travado — nem por dentro. Abre o cadeado no painel primeiro.`);
+    return;
+  }
   dentroDeUmGrupo = true;
   selecaoDeGrupo.clear();
   selecaoDeGrupo.add(melhor.obj.name);
@@ -11615,7 +11744,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   get selecaoDeGrupo() { return selecaoDeGrupo; },
                   alvosSelecionados, centroDoGrupo, moverGrupo, rodarGrupo,
                   duplicarPecas, nomeLivreDeCopia, podeCopiar,
-                  criarGrupo, desfazerGrupo, pintarGrupo, grupoDaPeca, corComGrupo,
+                  criarGrupo, desfazerGrupo, pintarGrupo, travarGrupo, grupoDaPeca, corComGrupo,
                   get sitioDaCaixaDeAjustes() { return sitioDaCaixaDeAjustes; }, porCaixaDeAjusteNoSitio,
                   get laco() { return laco; }, comecarLaco, desenharLaco, fecharLaco,
                   abrirPainelDeAjuste,
