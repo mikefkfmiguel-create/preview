@@ -20,7 +20,7 @@
       </a>
       <div>
         <b>Preview</b>
-        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v4.05</i></span>
+        <span>o projeto no terreno       <i id="versao" role="button" tabindex="0" title="Toca para procurar uma versão nova e forçar a atualização — serve para quando a app instalada no telemóvel fica presa numa versão antiga">v4.06</i></span>
       </div>
       <span id="lotacaoTopo" class="lotacao-topo" title="Lugares sentados na plateia, e como veem os ecrãs: ● verde confortável, ● amarelo marginal, ● vermelho sem cobertura nenhuma">—</span>
     </div>
@@ -453,6 +453,17 @@
     </div>
     <button id="btTrazerProjetor" style="margin-top:10px; width:100%">Trazer projetor dos Calculadores</button>
     <div id="resumoProj" class="vazio" style="margin-top:10px">—</div>
+    <!-- OS AVISOS DO BLEND, ONDE ELE ESTÁ A OLHAR.
+         Viviam só dentro de "Coordenadas de montagem", que é uma secção
+         fechada — e um aviso dentro de uma gaveta não existe para ninguém.
+         Foi o mesmo defeito do "não desenha o curvo" (v3.9x): a carga estava
+         guardada, a dizer-se numa gaveta que ninguém tinha aberto. -->
+    <p id="avisoDoBlend" class="warn" style="margin:8px 0 0; display:none"></p>
+    <!-- E O BOTÃO QUE O RESOLVE. Dizer o que está mal não monta o blend:
+         *"continua a não montar o blend"*. O pano a 25 m da parede encurtava o
+         tiro de 18 m para 7 m — tudo certo no desenho, e nada que ele pudesse
+         fazer sem saber que campo procurar. -->
+    <button id="btEncostarPano" class="secundario" style="margin-top:6px; width:100%" hidden>Encostar o pano à parede</button>
     <!-- Quem tapa o feixe da fila do blend. Pedido: "posição de instalação dos
          projetores também, para ver onde bloqueia uma pessoa à frente". Só
          aparece quando há fila de blend desenhada -- ver

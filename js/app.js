@@ -1282,6 +1282,7 @@ function desenharCena(recentrarCamara) {
   }
   escreverQuemTapaOBlend();
   escreverCurvaPerdida();
+  escreverAvisoDoBlend();
   guardarProjecaoNosAjustes();
 
   cena.add(desenhado);
@@ -1471,6 +1472,61 @@ function aplicarProjecaoGuardada() {
   if ($("projLigada")) $("projLigada").checked = !!g.ligada;
   if ($("verProjecao")) $("verProjecao").checked = !!g.ligada;
   if (g.ligada) document.getElementById("sProjecao").classList.remove("fechada");
+}
+
+/**
+ * OS AVISOS DO BLEND, ONDE ELE ESTÁ A OLHAR.
+ *
+ * Os dois avisos que explicam um blend que não bate certo — a medida que não é
+ * a pedida (v4.05) e a fila que se abriu (v4.04) — viviam só dentro de
+ * "Coordenadas de montagem", que é uma secção FECHADA. Reparo dele, com a
+ * terceira foto do mesmo blend: *"continua a não montar o blend"*, sem
+ * mencionar aviso nenhum — porque não havia aviso nenhum à vista.
+ *
+ * É o mesmo defeito que esta app já corrigiu uma vez, com o ecrã curvo: *"não
+ * desenha o curvo"*, e a carga estava guardada a dizer-se numa gaveta que
+ * ninguém tinha aberto. Um aviso dentro de uma gaveta não existe.
+ *
+ * O texto é o mesmo das coordenadas, curto: quem quiser o detalhe abre a
+ * secção; quem só quer saber que há problema vê-o onde está a trabalhar.
+ */
+function escreverAvisoDoBlend() {
+  const nota = $("avisoDoBlend");
+  if (!nota) return;
+  const recados = [];
+  if (medidaQueNaoBate) {
+    const m = medidaQueNaoBate;
+    recados.push("<b>Isto não é o tamanho que os Calculadores pediram</b>: lá cada máquina cobre " +
+      nnum(m.pedida) + " m e aqui está a desenhar " + nnum(m.desenhada) + " m. " +
+      "Confirma o rácio e a distância desta aba, ou carrega em Sincronizar.");
+  }
+  if (folgaDoBlend != null && folgaDoBlend > 0.02) {
+    recados.push("<b>A fila abriu-se</b>: " + nnum(folgaDoBlend) + " m entre imagens — " +
+      "deixam de se tocar, e fica preto no meio.");
+  }
+  nota.innerHTML = recados.join("<br>");
+  nota.style.display = recados.length ? "" : "none";
+
+  // E O BOTÃO QUE RESOLVE O CASO MAIS COMUM.
+  //
+  // Reparo dele, três fotos do mesmo blend: *"continua a não montar o blend"*.
+  // Medido no estado dele: o pano estava 25,00 m para dentro de uma sala de
+  // 50 m -- a meio da sala --, o tiro caiu de 18 m para 7 m, as imagens
+  // encolheram para 5,51 m e abriram 2,37 m entre elas. O desenho estava todo
+  // certo; o que faltava era ele saber QUE CAMPO procurar.
+  //
+  // Um aviso que descreve o problema e não o resolve obriga a pessoa a
+  // traduzir a frase num campo. Aqui o campo é um só, e a volta atrás é uma só.
+  const botao = $("btEncostarPano");
+  if (botao) {
+    const dz = num("projDz") || 0;
+    const vale = recados.length > 0 && Math.abs(dz) > 0.05;
+    botao.hidden = !vale;
+    if (vale) {
+      botao.textContent = "Encostar o pano à parede (está a " + nnum(Math.abs(dz)) +
+        " m " + (dz > 0 ? "para dentro" : "atrás") + ")";
+    }
+  }
 }
 
 function escreverCurvaPerdida() {
@@ -10752,6 +10808,16 @@ function shiftForaDaLente() {
 /**
  * REPOR O ECRÃ CURVO que a última carga deitou fora. Ver escreverCurvaPerdida().
  */
+$("btEncostarPano").onclick = () => {
+  const campo = $("projDz");
+  if (!campo) return;
+  const antes = num("projDz") || 0;
+  campo.value = "0";
+  campo.dispatchEvent(new Event("input", { bubbles: true }));
+  dizerNaCena("Pano encostado à parede (andou " + nnum(Math.abs(antes)) + " m). " +
+    "O tiro volta a ser o que os Calculadores calcularam.");
+};
+
 $("btGuardarProjecao").onclick = guardarProjecaoEComecarOutra;
 
 $("btReporCurva").onclick = () => {
