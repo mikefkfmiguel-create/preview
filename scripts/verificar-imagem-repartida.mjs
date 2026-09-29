@@ -267,6 +267,63 @@ conferir(/não é o tamanho que os Calculadores pediram/.test(conferido.mexido),
 conferir(/5,05 m/.test(conferido.mexido) && /1,40 m/.test(conferido.mexido),
   "COM OS DOIS NÚMEROS à frente — o que lá se pediu e o que aqui se desenha");
 
+// E ONDE ELE ESTÁ A OLHAR. Terceira foto do mesmo blend: *"continua a não
+// montar o blend"*, sem mencionar aviso nenhum — porque o aviso vivia dentro
+// de "Coordenadas de montagem", que é uma secção FECHADA. Um aviso dentro de
+// uma gaveta não existe para ninguém; esta app já apanhou isto uma vez, com o
+// ecrã curvo ("não desenha o curvo", e a carga estava guardada a dizer-se numa
+// gaveta que ninguém tinha aberto).
+const ondeEleOlha = await pagina.evaluate(() => {
+  const n = document.getElementById("avisoDoBlend");
+  return { visivel: !!(n && n.style.display !== "none"), texto: (n || {}).textContent || "" };
+});
+conferir(ondeEleOlha.visivel,
+  "e o aviso aparece no painel da Projeção, não só dentro das Coordenadas");
+conferir(/5,05/.test(ondeEleOlha.texto) && /não é o tamanho/.test(ondeEleOlha.texto),
+  "com o mesmo recado e os mesmos números");
+
+// E O BOTÃO QUE RESOLVE. Medido no estado real dele: pano a 25,00 m para
+// dentro de uma sala de 50 m, tiro de 18 m caído para 7 m, imagens de 5,51 m
+// com 2,37 m de preto entre elas. Tudo certo no desenho -- o que faltava era
+// ele saber que campo procurar. Um aviso que descreve e não resolve obriga a
+// pessoa a traduzir a frase num campo.
+const oBotao = await pagina.evaluate(async () => {
+  // A DISTÂNCIA DE VOLTA AOS 18 m. O pedaço de cima mexeu-a para 5 à mão, e
+  // com ela assim a primeira máquina fica pequena por OUTRA razão -- este
+  // pedaço não estaria a medir o que julga. (É a segunda vez neste ficheiro:
+  // um teste que herda o estado do anterior mede sempre outra coisa.)
+  const dist = document.getElementById("projDist");
+  dist.value = "18";
+  dist.dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1200));
+  const dz = document.getElementById("projDz");
+  dz.value = "9";
+  dz.dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1500));
+  const b = document.getElementById("btEncostarPano");
+  const antes = { visivel: !!(b && !b.hidden), texto: (b || {}).textContent || "" };
+  if (b && !b.hidden) b.click();
+  await new Promise((r) => setTimeout(r, 1600));
+  const w = window.preview, THREE = w.THREE;
+  const larguras = [];
+  w.desenhado.traverse((o) => {
+    if (o.isMesh && /projecao-imagem/.test(o.name || "")) {
+      const bb = new THREE.Box3().setFromObject(o);
+      if (!bb.isEmpty()) larguras.push(+((bb.max.x - bb.min.x)).toFixed(2));
+    }
+  });
+  return { antes, dz: document.getElementById("projDz").value, larguras,
+           aindaVisivel: !document.getElementById("btEncostarPano").hidden };
+});
+conferir(oBotao.antes.visivel && /9/.test(oBotao.antes.texto),
+  "com o pano fora da parede aparece o botão, e diz quanto ele andou (" +
+  oBotao.antes.texto.trim() + ")");
+conferir(Number(oBotao.dz) === 0, "um toque encosta-o à parede (projDz = " + oBotao.dz + ")");
+conferir(oBotao.larguras.length === 3 && oBotao.larguras.every((l) => Math.abs(l - 5.05) < 0.1),
+  "e as imagens voltam ao tamanho que os Calculadores pediram (" +
+  oBotao.larguras.join(" · ") + " m)");
+conferir(!oBotao.aindaVisivel, "e o botão desaparece, porque já não há nada para resolver");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
