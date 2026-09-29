@@ -130,6 +130,27 @@ conferir(uma.maquinasNoCampo === 3, "o primeiro blend monta as três máquinas (
 conferir(uma.anterior === null && uma.botao === false,
   "e não há nada a dizer que se perdeu — porque não se perdeu nada");
 
+console.log("\n== corrigir a MESMA tela não é trazer outra ==");
+
+// Reparo dele: *"os blends vão à vida"*. A primeira versão disto comparava o
+// rácio E a distância — exactamente as duas coisas que ele mexe. Medido:
+// corrigir a distância do mesmo blend de 30 para 26 m dava "a carga
+// substituiu a projeção que estava montada", com botão para repor uma tela
+// que ele nunca perdeu. Carregar nele deixava-lhe uma cópia fantasma do
+// mesmo blend ao lado do blend.
+//
+// O que não muda ao corrigir a lente é a largura da imagem de cada máquina:
+// distância ÷ rácio. É por aí que se conhece a tela.
+await porCarga(blend(3, 30, 14));   // mesmas 3 máquinas, mesmo pano de 30 m
+await sincronizar();
+const corrigida = await medir();
+conferir(corrigida.maquinasNoCampo === 3,
+  "a correcção entra nos campos (" + corrigida.maquinasNoCampo + " máquinas)");
+conferir(corrigida.anterior === null && corrigida.botao === false,
+  "E NÃO SE GUARDA NADA: é a mesma tela com outra distância, não outra tela");
+conferir(corrigida.recado === "",
+  "nem se diz que alguma coisa se perdeu, porque não se perdeu (\"" + corrigida.recado + "\")");
+
 console.log("\n== a segunda carga substitui, mas a primeira fica a um clique ==");
 
 // O que ele fez: calculou outra tela e mandou-a. Até aqui, a primeira
