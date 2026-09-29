@@ -159,6 +159,10 @@ let luzForaDoEcra = 0;
 // Quanto é que as imagens da fila deixaram de se tocar. Negativo = sobrepõem-se,
 // que é o que um blend é. Ver maiorFolgaEntreImagens().
 let folgaDoBlend = null;
+// O que os Calculadores pediram para cada máquina, contra o que se desenhou.
+// {pedida, desenhada} quando os dois se afastam; null quando batem certo ou
+// quando não há pedido nenhum com que comparar.
+let medidaQueNaoBate = null;
 // Máquinas cujo feixe já não encontra o pano nenhum -- só acontece com o ecrã
 // movido sem elas (ver desenharBlendCurvo()). Não se desenha o que não existe,
 // mas também não se cala: uma máquina que desaparece do 3D sem explicação é
@@ -1066,6 +1070,7 @@ function desenharCena(recentrarCamara) {
   distanciaDaFilaLimitada = null;
   luzForaDoEcra = 0;
   folgaDoBlend = null;
+  medidaQueNaoBate = null;
   maquinasForaDoPano = 0;
   feixesDoBlend = [];
   tapamOBlend = null;
@@ -1510,6 +1515,33 @@ function curvaAtivaDoBlend() {
 }
 
 /**
+ * O QUE OS CALCULADORES PEDIRAM, CONTRA O QUE ESTE LADO DESENHOU.
+ *
+ * Reparo dele, duas vezes e com foto: *"algo não está bem"*, com a calculadora
+ * a dizer uma tela de 30 x 8 m e o 3D a mostrar três imagens pequenas. As duas
+ * apps tinham os dois números e NUNCA OS COMPARAVAM -- a medida pedida viaja na
+ * ponte desde sempre (`largura` de cada máquina) e este lado só a usava para
+ * saber o formato.
+ *
+ * O desenho aqui sai do rácio e da distância que estão NOS CAMPOS, e esses
+ * podem ter sido mexidos à mão, ou ter ficado de outra montagem. Quando o que
+ * sai não é o que foi pedido, quem olha tem de saber ANTES de levar isto para
+ * a obra -- e com os dois números à frente, não só com um.
+ *
+ * Tolerância de 2%: arredondamentos e a curvatura mexem na terceira casa, e um
+ * aviso que aparece sempre deixa de ser um aviso.
+ */
+function conferirMedidaPedida(pedida, desenhada) {
+  if (!(pedida > 0) || !(desenhada > 0)) return;
+  if (Math.abs(desenhada - pedida) <= pedida * 0.02) return;
+  // Fica a PIOR das que não batem: é essa que explica o que se está a ver.
+  const erro = Math.abs(desenhada - pedida) / pedida;
+  if (!medidaQueNaoBate || erro > medidaQueNaoBate.erro) {
+    medidaQueNaoBate = { pedida: pedida, desenhada: desenhada, erro: erro };
+  }
+}
+
+/**
  * A MAIOR FOLGA ENTRE IMAGENS VIZINHAS DA FILA.
  *
  * Negativa quer dizer que se sobrepõem — que é o que um blend é. Positiva
@@ -1731,6 +1763,7 @@ function desenharUmaProjecao(sala, palco, p, prefixo, imagens) {
       y: projetorExtra.y + fila.shiftV * alturaExtra,
       z: z0Proj, largura: larguraExtra, altura: alturaExtra
     };
+    if (prefixo === "") conferirMedidaPedida(pe.larguraPedida, larguraExtra);
     const grupoPlano = fazerProjecao(projetorExtra, imagemExtra, textura, prefixo + "projetor-" + (i + 1));
     if (grupoPlano.userData.feixe) feixesDoBlend.push(grupoPlano.userData.feixe);
     desenhado.add(grupoPlano);
@@ -2057,6 +2090,7 @@ function desenharBlendCurvo(sala, curva, p, prefixo) {
       angFim: cortadoFim,
       alvo: alvo
     };
+    if (prefixo === "") conferirMedidaPedida(pe.larguraPedida, larguraNoArco);
     const grupoCurvo = fazerProjecaoCurva(projetor, fatia, textura, prefixo + "projetor-" + i);
     if (grupoCurvo.userData.feixe) feixesDoBlend.push(grupoCurvo.userData.feixe);
     desenhado.add(grupoCurvo);
@@ -2119,6 +2153,7 @@ function desenharProjecao(sala, palco, p, prefixo, imagens) {
     z: z0, largura, altura
   };
 
+  if (viva) conferirMedidaPedida(ajustes.larguraPedidaDoPrincipal, largura);
   const grupoDoPrincipal = fazerProjecao(projetor, imagem, textura, prefixo + "projetor-0");
   desenhado.add(grupoDoPrincipal);
   imagens.push({ x: imagem.x, y: imagem.y, largura, altura,
@@ -2629,6 +2664,22 @@ function notaDeLeitura(temCupula, temPlanos, emHtml) {
       "), e o que passa das bordas cai ao lado. O desenho corta no limite do " +
       "ecrã. Para caber: menos distância, lentes de rácio maior, ou outra altura de montagem.");
   }
+  // O DESENHO NÃO É DO TAMANHO QUE OS CALCULADORES PEDIRAM.
+  //
+  // É o aviso que faltava às duas fotos dele: a calculadora a dizer uma coisa e
+  // o 3D a mostrar outra, sem ninguém apontar a diferença. Os dois números
+  // ficam lado a lado, e a seguir o que os pode ter separado — porque o que se
+  // desenha sai do rácio e da distância DESTE lado, e esses podem ter sido
+  // mexidos à mão ou ter ficado de outra montagem.
+  if (medidaQueNaoBate) {
+    const m = medidaQueNaoBate;
+    linhas.push(forte("Isto não é o tamanho que os Calculadores pediram") +
+      ": lá cada máquina cobre " + nnum(m.pedida) + " m e aqui está a desenhar " +
+      nnum(m.desenhada) + " m (" + Math.round(m.erro * 100) + "% de diferença). " +
+      "O tamanho sai do rácio e da distância desta aba — confirma os dois, ou " +
+      "volta a carregar em Sincronizar para trazer os de lá outra vez.");
+  }
+
   // AS IMAGENS DA FILA DEIXARAM DE SE TOCAR.
   //
   // Reparo dele, com uma foto de três imagens pequenas e separadas: *"algo não
@@ -10608,6 +10659,10 @@ function aplicarProjetores(lista) {
       // já se tinha tomado para a distância e para o shift -- o campo manda, e
       // cada máquina guarda só o que a distingue das outras.
       alturaOffset: (p.alturaOffset || 0) - baseAltura,
+      // A MEDIDA QUE OS CALCULADORES PEDIRAM para esta máquina. Não entra em
+      // conta nenhuma: serve para a app poder COMPARAR o que desenhou com o
+      // que lhe pediram, e dizer quando os dois não batem certo.
+      larguraPedida: p.largura > 0 ? p.largura : null,
       modelo: p.modelo, lente: p.lente
     }));
   } else {
@@ -10616,6 +10671,7 @@ function aplicarProjetores(lista) {
       lateral: anchorLateral + ((p.lateral || 0) - baseLateral),
       // O OFFSET, não a altura absoluta -- ver o comentário no desenho.
       alturaOffset: (p.alturaOffset || 0) - baseAltura,
+      larguraPedida: p.largura > 0 ? p.largura : null,
       // Sem shift próprio de propósito: toda a fila usa o do campo (ver montar()).
       modelo: p.modelo, lente: p.lente
     }));
@@ -10649,6 +10705,9 @@ function aplicarProjetores(lista) {
     $("projAltura").value = (alturaDaBaseDoEcra() + lista.alturaLente).toFixed(2);
     if (Number.isFinite(lista.shiftV)) $("projShiftV").value = lista.shiftV;
   }
+  // A medida pedida para a PRIMEIRA máquina fica com a projeção viva, pela
+  // mesma razão: poder comparar o desenho com o pedido.
+  ajustes.larguraPedidaDoPrincipal = (cabeca && cabeca.largura > 0) ? cabeca.largura : null;
   const aplicou = aplicarProjetor(cabeca);   // este já chama montar() no fim
   if (aplicou && resto.length) {
     $("notaProj").innerHTML += lista.curva

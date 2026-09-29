@@ -219,6 +219,54 @@ conferir(/fila abriu-se/.test(aberta.nota),
 conferir(/tiro/.test(aberta.nota) && /pano/.test(aberta.nota),
   "com o porquê ao lado: o tiro que ficou, e o pano que o encurtou");
 
+console.log("\n== e diz quando não desenha o que lhe pediram ==");
+
+// Reparo dele, duas vezes e com foto: *"algo não está bem"*, com a calculadora
+// a dizer uma tela de 30 x 8 m e o 3D a mostrar imagens pequenas.
+//
+// As duas apps tinham os dois números e NUNCA OS COMPARAVAM: a medida pedida
+// viaja na ponte desde sempre (o `largura` de cada máquina) e este lado só a
+// usava para saber o formato. O que se desenha sai do rácio e da distância
+// DESTES campos — e esses podem ter sido mexidos à mão, ou ter ficado de outra
+// montagem.
+const conferido = await pagina.evaluate(async () => {
+  const w = window.preview;
+  // O PANO DE VOLTA À PAREDE. A secção de cima deixou-o 9 m para dentro, e aí
+  // o desenho REALMENTE não é do tamanho pedido -- o aviso apareceria com toda
+  // a razão, e este pedaço não estaria a medir o que julga. (Foi o que
+  // aconteceu à primeira.)
+  const dz = document.getElementById("projDz");
+  dz.value = "0";
+  dz.dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1200));
+  // Uma carga com a medida pedida escrita, como a que vem do Blending.
+  localStorage.setItem("mikeapps-projetor-v1", JSON.stringify({
+    v: 2, retro: false, curva: null, alturaLente: 6, shiftV: -50,
+    projetores: [-1, 0, 1].map((k) => ({
+      lateral: +(k * 3.4).toFixed(2), alturaOffset: 0,
+      largura: 5.05, altura: 2.84, racio: 3.563, distancia: 18 })),
+    quando: new Date().toISOString()
+  }));
+  document.getElementById("btSincronizar").click();
+  await new Promise((r) => setTimeout(r, 2500));
+  const certo = (document.getElementById("coordsNota") || {}).textContent || "";
+  // E agora o caso dele: os campos daqui já não são os de lá.
+  const e = document.getElementById("projDist");
+  e.value = "5";
+  e.dispatchEvent(new Event("input", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 1600));
+  return { certo, mexido: (document.getElementById("coordsNota") || {}).textContent || "",
+           pedida: w.ajustes.larguraPedidaDoPrincipal };
+});
+conferir(conferido.pedida === 5.05,
+  "a medida pedida viaja na ponte e fica guardada (" + conferido.pedida + " m)");
+conferir(!/não é o tamanho que os Calculadores pediram/.test(conferido.certo),
+  "acabado de sincronizar, o desenho bate certo e a app NÃO avisa — um aviso que aparece sempre deixa de ser um aviso");
+conferir(/não é o tamanho que os Calculadores pediram/.test(conferido.mexido),
+  "mas com a distância mexida à mão, di-lo");
+conferir(/5,05 m/.test(conferido.mexido) && /1,40 m/.test(conferido.mexido),
+  "COM OS DOIS NÚMEROS à frente — o que lá se pediu e o que aqui se desenha");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();

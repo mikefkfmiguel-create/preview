@@ -506,6 +506,11 @@ export function ajustesGuardados() {
       // a pediu: uma carga que nunca foi aplicada continua a esperar por um
       // botão. Isto é devolver o que ele próprio já tinha montado.
       projecao: (dados && typeof dados.projecao === "object" && dados.projecao) || null,
+      // A medida que os Calculadores pediram para a primeira máquina. Não
+      // entra em conta nenhuma -- serve para a app comparar o que desenha com
+      // o que lhe pediram. (Lista branca: ver o aviso no topo.)
+      larguraPedidaDoPrincipal: (dados && Number.isFinite(Number(dados.larguraPedidaDoPrincipal)))
+        ? Number(dados.larguraPedidaDoPrincipal) : null,
       // AS PROJEÇÕES GUARDADAS AO LADO DA QUE SE EDITA. Pedido dele:
       // *"preciso poder adicionar mais ecrãs de projeção e projetores neste
       // projeto"*. Cada entrada é uma projeção inteira -- tela, máquinas,
@@ -522,7 +527,7 @@ export function ajustesGuardados() {
       retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, projecoesExtra: [], curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, retroDoBlend: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, projecoesExtra: [], larguraPedidaDoPrincipal: null, curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, retroDoBlend: false };
   }
 }
 
