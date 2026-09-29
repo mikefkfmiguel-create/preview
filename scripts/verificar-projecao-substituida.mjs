@@ -189,6 +189,51 @@ conferir(alturas.guardada === alturas.viva,
   "nasce à altura da projeção que já está montada, que é o único sítio real que a app conhece (" +
   alturas.guardada + " m = " + alturas.viva + " m)");
 
+console.log("\n== e a altura herda-se COM o shift, que é o par que decide onde a imagem cai ==");
+
+// Reparo dele: *"ao carregar em guardar e adicionar outro fica assim"*.
+//
+// A v4.08 herdava só a altura da lente, e isso chega enquanto o shift for 0.
+// Medido num blend que chega com a lente a 0,00 m e +50 % de shift — a lente
+// no chão, a imagem levantada pelo shift: a tela guardada herdava o 0, ficava
+// com o shift 0 dela, e desenhava-se no chão. Um pano de 36 x 8 m deitado no
+// soalho.
+//
+// E o shift vive em FRAÇÃO nesta forma e em PERCENTAGEM no campo: a primeira
+// tentativa leu o campo em cru e pôs o mesmo pano a 399,97 m de altura, cem
+// vezes acima do tecto. Lê-se pela lerProjecao(), que é onde essa conta mora.
+const comShift = await pagina.evaluate(async () => {
+  const w = window.preview;
+  const põe = (id, v) => { const e = document.getElementById(id); e.value = String(v);
+    e.dispatchEvent(new Event("input", { bubbles: true })); };
+  põe("projAltura", 0);
+  põe("projShiftV", 50);
+  await new Promise((r) => setTimeout(r, 700));
+  w.ajustes.projecoesExtra = [{
+    ligada: true, racio: 4.5, distancia: 68, altura: null, lateral: 0,
+    shiftV: 0, shiftH: 0, formato: 1.777, panoX: 0, panoDz: 0,
+    maquinas: [], curva: null, retro: false
+  }];
+  w.guardarAjustes(w.ajustes);
+  w.montar(false);
+  await new Promise((r) => setTimeout(r, 1600));
+  const THREE = w.THREE; let y = null, alt = null;
+  w.desenhado.traverse((o) => {
+    if (/^p2:ecra-plano$/.test(o.name || "")) {
+      const b = new THREE.Box3().setFromObject(o);
+      if (!b.isEmpty()) { y = +((b.min.y + b.max.y) / 2).toFixed(2); alt = +(b.max.y - b.min.y).toFixed(2); }
+    }
+  });
+  return { y, alt, base: y !== null ? +(y - alt / 2).toFixed(2) : null };
+});
+conferir(comShift.y !== null && comShift.y > 0.5,
+  "com a lente a 0 m e +50 % de shift, a tela guardada NÃO fica deitada no chão (centro a " +
+  comShift.y + " m)");
+conferir(comShift.y < 20,
+  "nem cem vezes acima do tecto: o shift é fração, não percentagem (" + comShift.y + " m)");
+conferir(Math.abs(comShift.base) < 0.6,
+  "assenta onde a projeção viva a põe — base a " + comShift.base + " m");
+
 conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : "sem erros de JavaScript");
 
 await browser.close();
