@@ -9532,9 +9532,37 @@ function moverGrupo(dx, dy, dz) {
  * redesenhar, e a partir daí as posições lidas da cena são de uma cena que já
  * não é esta — o conjunto ia deformando-se peça a peça.
  */
+/** Esta peça é de uma projeção -- o pano ou uma das máquinas que lhe apontam? */
+function ehPecaDeProjecao(nome) {
+  return ehSuperficieDeProjecao(nome) || /^(p\d+:)?projetor-\d+$/.test(nome || "");
+}
+
 function rodarGrupo(graus) {
   const alvos = alvosSelecionados();
   if (!alvos.length || !graus) return;
+
+  // UMA PROJEÇÃO NÃO RODA -- e desenhar como se rodasse era uma mentira sobre
+  // a montagem.
+  //
+  // Reparo dele: *"só tentei rodar e ficou assim"*. Medido com um pano e as
+  // máquinas num grupo, rodado 30 graus: o PANO ficou de x = -10,37 a -2,12 e
+  // as IMAGENS de x = -2,47 a +5,78. A luz a cair AO LADO do ecrã. E o pano
+  // continuou paralelo à parede (z0 = z1): ele trasladou, mas não rodou.
+  //
+  // A causa é que uma projeção não tem rotação nenhuma para dar: o desenho
+  // assume o pano paralelo à parede de trás, e o alvo de cada máquina sai daí.
+  // Rodar o grupo mexia nas peças uma a uma e partia o par pano-máquinas.
+  //
+  // Enquanto não houver um ecrã que saiba ficar de viés, mais vale não rodar
+  // do que rodar e desenhar um projetor a iluminar o ar. Mover, agrupar e
+  // pintar continuam a funcionar.
+  if (alvos.some((a) => ehPecaDeProjecao(a.obj.name))) {
+    dizerNaCena("Uma projeção ainda não sabe ficar de viés: o pano é paralelo à parede e as " +
+                "máquinas apontam-lhe de frente. Rodar o grupo partia esse par — a luz caía ao " +
+                "lado do ecrã. O grupo ficou como estava.");
+    return;
+  }
+
   const centro = centroDoGrupo(alvos);
   const ang = (graus * Math.PI) / 180;
   const cos = Math.cos(ang), sin = Math.sin(ang);
