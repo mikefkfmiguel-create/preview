@@ -521,6 +521,10 @@ export function ajustesGuardados() {
       // desaparecia ao guardar o projeto -- e o botão de a repor ficava a
       // prometer uma coisa que já não existia.
       projecaoAnterior: (dados && typeof dados.projecaoAnterior === "object" && dados.projecaoAnterior) || null,
+      // O ângulo do pano da projeção viva. Sem estar nesta lista, um ecrã
+      // posto de viés voltava a ficar de frente ao reabrir o projeto -- e
+      // quem o tinha apontado não ia perceber porquê.
+      panoRotDaViva: Number.isFinite(dados && dados.panoRotDaViva) ? dados.panoRotDaViva : 0,
       projecaoPousadaEm: Number.isFinite(dados && dados.projecaoPousadaEm) ? dados.projecaoPousadaEm : 0,
       // E a fila que lhe pertencia: num curvo estão lá todas as máquinas, num
       // plano só as que vêm a seguir à primeira. Repor uma com a fila da
@@ -532,7 +536,7 @@ export function ajustesGuardados() {
       retroDoBlend: !!(dados && dados.retroDoBlend)
     };
   } catch (e) {
-    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, projecoesExtra: [], larguraPedidaDoPrincipal: null, curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, projecaoAnterior: null, projecaoPousadaEm: 0, retroDoBlend: false };
+    return { delays: {}, dsm: [], gomos: [], palcosExtra: [], regiesExtra: [], passarelasExtra: [], projetoresExtra: [], zonasSemLeitura: [], fatiasEscondidas: [], nomePorId: {}, noDeposito: [], grupos: [], depositoIniciado: false, depositoLigado: true, projetor: null, projecao: null, projecoesExtra: [], larguraPedidaDoPrincipal: null, curvaDoBlend: null, curvaAnterior: null, projetoresAnteriores: null, projecaoAnterior: null, projecaoPousadaEm: 0, panoRotDaViva: 0, retroDoBlend: false };
   }
 }
 

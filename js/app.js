@@ -1745,6 +1745,9 @@ function dadosDaProjecaoViva() {
     lateral: f.lateral, shiftV: f.shiftV, shiftH: f.shiftH,
     formato: formatoImagem,
     panoX: num("projPanoX") || 0, panoDz: num("projDz") || 0,
+    // O ÂNGULO DO PANO. Disposição, portanto daqui: vive no ajuste e não na
+    // carga dos Calculadores, tal como o panoX e o panoDz.
+    panoRot: Number(ajustes.panoRotDaViva) || 0,
     maquinas: ajustes.projetoresExtra || [],
     curva: curvaAtivaDoBlend(),
     curvaDx: num("curvaDx") || 0, curvaDz: num("curvaDz") || 0,
@@ -1803,7 +1806,7 @@ function casarProjecoesPorId(antigas, novas) {
       // O QUE É DAQUI FICA. A posição, a altura e o shift são de quem os pôs
       // no sítio -- e isso foi aqui, com o rato.
       saida.push({ ...nova,
-        panoX: jaCa.panoX, panoDz: jaCa.panoDz,
+        panoX: jaCa.panoX, panoDz: jaCa.panoDz, panoRot: jaCa.panoRot,
         altura: jaCa.altura, shiftV: jaCa.shiftV, shiftH: jaCa.shiftH });
     } else {
       saida.push({ ...nova, panoX: sitioParaUmEcraNovo(saida, nova) });
@@ -1874,6 +1877,7 @@ function projecaoCompleta(g, etiqueta) {
     lateral: n(g.lateral, 0), shiftH: n(g.shiftH, 0),
     formato: n(g.formato, 1.777) > 0.2 ? n(g.formato, 1.777) : 1.777,
     panoX: n(g.panoX, 0), panoDz: n(g.panoDz, 0),
+    panoRot: n(g.panoRot, 0),
     maquinas: Array.isArray(g.maquinas) ? g.maquinas : [],
     curva: (g.curva && g.curva.raio > 0 && g.curva.arco > 0) ? g.curva : null,
     curvaDx: n(g.curvaDx, 0), curvaDz: n(g.curvaDz, 0),
@@ -1904,7 +1908,69 @@ function projecaoCompleta(g, etiqueta) {
  * projeção tem de somar as suas e não as da do lado, senão dois panos
  * separados na sala nasciam com a mesma largura, a de todos juntos.
  */
+/**
+ * O PANO DE VIÉS, E TUDO O QUE LHE APONTA COM ELE.
+ *
+ * Pedido dele: *"faz o pano e o resto"*, depois de a v4.14 ter travado a
+ * rotação por ela partir a montagem (o pano ia para um lado e a luz para o
+ * outro).
+ *
+ * A tentação era mexer na geometria da projeção para ela saber nascer
+ * inclinada. Seria refazer tudo: o tiro de cada máquina, a repartição do
+ * blend, o overlap, a posição de cada imagem no pano -- contas que já estão
+ * certas e medidas, e que passariam a ter um ângulo por dentro.
+ *
+ * Em vez disso a projeção continua a ser construída como sempre foi, de
+ * frente para a parede, e é PENDURADA NUMA MOLDURA que roda em torno do
+ * centro do pano. A geometria interna não muda uma vírgula: o que muda é onde
+ * o conjunto inteiro está na sala. Um pano roda com as máquinas agarradas a
+ * ele, que é o que acontece quando se roda uma estrutura de verdade.
+ *
+ * O PIVÔ É O CENTRO DO PANO e não o centróide das peças: é o pano que se
+ * aponta numa sala, e uma tela que gira em torno de um ponto algures entre
+ * ela e as máquinas não é coisa que exista.
+ */
+function moldurarProjecao(desde, sala, p, prefixo) {
+  const graus = Number(p.panoRot) || 0;
+  const novas = desenhado.children.slice(desde);
+  if (!graus || !novas.length) return null;
+  const px = xDoPanoPlano(p), pz = zDoPanoPlano(sala, p);
+  // Duas moldura: a de fora leva o pivô e o ângulo, a de dentro devolve as
+  // peças às coordenadas em que foram construídas. Assim nenhuma peça precisa
+  // de ser mexida -- e uma peça mexida aqui era uma coordenada errada ali.
+  const fora = new THREE.Group();
+  fora.name = prefixo + "moldura";
+  fora.position.set(px, 0, pz);
+  fora.rotation.y = (graus * Math.PI) / 180;
+  const dentro = new THREE.Group();
+  dentro.position.set(-px, 0, -pz);
+  fora.add(dentro);
+  novas.forEach((o) => dentro.add(o));
+  desenhado.add(fora);
+  return { px, pz, graus };
+}
+
+/**
+ * O MESMO GIRO, APLICADO A UM PONTO DE COORDENADAS.
+ *
+ * O desenho roda porque está dentro da moldura; um número escrito na ficha de
+ * montagem não roda sozinho. Sem isto, o 3D mostrava o pano de viés e o painel
+ * de coordenadas continuava a mandar a equipa montar a máquina de frente --
+ * que é a pior espécie de erro que esta app pode ter.
+ */
+function rodarPontoDaMoldura(ponto, moldura) {
+  if (!moldura || !ponto) return ponto;
+  const ang = (moldura.graus * Math.PI) / 180;
+  const cos = Math.cos(ang), sin = Math.sin(ang);
+  const rx = ponto.x - moldura.px, rz = ponto.z - moldura.pz;
+  return { ...ponto,
+    x: Math.round((moldura.px + rx * cos + rz * sin) * 1000) / 1000,
+    z: Math.round((moldura.pz - rx * sin + rz * cos) * 1000) / 1000 };
+}
+
 function desenharUmaProjecao(sala, palco, p, prefixo, imagens) {
+  const antesDesta = desenhado.children.length;
+  const primeiraFicha = montagemProjetores.length;
   if (!p.ligada) {
     // nada de projeção na cena — nem P1, nem a fila, nem o blend curvo
   } else if (p.curva) {
@@ -1999,6 +2065,44 @@ function desenharUmaProjecao(sala, palco, p, prefixo, imagens) {
     }
   }
   }
+
+  // E TUDO O QUE ESTA PROJEÇÃO ACABOU DE PÔR NA SALA VAI PARA A MOLDURA.
+  // Depois do desenho, porque é aqui que se sabe o que foi desenhado.
+  const moldura = moldurarProjecao(antesDesta, sala, p, prefixo);
+  if (moldura) {
+    // As fichas de montagem desta projeção rodam com ela. Só as DESTA: a
+    // montagemProjetores é uma lista só para a sala inteira, e rodar as dos
+    // outros ecrãs mandava a equipa montar tudo torto.
+    for (let i = primeiraFicha; i < montagemProjetores.length; i++) {
+      montagemProjetores[i] = rodarFichaDaMoldura(montagemProjetores[i], moldura);
+    }
+  }
+}
+
+/**
+ * Uma ficha de montagem, com os pontos dela rodados pela moldura.
+ *
+ * A ficha guarda a máquina, o alvo no pano e o centro da imagem — três pontos
+ * na sala, e os três têm de andar juntos.
+ */
+function rodarFichaDaMoldura(ficha, moldura) {
+  if (!ficha || !moldura) return ficha;
+  const copia = { ...ficha };
+  ["pos", "alvo", "centroDaImagem"].forEach((chave) => {
+    const v = copia[chave];
+    if (v && typeof v === "object" && Number.isFinite(v.x) && Number.isFinite(v.z)) {
+      copia[chave] = rodarPontoDaMoldura(v, moldura);
+    }
+  });
+  if (Number.isFinite(copia.x) && Number.isFinite(copia.z)) {
+    const r = rodarPontoDaMoldura({ x: copia.x, z: copia.z }, moldura);
+    copia.x = r.x; copia.z = r.z;
+  }
+  // E O ÂNGULO EM QUE A MÁQUINA FICA. Uma ficha que diz a posição certa e a
+  // direcção antiga manda apontar para o sítio errado.
+  if (Number.isFinite(copia.rot)) copia.rot = Math.round((copia.rot + moldura.graus) * 100) / 100;
+  copia.rodadaEm = moldura.graus;
+  return copia;
 }
 
 /**
@@ -9532,6 +9636,28 @@ function moverGrupo(dx, dy, dz) {
  * redesenhar, e a partir daí as posições lidas da cena são de uma cena que já
  * não é esta — o conjunto ia deformando-se peça a peça.
  */
+/**
+ * RODA UMA PROJEÇÃO INTEIRA -- o pano e tudo o que lhe aponta.
+ *
+ * `n` é 0 para a viva (a dos campos) e 2, 3, ... para as guardadas, como em
+ * numeroDaProjecao(). O ângulo acumula-se, para duas voltas de 15 darem 30, e
+ * fica entre -180 e 180 para não crescer sem fim.
+ */
+function rodarProjecao(n, graus) {
+  const somar = (actual) => {
+    let novo = (Number(actual) || 0) + graus;
+    while (novo > 180) novo -= 360;
+    while (novo < -180) novo += 360;
+    return Math.round(novo * 100) / 100;
+  };
+  if (!n) {
+    ajustes.panoRotDaViva = somar(ajustes.panoRotDaViva);
+    return;
+  }
+  const g = (ajustes.projecoesExtra || [])[n - 2];
+  if (g) g.panoRot = somar(g.panoRot);
+}
+
 /** Esta peça é de uma projeção -- o pano ou uma das máquinas que lhe apontam? */
 function ehPecaDeProjecao(nome) {
   return ehSuperficieDeProjecao(nome) || /^(p\d+:)?projetor-\d+$/.test(nome || "");
@@ -9541,33 +9667,35 @@ function rodarGrupo(graus) {
   const alvos = alvosSelecionados();
   if (!alvos.length || !graus) return;
 
-  // UMA PROJEÇÃO NÃO RODA -- e desenhar como se rodasse era uma mentira sobre
-  // a montagem.
+  // UMA PROJEÇÃO RODA INTEIRA, e não peça a peça.
   //
-  // Reparo dele: *"só tentei rodar e ficou assim"*. Medido com um pano e as
-  // máquinas num grupo, rodado 30 graus: o PANO ficou de x = -10,37 a -2,12 e
-  // as IMAGENS de x = -2,47 a +5,78. A luz a cair AO LADO do ecrã. E o pano
-  // continuou paralelo à parede (z0 = z1): ele trasladou, mas não rodou.
+  // Reparo dele: *"só tentei rodar e ficou assim"*. Medido: o pano de
+  // x = -10,37 a -2,12 e as imagens de -2,47 a +5,78 -- a luz a cair AO LADO
+  // do ecrã. A v4.14 travou isso; a v4.15 dá-lhe o que ele pediu a seguir
+  // (*"faz o pano e o resto"*): o pano fica de viés e as máquinas vão com ele.
   //
-  // A causa é que uma projeção não tem rotação nenhuma para dar: o desenho
-  // assume o pano paralelo à parede de trás, e o alvo de cada máquina sai daí.
-  // Rodar o grupo mexia nas peças uma a uma e partia o par pano-máquinas.
-  //
-  // Enquanto não houver um ecrã que saiba ficar de viés, mais vale não rodar
-  // do que rodar e desenhar um projetor a iluminar o ar. Mover, agrupar e
-  // pintar continuam a funcionar.
-  if (alvos.some((a) => ehPecaDeProjecao(a.obj.name))) {
-    dizerNaCena("Uma projeção ainda não sabe ficar de viés: o pano é paralelo à parede e as " +
-                "máquinas apontam-lhe de frente. Rodar o grupo partia esse par — a luz caía ao " +
-                "lado do ecrã. O grupo ficou como estava.");
-    return;
+  // Uma projeção não é um saco de peças independentes: é um pano com máquinas
+  // apontadas. Rodá-la é mudar o ângulo DELA (panoRot), não empurrar cada
+  // peça à volta de um centróide. As peças que não são da projeção rodam como
+  // sempre rodaram, logo a seguir.
+  const deProjecao = alvos.filter((a) => ehPecaDeProjecao(a.obj.name));
+  if (deProjecao.length) {
+    const jaFeitas = new Set();
+    deProjecao.forEach((a) => {
+      const n = numeroDaProjecao(a.obj.name) || 0;
+      if (jaFeitas.has(n)) return;
+      jaFeitas.add(n);
+      rodarProjecao(n, graus);
+    });
+    const resto = alvos.filter((a) => !ehPecaDeProjecao(a.obj.name));
+    if (!resto.length) { guardarAjustes(ajustes); remontarDaqui(0); return; }
   }
 
-  const centro = centroDoGrupo(alvos);
+  const centro = centroDoGrupo(alvos.filter((a) => !ehPecaDeProjecao(a.obj.name)));
   const ang = (graus * Math.PI) / 180;
   const cos = Math.cos(ang), sin = Math.sin(ang);
 
-  const planos = alvos.map((a) => {
+  const planos = alvos.filter((a) => !ehPecaDeProjecao(a.obj.name)).map((a) => {
     // O PONTO DE ROTAÇÃO da peça, não o meio da caixa que a envolve. A caixa
     // de uma peça já rodada é maior do que ela e está alinhada com a sala, por
     // isso o meio dela não é o ponto em que a peça gira — e usá-lo fazia o
@@ -9883,6 +10011,51 @@ function numeroDaProjecao(nome) {
   return m ? parseInt(m[1], 10) : 0;
 }
 
+/**
+ * UM ALVO DE UMA PROJEÇÃO RODADA, VISTO DO MUNDO.
+ *
+ * O pano e as máquinas guardam-se no referencial em que a projeção é
+ * construída -- de frente para a parede. Quando ela está de viés, esse
+ * referencial deixa de ser o da sala: o desenho está dentro da moldura, mas o
+ * `panoX` continua a ser o panoX de sempre.
+ *
+ * Sem esta conversão, arrastar um pano rodado 30 graus mandava-o pelo eixo da
+ * sala enquanto ele se movia pelo eixo dele -- a peça fugia do rato. E o
+ * rodarGrupo(), que mede em mundo, escrevia deltas de mundo num número local.
+ *
+ * Aqui o alvo passa a falar mundo nas duas direções, e quem guarda continua a
+ * guardar local. O pivô é o centro do pano, que é o ponto que a rotação não
+ * mexe -- por isso pode ser lido no próprio referencial local.
+ */
+function alvoNaMoldura(alvo, pivo, graus) {
+  const ang = ((Number(graus) || 0) * Math.PI) / 180;
+  if (!ang) return alvo;
+  const cos = Math.cos(ang), sin = Math.sin(ang);
+  const paraMundo = (q) => {
+    const rx = q.x - pivo.x, rz = q.z - pivo.z;
+    return { x: pivo.x + rx * cos + rz * sin, z: pivo.z - rx * sin + rz * cos };
+  };
+  const paraLocal = (q) => {
+    const rx = q.x - pivo.x, rz = q.z - pivo.z;
+    return { x: pivo.x + rx * cos - rz * sin, z: pivo.z + rx * sin + rz * cos };
+  };
+  return { ...alvo,
+    getXZ: () => paraMundo(alvo.getXZ()),
+    setXZ: (x, z) => { const l = paraLocal({ x, z }); alvo.setXZ(l.x, l.z); } };
+}
+
+/** O pivô e o ângulo da projeção VIVA, para o alvoNaMoldura. */
+function molduraDaViva(sala) {
+  const p = dadosDaProjecaoViva();
+  return { pivo: { x: xDoPanoPlano(p), z: zDoPanoPlano(sala, p) }, graus: p.panoRot || 0 };
+}
+
+/** O mesmo, para uma projeção guardada. */
+function molduraDaGuardada(sala, g) {
+  const p = projecaoCompleta(g, "");
+  return { pivo: { x: xDoPanoPlano(p), z: zDoPanoPlano(sala, p) }, graus: p.panoRot || 0 };
+}
+
 function objetosArrastaveis() {
   if (!desenhado) return [];
   const publicoAtual = lerPublico();
@@ -9901,11 +10074,16 @@ function objetosArrastaveis() {
     } else if (o.name === "ecra-curvo") {
       alvos.push({ obj: o, rotulo: "Ecrã curvo", campos: CAMPOS_ECRA_CURVO, ...alvoDoEcraCurvo() });
     } else if (o.name === "ecra-plano") {
+      // O PANO NÃO SE CONVERTE: ele É o pivô, e uma rotação não mexe no
+      // próprio pivô. Envolvê-lo na moldura aplicava-lhe o giro duas vezes --
+      // medido: empurrá-lo 3 m para o lado andava 2,13 para o lado e 2,13
+      // para a frente, em diagonal.
       alvos.push({ obj: o, rotulo: "Pano", campos: CAMPOS_ECRA_PLANO, ...alvoDoEcraPlano() });
     } else if (/^p\d+:(ecra-plano|ecra-curvo)$/.test(o.name)) {
       // O pano (ou a tela) de uma projeção guardada. Ver desenharUmaProjecao().
       const n = numeroDaProjecao(o.name);
       const g = (ajustes.projecoesExtra || [])[n - 2];
+      // Também aqui o pano é o pivô: sem conversão. Ver o "ecra-plano" acima.
       if (g) alvos.push({ obj: o, rotulo: "Pano " + n, campos: CAMPOS_ECRA_PLANO,
                           ...alvoDoPanoGuardado(lerSala(), g) });
     } else if (/^p\d+:projetor-\d+$/.test(o.name)) {
@@ -9916,8 +10094,9 @@ function objetosArrastaveis() {
       // campos) e as seguintes vêm do array -- por isso o índice desencontra-se
       // de um. Num ecrã CURVO estão todas no array, e não desencontra.
       const m = g ? (g.curva ? (g.maquinas || [])[i] : (i === 0 ? g : (g.maquinas || [])[i - 1])) : null;
-      if (m) alvos.push({ obj: o, rotulo: "Projetor " + n + "." + (i + 1),
-                          campos: CAMPOS_SO_XZ_MUNDO, ...alvoDaMaquinaGuardada(lerSala(), m) });
+      if (m) { const mold = molduraDaGuardada(lerSala(), g);
+        alvos.push({ obj: o, rotulo: "Projetor " + n + "." + (i + 1), campos: CAMPOS_SO_XZ_MUNDO,
+                     ...alvoNaMoldura(alvoDaMaquinaGuardada(lerSala(), m), mold.pivo, mold.graus) }); }
     } else if (o.name === "palco" && o.isMesh) {
       // Só a malha: fazerPalco() devolve um grupo com o MESMO nome lá dentro,
       // e sem isto o palco entrava duas vezes na lista de agarráveis.
@@ -9935,7 +10114,9 @@ function objetosArrastaveis() {
     } else if (o.name === "regie") {
       alvos.push({ obj: o, rotulo: "Régie", campos: CAMPOS_SO_XZ_MUNDO, ...alvoDeCampos("regieX", "regieZ") });
     } else if (o.name === "projetor-0") {
-      alvos.push({ obj: o, rotulo: "Projetor", campos: CAMPOS_SO_XZ_MUNDO, ...alvoDeCamposProjetor(lerSala()) });
+      { const m = molduraDaViva(lerSala());
+        alvos.push({ obj: o, rotulo: "Projetor", campos: CAMPOS_SO_XZ_MUNDO,
+                     ...alvoNaMoldura(alvoDeCamposProjetor(lerSala()), m.pivo, m.graus) }); }
     } else if (o.name.indexOf("palco-") === 0) {
       const i = parseInt(o.name.slice(6), 10) - 1;
       if (ajustes.palcosExtra[i]) alvos.push({ obj: o, rotulo: "Palco " + (i + 1), campos: CAMPOS_POSICAO_MUNDO, ...alvoDeAjuste(ajustes.palcosExtra[i]) });
@@ -9953,7 +10134,11 @@ function objetosArrastaveis() {
       // pegar nela: quem quiser mexer mexe na distância ou na curva.
       if (curvaAtivaDoBlend()) return;
       const i = parseInt(o.name.slice(9), 10) - 1;
-      if (ajustes.projetoresExtra[i]) alvos.push({ obj: o, rotulo: "Projetor " + (i + 1), campos: CAMPOS_PROJETOR, ...alvoDeProjetorExtra(lerSala(), ajustes.projetoresExtra[i]) });
+      if (ajustes.projetoresExtra[i]) {
+        const m = molduraDaViva(lerSala());
+        alvos.push({ obj: o, rotulo: "Projetor " + (i + 1), campos: CAMPOS_PROJETOR,
+                     ...alvoNaMoldura(alvoDeProjetorExtra(lerSala(), ajustes.projetoresExtra[i]), m.pivo, m.graus) });
+      }
     }
   });
   return alvos;
@@ -11869,7 +12054,7 @@ window.preview = { THREE, cena, camara, controlos, medirSombra, aplicarProjetor,
                   get selecaoDeGrupo() { return selecaoDeGrupo; },
                   alvosSelecionados, centroDoGrupo, moverGrupo, rodarGrupo,
                   duplicarPecas, nomeLivreDeCopia, podeCopiar,
-                  criarGrupo, desfazerGrupo, pintarGrupo, travarGrupo, grupoDaPeca, corComGrupo,
+                  criarGrupo, desfazerGrupo, pintarGrupo, travarGrupo, rodarProjecao, grupoDaPeca, corComGrupo,
                   get sitioDaCaixaDeAjustes() { return sitioDaCaixaDeAjustes; }, porCaixaDeAjusteNoSitio,
                   get laco() { return laco; }, comecarLaco, desenharLaco, fecharLaco,
                   abrirPainelDeAjuste,

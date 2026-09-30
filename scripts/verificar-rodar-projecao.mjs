@@ -1,5 +1,5 @@
 /**
- * RODAR UM GRUPO COM PROJEÇÃO NÃO PARTE A MONTAGEM.
+ * UM PANO DE VIÉS, COM AS MÁQUINAS AGARRADAS A ELE.
  *
  * Reparo dele: *"só tentei rodar e ficou assim"*.
  *
@@ -12,8 +12,11 @@
  * assume o pano paralelo à parede de trás, e o alvo de cada máquina sai daí;
  * rodar o grupo mexia nas peças uma a uma e partia o par pano-máquinas.
  *
- * Enquanto não houver um ecrã que saiba ficar de viés, mais vale não rodar do
- * que rodar e desenhar um projetor a iluminar o ar.
+ * A v4.14 travou a rotação para não desenhar um projetor a iluminar o ar. A
+ * v4.15 faz o que ele pediu a seguir — *"faz o pano e o resto"*: a projeção
+ * roda INTEIRA, pendurada numa moldura que gira em torno do centro do pano. A
+ * geometria interna não muda uma vírgula; o que muda é onde o conjunto está
+ * na sala.
  *
  *   node scripts/verificar-rodar-projecao.mjs
  */
@@ -122,7 +125,15 @@ const medir = () => pagina.evaluate(() => {
     if (n === "ecra-plano") pano = cx;
     if (n === "projecao-imagem") imgs.push(cx);
   });
-  return { pano, imgs };
+  const maqs = [];
+  w.desenhado.traverse((o) => {
+    if (!/^projetor-\d+$/.test(o.name || "")) return;
+    const q = o.getWorldPosition(new THREE.Vector3());
+    maqs.push({ n: o.name, x: +q.x.toFixed(2), z: +q.z.toFixed(2) });
+  });
+  const fichas = (w.montagemProjetores || []).map((f) => ({
+    nome: f.nome, pos: { x: +f.pos.x.toFixed(2), z: +f.pos.z.toFixed(2) } }));
+  return { pano, imgs, maqs, fichas, rot: w.ajustes.panoRotDaViva || 0 };
 });
 
 console.log("\n== antes de rodar, a luz cai no ecrã ==");
@@ -133,24 +144,75 @@ conferir(!!antes.pano && antes.imgs.length === 3,
 conferir(antes.imgs.every((i) => dentro(i, antes.pano)),
   "e todas dentro do pano (" + antes.pano.x0 + " a " + antes.pano.x1 + " m)");
 
-console.log("\n== e depois de tentar rodar, continua a cair ==");
-const depois = await pagina.evaluate(async () => {
+console.log("\n== rodar o grupo põe a projeção de viés, inteira ==");
+
+// O caminho dele: marcar o pano e as máquinas, fazer grupo, rodar.
+await pagina.evaluate(async () => {
   const w = window.preview;
   w.selecaoDeGrupo.clear();
   ["ecra-plano", "projetor-0", "projetor-1"].forEach((n) => w.selecaoDeGrupo.add(n));
   w.criarGrupo();
   await new Promise((r) => setTimeout(r, 900));
   w.rodarGrupo(30);
-  await new Promise((r) => setTimeout(r, 1400));
-  return true;
+  await new Promise((r) => setTimeout(r, 1500));
 });
 const agora = await medir();
-conferir(agora.pano && agora.pano.x0 === antes.pano.x0 && agora.pano.x1 === antes.pano.x1,
-  "o pano fica onde estava (" + agora.pano.x0 + " a " + agora.pano.x1 + " m)");
+conferir(agora.pano && agora.pano.z0 !== agora.pano.z1,
+  "O PANO FICA DE VIÉS: z de " + agora.pano.z0 + " a " + agora.pano.z1 + " m (era plano)");
 conferir(agora.imgs.length === 3 && agora.imgs.every((i) => dentro(i, agora.pano)),
   "E AS IMAGENS CONTINUAM NO ECRÃ — era aqui que a luz ia parar ao lado dele");
-conferir(agora.pano.z0 === agora.pano.z1,
-  "e o pano continua paralelo à parede, que é a única coisa que ele sabe ser");
+conferir(Math.round(Number(agora.rot)) === 30,
+  "o ângulo fica guardado na projeção, não espalhado pelas peças (" + agora.rot + "°)");
+
+// A FICHA DE MONTAGEM TEM DE RODAR COM O DESENHO. Um 3D de viés com
+// coordenadas de frente manda a equipa montar a máquina no sítio errado --
+// a pior espécie de erro que esta app pode ter.
+conferir(agora.fichas.length === 3, "há ficha para cada máquina (" + agora.fichas.length + ")");
+const batem = agora.fichas.every((f) => agora.maqs.some((m) =>
+  Math.abs(m.x - f.pos.x) < 0.5 && Math.abs(m.z - f.pos.z) < 0.5));
+conferir(batem,
+  "E AS COORDENADAS BATEM COM O DESENHO — ficha " +
+  agora.fichas.map((f) => f.pos.x + "/" + f.pos.z).join(" · ") + " vs máquinas " +
+  agora.maqs.map((m) => m.x + "/" + m.z).join(" · "));
+
+// Rodar outra vez acumula, e não recomeça.
+await pagina.evaluate(async () => {
+  window.preview.rodarProjecao(0, 15);
+  window.preview.montar(false);
+  await new Promise((r) => setTimeout(r, 1300));
+});
+const maisQuinze = await medir();
+conferir(Math.round(Number(maisQuinze.rot)) === 45,
+  "e mais 15 graus dão 45, não 15 (" + maisQuinze.rot + "°)");
+conferir(maisQuinze.imgs.every((i) => dentro(i, maisQuinze.pano)),
+  "com a luz ainda no ecrã");
+
+console.log("\n== e arrastar um pano de viés segue o rato, não o eixo da sala ==");
+
+// O pano guarda-se no referencial em que a projeção é construída — de frente
+// para a parede. Com ela de viés, esse referencial já não é o da sala: sem
+// conversão, empurrar o pano 3 m para o lado movia-o pelo eixo DELE e a peça
+// fugia do rato.
+const arrasto = await pagina.evaluate(async () => {
+  const w = window.preview;
+  const pano = w.objetosArrastaveis().find((a) => a.obj.name === "ecra-plano");
+  if (!pano) return { semPano: true };
+  const antes = pano.getXZ();
+  pano.setXZ(antes.x + 3, antes.z);
+  w.guardarAjustes(w.ajustes);
+  w.montar(false);
+  await new Promise((r) => setTimeout(r, 1300));
+  const outra = w.objetosArrastaveis().find((a) => a.obj.name === "ecra-plano");
+  return { antes: { x: +antes.x.toFixed(2), z: +antes.z.toFixed(2) },
+           depois: outra ? { x: +outra.getXZ().x.toFixed(2), z: +outra.getXZ().z.toFixed(2) } : null };
+});
+conferir(!arrasto.semPano, "o pano continua agarrável com a projeção de viés");
+conferir(arrasto.depois && Math.abs(arrasto.depois.x - arrasto.antes.x - 3) < 0.05,
+  "empurrá-lo 3 m para o lado anda 3 m PARA O LADO DA SALA (" +
+  arrasto.antes.x + " → " + arrasto.depois.x + " m)");
+conferir(arrasto.depois && Math.abs(arrasto.depois.z - arrasto.antes.z) < 0.05,
+  "e não se desvia em profundidade pelo caminho (" +
+  arrasto.antes.z + " → " + arrasto.depois.z + " m)");
 
 console.log("\n== mas um grupo SEM projeção roda como sempre rodou ==");
 const semProjecao = await pagina.evaluate(async () => {
@@ -176,5 +238,5 @@ conferir(erros.length === 0, erros.length ? "erro de JavaScript: " + erros[0] : 
 
 await browser.close();
 s.close();
-console.log(falhas ? `\n${falhas} a corrigir.` : "\nUma projeção não roda — e o que não é projeção continua a rodar.");
+console.log(falhas ? `\n${falhas} a corrigir.` : "\nO pano fica de viés e as máquinas vão com ele.");
 process.exit(falhas ? 1 : 0);
