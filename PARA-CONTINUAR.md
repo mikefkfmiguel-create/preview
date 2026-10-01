@@ -13,6 +13,103 @@ Quem pegar nisto — pessoa ou agente — deve ler primeiro o `README.md` (o que
 app faz) e o `.github/copilot-instructions.md` (como se trabalha aqui, e a lista
 de coisas que já custaram tempo).
 
+---
+
+## 1 de outubro — ESTADO ACTUAL, PARA QUEM PEGAR NISTO A SEGUIR
+
+**Preview v4.15 · Calculadores v4.44**, as duas no ar. As secções mais abaixo
+nesta página pararam a 14 de setembro: o que está escrito aqui é mais recente
+do que tudo o que vem depois.
+
+### A regra de arquitectura que manda nas duas apps
+
+Dito por ele: *"a construção de ecrãs pertence à calculadora quando nela
+criados, mas a **disposição é do 3D sem que a calculadora interfira**"*.
+
+- De lá vem **construção**: rácio, distância, formato, máquinas, curva, retro,
+  nome, largura do pano.
+- Daqui é a **disposição**: `panoX`, `panoDz`, `panoRot`, altura e shift.
+- **`casarProjecoesPorId(antigas, novas)`** é a dobradiça: um ecrã que chega
+  com um `id` conhecido mantém o que é daqui e aceita de lá o que é
+  construção. Um id novo nasce ao lado dos outros
+  (`sitioParaUmEcraNovo`). Uma carga antiga, sem id nenhum, é substituída em
+  bloco como sempre foi — sem identidade não há nada a casar.
+
+A carga dos Calculadores **reescreve-se a cada tecla**. Sem o casamento por id,
+qualquer ecrã arrastado aqui voltava ao sítio na escrita seguinte. **Há DOIS
+caminhos** que aplicam uma carga (o normal, e o da carga sem máquina viva) e os
+dois têm de passar por `casarProjecoesPorId` — já me escapou um.
+
+### A projeção roda inteira, numa moldura (v4.15)
+
+A geometria da projeção assume o pano paralelo à parede de trás, e o alvo de
+cada máquina sai daí. Em vez de ensinar essas contas a terem um ângulo por
+dentro, a projeção é construída como sempre e **pendurada numa moldura**
+(`moldurarProjecao`) que roda em torno do **centro do pano**.
+
+Três coisas que isso obriga, e que custaram medições:
+
+- **As coordenadas de montagem rodam com o desenho** (`rodarFichaDaMoldura`).
+  O desenho roda porque está dentro da moldura; um número na ficha não roda
+  sozinho. Um 3D de viés com coordenadas de frente manda montar no sítio
+  errado — a pior espécie de erro que esta app pode ter. Inclui o **ângulo**
+  da máquina, não só a posição.
+- **As máquinas convertem mundo↔local** (`alvoNaMoldura`), senão arrastar uma
+  foge do rato e o `rodarGrupo` escreve deltas de mundo em números locais.
+- **O pano NÃO converte**: ele é o pivô, e uma rotação não mexe no próprio
+  pivô. Envolvê-lo aplicava-lhe o giro duas vezes — medido, andava em diagonal.
+
+O pivô é o centro do pano, e só esse. Outro ponto de rotação (o palco, um canto
+da sala) é conversa por ter.
+
+### O que mudou nesta sessão (v4.07 → v4.15)
+
+| | |
+|---|---|
+| v4.08 | a projeção substituída deixa de desaparecer: fica num sítio, com botão para repor |
+| v4.09 | dar nome a um grupo (o campo vivia no cabeçalho que arrasta o painel, e o `preventDefault()` roubava-lhe o foco); altura herda-se **com** o shift |
+| v4.10 | corrigir a mesma tela deixa de contar como tela nova (a tela mede-se pela tela: `distância ÷ rácio`, não pela lente) |
+| v4.11 | **cadeado** nos grupos; o campo de altura de cada máquina passa a mexer mesmo na máquina |
+| v4.12 | uma carga sem máquina viva quer dizer isso mesmo |
+| v4.13 | identidade e nome por projeção; a disposição passa a ser daqui |
+| v4.14 | travar a rotação de uma projeção (partia a montagem) |
+| v4.15 | **o pano de viés**, com as máquinas agarradas |
+
+### Por fazer, do lado de cá
+
+1. **O nome nas peças dentro da cena.** As projeções já trazem nome dos
+   Calculadores e ele aparece na lista lateral, mas na cena as etiquetas
+   continuam `P2`, `P3`. Pedido dele: *"temos de dar nomes às coisas"* — isto
+   é a metade que falta.
+2. **Cadeado nas peças soltas.** Hoje só os grupos travam
+   (`grupoTravado`). Há três caminhos que mexem num grupo — arrasto, setas,
+   duplo clique para entrar — e os três perguntam à mesma função. Um cadeado
+   de peça solta tem de fazer o mesmo.
+3. **Outro pivô de rotação** além do centro do pano, se ele pedir.
+
+### Como se trabalha aqui (custou tempo a aprender, nesta sessão)
+
+**Medir antes de falar.** Todas as avarias caíram à primeira quando reproduzi
+no Playwright (`scripts/verificar-*.mjs`, com `executablePath:
+"/opt/pw-browsers/chromium"`); as voltas a mais foram as vezes em que tentei
+adivinhar pela fotografia. Para render: `args: ["--use-gl=swiftshader",
+"--enable-unsafe-swiftshader"]`.
+
+**O caso por testar é o simétrico do testado.** O teste de renomear um grupo
+disparava `change` por código e nunca clicava — passava com a app avariada,
+porque o defeito estava no clique.
+
+**Estado partilhado entre secções mede outra coisa.** O teste da rotação
+começou dentro de `verificar-varias-projecoes.mjs`, onde uma secção anterior já
+tinha desligado a projeção viva. Foi para ficheiro próprio
+(`verificar-rodar-projecao.mjs`) e aí os números passaram a ser os da app.
+
+**Uma conta num sítio só.** O shift vive em fração na forma guardada e em
+percentagem no campo; ler o campo em cru pôs um pano a 399,97 m de altura.
+Lê-se pela `lerProjecao()`, que é onde a conversão mora.
+
+---
+
 ## O que está feito
 
 **A cena.** Sala, palco, zonas de LED à escala, público sentado ou de pé (de pé
