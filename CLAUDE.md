@@ -41,9 +41,9 @@ aconteceu noutro projeto.
 - Se for mesmo preciso um script, fazer em Python com `open(p, "rb")` /
   `open(p, "wb")`, tratando a codificacao a mao.
 
-## MCP — NUNCA usar servidores da conta diogo@kopkai.com
+## MCP — NUNCA usar servidores de outra conta que nao a do mike
 
-E **proibido** usar qualquer servidor/conector MCP ligado a `diogo@kopkai.com` —
+E **proibido** usar qualquer servidor/conector MCP ligado a uma conta que nao seja a do mike —
 todos os conectores claude.ai (prefixo `mcp__claude_ai_*`). Excecao unica: o
 servidor MCP `github` (conta do mike).
 
