@@ -1,5 +1,11 @@
 # Para continuar
 
+> **Transporte — 4 out 2026 (sessão Claude, segurança).** Só documentação, nenhum
+> código mudou. Tirado do `CLAUDE.md` o email de uma conta de terceiros (o repo é
+> público); a regra ficou igual: só a conta do mike, só o MCP `github`. Pendente
+> do lado do mike, fora deste repo: revogar a app password do Gmail que ficou no
+> histórico do MySignage e regenerar o token antigo do túnel Cloudflare do Cue Timer.
+
 Onde isto está, e o que falta. Escrito a 6 de setembro de 2026, com a app na
 **v1.9**. **Nota de 7 de setembro (sessão Claude Code):** a app já vai na
 v2.31 — houve trabalho substancial entre as duas datas (feito localmente,
