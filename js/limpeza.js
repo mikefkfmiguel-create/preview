@@ -54,6 +54,7 @@
     "calculadores-canvas-mode",           // preferência de desenho
     "mikeapps-sincronizacao-v1",          // sincronização automática ligada/desligada
     "mikeapps-sincronizacao-aviso-v1",    // o aviso da sincronização, já lido
+    "mikeapps-migracao-v1",               // já se trouxeram (ou dispensaram) os dados do endereço antigo
     "preview-painel",                     // painel aberto/fechado
     "preview-dobras",                     // secções dobradas
     "preview-largura-painel",             // largura do painel
